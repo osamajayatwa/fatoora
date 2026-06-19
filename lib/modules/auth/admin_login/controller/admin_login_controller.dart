@@ -24,6 +24,7 @@ class AdminLoginControllerImp extends GetxController {
 
   StatusRequest statusRequest = StatusRequest.none;
   bool isShowPassword = true;
+  bool _inputsDisposed = false;
 
   void togglePassword() {
     isShowPassword = !isShowPassword;
@@ -249,9 +250,21 @@ class AdminLoginControllerImp extends GetxController {
 
   @override
   void onClose() {
+    _disposeInputs();
+    super.onClose();
+  }
+
+  @override
+  void dispose() {
+    _disposeInputs();
+    super.dispose();
+  }
+
+  void _disposeInputs() {
+    if (_inputsDisposed) return;
     emailController.dispose();
     passwordController.dispose();
-    super.onClose();
+    _inputsDisposed = true;
   }
 }
 
