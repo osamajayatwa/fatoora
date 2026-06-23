@@ -24,8 +24,9 @@ class AppRoute {
   static const String itemDetails = adminItemDetails;
 
   static const String invoices = "/invoices";
-  static const String createInvoice = "/create-invoice";
-  static const String invoiceDetails = "/invoice-details";
+  static const String invoiceForm = "/invoices/form";
+  static const String invoiceDetails = "/invoices/details";
+  static const String createInvoice = invoiceForm;
 
   static const String quotations = "/quotations";
   static const String createQuotation = "/create-quotation";

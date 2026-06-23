@@ -10,6 +10,8 @@ Thumbs.db
 *.log
 *.tmp
 *.temp
+node_modules/
+functions/lib/
 
 # =========================
 # IDEs
@@ -49,6 +51,7 @@ build/
 # =========================
 .env
 .env.*
+!functions/.env.example
 
 # =========================
 # Firebase

@@ -6,6 +6,12 @@ import 'package:fatoora/modules/auth/user_login/binding/user_login_binding.dart'
 import 'package:fatoora/modules/auth/user_login/view/screen/user_login_screen.dart';
 import 'package:fatoora/modules/auth/user_signup/binding/user_signup_binding.dart';
 import 'package:fatoora/modules/auth/user_signup/view/screen/user_signup_screen.dart';
+import 'package:fatoora/features/invoices/bindings/invoice_details_binding.dart';
+import 'package:fatoora/features/invoices/bindings/invoice_form_binding.dart';
+import 'package:fatoora/features/invoices/bindings/invoices_list_binding.dart';
+import 'package:fatoora/features/invoices/view/screens/invoice_details_screen.dart';
+import 'package:fatoora/features/invoices/view/screens/invoice_form_screen.dart';
+import 'package:fatoora/features/invoices/view/screens/invoices_list_screen.dart';
 import 'package:fatoora/modules/admin_dashboard/binding/admin_dashboard_binding.dart';
 import 'package:fatoora/modules/admin_dashboard/view/screen/admin_home_screen.dart';
 import 'package:fatoora/modules/admin_dashboard/view/screen/admin_section_screen.dart';
@@ -55,11 +61,8 @@ List<GetPage<dynamic>> routes = [
   ),
   GetPage(
     name: AppRoute.invoices,
-    page: () => const AdminSectionScreen(
-      titleKey: 'dashboard_invoices',
-      icon: Icons.receipt_long_outlined,
-    ),
-    binding: AdminDashboardBinding(),
+    page: () => const InvoicesListScreen(),
+    binding: InvoicesListBinding(),
     middlewares: [AdminMiddleware()],
   ),
   GetPage(
@@ -114,12 +117,15 @@ List<GetPage<dynamic>> routes = [
     middlewares: [AdminMiddleware()],
   ),
   GetPage(
-    name: AppRoute.createInvoice,
-    page: () => const AdminSectionScreen(
-      titleKey: 'dashboard_new_invoice',
-      icon: Icons.note_add_outlined,
-    ),
-    binding: AdminDashboardBinding(),
+    name: AppRoute.invoiceForm,
+    page: () => const InvoiceFormScreen(),
+    binding: InvoiceFormBinding(),
+    middlewares: [AdminMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.invoiceDetails,
+    page: () => const InvoiceDetailsScreen(),
+    binding: InvoiceDetailsBinding(),
     middlewares: [AdminMiddleware()],
   ),
   GetPage(

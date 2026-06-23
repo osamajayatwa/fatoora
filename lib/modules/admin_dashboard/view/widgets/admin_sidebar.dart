@@ -109,10 +109,17 @@ class AdminSidebar extends StatelessWidget {
                         AppRoute.adminEditItem,
                         AppRoute.adminItemDetails,
                       };
+                      final invoiceRoutes = {
+                        AppRoute.invoices,
+                        AppRoute.invoiceForm,
+                        AppRoute.invoiceDetails,
+                      };
                       final selected =
                           Get.currentRoute == item.route ||
                           (item.route == AppRoute.adminItems &&
-                              itemRoutes.contains(Get.currentRoute));
+                              itemRoutes.contains(Get.currentRoute)) ||
+                          (item.route == AppRoute.invoices &&
+                              invoiceRoutes.contains(Get.currentRoute));
                       return _SidebarTile(
                         item: item,
                         selected: selected,

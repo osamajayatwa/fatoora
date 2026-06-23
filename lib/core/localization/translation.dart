@@ -3,6 +3,7 @@ import 'package:fatoora/core/localization/admin_login_translations.dart';
 import 'package:fatoora/core/localization/user_auth_translations.dart';
 import 'package:fatoora/core/localization/admin_dashboard_translations.dart';
 import 'package:fatoora/core/localization/items_translations.dart';
+import 'package:fatoora/core/localization/invoices_translations.dart';
 
 class MyTranslation extends Translations {
   @override
@@ -12,6 +13,7 @@ class MyTranslation extends Translations {
       ...userAuthArabicTranslations,
       ...adminDashboardArabicTranslations,
       ...itemsArabicTranslations,
+      ...invoicesArabicTranslations,
       "Choose Language": "اختر اللغة",
       "Continue": "متابعه",
       "LogIn": "تسجيل الدخول",
@@ -301,6 +303,7 @@ class MyTranslation extends Translations {
       ...userAuthEnglishTranslations,
       ...adminDashboardEnglishTranslations,
       ...itemsEnglishTranslations,
+      ...invoicesEnglishTranslations,
     },
   };
 }

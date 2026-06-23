@@ -26,11 +26,14 @@ class AdminDashboardShell extends StatelessWidget {
             children: [
               if (!compact) const SizedBox(width: 272, child: AdminSidebar()),
               Expanded(
-                child: Column(
-                  children: [
-                    AdminDashboardHeader(compact: compact),
-                    Expanded(child: child),
-                  ],
+                child: SafeArea(
+                  left: compact,
+                  child: Column(
+                    children: [
+                      AdminDashboardHeader(compact: compact),
+                      Expanded(child: child),
+                    ],
+                  ),
                 ),
               ),
             ],
