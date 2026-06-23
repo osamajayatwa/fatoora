@@ -1,31 +1,57 @@
+name: fatoora
+description: Electronic invoicing application for Web and Android.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.1
+  flutter: ">=3.29.0"
+
 dependencies:
   flutter:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
-
   get: ^4.6.6
   flutter_dotenv: ^5.2.1
 
+  # Firebase
   firebase_core: ^3.3.0
   firebase_auth: ^5.1.4
   cloud_firestore: ^5.2.1
   firebase_storage: ^12.1.3
+  firebase_messaging: ^15.2.10
+  google_sign_in: ^6.3.0
 
+  # Local persistence
   shared_preferences: ^2.2.3
   flutter_secure_storage: ^9.2.4
 
+  # Networking and utilities
+  dio: ^5.9.0
+  dartz: ^0.10.1
+  connectivity_plus: ^6.0.5
+  web_socket_channel: ^3.0.3
+  uuid: ^4.5.1
   intl: ^0.20.1
   jiffy: ^6.3.2
 
+  # Notifications
+  flutter_local_notifications: ^18.0.1
+
+  # Documents and files
   pdf: ^3.11.1
   printing: ^5.13.4
   path_provider: ^2.1.4
   open_filex: ^4.5.0
 
+  # Media
   image_picker: ^1.1.2
   cached_network_image: ^3.3.1
 
+  # UI
+  flutter_animate: ^4.5.2
+  glassmorphism_ui: ^0.3.0
   lottie: ^3.1.2
   flutter_svg: ^2.0.10+1
   iconsax_flutter: ^1.0.0
@@ -33,5 +59,35 @@ dependencies:
   responsive_builder: ^0.7.0
   shimmer: ^3.0.0
 
-  connectivity_plus: ^6.0.5
-  uuid: ^4.5.1
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - .env
+    - assets/images/
+    - assets/lottie/
+
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto/Roboto-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Roboto/Roboto-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Roboto/Roboto-Bold.ttf
+          weight: 700
+    - family: Cairo
+      fonts:
+        - asset: assets/fonts/Cairo/Cairo-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Cairo/Cairo-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Cairo/Cairo-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Cairo/Cairo-Bold.ttf
+          weight: 700

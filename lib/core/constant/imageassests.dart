@@ -3,11 +3,11 @@ class ImageAssest {
   static const String rootLottie = "assets/lottie";
   static const String logo = "$rootImages/fujika_logo1.png";
   static const String loginlogo = "$rootImages/fujika_logo.jpg";
+  static const String googleLogo = "$rootImages/google_logo.png";
   static const String busicon = "$rootImages/busicon.png";
 
   static const String morningride = "$rootImages/location-mark.png";
   static const String eviningride = "$rootImages/search-location.png";
-
   static const String ecommerce = "$rootLottie/ecommerce.json";
   static const String loading = "$rootLottie/laoding.json";
   static const String offline = "$rootLottie/offline.json";

@@ -1,11 +1,17 @@
 import 'package:get/get.dart';
 import 'package:fatoora/core/localization/admin_login_translations.dart';
+import 'package:fatoora/core/localization/user_auth_translations.dart';
+import 'package:fatoora/core/localization/admin_dashboard_translations.dart';
+import 'package:fatoora/core/localization/items_translations.dart';
 
 class MyTranslation extends Translations {
   @override
   Map<String, Map<String, String>> get keys => {
     "ar": {
       ...adminLoginArabicTranslations,
+      ...userAuthArabicTranslations,
+      ...adminDashboardArabicTranslations,
+      ...itemsArabicTranslations,
       "Choose Language": "اختر اللغة",
       "Continue": "متابعه",
       "LogIn": "تسجيل الدخول",
@@ -290,6 +296,11 @@ class MyTranslation extends Translations {
       "Speed": "السرعة",
       "": "",
     },
-    "en": {...adminLoginEnglishTranslations},
+    "en": {
+      ...adminLoginEnglishTranslations,
+      ...userAuthEnglishTranslations,
+      ...adminDashboardEnglishTranslations,
+      ...itemsEnglishTranslations,
+    },
   };
 }

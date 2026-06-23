@@ -42,7 +42,7 @@ class SplashScreen extends StatelessWidget {
 
                 // 🔹 "Continue as" text
                 Text(
-                  "Continue as".tr,
+                  "continue_as".tr,
                   style: TextStyle(
                     fontSize: scale * 0.028,
                     color: Colors.white,
@@ -60,10 +60,20 @@ class SplashScreen extends StatelessWidget {
                       _buildRoleButton(
                         context,
                         icon: Icons.admin_panel_settings,
-                        title: "Admin".tr,
-                        subtitle: "Manage Sales system".tr,
+                        title: "admin_portal".tr,
+                        subtitle: "admin_portal_subtitle".tr,
                         route: AppRoute.adminLogin,
                         color: Colors.deepOrange,
+                        scale: scale,
+                      ),
+                      SizedBox(height: height * 0.02),
+                      _buildRoleButton(
+                        context,
+                        icon: Icons.person_outline,
+                        title: "user_portal".tr,
+                        subtitle: "user_portal_subtitle".tr,
+                        route: AppRoute.userLogin,
+                        color: AppColor.success,
                         scale: scale,
                       ),
                     ],
@@ -100,7 +110,7 @@ class SplashScreen extends StatelessWidget {
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: scale * 0.025,
-            color: Colors.white.withOpacity(0.9),
+            color: Colors.white.withValues(alpha: 0.9),
           ),
         ),
       ],
@@ -124,16 +134,16 @@ class SplashScreen extends StatelessWidget {
         child: Container(
           padding: EdgeInsets.all(scale * 0.022),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
+            color: Colors.white.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: Colors.white.withOpacity(0.2)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
           ),
           child: Row(
             children: [
               Container(
                 padding: EdgeInsets.all(scale * 0.013),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.2),
+                  color: color.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, size: scale * 0.035, color: color),
@@ -155,7 +165,7 @@ class SplashScreen extends StatelessWidget {
                     Text(
                       subtitle,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                         fontSize: scale * 0.022,
                       ),
                     ),
@@ -165,7 +175,7 @@ class SplashScreen extends StatelessWidget {
               Icon(
                 Icons.arrow_forward_ios_rounded,
                 size: scale * 0.025,
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
               ),
             ],
           ),

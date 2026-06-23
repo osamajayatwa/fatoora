@@ -22,7 +22,7 @@ Future<bool> alertExitApp() {
             },
             child: Text(
               "No".tr,
-              style: TextStyle(color: AppColor.primaryColor),
+              style: TextStyle(color: AppColor.background, fontWeight: FontWeight.bold),
             )),
         ElevatedButton(
             style: ButtonStyle(

@@ -11,18 +11,25 @@ import 'package:fatoora/routes.dart';
 
 
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:fatoora/firebase_options.dart';
+
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
- await initialServices();
+  await dotenv.load(fileName: '.env');
 
-  await dotenv.load(fileName: ".env");
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  await initialServices();
 
   final localeController = Get.put(LocaleController());
-  await localeController.init(); 
+  await localeController.init();
 
   runApp(const MyApp());
 }
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 

@@ -3,14 +3,25 @@ class AppRoute {
   static const String language = "/language";
 
   static const String adminLogin = "/admin-login";
+  static const String userLogin = "/user-login";
+  static const String userSignUp = "/user-sign-up";
   static const String login = adminLogin;
   static const String home = "/home";
+  static const String adminHome = "/admin-home";
 
   static const String customers = "/customers";
+  static const String createCustomer = "/create-customer";
   static const String customerDetails = "/customer-details";
 
-  static const String items = "/items";
-  static const String itemDetails = "/item-details";
+  static const String adminItems = "/admin/items";
+  static const String adminAddItem = "/admin/items/add";
+  static const String adminEditItem = "/admin/items/edit";
+  static const String adminItemDetails = "/admin/items/details";
+
+  // Backward-compatible aliases used by the existing dashboard navigation.
+  static const String items = adminItems;
+  static const String createItem = adminAddItem;
+  static const String itemDetails = adminItemDetails;
 
   static const String invoices = "/invoices";
   static const String createInvoice = "/create-invoice";

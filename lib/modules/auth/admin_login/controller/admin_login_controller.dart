@@ -26,13 +26,15 @@ class AdminLoginControllerImp extends GetxController {
   bool isShowPassword = true;
   bool _inputsDisposed = false;
 
+  bool get isLoading => statusRequest == StatusRequest.loading;
+
   void togglePassword() {
     isShowPassword = !isShowPassword;
     update();
   }
 
   Future<void> login() async {
-    if (statusRequest == StatusRequest.loading) return;
+    if (isLoading) return;
 
     final isValid = formKey.currentState?.validate() ?? false;
     if (!isValid) {
@@ -40,57 +42,53 @@ class AdminLoginControllerImp extends GetxController {
       return;
     }
 
+    await _authenticate(
+      () => _repository.signIn(
+        email: emailController.text.trim(),
+        password: passwordController.text,
+      ),
+    );
+  }
+
+  Future<void> loginWithGoogle() async {
+    if (isLoading) return;
+    await _authenticate(_repository.signInWithGoogle, isGoogleFlow: true);
+  }
+
+  Future<void> _authenticate(
+    Future<UserCredential?> Function() request, {
+    bool isGoogleFlow = false,
+  }) async {
     _setStatus(StatusRequest.loading);
     var firebaseSessionCreated = false;
 
     try {
-      final credential = await _repository.signIn(
-        email: emailController.text.trim(),
-        password: passwordController.text,
-      );
-
-      final firebaseUser = credential.user;
-      if (firebaseUser == null) {
-        throw FirebaseAuthException(
-          code: 'user-not-found',
-          message: 'Firebase did not return a user after sign in.',
-        );
+      final credential = await request();
+      if (credential == null) {
+        _setStatus(StatusRequest.none);
+        return;
       }
       firebaseSessionCreated = true;
 
-      final appUser = await _repository.getUser(firebaseUser.uid);
-      if (appUser == null) {
-        await _rejectLogin(
-          status: StatusRequest.unauthorized,
-          messageKey: 'login_profile_not_found',
-        );
+      if (isClosed) {
+        await _repository.signOut();
         return;
       }
 
-      if (appUser.role != 'admin') {
-        await _rejectLogin(
-          status: StatusRequest.unauthorized,
-          messageKey: 'login_admin_only',
-        );
-        return;
-      }
+      final isAuthorized = await _authorizeAdmin(credential);
+      if (!isAuthorized || isClosed) return;
 
-      if (!appUser.active) {
-        await _rejectLogin(
-          status: StatusRequest.unauthorized,
-          messageKey: 'login_account_inactive',
-        );
-        return;
-      }
-
-      await _saveSession(appUser);
       _setStatus(StatusRequest.success);
-
-      Get.offAllNamed(AppRoute.home);
+      Get.offAllNamed(AppRoute.adminHome);
       _showSuccess('login_success_message');
     } on FirebaseAuthException catch (error) {
       await _signOutIfNeeded(firebaseSessionCreated);
-      final failure = _mapAuthError(error.code);
+      if (_isCancellation(error.code)) {
+        _setStatus(StatusRequest.none);
+        return;
+      }
+
+      final failure = _mapAuthError(error.code, isGoogleFlow: isGoogleFlow);
       _setStatus(failure.status);
       _showError(failure.messageKey);
     } on FirebaseException catch (error) {
@@ -105,27 +103,73 @@ class AdminLoginControllerImp extends GetxController {
     } catch (_) {
       await _signOutIfNeeded(firebaseSessionCreated);
       _setStatus(StatusRequest.failure);
-      _showError('login_unknown_error');
+      _showError(
+        isGoogleFlow ? 'google_sign_in_failed' : 'login_unknown_error',
+      );
     }
+  }
+
+  Future<bool> _authorizeAdmin(UserCredential credential) async {
+    final firebaseUser = credential.user;
+    if (firebaseUser == null) {
+      throw FirebaseAuthException(
+        code: 'user-not-found',
+        message: 'Firebase did not return a user after sign in.',
+      );
+    }
+
+    final appUser = await _repository.getUser(firebaseUser.uid);
+    if (appUser == null) {
+      await _rejectLogin(
+        status: StatusRequest.unauthorized,
+        messageKey: 'login_profile_not_found',
+      );
+      return false;
+    }
+
+    if (appUser.role != 'admin') {
+      await _rejectLogin(
+        status: StatusRequest.unauthorized,
+        messageKey: 'login_admin_only',
+      );
+      return false;
+    }
+
+    if (!appUser.active) {
+      await _rejectLogin(
+        status: StatusRequest.unauthorized,
+        messageKey: 'login_account_inactive',
+      );
+      return false;
+    }
+
+    await _saveSession(appUser);
+    return true;
   }
 
   Future<void> _saveSession(AppUserModel user) async {
     final preferences = _myServices.sharedPreferences;
-    await Future.wait([
-      preferences.setString('step', '3'),
-      preferences.setString('uid', user.uid),
-      preferences.setString('role', 'admin'),
-      preferences.setString('name', user.name),
-      preferences.setString('email', user.email),
-    ]);
+    await preferences.setString('uid', user.uid);
+    await preferences.setString('role', 'admin');
+    await preferences.setString('name', user.name);
+    await preferences.setString('email', user.email);
+
+    // Save the authenticated step last so a partial profile is never resumed.
+    await preferences.setString('step', '3');
   }
 
   Future<void> _rejectLogin({
     required StatusRequest status,
     required String messageKey,
   }) async {
-    await _repository.signOut();
-    await _clearSession();
+    try {
+      await _repository.signOut();
+    } catch (_) {
+      // Local session data must still be cleared and the denial shown.
+    } finally {
+      await _clearSession();
+    }
+
     _setStatus(status);
     _showError(messageKey);
   }
@@ -134,24 +178,29 @@ class AdminLoginControllerImp extends GetxController {
     if (!firebaseSessionCreated) return;
     try {
       await _repository.signOut();
-      await _clearSession();
     } catch (_) {
-      // Preserve the original login error shown to the user.
+      // Preserve the original authentication error shown to the user.
+    } finally {
+      await _clearSession();
     }
   }
 
   Future<void> _clearSession() async {
     final preferences = _myServices.sharedPreferences;
-    await Future.wait([
-      preferences.remove('step'),
-      preferences.remove('uid'),
-      preferences.remove('role'),
-      preferences.remove('name'),
-      preferences.remove('email'),
-    ]);
+    await preferences.remove('step');
+    await preferences.remove('uid');
+    await preferences.remove('role');
+    await preferences.remove('name');
+    await preferences.remove('email');
   }
 
-  _LoginFailure _mapAuthError(String code) {
+  bool _isCancellation(String code) {
+    return code == 'popup-closed-by-user' ||
+        code == 'cancelled-popup-request' ||
+        code == 'sign_in_canceled';
+  }
+
+  _LoginFailure _mapAuthError(String code, {required bool isGoogleFlow}) {
     switch (code) {
       case 'invalid-email':
         return const _LoginFailure(
@@ -171,6 +220,7 @@ class AdminLoginControllerImp extends GetxController {
           'login_invalid_credentials',
         );
       case 'network-request-failed':
+      case 'network_error':
         return const _LoginFailure(
           StatusRequest.offlinefailure,
           'login_network_error',
@@ -180,6 +230,16 @@ class AdminLoginControllerImp extends GetxController {
           StatusRequest.failure,
           'login_too_many_requests',
         );
+      case 'popup-blocked':
+        return const _LoginFailure(
+          StatusRequest.failure,
+          'google_popup_blocked',
+        );
+      case 'account-exists-with-different-credential':
+        return const _LoginFailure(
+          StatusRequest.failure,
+          'google_account_exists',
+        );
       case 'operation-not-allowed':
       case 'internal-error':
         return const _LoginFailure(
@@ -187,9 +247,9 @@ class AdminLoginControllerImp extends GetxController {
           'login_server_error',
         );
       default:
-        return const _LoginFailure(
+        return _LoginFailure(
           StatusRequest.failure,
-          'login_unknown_error',
+          isGoogleFlow ? 'google_sign_in_failed' : 'login_unknown_error',
         );
     }
   }
@@ -224,11 +284,13 @@ class AdminLoginControllerImp extends GetxController {
   }
 
   void _setStatus(StatusRequest status) {
+    if (isClosed) return;
     statusRequest = status;
     update();
   }
 
   void _showError(String messageKey) {
+    if (isClosed) return;
     Get.snackbar(
       'login_error_title'.tr,
       messageKey.tr,

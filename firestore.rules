@@ -1,0 +1,159 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isActiveAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true;
+    }
+
+    function hasValidItemFields(itemId, data) {
+      return data.keys().hasOnly([
+          'id',
+          'code',
+          'name',
+          'description',
+          'unit',
+          'price',
+          'taxRate',
+          'active',
+          'deleted',
+          'createdAt',
+          'updatedAt',
+          'createdBy'
+        ])
+        && data.keys().hasAll([
+          'id',
+          'code',
+          'name',
+          'description',
+          'unit',
+          'price',
+          'taxRate',
+          'active',
+          'deleted',
+          'createdAt',
+          'updatedAt',
+          'createdBy'
+        ])
+        && data.id == itemId
+        && data.id is string
+        && data.code is string
+        && data.code.size() >= 1
+        && data.code.size() <= 100
+        && data.name is string
+        && data.name.size() >= 1
+        && data.name.size() <= 200
+        && data.description is string
+        && data.description.size() >= 1
+        && data.description.size() <= 2000
+        && data.unit is string
+        && data.unit.size() >= 1
+        && data.unit.size() <= 50
+        && data.price is number
+        && data.price >= 0
+        && data.taxRate is number
+        && data.taxRate >= 0
+        && data.taxRate <= 100
+        && data.active is bool
+        && data.deleted is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && data.createdBy is string;
+    }
+
+    match /users/{userId} {
+      // Login controllers may only read the authenticated user's own profile.
+      allow get: if isOwner(userId);
+
+      // Self-registration creates a restricted, active viewer profile.
+      allow create: if isOwner(userId)
+        && request.auth.token.email != null
+        && request.resource.data.keys().hasOnly([
+          'name',
+          'email',
+          'age',
+          'phone',
+          'phoneVerified',
+          'role',
+          'active',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2
+        && request.resource.data.name.size() <= 100
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.age is int
+        && request.resource.data.age >= 1
+        && request.resource.data.age <= 120
+        && request.resource.data.phone is string
+        && request.resource.data.phone.size() >= 7
+        && request.resource.data.phone.size() <= 16
+        && request.resource.data.phoneVerified == false
+        && request.resource.data.role == 'viewer'
+        && request.resource.data.active == true
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      allow list, update, delete: if false;
+    }
+
+    match /items/{itemId} {
+      // Items are managed only by authenticated, active administrators.
+      allow get, list: if isActiveAdmin();
+
+      allow create: if isActiveAdmin()
+        && hasValidItemFields(itemId, request.resource.data)
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.deleted == false
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      allow update: if isActiveAdmin()
+        && resource.data.deleted == false
+        && hasValidItemFields(itemId, request.resource.data)
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'code',
+          'name',
+          'description',
+          'unit',
+          'price',
+          'taxRate',
+          'active',
+          'deleted',
+          'updatedAt'
+        ])
+        && (
+          request.resource.data.deleted == false
+          || request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'deleted',
+            'updatedAt'
+          ])
+        );
+
+      // Permanent deletion is forbidden. The app sets deleted = true instead.
+      allow delete: if false;
+    }
+
+    // New application collections remain closed until their modules and
+    // role-specific rules are implemented.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

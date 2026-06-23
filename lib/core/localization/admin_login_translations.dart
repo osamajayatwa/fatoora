@@ -9,6 +9,8 @@ const Map<String, String> adminLoginEnglishTranslations = {
   'show_password': 'Show password',
   'hide_password': 'Hide password',
   'login': 'Sign in',
+  'or_continue_with': 'Or continue with',
+  'continue_with_google': 'Continue with Google',
   'validation_email_required': 'Email is required',
   'validation_email_invalid': 'Enter a valid email address',
   'validation_password_required': 'Password is required',
@@ -30,6 +32,10 @@ const Map<String, String> adminLoginEnglishTranslations = {
   'login_timeout': 'The request timed out. Please try again',
   'login_server_error': 'The server is unavailable. Please try again later',
   'login_unknown_error': 'An unexpected error occurred. Please try again',
+  'google_sign_in_failed': 'Google sign-in failed. Please try again',
+  'google_popup_blocked': 'Allow pop-ups in your browser and try again',
+  'google_account_exists':
+      'An account already exists with this email using another sign-in method',
   'home_title': 'Home',
   'home_welcome_admin': 'Welcome, @name',
 };
@@ -45,6 +51,8 @@ const Map<String, String> adminLoginArabicTranslations = {
   'show_password': 'إظهار كلمة المرور',
   'hide_password': 'إخفاء كلمة المرور',
   'login': 'تسجيل الدخول',
+  'or_continue_with': 'أو المتابعة باستخدام',
+  'continue_with_google': 'المتابعة باستخدام Google',
   'validation_email_required': 'البريد الإلكتروني مطلوب',
   'validation_email_invalid': 'أدخل بريداً إلكترونياً صحيحاً',
   'validation_password_required': 'كلمة المرور مطلوبة',
@@ -65,6 +73,10 @@ const Map<String, String> adminLoginArabicTranslations = {
   'login_timeout': 'انتهت مهلة الطلب. حاول مرة أخرى',
   'login_server_error': 'الخادم غير متاح. حاول مرة أخرى لاحقاً',
   'login_unknown_error': 'حدث خطأ غير متوقع. حاول مرة أخرى',
+  'google_sign_in_failed': 'تعذّر تسجيل الدخول باستخدام Google. حاول مرة أخرى',
+  'google_popup_blocked': 'اسمح بالنوافذ المنبثقة في المتصفح ثم حاول مرة أخرى',
+  'google_account_exists':
+      'يوجد حساب بهذا البريد الإلكتروني يستخدم طريقة تسجيل دخول أخرى',
   'home_title': 'الرئيسية',
   'home_welcome_admin': 'مرحباً، @name',
 };
