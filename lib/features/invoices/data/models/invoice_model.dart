@@ -11,11 +11,18 @@ class InvoiceModel {
     required this.invoiceNumber,
     required this.invoiceType,
     required this.invoiceStatus,
+    required this.paymentType,
+    required this.paymentStatus,
+    required this.hasReceivedPayment,
     required this.invoiceDate,
+    required this.dueDate,
     required this.createdAt,
     required this.updatedAt,
     required this.createdByUid,
     required this.createdByName,
+    required this.createdByRole,
+    required this.salesRepId,
+    required this.salesRepName,
     required this.customerId,
     this.customerSnapshot,
     required this.items,
@@ -23,9 +30,17 @@ class InvoiceModel {
     required this.totalDiscount,
     required this.totalTax,
     required this.grandTotal,
+    required this.paidAmount,
+    required this.remainingAmount,
     required this.notes,
     required this.paymentMethod,
     required this.isLocked,
+    required this.financialPosted,
+    this.financialPostedAt,
+    required this.financialPostedByUid,
+    required this.financialPostedByName,
+    required this.customerTransactionIds,
+    required this.cashMovementIds,
     required this.searchKeywords,
     required this.customerNameLower,
     required this.itemNamesLower,
@@ -39,11 +54,18 @@ class InvoiceModel {
   final String invoiceNumber;
   final InvoiceType invoiceType;
   final InvoiceStatus invoiceStatus;
+  final PaymentType paymentType;
+  final PaymentStatus paymentStatus;
+  final bool hasReceivedPayment;
   final DateTime invoiceDate;
+  final DateTime dueDate;
   final DateTime createdAt;
   final DateTime updatedAt;
   final String createdByUid;
   final String createdByName;
+  final String createdByRole;
+  final String salesRepId;
+  final String salesRepName;
   final String customerId;
   final InvoiceCustomerSnapshot? customerSnapshot;
   final List<InvoiceItemSnapshot> items;
@@ -51,9 +73,17 @@ class InvoiceModel {
   final double totalDiscount;
   final double totalTax;
   final double grandTotal;
+  final double paidAmount;
+  final double remainingAmount;
   final String notes;
   final String paymentMethod;
   final bool isLocked;
+  final bool financialPosted;
+  final DateTime? financialPostedAt;
+  final String financialPostedByUid;
+  final String financialPostedByName;
+  final List<String> customerTransactionIds;
+  final List<String> cashMovementIds;
   final List<String> searchKeywords;
   final String customerNameLower;
   final List<String> itemNamesLower;
@@ -63,13 +93,14 @@ class InvoiceModel {
 
   bool get isElectronic => invoiceType == InvoiceType.electronic;
   bool get isDraft => invoiceStatus == InvoiceStatus.draft;
+  bool get isFinancial =>
+      invoiceStatus == InvoiceStatus.confirmed ||
+      invoiceStatus == InvoiceStatus.accepted;
   bool get canDelete => invoiceStatus == InvoiceStatus.draft;
   bool get canEdit =>
       !isLocked &&
-      !(invoiceType == InvoiceType.electronic &&
-          invoiceStatus == InvoiceStatus.accepted) &&
-      invoiceStatus != InvoiceStatus.pendingSubmit &&
-      invoiceStatus != InvoiceStatus.cancelled;
+      (invoiceStatus == InvoiceStatus.draft ||
+          invoiceStatus == InvoiceStatus.rejected);
 
   factory InvoiceModel.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> document,
@@ -81,17 +112,42 @@ class InvoiceModel {
     final items = _readList(
       data['items'],
     ).map(InvoiceItemSnapshot.fromMap).toList(growable: false);
+    final invoiceDate = _readDate(data, 'invoiceDate') ?? DateTime.now();
+    final paymentType = paymentTypeFromValue(
+      data['paymentType'] ?? data['paymentMethod'],
+    );
+    final grandTotal = _readDouble(data, 'grandTotal');
+    final paidAmount = _readDouble(data, 'paidAmount');
+    final remainingAmount = _readDouble(data, 'remainingAmount');
     return InvoiceModel(
       id: id ?? _readString(data, 'id'),
       companyId: _readString(data, 'companyId'),
       invoiceNumber: _readString(data, 'invoiceNumber'),
       invoiceType: invoiceTypeFromValue(data['invoiceType']),
       invoiceStatus: invoiceStatusFromValue(data['invoiceStatus']),
-      invoiceDate: _readDate(data, 'invoiceDate') ?? DateTime.now(),
+      paymentType: paymentType,
+      paymentStatus: paymentStatusFromValue(
+        data['paymentStatus'] ??
+            _paymentStatusValue(paymentType, grandTotal, paidAmount),
+      ),
+      hasReceivedPayment: _readBool(
+        data,
+        'hasReceivedPayment',
+        fallback: paidAmount > 0,
+      ),
+      invoiceDate: invoiceDate,
+      dueDate: _readDate(data, 'dueDate') ?? invoiceDate,
       createdAt: _readDate(data, 'createdAt') ?? DateTime.now(),
       updatedAt: _readDate(data, 'updatedAt') ?? DateTime.now(),
       createdByUid: _readString(data, 'createdByUid'),
       createdByName: _readString(data, 'createdByName'),
+      createdByRole: _readString(data, 'createdByRole'),
+      salesRepId: _readString(data, 'salesRepId').isEmpty
+          ? _readString(data, 'createdByUid')
+          : _readString(data, 'salesRepId'),
+      salesRepName: _readString(data, 'salesRepName').isEmpty
+          ? _readString(data, 'createdByName')
+          : _readString(data, 'salesRepName'),
       customerId: _readString(data, 'customerId'),
       customerSnapshot: data['customerSnapshot'] == null
           ? null
@@ -100,10 +156,20 @@ class InvoiceModel {
       subtotal: _readDouble(data, 'subtotal'),
       totalDiscount: _readDouble(data, 'totalDiscount'),
       totalTax: _readDouble(data, 'totalTax'),
-      grandTotal: _readDouble(data, 'grandTotal'),
+      grandTotal: grandTotal,
+      paidAmount: paidAmount,
+      remainingAmount: remainingAmount,
       notes: _readString(data, 'notes'),
-      paymentMethod: _readString(data, 'paymentMethod'),
+      paymentMethod: _readString(data, 'paymentMethod').isEmpty
+          ? paymentType.value
+          : _readString(data, 'paymentMethod'),
       isLocked: _readBool(data, 'isLocked'),
+      financialPosted: _readBool(data, 'financialPosted'),
+      financialPostedAt: _readDate(data, 'financialPostedAt'),
+      financialPostedByUid: _readString(data, 'financialPostedByUid'),
+      financialPostedByName: _readString(data, 'financialPostedByName'),
+      customerTransactionIds: _readStringList(data['customerTransactionIds']),
+      cashMovementIds: _readStringList(data['cashMovementIds']),
       searchKeywords: _readStringList(data['searchKeywords']),
       customerNameLower: _readString(data, 'customerNameLower'),
       itemNamesLower: _readStringList(data['itemNamesLower']),
@@ -121,11 +187,18 @@ class InvoiceModel {
     'invoiceNumber': invoiceNumber,
     'invoiceType': invoiceType.value,
     'invoiceStatus': invoiceStatus.value,
+    'paymentType': paymentType.value,
+    'paymentStatus': paymentStatus.value,
+    'hasReceivedPayment': hasReceivedPayment,
     'invoiceDate': Timestamp.fromDate(invoiceDate),
+    'dueDate': Timestamp.fromDate(dueDate),
     'createdAt': Timestamp.fromDate(createdAt),
     'updatedAt': Timestamp.fromDate(updatedAt),
     'createdByUid': createdByUid,
     'createdByName': createdByName,
+    'createdByRole': createdByRole,
+    'salesRepId': salesRepId,
+    'salesRepName': salesRepName,
     'customerId': customerId,
     'customerSnapshot': customerSnapshot?.toMap(),
     'items': items.map((item) => item.toMap()).toList(),
@@ -133,9 +206,19 @@ class InvoiceModel {
     'totalDiscount': totalDiscount,
     'totalTax': totalTax,
     'grandTotal': grandTotal,
+    'paidAmount': paidAmount,
+    'remainingAmount': remainingAmount,
     'notes': notes,
     'paymentMethod': paymentMethod,
     'isLocked': isLocked,
+    'financialPosted': financialPosted,
+    'financialPostedAt': financialPostedAt == null
+        ? null
+        : Timestamp.fromDate(financialPostedAt!),
+    'financialPostedByUid': financialPostedByUid,
+    'financialPostedByName': financialPostedByName,
+    'customerTransactionIds': customerTransactionIds,
+    'cashMovementIds': cashMovementIds,
     'searchKeywords': searchKeywords,
     'customerNameLower': customerNameLower,
     'itemNamesLower': itemNamesLower,
@@ -150,11 +233,18 @@ class InvoiceModel {
     String? invoiceNumber,
     InvoiceType? invoiceType,
     InvoiceStatus? invoiceStatus,
+    PaymentType? paymentType,
+    PaymentStatus? paymentStatus,
+    bool? hasReceivedPayment,
     DateTime? invoiceDate,
+    DateTime? dueDate,
     DateTime? createdAt,
     DateTime? updatedAt,
     String? createdByUid,
     String? createdByName,
+    String? createdByRole,
+    String? salesRepId,
+    String? salesRepName,
     String? customerId,
     InvoiceCustomerSnapshot? customerSnapshot,
     List<InvoiceItemSnapshot>? items,
@@ -162,9 +252,18 @@ class InvoiceModel {
     double? totalDiscount,
     double? totalTax,
     double? grandTotal,
+    double? paidAmount,
+    double? remainingAmount,
     String? notes,
     String? paymentMethod,
     bool? isLocked,
+    bool? financialPosted,
+    DateTime? financialPostedAt,
+    bool clearFinancialPostedAt = false,
+    String? financialPostedByUid,
+    String? financialPostedByName,
+    List<String>? customerTransactionIds,
+    List<String>? cashMovementIds,
     List<String>? searchKeywords,
     String? customerNameLower,
     List<String>? itemNamesLower,
@@ -178,11 +277,18 @@ class InvoiceModel {
       invoiceNumber: invoiceNumber ?? this.invoiceNumber,
       invoiceType: invoiceType ?? this.invoiceType,
       invoiceStatus: invoiceStatus ?? this.invoiceStatus,
+      paymentType: paymentType ?? this.paymentType,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      hasReceivedPayment: hasReceivedPayment ?? this.hasReceivedPayment,
       invoiceDate: invoiceDate ?? this.invoiceDate,
+      dueDate: dueDate ?? this.dueDate,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       createdByUid: createdByUid ?? this.createdByUid,
       createdByName: createdByName ?? this.createdByName,
+      createdByRole: createdByRole ?? this.createdByRole,
+      salesRepId: salesRepId ?? this.salesRepId,
+      salesRepName: salesRepName ?? this.salesRepName,
       customerId: customerId ?? this.customerId,
       customerSnapshot: customerSnapshot ?? this.customerSnapshot,
       items: items ?? this.items,
@@ -190,9 +296,21 @@ class InvoiceModel {
       totalDiscount: totalDiscount ?? this.totalDiscount,
       totalTax: totalTax ?? this.totalTax,
       grandTotal: grandTotal ?? this.grandTotal,
+      paidAmount: paidAmount ?? this.paidAmount,
+      remainingAmount: remainingAmount ?? this.remainingAmount,
       notes: notes ?? this.notes,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       isLocked: isLocked ?? this.isLocked,
+      financialPosted: financialPosted ?? this.financialPosted,
+      financialPostedAt: clearFinancialPostedAt
+          ? null
+          : financialPostedAt ?? this.financialPostedAt,
+      financialPostedByUid: financialPostedByUid ?? this.financialPostedByUid,
+      financialPostedByName:
+          financialPostedByName ?? this.financialPostedByName,
+      customerTransactionIds:
+          customerTransactionIds ?? this.customerTransactionIds,
+      cashMovementIds: cashMovementIds ?? this.cashMovementIds,
       searchKeywords: searchKeywords ?? this.searchKeywords,
       customerNameLower: customerNameLower ?? this.customerNameLower,
       itemNamesLower: itemNamesLower ?? this.itemNamesLower,
@@ -204,12 +322,14 @@ class InvoiceModel {
 
   InvoiceModel withSearchFields() {
     final customerLower = _normalize(customerSnapshot?.name ?? '');
+    final customerPhone = _normalize(customerSnapshot?.phone ?? '');
     final itemNames = items
         .map((item) => _normalize(item.itemName))
         .where((item) => item.isNotEmpty)
         .toList(growable: false);
     final numberLower = _normalize(invoiceNumber);
     final date = _formatDate(invoiceDate);
+    final repName = _normalize(salesRepName);
     return copyWith(
       customerNameLower: customerLower,
       itemNamesLower: itemNames,
@@ -218,6 +338,8 @@ class InvoiceModel {
       searchKeywords: buildSearchKeywords(
         invoiceNumber: numberLower,
         customerName: customerLower,
+        customerPhone: customerPhone,
+        salesRepName: repName,
         itemNames: itemNames,
         dateString: date,
       ),
@@ -227,6 +349,8 @@ class InvoiceModel {
   static List<String> buildSearchKeywords({
     required String invoiceNumber,
     required String customerName,
+    required String customerPhone,
+    required String salesRepName,
     required List<String> itemNames,
     required String dateString,
   }) {
@@ -234,6 +358,8 @@ class InvoiceModel {
     for (final value in [
       invoiceNumber,
       customerName,
+      customerPhone,
+      salesRepName,
       dateString,
       ...itemNames,
     ]) {
@@ -262,14 +388,30 @@ class InvoiceModel {
 
   static String _normalize(String value) => value.trim().toLowerCase();
 
+  static String _paymentStatusValue(
+    PaymentType paymentType,
+    double grandTotal,
+    double paidAmount,
+  ) {
+    if (paymentType == PaymentType.credit || paidAmount <= 0) {
+      return PaymentStatus.unpaid.value;
+    }
+    if (paidAmount >= grandTotal) return PaymentStatus.paid.value;
+    return PaymentStatus.partiallyPaid.value;
+  }
+
   static String _readString(Map<String, dynamic> data, String key) {
     final value = data[key];
     return value is String ? value.trim() : '';
   }
 
-  static bool _readBool(Map<String, dynamic> data, String key) {
+  static bool _readBool(
+    Map<String, dynamic> data,
+    String key, {
+    bool fallback = false,
+  }) {
     final value = data[key];
-    return value is bool ? value : false;
+    return value is bool ? value : fallback;
   }
 
   static double _readDouble(Map<String, dynamic> data, String key) {

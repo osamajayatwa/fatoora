@@ -1,5 +1,5 @@
-import 'package:fatoora/core/constant/color.dart';
-import 'package:fatoora/core/constant/imageassests.dart';
+import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/constants/imageassests.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottie/lottie.dart';

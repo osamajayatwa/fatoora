@@ -1,10 +1,14 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
+import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/invoices/data/services/jofotara_placeholder_service.dart';
+import 'package:fatoora/features/shared/business/business_user_context.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 enum InvoiceRepositoryError {
@@ -30,13 +34,19 @@ class InvoiceRepository {
   InvoiceRepository({
     FirebaseFirestore? firestore,
     FirebaseAuth? firebaseAuth,
+    BusinessUserContextReader? contextReader,
     JofotaraPlaceholderService? jofotaraService,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
-       _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
+       _contextReader =
+           contextReader ??
+           BusinessUserContextReader(
+             firestore: firestore,
+             firebaseAuth: firebaseAuth,
+           ),
        _jofotaraService = jofotaraService ?? JofotaraPlaceholderService();
 
   final FirebaseFirestore _firestore;
-  final FirebaseAuth _firebaseAuth;
+  final BusinessUserContextReader _contextReader;
   final JofotaraPlaceholderService _jofotaraService;
 
   CollectionReference<Map<String, dynamic>> _invoices(String companyId) {
@@ -44,6 +54,38 @@ class InvoiceRepository {
         .collection('companies')
         .doc(companyId)
         .collection('invoices');
+  }
+
+  CollectionReference<Map<String, dynamic>> _customers(String companyId) {
+    return _firestore
+        .collection('companies')
+        .doc(companyId)
+        .collection('customers');
+  }
+
+  CollectionReference<Map<String, dynamic>> _transactions(String companyId) {
+    return _firestore
+        .collection('companies')
+        .doc(companyId)
+        .collection('customer_transactions');
+  }
+
+  CollectionReference<Map<String, dynamic>> _cashMovements(String companyId) {
+    return _firestore
+        .collection('companies')
+        .doc(companyId)
+        .collection('cash_movements');
+  }
+
+  DocumentReference<Map<String, dynamic>> _invoiceCounter(
+    String companyId,
+    int year,
+  ) {
+    return _firestore
+        .collection('companies')
+        .doc(companyId)
+        .collection('counters')
+        .doc('invoices_$year');
   }
 
   Future<List<InvoiceModel>> getInvoices({
@@ -55,8 +97,12 @@ class InvoiceRepository {
     String? searchText,
   }) {
     return _run(() async {
-      await _requireUser();
-      Query<Map<String, dynamic>> query = _invoices(companyId);
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      Query<Map<String, dynamic>> query = _invoices(resolvedCompanyId);
+      if (user.isSalesRep) {
+        query = query.where('createdByUid', isEqualTo: user.uid);
+      }
       if (type != null) {
         query = query.where('invoiceType', isEqualTo: type.value);
       }
@@ -112,40 +158,87 @@ class InvoiceRepository {
     required String invoiceId,
   }) {
     return _run(() async {
-      await _requireUser();
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
       final document = await _invoices(
-        companyId,
+        resolvedCompanyId,
       ).doc(invoiceId).get().timeout(const Duration(seconds: 20));
       if (!document.exists) return null;
-      return InvoiceModel.fromFirestore(document);
+      final invoice = InvoiceModel.fromFirestore(document);
+      _requireCanAccessInvoice(user, invoice);
+      return invoice;
     });
   }
 
   Future<String> createInvoice({required InvoiceModel invoice}) {
     return _run(() async {
-      final user = await _requireUser();
+      final user = await _contextReader.requireApprovedUser();
+      final companyId = _resolveCompanyId(invoice.companyId, user);
       final document = invoice.id.trim().isEmpty
-          ? _invoices(invoice.companyId).doc()
-          : _invoices(invoice.companyId).doc(invoice.id.trim());
-      final now = DateTime.now();
-      final normalized = invoice
-          .copyWith(
-            id: document.id,
-            createdAt: now,
-            updatedAt: now,
-            createdByUid: invoice.createdByUid.trim().isEmpty
-                ? user.uid
-                : invoice.createdByUid,
-            createdByName: invoice.createdByName.trim().isEmpty
-                ? (user.displayName ?? user.email ?? user.uid)
-                : invoice.createdByName,
-          )
-          .withSearchFields();
-      await document
-          .set({
-            ...normalized.toMap(),
-            'createdAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
+          ? _invoices(companyId).doc()
+          : _invoices(companyId).doc(invoice.id.trim());
+
+      await _firestore
+          .runTransaction((transaction) async {
+            final now = DateTime.now();
+            final rawCustomerId = invoice.customerSnapshot?.id.trim() ?? '';
+            final customer = await _readCustomerForInvoice(
+              transaction: transaction,
+              companyId: companyId,
+              customerId: rawCustomerId,
+              user: user,
+            );
+            final paymentPreview = _calculatePayment(
+              hasReceivedPayment: invoice.hasReceivedPayment,
+              grandTotal: invoice.grandTotal,
+              requestedPaidAmount: invoice.paidAmount,
+            );
+            if (invoice.invoiceStatus == InvoiceStatus.confirmed) {
+              await _guardAgainstDuplicatePosting(
+                transaction: transaction,
+                companyId: companyId,
+                invoiceId: document.id,
+                needsCustomerTransaction: paymentPreview.remainingAmount > 0,
+                needsCashMovement: paymentPreview.paidAmount > 0,
+              );
+            }
+            final number = await _nextInvoiceNumber(
+              transaction: transaction,
+              companyId: companyId,
+              invoiceDate: invoice.invoiceDate,
+            );
+            var normalized = _normalizeInvoice(
+              invoice: invoice,
+              user: user,
+              id: document.id,
+              companyId: companyId,
+              invoiceNumber: number,
+              createdAt: now,
+              updatedAt: now,
+              preserveCreator: false,
+            );
+            final posting = normalized.invoiceStatus == InvoiceStatus.confirmed
+                ? _buildFinancialPosting(
+                    invoice: normalized,
+                    customer: customer,
+                  )
+                : null;
+            if (posting != null) {
+              normalized = _withFinancialPostingMetadata(
+                invoice: normalized,
+                posting: posting,
+                user: user,
+                postedAt: now,
+              );
+            }
+
+            transaction.set(document, {
+              ...normalized.toMap(),
+              'createdAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+
+            if (posting != null) _applyFinancialPosting(transaction, posting);
           })
           .timeout(const Duration(seconds: 20));
       return document.id;
@@ -154,13 +247,14 @@ class InvoiceRepository {
 
   Future<void> updateInvoice({required InvoiceModel invoice}) {
     return _run(() async {
-      await _requireUser();
+      final user = await _contextReader.requireApprovedUser();
       if (invoice.id.trim().isEmpty || invoice.companyId.trim().isEmpty) {
         throw const InvoiceRepositoryException(
           InvoiceRepositoryError.invalidData,
         );
       }
-      final document = _invoices(invoice.companyId).doc(invoice.id);
+      final companyId = _resolveCompanyId(invoice.companyId, user);
+      final document = _invoices(companyId).doc(invoice.id);
       await _firestore
           .runTransaction((transaction) async {
             final snapshot = await transaction.get(document);
@@ -170,19 +264,66 @@ class InvoiceRepository {
               );
             }
             final existing = InvoiceModel.fromFirestore(snapshot);
+            _requireCanAccessInvoice(user, existing);
+            if (existing.isDraft && existing.financialPosted) {
+              throw const InvoiceRepositoryException(
+                InvoiceRepositoryError.invalidState,
+              );
+            }
             if (!existing.canEdit) {
               throw const InvoiceRepositoryException(
                 InvoiceRepositoryError.locked,
               );
             }
-            final normalized = invoice
-                .copyWith(
-                  createdAt: existing.createdAt,
-                  createdByUid: existing.createdByUid,
-                  createdByName: existing.createdByName,
-                  updatedAt: DateTime.now(),
-                )
-                .withSearchFields();
+
+            var normalized = _normalizeInvoice(
+              invoice: invoice,
+              user: user,
+              id: existing.id,
+              companyId: companyId,
+              invoiceNumber: existing.invoiceNumber,
+              createdAt: existing.createdAt,
+              updatedAt: DateTime.now(),
+              preserveCreator: true,
+              existing: existing,
+            );
+
+            final customer = await _readCustomerForInvoice(
+              transaction: transaction,
+              companyId: companyId,
+              customerId: normalized.customerId,
+              user: user,
+            );
+            final shouldPost =
+                !existing.financialPosted &&
+                normalized.invoiceStatus == InvoiceStatus.confirmed;
+            if (shouldPost) {
+              await _guardAgainstDuplicatePosting(
+                transaction: transaction,
+                companyId: companyId,
+                invoiceId: normalized.id,
+                needsCustomerTransaction: normalized.remainingAmount > 0,
+                needsCashMovement: normalized.paidAmount > 0,
+              );
+              final posting = _buildFinancialPosting(
+                invoice: normalized,
+                customer: customer,
+              );
+              normalized = _withFinancialPostingMetadata(
+                invoice: normalized,
+                posting: posting,
+                user: user,
+                postedAt: DateTime.now(),
+              );
+              transaction.update(document, {
+                ...normalized.toMap(),
+                'createdAt': Timestamp.fromDate(existing.createdAt),
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+              _applyFinancialPosting(transaction, posting);
+              return;
+            }
+
             transaction.update(document, {
               ...normalized.toMap(),
               'createdAt': Timestamp.fromDate(existing.createdAt),
@@ -198,8 +339,9 @@ class InvoiceRepository {
     required String invoiceId,
   }) {
     return _run(() async {
-      await _requireUser();
-      final document = _invoices(companyId).doc(invoiceId);
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      final document = _invoices(resolvedCompanyId).doc(invoiceId);
       await _firestore
           .runTransaction((transaction) async {
             final snapshot = await transaction.get(document);
@@ -209,6 +351,7 @@ class InvoiceRepository {
               );
             }
             final invoice = InvoiceModel.fromFirestore(snapshot);
+            _requireCanAccessInvoice(user, invoice);
             if (!invoice.canDelete) {
               throw const InvoiceRepositoryException(
                 InvoiceRepositoryError.invalidState,
@@ -225,8 +368,9 @@ class InvoiceRepository {
     required String invoiceId,
   }) {
     return _run(() async {
-      await _requireUser();
-      final document = _invoices(companyId).doc(invoiceId);
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      final document = _invoices(resolvedCompanyId).doc(invoiceId);
       await _firestore
           .runTransaction((transaction) async {
             final snapshot = await transaction.get(document);
@@ -236,6 +380,7 @@ class InvoiceRepository {
               );
             }
             final invoice = InvoiceModel.fromFirestore(snapshot);
+            _requireCanAccessInvoice(user, invoice);
             final canSubmit =
                 invoice.invoiceType == InvoiceType.electronic &&
                 (invoice.invoiceStatus == InvoiceStatus.draft ||
@@ -265,25 +410,397 @@ class InvoiceRepository {
     );
   }
 
-  Future<User> _requireUser() async {
-    final user =
-        _firebaseAuth.currentUser ??
-        await _firebaseAuth.authStateChanges().first.timeout(
-          const Duration(seconds: 10),
-        );
-    if (user == null) {
+  Future<String> _nextInvoiceNumber({
+    required Transaction transaction,
+    required String companyId,
+    required DateTime invoiceDate,
+  }) async {
+    final year = invoiceDate.year;
+    final counterRef = _invoiceCounter(companyId, year);
+    final counter = await transaction.get(counterRef);
+    final current = counter.data()?['lastNumber'];
+    final next = current is num ? current.toInt() + 1 : 1;
+    transaction.set(counterRef, {
+      'id': counterRef.id,
+      'companyId': companyId,
+      'year': year,
+      'lastNumber': next,
+      'prefix': 'INV',
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    return 'INV-$year-${next.toString().padLeft(6, '0')}';
+  }
+
+  Future<CustomerModel> _readCustomerForInvoice({
+    required Transaction transaction,
+    required String companyId,
+    required String customerId,
+    required BusinessUserContext user,
+  }) async {
+    if (customerId.trim().isEmpty) {
       throw const InvoiceRepositoryException(
-        InvoiceRepositoryError.unauthenticated,
+        InvoiceRepositoryError.invalidData,
       );
     }
-    return user;
+    final customerRef = _customers(companyId).doc(customerId);
+    final customerSnapshot = await transaction.get(customerRef);
+    if (!customerSnapshot.exists) {
+      throw const InvoiceRepositoryException(InvoiceRepositoryError.notFound);
+    }
+    final customer = CustomerModel.fromFirestore(customerSnapshot);
+    if (!customer.active) {
+      throw const InvoiceRepositoryException(
+        InvoiceRepositoryError.invalidState,
+      );
+    }
+    _requireCanAccessCustomer(user, customer);
+    return customer;
   }
+
+  InvoiceModel _normalizeInvoice({
+    required InvoiceModel invoice,
+    required BusinessUserContext user,
+    required String id,
+    required String companyId,
+    required String invoiceNumber,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    required bool preserveCreator,
+    InvoiceModel? existing,
+  }) {
+    if (invoice.customerSnapshot == null ||
+        invoice.customerSnapshot!.id.trim().isEmpty ||
+        invoice.customerSnapshot!.name.trim().isEmpty) {
+      throw const InvoiceRepositoryException(
+        InvoiceRepositoryError.invalidData,
+      );
+    }
+    if (invoice.items.isEmpty || invoice.grandTotal < 0) {
+      throw const InvoiceRepositoryException(
+        InvoiceRepositoryError.invalidData,
+      );
+    }
+    if (_dateOnly(invoice.dueDate).isBefore(_dateOnly(invoice.invoiceDate))) {
+      throw const InvoiceRepositoryException(
+        InvoiceRepositoryError.invalidData,
+      );
+    }
+
+    final payment = _calculatePayment(
+      hasReceivedPayment: invoice.hasReceivedPayment,
+      grandTotal: invoice.grandTotal,
+      requestedPaidAmount: invoice.paidAmount,
+    );
+    final creatorUid = preserveCreator ? existing!.createdByUid : user.uid;
+    final creatorName = preserveCreator ? existing!.createdByName : user.name;
+    final creatorRole = preserveCreator ? existing!.createdByRole : user.role;
+
+    return invoice
+        .copyWith(
+          id: id,
+          companyId: companyId,
+          invoiceNumber: invoiceNumber,
+          invoiceStatus: invoice.invoiceStatus,
+          paymentType: payment.type,
+          paymentStatus: payment.status,
+          hasReceivedPayment: invoice.hasReceivedPayment,
+          invoiceDate: invoice.invoiceDate,
+          dueDate: invoice.dueDate,
+          createdAt: createdAt,
+          updatedAt: updatedAt,
+          createdByUid: creatorUid,
+          createdByName: _validName(creatorName),
+          createdByRole: creatorRole,
+          salesRepId: creatorUid,
+          salesRepName: _validName(creatorName),
+          customerId: invoice.customerSnapshot!.id,
+          paidAmount: payment.paidAmount,
+          remainingAmount: payment.remainingAmount,
+          paymentMethod: payment.type.value,
+          isLocked: existing?.isLocked ?? false,
+          financialPosted: existing?.financialPosted ?? false,
+          financialPostedAt: existing?.financialPostedAt,
+          financialPostedByUid: existing?.financialPostedByUid ?? '',
+          financialPostedByName: existing?.financialPostedByName ?? '',
+          customerTransactionIds: existing?.customerTransactionIds ?? const [],
+          cashMovementIds: existing?.cashMovementIds ?? const [],
+          government: existing?.government ?? invoice.government,
+        )
+        .withSearchFields();
+  }
+
+  _CalculatedPayment _calculatePayment({
+    required bool hasReceivedPayment,
+    required double grandTotal,
+    required double requestedPaidAmount,
+  }) {
+    final total = _round(math.max(grandTotal, 0));
+    final paid = _round(requestedPaidAmount);
+    if (!hasReceivedPayment) {
+      if (paid != 0) {
+        throw const InvoiceRepositoryException(
+          InvoiceRepositoryError.invalidData,
+        );
+      }
+      return _CalculatedPayment(
+        type: PaymentType.credit,
+        paidAmount: 0,
+        remainingAmount: total,
+        status: PaymentStatus.unpaid,
+      );
+    }
+    if (paid <= 0 || paid > total) {
+      throw const InvoiceRepositoryException(
+        InvoiceRepositoryError.invalidData,
+      );
+    }
+    if (paid == total) {
+      return _CalculatedPayment(
+        type: PaymentType.cash,
+        paidAmount: total,
+        remainingAmount: 0,
+        status: PaymentStatus.paid,
+      );
+    }
+    return _CalculatedPayment(
+      type: PaymentType.partial,
+      paidAmount: paid,
+      remainingAmount: _round(total - paid),
+      status: PaymentStatus.partiallyPaid,
+    );
+  }
+
+  Future<void> _guardAgainstDuplicatePosting({
+    required Transaction transaction,
+    required String companyId,
+    required String invoiceId,
+    required bool needsCustomerTransaction,
+    required bool needsCashMovement,
+  }) async {
+    if (needsCustomerTransaction) {
+      final transactionSnapshot = await transaction.get(
+        _invoiceCustomerTransactionRef(companyId, invoiceId),
+      );
+      if (transactionSnapshot.exists) {
+        throw const InvoiceRepositoryException(
+          InvoiceRepositoryError.invalidState,
+        );
+      }
+    }
+    if (needsCashMovement) {
+      final movementSnapshot = await transaction.get(
+        _invoiceCashMovementRef(companyId, invoiceId),
+      );
+      if (movementSnapshot.exists) {
+        throw const InvoiceRepositoryException(
+          InvoiceRepositoryError.invalidState,
+        );
+      }
+    }
+  }
+
+  DocumentReference<Map<String, dynamic>> _invoiceCustomerTransactionRef(
+    String companyId,
+    String invoiceId,
+  ) {
+    return _transactions(companyId).doc('${invoiceId}_debit');
+  }
+
+  DocumentReference<Map<String, dynamic>> _invoiceCashMovementRef(
+    String companyId,
+    String invoiceId,
+  ) {
+    return _cashMovements(companyId).doc('${invoiceId}_cash');
+  }
+
+  _FinancialPosting _buildFinancialPosting({
+    required InvoiceModel invoice,
+    required CustomerModel customer,
+  }) {
+    final customerRef = _customers(invoice.companyId).doc(customer.id);
+    final newBalance = _round(
+      customer.currentBalance + invoice.remainingAmount,
+    );
+    final customerUpdate = <String, dynamic>{
+      'currentBalance': newBalance,
+      'totalSales': _round(customer.totalSales + invoice.grandTotal),
+      'totalPaid': _round(customer.totalPaid + invoice.paidAmount),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    DocumentReference<Map<String, dynamic>>? transactionRef;
+    Map<String, dynamic>? transactionData;
+    if (invoice.remainingAmount > 0) {
+      transactionRef = _invoiceCustomerTransactionRef(
+        invoice.companyId,
+        invoice.id,
+      );
+      transactionData = {
+        'id': transactionRef.id,
+        'companyId': invoice.companyId,
+        'customerId': customer.id,
+        'customerName': customer.name,
+        'transactionType': 'invoice',
+        'referenceId': invoice.id,
+        'sourceCollection': 'invoices',
+        'sourceId': invoice.id,
+        'sourceNumber': invoice.invoiceNumber,
+        'transactionDate': Timestamp.fromDate(invoice.invoiceDate),
+        'debitAmount': invoice.remainingAmount,
+        'creditAmount': 0,
+        'balanceAfter': newBalance,
+        'notes': invoice.notes,
+        'createdByUid': invoice.createdByUid,
+        'createdByName': invoice.createdByName,
+        'createdByRole': invoice.createdByRole,
+        'salesRepId': invoice.salesRepId,
+        'salesRepName': invoice.salesRepName,
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+    }
+
+    DocumentReference<Map<String, dynamic>>? movementRef;
+    Map<String, dynamic>? movementData;
+    if (invoice.paidAmount > 0) {
+      movementRef = _invoiceCashMovementRef(invoice.companyId, invoice.id);
+      movementData = {
+        'id': movementRef.id,
+        'companyId': invoice.companyId,
+        'movementType': 'invoice_payment',
+        'type': invoice.paymentType == PaymentType.partial
+            ? 'invoice_partial'
+            : 'invoice_cash',
+        'direction': 'in',
+        'amount': invoice.paidAmount,
+        'paymentType': invoice.paymentType.value,
+        'customerId': customer.id,
+        'customerName': customer.name,
+        'referenceId': invoice.id,
+        'referenceNumber': invoice.invoiceNumber,
+        'sourceCollection': 'invoices',
+        'sourceId': invoice.id,
+        'sourceNumber': invoice.invoiceNumber,
+        'date': Timestamp.fromDate(invoice.invoiceDate),
+        'movementDate': Timestamp.fromDate(invoice.invoiceDate),
+        'notes': invoice.notes,
+        'salesRepId': invoice.salesRepId,
+        'salesRepName': invoice.salesRepName,
+        'createdByUid': invoice.createdByUid,
+        'createdByName': invoice.createdByName,
+        'createdByRole': invoice.createdByRole,
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+    }
+
+    return _FinancialPosting(
+      customerRef: customerRef,
+      customerUpdate: customerUpdate,
+      customerTransactionRef: transactionRef,
+      customerTransactionData: transactionData,
+      cashMovementRef: movementRef,
+      cashMovementData: movementData,
+    );
+  }
+
+  InvoiceModel _withFinancialPostingMetadata({
+    required InvoiceModel invoice,
+    required _FinancialPosting posting,
+    required BusinessUserContext user,
+    required DateTime postedAt,
+  }) {
+    return invoice.copyWith(
+      financialPosted: true,
+      financialPostedAt: postedAt,
+      financialPostedByUid: user.uid,
+      financialPostedByName: user.name,
+      customerTransactionIds: posting.customerTransactionRef == null
+          ? const []
+          : [posting.customerTransactionRef!.id],
+      cashMovementIds: posting.cashMovementRef == null
+          ? const []
+          : [posting.cashMovementRef!.id],
+    );
+  }
+
+  void _applyFinancialPosting(
+    Transaction transaction,
+    _FinancialPosting posting,
+  ) {
+    transaction.update(posting.customerRef, posting.customerUpdate);
+    final customerTransactionRef = posting.customerTransactionRef;
+    final customerTransactionData = posting.customerTransactionData;
+    if (customerTransactionRef != null && customerTransactionData != null) {
+      transaction.set(customerTransactionRef, customerTransactionData);
+    }
+    final cashMovementRef = posting.cashMovementRef;
+    final cashMovementData = posting.cashMovementData;
+    if (cashMovementRef != null && cashMovementData != null) {
+      transaction.set(cashMovementRef, cashMovementData);
+    }
+  }
+
+  void _requireCanAccessInvoice(
+    BusinessUserContext user,
+    InvoiceModel invoice,
+  ) {
+    if (user.isAdmin) return;
+    if (user.isSalesRep &&
+        (invoice.createdByUid == user.uid || invoice.salesRepId == user.uid)) {
+      return;
+    }
+    throw const InvoiceRepositoryException(
+      InvoiceRepositoryError.permissionDenied,
+    );
+  }
+
+  void _requireCanAccessCustomer(
+    BusinessUserContext user,
+    CustomerModel customer,
+  ) {
+    if (user.isAdmin) return;
+    if (user.isSalesRep && customer.createdByUid == user.uid) return;
+    throw const InvoiceRepositoryException(
+      InvoiceRepositoryError.permissionDenied,
+    );
+  }
+
+  String _resolveCompanyId(String requested, BusinessUserContext user) {
+    final companyId = requested.trim().isEmpty
+        ? AuthRepository.defaultCompanyId
+        : requested.trim();
+    if (companyId != user.companyId) {
+      throw const InvoiceRepositoryException(
+        InvoiceRepositoryError.permissionDenied,
+      );
+    }
+    return companyId;
+  }
+
+  String _validName(String value) {
+    final name = value.trim();
+    if (name.isEmpty || name.toLowerCase() == 'undefined') {
+      throw const InvoiceRepositoryException(
+        InvoiceRepositoryError.invalidData,
+      );
+    }
+    return name;
+  }
+
+  double _round(double value) {
+    if (!value.isFinite) return 0;
+    return (value * 1000).roundToDouble() / 1000;
+  }
+
+  DateTime _dateOnly(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
 
   Future<T> _run<T>(Future<T> Function() operation) async {
     try {
       return await operation();
     } on InvoiceRepositoryException {
       rethrow;
+    } on BusinessUserContextException catch (error) {
+      throw InvoiceRepositoryException(_mapContextError(error.error), error);
     } on TimeoutException catch (error) {
       throw InvoiceRepositoryException(InvoiceRepositoryError.timeout, error);
     } on FirebaseFunctionsException catch (error) {
@@ -298,6 +815,20 @@ class InvoiceRepository {
     } catch (error) {
       throw InvoiceRepositoryException(InvoiceRepositoryError.unknown, error);
     }
+  }
+
+  InvoiceRepositoryError _mapContextError(BusinessUserContextError error) {
+    return switch (error) {
+      BusinessUserContextError.unauthenticated =>
+        InvoiceRepositoryError.unauthenticated,
+      BusinessUserContextError.profileMissing =>
+        InvoiceRepositoryError.unauthenticated,
+      BusinessUserContextError.permissionDenied =>
+        InvoiceRepositoryError.permissionDenied,
+      BusinessUserContextError.invalidProfile =>
+        InvoiceRepositoryError.invalidData,
+      BusinessUserContextError.timeout => InvoiceRepositoryError.timeout,
+    };
   }
 
   InvoiceRepositoryError _mapFirebaseError(String code) {
@@ -333,4 +864,36 @@ class InvoiceRepository {
   }
 
   String _normalize(String value) => value.trim().toLowerCase();
+}
+
+class _CalculatedPayment {
+  const _CalculatedPayment({
+    required this.type,
+    required this.paidAmount,
+    required this.remainingAmount,
+    required this.status,
+  });
+
+  final PaymentType type;
+  final double paidAmount;
+  final double remainingAmount;
+  final PaymentStatus status;
+}
+
+class _FinancialPosting {
+  const _FinancialPosting({
+    required this.customerRef,
+    required this.customerUpdate,
+    required this.customerTransactionRef,
+    required this.customerTransactionData,
+    required this.cashMovementRef,
+    required this.cashMovementData,
+  });
+
+  final DocumentReference<Map<String, dynamic>> customerRef;
+  final Map<String, dynamic> customerUpdate;
+  final DocumentReference<Map<String, dynamic>>? customerTransactionRef;
+  final Map<String, dynamic>? customerTransactionData;
+  final DocumentReference<Map<String, dynamic>>? cashMovementRef;
+  final Map<String, dynamic>? cashMovementData;
 }

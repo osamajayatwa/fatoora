@@ -1,7 +1,7 @@
-import 'package:fatoora/core/constant/color.dart';
+import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_item_snapshot.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_item_row.dart';
-import 'package:fatoora/modules/admin_dashboard/view/widgets/dashboard_card.dart';
+import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';

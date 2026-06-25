@@ -1,4 +1,4 @@
-import 'package:fatoora/core/constant/color.dart';
+import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_action_buttons.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_status_chip.dart';

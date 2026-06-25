@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:fatoora/core/class/statusrequest.dart';
-import 'package:fatoora/core/constant/app_feature_flags.dart';
-import 'package:fatoora/core/constant/color.dart';
-import 'package:fatoora/core/constant/routes.dart';
+import 'package:fatoora/core/constants/app_feature_flags.dart';
+import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_context.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_error_mapper.dart';
@@ -167,7 +167,7 @@ class InvoicesListController extends GetxController {
 
   Future<void> editInvoice(InvoiceModel invoice) async {
     if (!invoice.canEdit) {
-      _showError('accepted_invoice_cannot_be_edited');
+      _showError('confirmed_invoice_locked');
       return;
     }
     final changed = await Get.toNamed(

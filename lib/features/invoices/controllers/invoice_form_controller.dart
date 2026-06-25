@@ -1,8 +1,10 @@
 import 'package:fatoora/core/class/statusrequest.dart';
-import 'package:fatoora/core/constant/app_feature_flags.dart';
-import 'package:fatoora/core/constant/color.dart';
-import 'package:fatoora/core/constant/routes.dart';
+import 'package:fatoora/core/constants/app_feature_flags.dart';
+import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/features/auth/utils/auth_session.dart';
+import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_context.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_error_mapper.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_page_navigation.dart';
@@ -13,6 +15,7 @@ import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/invoices/data/repositories/invoice_repository.dart';
 import 'package:fatoora/features/invoices/data/services/invoice_number_service.dart';
 import 'package:fatoora/features/invoices/data/services/invoice_totals_service.dart';
+import 'package:fatoora/features/items/data/models/item_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -36,6 +39,9 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
   final TextEditingController invoiceNumberController = TextEditingController();
   final TextEditingController notesController = TextEditingController();
   final TextEditingController paymentMethodController = TextEditingController();
+  final TextEditingController paidAmountController = TextEditingController(
+    text: '0',
+  );
   final TextEditingController itemNameController = TextEditingController();
   final TextEditingController itemCodeController = TextEditingController();
   final TextEditingController itemUnitController = TextEditingController(
@@ -61,13 +67,19 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
   String invoiceId = '';
   InvoiceType invoiceType = InvoiceType.regular;
   InvoiceStatus invoiceStatus = InvoiceStatus.draft;
+  PaymentType paymentType = PaymentType.credit;
+  PaymentStatus paymentStatus = PaymentStatus.unpaid;
   DateTime invoiceDate = DateTime.now();
+  DateTime dueDate = DateTime.now();
   InvoiceCustomerSnapshot? customerSnapshot;
   List<InvoiceItemSnapshot> items = const [];
   double subtotal = 0;
   double totalDiscount = 0;
   double totalTax = 0;
   double grandTotal = 0;
+  double paidAmount = 0;
+  double remainingAmount = 0;
+  bool hasReceivedPayment = false;
   bool readOnly = false;
   bool isSaving = false;
   InvoiceModel? loadedInvoice;
@@ -130,7 +142,9 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
       companyId: companyId,
       invoiceType: invoiceType,
     );
-    paymentMethodController.text = 'Cash';
+    dueDate = invoiceDate;
+    hasReceivedPayment = false;
+    _syncPaymentAmounts(updateView: false);
     statusRequest = StatusRequest.success;
     update();
   }
@@ -170,36 +184,75 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     companyId = invoice.companyId;
     invoiceType = invoice.invoiceType;
     invoiceStatus = invoice.invoiceStatus;
+    paymentType = invoice.paymentType;
+    paymentStatus = invoice.paymentStatus;
+    hasReceivedPayment = invoice.hasReceivedPayment;
     invoiceDate = invoice.invoiceDate;
+    dueDate = invoice.dueDate;
     customerSnapshot = invoice.customerSnapshot;
     items = invoice.items;
     subtotal = invoice.subtotal;
     totalDiscount = invoice.totalDiscount;
     totalTax = invoice.totalTax;
     grandTotal = invoice.grandTotal;
+    paidAmount = invoice.paidAmount;
+    remainingAmount = invoice.remainingAmount;
     invoiceNumberController.text = invoice.invoiceNumber;
     notesController.text = invoice.notes;
-    paymentMethodController.text = invoice.paymentMethod;
+    paymentMethodController.text = invoice.paymentType.value;
+    paidAmountController.text = _formatInputAmount(invoice.paidAmount);
   }
 
   void setInvoiceDate(DateTime value) {
     if (readOnly) return;
     invoiceDate = value;
+    if (dueDate.isBefore(_dateOnly(value))) dueDate = value;
     update();
   }
 
-  void selectCustomerPlaceholder() {
+  void setDueDate(DateTime value) {
     if (readOnly) return;
-    customerSnapshot = const InvoiceCustomerSnapshot(
-      id: 'manual-customer',
-      name: 'Cash Customer',
-      phone: '',
-      address: '',
-      taxNumber: '',
-      nationalNumber: '',
-      city: 'Jordan',
-    );
+    dueDate = value;
     update();
+  }
+
+  void setHasReceivedPayment(bool value) {
+    if (readOnly) return;
+    hasReceivedPayment = value;
+    if (!value) {
+      paidAmountController.text = '0';
+    }
+    _syncPaymentAmounts(updateView: true);
+  }
+
+  void onPaidAmountChanged(String value) {
+    paidAmount = _parseDouble(value);
+    _syncPaymentAmounts(updateView: true, keepReceivedInput: true);
+  }
+
+  void selectCustomer(CustomerModel customer) {
+    if (readOnly) return;
+    customerSnapshot = customer.toInvoiceSnapshot();
+    update();
+  }
+
+  void addCatalogItem(ItemModel item) {
+    if (readOnly || !item.active || item.deleted) return;
+    final rawItem = InvoiceItemSnapshot(
+      itemId: item.id,
+      itemName: item.name,
+      itemCode: item.code,
+      unit: item.unit,
+      quantity: 1,
+      unitPrice: item.price,
+      discount: 0,
+      taxPercent: item.taxRate,
+      subtotal: 0,
+      taxAmount: 0,
+      total: 0,
+    );
+    items = [...items, _totalsService.calculateLine(rawItem)];
+    recalculateTotals();
   }
 
   void addItemFromInputs() {
@@ -273,17 +326,15 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     totalDiscount = totals.totalDiscount;
     totalTax = totals.totalTax;
     grandTotal = totals.grandTotal;
+    _syncPaymentAmounts(updateView: false);
     update();
   }
 
   Future<void> saveDraft() => _save(InvoiceStatus.draft);
 
-  Future<void> saveInvoice() {
-    final targetStatus = invoiceType == InvoiceType.electronic
-        ? InvoiceStatus.draft
-        : InvoiceStatus.accepted;
-    return _save(targetStatus);
-  }
+  Future<void> confirmInvoice() => _save(InvoiceStatus.confirmed);
+
+  Future<void> saveInvoice() => confirmInvoice();
 
   Future<void> saveAndSubmit() async {
     if (!canSubmitElectronic) return;
@@ -312,9 +363,9 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
         await _repository.updateInvoice(invoice: invoice);
       }
       _showSuccess(
-        wasCreateMode
-            ? 'regular_invoice_created'
-            : 'invoice_updated_successfully',
+        targetStatus == InvoiceStatus.draft
+            ? 'invoice_saved_as_draft'
+            : 'invoice_confirmed_successfully',
       );
       statusRequest = StatusRequest.success;
       if (!stayOnPage) {
@@ -373,6 +424,10 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
       _showError('customer_required');
       return false;
     }
+    if (_dateOnly(dueDate).isBefore(_dateOnly(invoiceDate))) {
+      _showError('invoice_due_date_invalid');
+      return false;
+    }
     if (items.isEmpty) {
       _showError('items_required');
       return false;
@@ -388,6 +443,28 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
       }
     }
     recalculateTotals();
+    if (!_validatePayment()) return false;
+    return true;
+  }
+
+  bool _validatePayment() {
+    _syncPaymentAmounts(updateView: false, keepReceivedInput: true);
+    if (paidAmount < 0) {
+      _showError('paid_amount_invalid');
+      return false;
+    }
+    if (paidAmount > grandTotal) {
+      _showError('paid_amount_greater_than_total');
+      return false;
+    }
+    if (!hasReceivedPayment && paidAmount != 0) {
+      _showError('paid_amount_invalid');
+      return false;
+    }
+    if (hasReceivedPayment && paidAmount <= 0) {
+      _showError('paid_amount_invalid');
+      return false;
+    }
     return true;
   }
 
@@ -400,19 +477,25 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
         '';
     final createdByName =
         loadedInvoice?.createdByName ??
-        _myServices.sharedPreferences.getString('name') ??
-        '';
+        AuthSession.cachedDisplayName(_myServices);
     return InvoiceModel(
       id: invoiceId,
       companyId: companyId,
       invoiceNumber: invoiceNumberController.text.trim(),
       invoiceType: invoiceType,
       invoiceStatus: targetStatus,
+      paymentType: paymentType,
+      paymentStatus: paymentStatus,
+      hasReceivedPayment: hasReceivedPayment,
       invoiceDate: invoiceDate,
+      dueDate: dueDate,
       createdAt: createdAt,
       updatedAt: now,
       createdByUid: createdByUid,
       createdByName: createdByName,
+      createdByRole: _myServices.sharedPreferences.getString('role') ?? '',
+      salesRepId: createdByUid,
+      salesRepName: createdByName,
       customerId: customerSnapshot?.id ?? '',
       customerSnapshot: customerSnapshot,
       items: items,
@@ -420,9 +503,17 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
       totalDiscount: totalDiscount,
       totalTax: totalTax,
       grandTotal: grandTotal,
+      paidAmount: paidAmount,
+      remainingAmount: remainingAmount,
       notes: notesController.text.trim(),
-      paymentMethod: paymentMethodController.text.trim(),
+      paymentMethod: paymentType.value,
       isLocked: loadedInvoice?.isLocked ?? false,
+      financialPosted: loadedInvoice?.financialPosted ?? false,
+      financialPostedAt: loadedInvoice?.financialPostedAt,
+      financialPostedByUid: loadedInvoice?.financialPostedByUid ?? '',
+      financialPostedByName: loadedInvoice?.financialPostedByName ?? '',
+      customerTransactionIds: loadedInvoice?.customerTransactionIds ?? const [],
+      cashMovementIds: loadedInvoice?.cashMovementIds ?? const [],
       searchKeywords: const [],
       customerNameLower: '',
       itemNamesLower: const [],
@@ -433,6 +524,52 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
   }
 
   double _parseDouble(String value) => double.tryParse(value.trim()) ?? 0;
+
+  void _syncPaymentAmounts({
+    bool updateView = true,
+    bool keepReceivedInput = false,
+  }) {
+    if (!hasReceivedPayment) {
+      paidAmount = 0;
+      remainingAmount = grandTotal;
+      paymentType = PaymentType.credit;
+      paymentStatus = PaymentStatus.unpaid;
+      paymentMethodController.text = paymentType.value;
+      paidAmountController.text = '0';
+    } else {
+      if (!keepReceivedInput) {
+        paidAmount = _parseDouble(paidAmountController.text);
+      }
+      paidAmount = _totalsService.round(paidAmount);
+      final rawRemaining = grandTotal - paidAmount;
+      remainingAmount = _totalsService.round(
+        rawRemaining > 0 ? rawRemaining : 0,
+      );
+      if (paidAmount >= grandTotal && grandTotal > 0) {
+        paymentType = PaymentType.cash;
+        paymentStatus = PaymentStatus.paid;
+      } else if (paidAmount > 0) {
+        paymentType = PaymentType.partial;
+        paymentStatus = PaymentStatus.partiallyPaid;
+      } else {
+        paymentType = PaymentType.partial;
+        paymentStatus = PaymentStatus.unpaid;
+      }
+      paymentMethodController.text = paymentType.value;
+    }
+    paidAmount = _totalsService.round(paidAmount);
+    remainingAmount = _totalsService.round(remainingAmount);
+    if (updateView && !isClosed) update();
+  }
+
+  DateTime _dateOnly(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
+
+  String _formatInputAmount(double value) {
+    final rounded = _totalsService.round(value);
+    if (rounded == rounded.roundToDouble()) return rounded.toStringAsFixed(0);
+    return rounded.toStringAsFixed(3);
+  }
 
   void _clearItemInputs() {
     itemNameController.clear();
@@ -479,6 +616,7 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     invoiceNumberController.dispose();
     notesController.dispose();
     paymentMethodController.dispose();
+    paidAmountController.dispose();
     itemNameController.dispose();
     itemCodeController.dispose();
     itemUnitController.dispose();

@@ -1,4 +1,4 @@
-import 'package:fatoora/core/constant/app.dart';
+import 'package:fatoora/core/constants/app.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

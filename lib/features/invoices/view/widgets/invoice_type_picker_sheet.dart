@@ -1,5 +1,5 @@
-import 'package:fatoora/core/constant/app_feature_flags.dart';
-import 'package:fatoora/core/constant/color.dart';
+import 'package:fatoora/core/constants/app_feature_flags.dart';
+import 'package:fatoora/core/constants/color.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

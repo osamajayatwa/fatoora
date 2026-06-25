@@ -1,5 +1,5 @@
 import 'package:fatoora/core/class/statusrequest.dart';
-import 'package:fatoora/core/constant/imageassests.dart';
+import 'package:fatoora/core/constants/imageassests.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 

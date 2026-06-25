@@ -6,152 +6,374 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function hasUserDoc() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isApprovedCompanyUser(companyId) {
+      return hasUserDoc()
+        && (
+          (
+            userDoc().data.keys().hasAny(['companyId'])
+            && userDoc().data.companyId == companyId
+          )
+          || (
+            companyId == 'default_company'
+            && !userDoc().data.keys().hasAny(['companyId'])
+          )
+        )
+        && userDoc().data.active == true
+        && (
+          (
+            userDoc().data.keys().hasAny(['approvalStatus'])
+            && userDoc().data.approvalStatus == 'approved'
+          )
+          || (
+            !userDoc().data.keys().hasAny(['approvalStatus'])
+            && userDoc().data.role == 'admin'
+          )
+        )
+        && (
+          userDoc().data.role == 'admin'
+          || userDoc().data.role == 'sales_rep'
+        );
     }
 
     function isActiveAdmin() {
-      return isSignedIn()
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true;
+      return hasUserDoc()
+        && userDoc().data.role == 'admin'
+        && userDoc().data.active == true
+        && (
+          (
+            userDoc().data.keys().hasAny(['approvalStatus'])
+            && userDoc().data.approvalStatus == 'approved'
+          )
+          || !userDoc().data.keys().hasAny(['approvalStatus'])
+        );
     }
 
-    function hasValidItemFields(itemId, data) {
-      return data.keys().hasOnly([
-          'id',
-          'code',
-          'name',
-          'description',
-          'unit',
-          'price',
-          'taxRate',
-          'active',
-          'deleted',
-          'createdAt',
-          'updatedAt',
-          'createdBy'
-        ])
-        && data.keys().hasAll([
-          'id',
-          'code',
-          'name',
-          'description',
-          'unit',
-          'price',
-          'taxRate',
-          'active',
-          'deleted',
-          'createdAt',
-          'updatedAt',
-          'createdBy'
-        ])
-        && data.id == itemId
-        && data.id is string
-        && data.code is string
-        && data.code.size() >= 1
-        && data.code.size() <= 100
-        && data.name is string
-        && data.name.size() >= 1
-        && data.name.size() <= 200
-        && data.description is string
-        && data.description.size() >= 1
-        && data.description.size() <= 2000
-        && data.unit is string
-        && data.unit.size() >= 1
-        && data.unit.size() <= 50
-        && data.price is number
-        && data.price >= 0
-        && data.taxRate is number
-        && data.taxRate >= 0
-        && data.taxRate <= 100
-        && data.active is bool
-        && data.deleted is bool
-        && data.createdAt is timestamp
-        && data.updatedAt is timestamp
-        && data.createdBy is string;
+    function isOwnerField(data) {
+      return data.createdByUid == request.auth.uid
+        || data.salesRepId == request.auth.uid;
     }
 
-    match /users/{userId} {
-      // Login controllers may only read the authenticated user's own profile.
-      allow get: if isOwner(userId);
+    function canReadOwnedBusinessDoc(companyId, data) {
+      return isApprovedCompanyUser(companyId)
+        && (
+          isActiveAdmin()
+          || isOwnerField(data)
+        );
+    }
 
-      // Self-registration creates a restricted, active viewer profile.
-      allow create: if isOwner(userId)
+    function validPendingUserCreate(userId) {
+      return request.auth.uid == userId
         && request.auth.token.email != null
         && request.resource.data.keys().hasOnly([
+          'uid',
           'name',
           'email',
-          'age',
           'phone',
-          'phoneVerified',
+          'photoUrl',
           'role',
           'active',
+          'approvalStatus',
+          'companyId',
           'createdAt',
           'updatedAt'
         ])
+        && request.resource.data.uid == userId
+        && request.resource.data.email == request.auth.token.email
         && request.resource.data.name is string
         && request.resource.data.name.size() >= 2
-        && request.resource.data.name.size() <= 100
-        && request.resource.data.email == request.auth.token.email
-        && request.resource.data.age is int
-        && request.resource.data.age >= 1
-        && request.resource.data.age <= 120
-        && request.resource.data.phone is string
-        && request.resource.data.phone.size() >= 7
-        && request.resource.data.phone.size() <= 16
-        && request.resource.data.phoneVerified == false
-        && request.resource.data.role == 'viewer'
-        && request.resource.data.active == true
+        && request.resource.data.name != 'undefined'
+        && request.resource.data.role == 'pending_sales_rep'
+        && request.resource.data.active == false
+        && request.resource.data.approvalStatus == 'pending'
+        && request.resource.data.companyId == 'default_company'
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
+    }
 
-      allow list, update, delete: if false;
+    function validBusinessCreate(companyId, data) {
+      return isApprovedCompanyUser(companyId)
+        && data.companyId == companyId
+        && data.createdByUid == request.auth.uid
+        && data.createdByName is string
+        && data.createdByName.size() > 0
+        && data.createdByName != 'undefined'
+        && data.createdByRole == userDoc().data.role;
+    }
+
+    function validFinancialCreate(companyId, data) {
+      return isApprovedCompanyUser(companyId)
+        && data.companyId == companyId
+        && (
+          data.createdByUid == request.auth.uid
+          || isActiveAdmin()
+        )
+        && data.createdByName is string
+        && data.createdByName.size() > 0
+        && data.createdByName != 'undefined'
+        && (
+          data.createdByRole == userDoc().data.role
+          || isActiveAdmin()
+        );
+    }
+
+    function customerIdentityPreserved() {
+      return request.resource.data.id == resource.data.id
+        && request.resource.data.companyId == resource.data.companyId
+        && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.createdByName == resource.data.createdByName
+        && request.resource.data.createdByRole == resource.data.createdByRole
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function validCustomerProfileUpdate(companyId) {
+      return canReadOwnedBusinessDoc(companyId, resource.data)
+        && customerIdentityPreserved()
+        && request.resource.data.currentBalance == resource.data.currentBalance
+        && request.resource.data.totalSales == resource.data.totalSales
+        && request.resource.data.totalPaid == resource.data.totalPaid
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validCustomerFinancialPostingUpdate(companyId) {
+      // TODO: OSAMA - Move financial posting to Cloud Functions for full trust.
+      return canReadOwnedBusinessDoc(companyId, resource.data)
+        && customerIdentityPreserved()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'currentBalance',
+          'totalSales',
+          'totalPaid',
+          'updatedAt'
+        ])
+        && request.resource.data.currentBalance is number
+        && request.resource.data.totalSales is number
+        && request.resource.data.totalPaid is number
+        && request.resource.data.totalSales >= resource.data.totalSales
+        && request.resource.data.totalPaid >= resource.data.totalPaid
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function invoiceIdentityPreserved() {
+      return request.resource.data.id == resource.data.id
+        && request.resource.data.companyId == resource.data.companyId
+        && request.resource.data.invoiceNumber == resource.data.invoiceNumber
+        && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.createdByName == resource.data.createdByName
+        && request.resource.data.createdByRole == resource.data.createdByRole
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function invoiceIsEditableDraft(data) {
+      return data.invoiceStatus == 'draft'
+        && data.financialPosted == false
+        && data.isLocked == false;
+    }
+
+    function validInvoiceDraftUpdate(companyId) {
+      return canReadOwnedBusinessDoc(companyId, resource.data)
+        && invoiceIdentityPreserved()
+        && invoiceIsEditableDraft(resource.data)
+        && invoiceIsEditableDraft(request.resource.data)
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validInvoicePostingUpdate(companyId) {
+      return canReadOwnedBusinessDoc(companyId, resource.data)
+        && invoiceIdentityPreserved()
+        && invoiceIsEditableDraft(resource.data)
+        && request.resource.data.invoiceStatus == 'confirmed'
+        && request.resource.data.financialPosted == true
+        && request.resource.data.financialPostedByUid == request.auth.uid
+        && request.resource.data.financialPostedByName is string
+        && request.resource.data.financialPostedByName.size() > 0
+        && request.resource.data.financialPostedByName != 'undefined'
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validCounterWrite(companyId, counterId) {
+      // TODO: OSAMA - Generate official numbers in Cloud Functions when possible.
+      return isApprovedCompanyUser(companyId)
+        && counterId.matches('^(invoices|receipts)_[0-9]{4}$')
+        && request.resource.data.keys().hasOnly([
+          'id',
+          'companyId',
+          'year',
+          'lastNumber',
+          'prefix',
+          'updatedAt'
+        ])
+        && request.resource.data.id == counterId
+        && request.resource.data.companyId == companyId
+        && request.resource.data.year is number
+        && request.resource.data.year >= 2020
+        && request.resource.data.year <= 2100
+        && request.resource.data.lastNumber is number
+        && request.resource.data.lastNumber > 0
+        && request.resource.data.updatedAt == request.time
+        && (
+          (
+            counterId.matches('^invoices_[0-9]{4}$')
+            && request.resource.data.prefix == 'INV'
+          )
+          || (
+            counterId.matches('^receipts_[0-9]{4}$')
+            && request.resource.data.prefix == 'REC'
+          )
+        );
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn()
+        && (request.auth.uid == userId || isActiveAdmin());
+
+      allow list: if isActiveAdmin();
+
+      allow create: if isSignedIn() && validPendingUserCreate(userId);
+
+      allow update: if isActiveAdmin()
+        && request.resource.data.uid == userId
+        && request.resource.data.companyId == 'default_company'
+        && request.resource.data.role in [
+          'admin',
+          'sales_rep',
+          'pending_sales_rep'
+        ]
+        && request.resource.data.approvalStatus in [
+          'approved',
+          'pending',
+          'rejected'
+        ];
+
+      allow delete: if false;
     }
 
     match /items/{itemId} {
-      // Items are managed only by authenticated, active administrators.
-      allow get, list: if isActiveAdmin();
+      allow get, list: if isApprovedCompanyUser('default_company');
 
       allow create: if isActiveAdmin()
-        && hasValidItemFields(itemId, request.resource.data)
+        && request.resource.data.id == itemId
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.deleted == false
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
 
       allow update: if isActiveAdmin()
-        && resource.data.deleted == false
-        && hasValidItemFields(itemId, request.resource.data)
         && request.resource.data.id == resource.data.id
         && request.resource.data.createdBy == resource.data.createdBy
         && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.updatedAt == request.time
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'code',
-          'name',
-          'description',
-          'unit',
-          'price',
-          'taxRate',
-          'active',
-          'deleted',
-          'updatedAt'
-        ])
-        && (
-          request.resource.data.deleted == false
-          || request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'deleted',
-            'updatedAt'
-          ])
-        );
+        && request.resource.data.updatedAt == request.time;
 
-      // Permanent deletion is forbidden. The app sets deleted = true instead.
       allow delete: if false;
     }
 
-    // New application collections remain closed until their modules and
-    // role-specific rules are implemented.
+    match /companies/{companyId}/customers/{customerId} {
+      allow get: if canReadOwnedBusinessDoc(companyId, resource.data);
+      allow list: if isApprovedCompanyUser(companyId);
+
+      allow create: if validBusinessCreate(companyId, request.resource.data)
+        && request.resource.data.id == customerId
+        && request.resource.data.active == true
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      allow update: if validCustomerProfileUpdate(companyId)
+        || validCustomerFinancialPostingUpdate(companyId);
+
+      allow delete: if false;
+    }
+
+    match /companies/{companyId}/invoices/{invoiceId} {
+      allow get: if canReadOwnedBusinessDoc(companyId, resource.data);
+      allow list: if isApprovedCompanyUser(companyId);
+
+      allow create: if validBusinessCreate(companyId, request.resource.data)
+        && request.resource.data.id == invoiceId
+        && request.resource.data.salesRepId == request.auth.uid
+        && request.resource.data.salesRepName is string
+        && request.resource.data.salesRepName.size() > 0
+        && request.resource.data.salesRepName != 'undefined'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      allow update: if validInvoiceDraftUpdate(companyId)
+        || validInvoicePostingUpdate(companyId);
+
+      allow delete: if canReadOwnedBusinessDoc(companyId, resource.data)
+        && resource.data.invoiceStatus == 'draft'
+        && resource.data.isLocked == false;
+    }
+
+    match /companies/{companyId}/customer_transactions/{transactionId} {
+      allow get: if canReadOwnedBusinessDoc(companyId, resource.data);
+      allow list: if isApprovedCompanyUser(companyId);
+
+      allow create: if validFinancialCreate(companyId, request.resource.data)
+        && request.resource.data.id == transactionId
+        && request.resource.data.createdAt == request.time;
+
+      allow update, delete: if false;
+    }
+
+    match /companies/{companyId}/receipts/{receiptId} {
+      allow get: if canReadOwnedBusinessDoc(companyId, resource.data);
+      allow list: if isApprovedCompanyUser(companyId);
+
+      allow create: if validBusinessCreate(companyId, request.resource.data)
+        && request.resource.data.id == receiptId
+        && request.resource.data.salesRepId == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      allow update, delete: if false;
+    }
+
+    match /companies/{companyId}/cash_movements/{movementId} {
+      allow get: if canReadOwnedBusinessDoc(companyId, resource.data);
+      allow list: if isApprovedCompanyUser(companyId);
+
+      allow create: if validFinancialCreate(companyId, request.resource.data)
+        && request.resource.data.id == movementId
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.direction in ['in', 'out']
+        && (
+          (
+            request.resource.data.type in [
+              'settlement_to_admin',
+              'adjustment'
+            ]
+            && isActiveAdmin()
+          )
+          || (
+            !(request.resource.data.type in [
+              'settlement_to_admin',
+              'adjustment'
+            ])
+            && (
+              request.resource.data.salesRepId == request.auth.uid
+              || isActiveAdmin()
+            )
+          )
+        )
+        && request.resource.data.createdAt == request.time;
+
+      allow update, delete: if false;
+    }
+
+    match /companies/{companyId}/counters/{counterId} {
+      allow get, list: if isApprovedCompanyUser(companyId);
+      allow create, update: if validCounterWrite(companyId, counterId);
+      allow delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

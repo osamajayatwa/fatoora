@@ -1,14 +1,21 @@
 import 'package:fatoora/core/services/services.dart';
-import 'package:fatoora/data/repositories/admin_auth_repository.dart';
+import 'package:fatoora/features/auth/data/repositories/admin_auth_repository.dart';
+import 'package:fatoora/features/customers/bindings/customers_binding.dart';
 import 'package:fatoora/features/invoices/controllers/invoices_list_controller.dart';
 import 'package:fatoora/features/invoices/data/repositories/invoice_repository.dart';
 import 'package:fatoora/features/invoices/data/services/invoice_number_service.dart';
 import 'package:fatoora/features/invoices/data/services/invoice_totals_service.dart';
 import 'package:fatoora/features/invoices/data/services/jofotara_placeholder_service.dart';
-import 'package:fatoora/modules/admin_dashboard/controller/admin_dashboard_controller.dart';
+import 'package:fatoora/features/admin_dashboard/controller/admin_dashboard_controller.dart';
+import 'package:fatoora/features/items/binding/items_binding.dart';
+import 'package:fatoora/features/financial/bindings/financial_binding.dart';
+import 'package:fatoora/features/financial/data/repositories/financial_repository.dart';
 import 'package:get/get.dart';
 
 void registerInvoiceCoreDependencies() {
+  registerCustomerDependencies();
+  registerItemsCoreDependencies();
+  registerFinancialDependencies();
   if (!Get.isRegistered<AdminAuthRepository>()) {
     Get.lazyPut<AdminAuthRepository>(AdminAuthRepository.new, fenix: true);
   }
@@ -16,6 +23,7 @@ void registerInvoiceCoreDependencies() {
     Get.lazyPut<AdminDashboardController>(
       () => AdminDashboardController(
         repository: Get.find<AdminAuthRepository>(),
+        financialRepository: Get.find<FinancialRepository>(),
         myServices: Get.find<MyServices>(),
       ),
       fenix: true,
@@ -41,7 +49,9 @@ void registerInvoiceCoreDependencies() {
   }
   if (!Get.isRegistered<InvoiceRepository>()) {
     Get.lazyPut<InvoiceRepository>(
-      () => InvoiceRepository(jofotaraService: Get.find()),
+      () => InvoiceRepository(
+        jofotaraService: Get.find<JofotaraPlaceholderService>(),
+      ),
       fenix: true,
     );
   }

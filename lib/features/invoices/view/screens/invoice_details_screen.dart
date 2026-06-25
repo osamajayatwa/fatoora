@@ -1,6 +1,7 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
-import 'package:fatoora/core/constant/color.dart';
+import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_details_controller.dart';
+import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/invoices/view/widgets/customer_snapshot_card.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_items_table.dart';
@@ -8,8 +9,8 @@ import 'package:fatoora/features/invoices/view/widgets/invoice_status_chip.dart'
 import 'package:fatoora/features/invoices/view/widgets/invoice_totals_card.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_type_chip.dart';
 import 'package:fatoora/features/invoices/view/widgets/locked_electronic_invoice_banner.dart';
-import 'package:fatoora/modules/admin_dashboard/view/widgets/admin_dashboard_shell.dart';
-import 'package:fatoora/modules/admin_dashboard/view/widgets/dashboard_card.dart';
+import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
+import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart' hide TextDirection;
@@ -25,7 +26,10 @@ class InvoiceDetailsScreen extends StatelessWidget {
         onPopInvokedWithResult: (didPop, _) {
           if (!didPop) controller.requestBack();
         },
-        child: AdminDashboardShell(
+        child: BusinessShell(
+          title: 'invoice_details'.tr,
+          showBackButton: true,
+          onBack: controller.requestBack,
           child: HandilingDataView(
             statusrequest: controller.statusRequest,
             errorMessage: controller.loadErrorMessageKey.tr,
@@ -202,6 +206,8 @@ class _RightColumn extends StatelessWidget {
           grandTotal: invoice.grandTotal,
         ),
         const SizedBox(height: 18),
+        _PaymentCard(invoice: invoice),
+        const SizedBox(height: 18),
         DashboardCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -239,6 +245,92 @@ class _RightColumn extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _PaymentCard extends StatelessWidget {
+  const _PaymentCard({required this.invoice});
+
+  final InvoiceModel invoice;
+
+  @override
+  Widget build(BuildContext context) {
+    final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
+    return DashboardCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'payment_details'.tr,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: AppColor.secondaryColor,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _PaymentRow(
+            label: 'payment_type'.tr,
+            value: invoice.paymentType.value.tr,
+          ),
+          _PaymentRow(
+            label: 'payment_status'.tr,
+            value: invoice.paymentStatus.value.tr,
+          ),
+          _PaymentRow(
+            label: 'paid_amount'.tr,
+            value: currency.format(invoice.paidAmount),
+          ),
+          _PaymentRow(
+            label: 'remaining_amount'.tr,
+            value: currency.format(invoice.remainingAmount),
+          ),
+          _PaymentRow(
+            label: 'invoice_due_date'.tr,
+            value: DateFormat.yMMMd().format(invoice.dueDate),
+          ),
+          _PaymentRow(label: 'sales_rep'.tr, value: invoice.salesRepName),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentRow extends StatelessWidget {
+  const _PaymentRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AppColor.grey,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColor.secondaryColor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

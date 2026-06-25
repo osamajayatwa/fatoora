@@ -1,4 +1,4 @@
-import 'package:fatoora/core/constant/color.dart';
+import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -143,6 +143,7 @@ class InvoiceFilterBar extends StatelessWidget {
   String _statusLabel(InvoiceStatus status) {
     return switch (status) {
       InvoiceStatus.draft => 'draft',
+      InvoiceStatus.confirmed => 'confirmed',
       InvoiceStatus.pendingSubmit => 'pending_submit',
       InvoiceStatus.accepted => 'accepted',
       InvoiceStatus.rejected => 'rejected',

@@ -2,8 +2,13 @@ import 'package:get/get.dart';
 import 'package:fatoora/core/localization/admin_login_translations.dart';
 import 'package:fatoora/core/localization/user_auth_translations.dart';
 import 'package:fatoora/core/localization/admin_dashboard_translations.dart';
+import 'package:fatoora/core/localization/admin_users_translations.dart';
 import 'package:fatoora/core/localization/items_translations.dart';
 import 'package:fatoora/core/localization/invoices_translations.dart';
+import 'package:fatoora/core/localization/customers_translations.dart';
+import 'package:fatoora/core/localization/financial_translations.dart';
+import 'package:fatoora/core/localization/receipts_translations.dart';
+import 'package:fatoora/core/localization/common_translations.dart';
 
 class MyTranslation extends Translations {
   @override
@@ -12,8 +17,13 @@ class MyTranslation extends Translations {
       ...adminLoginArabicTranslations,
       ...userAuthArabicTranslations,
       ...adminDashboardArabicTranslations,
+      ...adminUsersArabicTranslations,
       ...itemsArabicTranslations,
       ...invoicesArabicTranslations,
+      ...customersArabicTranslations,
+      ...financialArabicTranslations,
+      ...receiptsArabicTranslations,
+      ...commonArabicTranslations,
       "Choose Language": "اختر اللغة",
       "Continue": "متابعه",
       "LogIn": "تسجيل الدخول",
@@ -297,13 +307,19 @@ class MyTranslation extends Translations {
       "Bus Details": "تفاصيل الحافلة",
       "Speed": "السرعة",
       "": "",
+      ...commonArabicTranslations,
     },
     "en": {
       ...adminLoginEnglishTranslations,
       ...userAuthEnglishTranslations,
       ...adminDashboardEnglishTranslations,
+      ...adminUsersEnglishTranslations,
       ...itemsEnglishTranslations,
       ...invoicesEnglishTranslations,
+      ...customersEnglishTranslations,
+      ...financialEnglishTranslations,
+      ...receiptsEnglishTranslations,
+      ...commonEnglishTranslations,
     },
   };
 }

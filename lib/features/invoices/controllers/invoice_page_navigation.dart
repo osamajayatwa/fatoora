@@ -22,6 +22,6 @@ mixin InvoicePageNavigation on GetxController {
       return;
     }
 
-    Get.offAllNamed(fallbackRoute, arguments: fallbackArguments);
+    Get.offNamed(fallbackRoute, arguments: fallbackArguments);
   }
 }

@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-
 class MyServices extends GetxService {
   late SharedPreferences sharedPreferences;
   late FlutterSecureStorage secureStorage;
@@ -33,7 +32,7 @@ class FirebaseService extends GetxService {
 
   void _setupTokenListeners() {
     FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
-      print("Refreshed FCM Token: $newToken");
+      debugPrint("Refreshed FCM Token: $newToken");
       await secureStorage.write(key: "fcmToken", value: newToken);
 
       final myServices = Get.find<MyServices>();
@@ -49,19 +48,18 @@ class FirebaseService extends GetxService {
       final parentId = myServices.sharedPreferences.getString("id");
       if (parentId == null) return;
 
-
-
-      print("Simulated FCM token update on server for user $parentId with token $newToken");
+      debugPrint(
+        "Simulated FCM token update on server for user $parentId with token $newToken",
+      );
     } catch (e) {
-      print("Error updating FCM token: $e");
+      debugPrint("Error updating FCM token: $e");
     }
   }
 }
 
-
 Future<void> initialServices() async {
   await Get.putAsync(() => MyServices().init());
- // Get.put(FirebaseService());
- 
+  // Get.put(FirebaseService());
+
   //  await NotificationService.instance.init();
 }

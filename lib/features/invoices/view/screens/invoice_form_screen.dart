@@ -1,15 +1,17 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
-import 'package:fatoora/core/constant/app_feature_flags.dart';
-import 'package:fatoora/core/constant/color.dart';
+import 'package:fatoora/core/constants/app_feature_flags.dart';
+import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/features/customers/view/widgets/customer_picker_sheet.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_form_controller.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/view/widgets/customer_snapshot_card.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_items_table.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_totals_card.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_type_chip.dart';
+import 'package:fatoora/features/invoices/view/widgets/item_picker_sheet.dart';
 import 'package:fatoora/features/invoices/view/widgets/locked_electronic_invoice_banner.dart';
-import 'package:fatoora/modules/admin_dashboard/view/widgets/admin_dashboard_shell.dart';
-import 'package:fatoora/modules/admin_dashboard/view/widgets/dashboard_card.dart';
+import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
+import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart' hide TextDirection;
@@ -25,7 +27,14 @@ class InvoiceFormScreen extends StatelessWidget {
         onPopInvokedWithResult: (didPop, _) {
           if (!didPop) controller.requestBack();
         },
-        child: AdminDashboardShell(
+        child: BusinessShell(
+          title: controller.readOnly
+              ? 'invoice_details'.tr
+              : controller.isCreateMode
+              ? 'create_invoice'.tr
+              : 'edit_invoice'.tr,
+          showBackButton: true,
+          onBack: controller.requestBack,
           child: HandilingDataView(
             statusrequest: controller.statusRequest,
             errorMessage: controller.loadErrorMessageKey.tr,
@@ -145,7 +154,10 @@ class _MainFormColumn extends StatelessWidget {
         const SizedBox(height: 18),
         CustomerSnapshotCard(
           customer: controller.customerSnapshot,
-          onSelect: controller.selectCustomerPlaceholder,
+          onSelect: () async {
+            final customer = await showCustomerPicker(context);
+            if (customer != null) controller.selectCustomer(customer);
+          },
           readOnly: controller.readOnly,
         ),
         const SizedBox(height: 18),
@@ -182,6 +194,8 @@ class _SideColumn extends StatelessWidget {
           totalTax: controller.totalTax,
           grandTotal: controller.grandTotal,
         ),
+        const SizedBox(height: 18),
+        _PaymentInputCard(controller: controller),
         const SizedBox(height: 18),
         _ActionCard(controller: controller),
       ],
@@ -257,25 +271,153 @@ class _InvoiceDetailsCard extends StatelessWidget {
                   ),
                   icon: const Icon(Icons.calendar_today_outlined, size: 18),
                   label: Text(
-                    DateFormat.yMMMd().format(controller.invoiceDate),
+                    '${'invoice_date'.tr}: ${DateFormat.yMMMd().format(controller.invoiceDate)}',
                   ),
                 ),
               ),
               SizedBox(
-                width: 260,
-                child: TextFormField(
-                  controller: controller.paymentMethodController,
-                  readOnly: controller.readOnly,
-                  decoration: InputDecoration(
-                    labelText: 'payment_method'.tr,
-                    prefixIcon: const Icon(Icons.payments_outlined),
-                    border: OutlineInputBorder(
+                width: 240,
+                child: OutlinedButton.icon(
+                  onPressed: controller.readOnly
+                      ? null
+                      : () async {
+                          final selected = await showDatePicker(
+                            context: context,
+                            initialDate: controller.dueDate,
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(DateTime.now().year + 2),
+                          );
+                          if (selected != null) {
+                            controller.setDueDate(selected);
+                          }
+                        },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColor.secondaryColor,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 18,
+                    ),
+                    shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
+                  ),
+                  icon: const Icon(Icons.event_available_outlined, size: 18),
+                  label: Text(
+                    '${'invoice_due_date'.tr}: ${DateFormat.yMMMd().format(controller.dueDate)}',
                   ),
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentInputCard extends StatelessWidget {
+  const _PaymentInputCard({required this.controller});
+
+  final InvoiceFormController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
+    return DashboardCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'received_amount'.tr,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: AppColor.secondaryColor,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: controller.hasReceivedPayment,
+            onChanged: controller.readOnly
+                ? null
+                : controller.setHasReceivedPayment,
+            title: Text(
+              'i_received_amount'.tr,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColor.secondaryColor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (controller.hasReceivedPayment) ...[
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: controller.paidAmountController,
+              readOnly: controller.readOnly,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              onChanged: controller.onPaidAmountChanged,
+              decoration: InputDecoration(
+                labelText: 'received_amount'.tr,
+                prefixIcon: const Icon(Icons.paid_outlined),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          _PaymentSummaryLine(
+            label: 'payment_type'.tr,
+            value: controller.paymentType.value.tr,
+          ),
+          _PaymentSummaryLine(
+            label: 'payment_status'.tr,
+            value: controller.paymentStatus.value.tr,
+          ),
+          _PaymentSummaryLine(
+            label: 'remaining_amount'.tr,
+            value: currency.format(controller.remainingAmount),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentSummaryLine extends StatelessWidget {
+  const _PaymentSummaryLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AppColor.grey,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColor.secondaryColor,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         ],
       ),
@@ -307,47 +449,11 @@ class _AddItemCard extends StatelessWidget {
             runSpacing: 12,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              _Input(
-                controller: controller.itemNameController,
-                label: 'item_name'.tr,
-                width: 230,
-              ),
-              _Input(
-                controller: controller.itemCodeController,
-                label: 'items_code'.tr,
-                width: 150,
-              ),
-              _Input(
-                controller: controller.itemUnitController,
-                label: 'items_unit'.tr,
-                width: 120,
-              ),
-              _Input(
-                controller: controller.itemQuantityController,
-                label: 'quantity'.tr,
-                width: 120,
-                number: true,
-              ),
-              _Input(
-                controller: controller.itemPriceController,
-                label: 'unit_price'.tr,
-                width: 140,
-                number: true,
-              ),
-              _Input(
-                controller: controller.itemDiscountController,
-                label: 'discount'.tr,
-                width: 130,
-                number: true,
-              ),
-              _Input(
-                controller: controller.itemTaxController,
-                label: 'tax'.tr,
-                width: 120,
-                number: true,
-              ),
               FilledButton.icon(
-                onPressed: controller.addItemFromInputs,
+                onPressed: () async {
+                  final item = await showInvoiceItemPicker(context);
+                  if (item != null) controller.addCatalogItem(item);
+                },
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColor.primaryColor,
                   padding: const EdgeInsets.symmetric(
@@ -355,8 +461,14 @@ class _AddItemCard extends StatelessWidget {
                     vertical: 16,
                   ),
                 ),
-                icon: const Icon(Icons.add_rounded),
-                label: Text('add_item'.tr),
+                icon: const Icon(Icons.inventory_2_outlined),
+                label: Text('select_item'.tr),
+              ),
+              Text(
+                'invoice_items_catalog_only'.tr,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColor.grey),
               ),
             ],
           ),
@@ -408,7 +520,7 @@ class _ActionCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             FilledButton.icon(
-              onPressed: controller.isSaving ? null : controller.saveInvoice,
+              onPressed: controller.isSaving ? null : controller.confirmInvoice,
               style: FilledButton.styleFrom(
                 backgroundColor: AppColor.primaryColor,
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -423,7 +535,14 @@ class _ActionCard extends StatelessWidget {
                       ),
                     )
                   : const Icon(Icons.check_rounded),
-              label: Text('save_invoice'.tr),
+              label: Text('confirm_invoice'.tr),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'draft_has_no_financial_effect'.tr,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColor.grey),
             ),
             if (controller.invoiceType == InvoiceType.electronic &&
                 AppFeatureFlags.jofotaraEnabled) ...[
@@ -448,37 +567,6 @@ class _ActionCard extends StatelessWidget {
             label: Text('dashboard_cancel'.tr),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _Input extends StatelessWidget {
-  const _Input({
-    required this.controller,
-    required this.label,
-    required this.width,
-    this.number = false,
-  });
-
-  final TextEditingController controller;
-  final String label;
-  final double width;
-  final bool number;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: width,
-      child: TextFormField(
-        controller: controller,
-        keyboardType: number
-            ? const TextInputType.numberWithOptions(decimal: true)
-            : TextInputType.text,
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-        ),
       ),
     );
   }

@@ -1,5 +1,5 @@
 import 'package:fatoora/core/services/services.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 
 class InvoiceContext {
   const InvoiceContext._();
@@ -22,11 +22,11 @@ class InvoiceContext {
     if (fromArgs.isNotEmpty) return fromArgs;
 
     final preferences = myServices.sharedPreferences;
-    for (final key in ['companyId', 'company_id', 'uid']) {
+    for (final key in ['companyId', 'company_id']) {
       final value = preferences.getString(key);
       if (value != null && value.trim().isNotEmpty) return value.trim();
     }
 
-    return FirebaseAuth.instance.currentUser?.uid ?? '';
+    return AuthRepository.defaultCompanyId;
   }
 }

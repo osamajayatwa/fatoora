@@ -1,5 +1,5 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
-import 'package:fatoora/core/constant/color.dart';
+import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/invoices/controllers/invoices_list_controller.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/invoices/view/widgets/empty_invoices_widget.dart';
@@ -9,7 +9,7 @@ import 'package:fatoora/features/invoices/view/widgets/invoice_filter_bar.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_search_bar.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_status_chip.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_type_chip.dart';
-import 'package:fatoora/modules/admin_dashboard/view/widgets/admin_dashboard_shell.dart';
+import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -21,7 +21,8 @@ class InvoicesListScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetBuilder<InvoicesListController>(
       builder: (controller) {
-        return AdminDashboardShell(
+        return BusinessShell(
+          title: 'invoices'.tr,
           child: HandilingDataView(
             statusrequest: controller.statusRequest,
             errorMessage: controller.loadErrorMessageKey.tr,

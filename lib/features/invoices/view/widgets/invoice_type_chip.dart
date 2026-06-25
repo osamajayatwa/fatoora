@@ -1,4 +1,4 @@
-import 'package:fatoora/core/constant/color.dart';
+import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
