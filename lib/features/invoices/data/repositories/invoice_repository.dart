@@ -8,6 +8,7 @@ import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/invoices/data/services/jofotara_placeholder_service.dart';
+import 'package:fatoora/features/items/data/models/item_model.dart';
 import 'package:fatoora/features/shared/business/business_user_context.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -28,6 +29,18 @@ class InvoiceRepositoryException implements Exception {
 
   final InvoiceRepositoryError error;
   final Object? cause;
+}
+
+class InsufficientStockFailure {
+  const InsufficientStockFailure({
+    required this.itemName,
+    required this.requestedQuantity,
+    required this.availableQuantity,
+  });
+
+  final String itemName;
+  final double requestedQuantity;
+  final double availableQuantity;
 }
 
 class InvoiceRepository {
@@ -75,6 +88,16 @@ class InvoiceRepository {
         .collection('companies')
         .doc(companyId)
         .collection('cash_movements');
+  }
+
+  CollectionReference<Map<String, dynamic>> get _items =>
+      _firestore.collection('items');
+
+  CollectionReference<Map<String, dynamic>> _stockMovements(String companyId) {
+    return _firestore
+        .collection('companies')
+        .doc(companyId)
+        .collection('stock_movements');
   }
 
   DocumentReference<Map<String, dynamic>> _invoiceCounter(
@@ -202,7 +225,7 @@ class InvoiceRepository {
                 needsCashMovement: paymentPreview.paidAmount > 0,
               );
             }
-            final number = await _nextInvoiceNumber(
+            final numberAllocation = await _allocateInvoiceNumber(
               transaction: transaction,
               companyId: companyId,
               invoiceDate: invoice.invoiceDate,
@@ -212,7 +235,7 @@ class InvoiceRepository {
               user: user,
               id: document.id,
               companyId: companyId,
-              invoiceNumber: number,
+              invoiceNumber: numberAllocation.number,
               createdAt: now,
               updatedAt: now,
               preserveCreator: false,
@@ -223,6 +246,14 @@ class InvoiceRepository {
                     customer: customer,
                   )
                 : null;
+            final inventoryPosting =
+                normalized.invoiceStatus == InvoiceStatus.confirmed
+                ? await _buildInventoryPosting(
+                    transaction: transaction,
+                    invoice: normalized,
+                    user: user,
+                  )
+                : null;
             if (posting != null) {
               normalized = _withFinancialPostingMetadata(
                 invoice: normalized,
@@ -231,7 +262,20 @@ class InvoiceRepository {
                 postedAt: now,
               );
             }
+            if (inventoryPosting != null) {
+              normalized = _withInventoryPostingMetadata(
+                invoice: normalized,
+                posting: inventoryPosting,
+                user: user,
+                postedAt: now,
+              );
+            }
 
+            transaction.set(
+              numberAllocation.counterRef,
+              numberAllocation.counterData,
+              SetOptions(merge: true),
+            );
             transaction.set(document, {
               ...normalized.toMap(),
               'createdAt': FieldValue.serverTimestamp(),
@@ -239,6 +283,9 @@ class InvoiceRepository {
             });
 
             if (posting != null) _applyFinancialPosting(transaction, posting);
+            if (inventoryPosting != null) {
+              _applyInventoryPosting(transaction, inventoryPosting);
+            }
           })
           .timeout(const Duration(seconds: 20));
       return document.id;
@@ -270,6 +317,11 @@ class InvoiceRepository {
                 InvoiceRepositoryError.invalidState,
               );
             }
+            if (existing.isDraft && existing.inventoryPosted) {
+              throw const InvoiceRepositoryException(
+                InvoiceRepositoryError.invalidState,
+              );
+            }
             if (!existing.canEdit) {
               throw const InvoiceRepositoryException(
                 InvoiceRepositoryError.locked,
@@ -297,30 +349,57 @@ class InvoiceRepository {
             final shouldPost =
                 !existing.financialPosted &&
                 normalized.invoiceStatus == InvoiceStatus.confirmed;
-            if (shouldPost) {
+            final shouldPostInventory =
+                !existing.inventoryPosted &&
+                normalized.invoiceStatus == InvoiceStatus.confirmed;
+            if (shouldPost || shouldPostInventory) {
+              _FinancialPosting? posting;
               await _guardAgainstDuplicatePosting(
                 transaction: transaction,
                 companyId: companyId,
                 invoiceId: normalized.id,
-                needsCustomerTransaction: normalized.remainingAmount > 0,
-                needsCashMovement: normalized.paidAmount > 0,
+                needsCustomerTransaction:
+                    shouldPost && normalized.remainingAmount > 0,
+                needsCashMovement: shouldPost && normalized.paidAmount > 0,
               );
-              final posting = _buildFinancialPosting(
-                invoice: normalized,
-                customer: customer,
-              );
-              normalized = _withFinancialPostingMetadata(
-                invoice: normalized,
-                posting: posting,
-                user: user,
-                postedAt: DateTime.now(),
-              );
+              if (shouldPost) {
+                posting = _buildFinancialPosting(
+                  invoice: normalized,
+                  customer: customer,
+                );
+                normalized = _withFinancialPostingMetadata(
+                  invoice: normalized,
+                  posting: posting,
+                  user: user,
+                  postedAt: DateTime.now(),
+                );
+              }
+              final inventoryPosting = shouldPostInventory
+                  ? await _buildInventoryPosting(
+                      transaction: transaction,
+                      invoice: normalized,
+                      user: user,
+                    )
+                  : null;
+              if (inventoryPosting != null) {
+                normalized = _withInventoryPostingMetadata(
+                  invoice: normalized,
+                  posting: inventoryPosting,
+                  user: user,
+                  postedAt: DateTime.now(),
+                );
+              }
               transaction.update(document, {
                 ...normalized.toMap(),
                 'createdAt': Timestamp.fromDate(existing.createdAt),
                 'updatedAt': FieldValue.serverTimestamp(),
               });
-              _applyFinancialPosting(transaction, posting);
+              if (posting != null) {
+                _applyFinancialPosting(transaction, posting);
+              }
+              if (inventoryPosting != null) {
+                _applyInventoryPosting(transaction, inventoryPosting);
+              }
               return;
             }
 
@@ -410,7 +489,7 @@ class InvoiceRepository {
     );
   }
 
-  Future<String> _nextInvoiceNumber({
+  Future<_InvoiceNumberAllocation> _allocateInvoiceNumber({
     required Transaction transaction,
     required String companyId,
     required DateTime invoiceDate,
@@ -420,15 +499,19 @@ class InvoiceRepository {
     final counter = await transaction.get(counterRef);
     final current = counter.data()?['lastNumber'];
     final next = current is num ? current.toInt() + 1 : 1;
-    transaction.set(counterRef, {
+    final data = {
       'id': counterRef.id,
       'companyId': companyId,
       'year': year,
       'lastNumber': next,
       'prefix': 'INV',
       'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-    return 'INV-$year-${next.toString().padLeft(6, '0')}';
+    };
+    return _InvoiceNumberAllocation(
+      number: 'INV-$year-${next.toString().padLeft(6, '0')}',
+      counterRef: counterRef,
+      counterData: data,
+    );
   }
 
   Future<CustomerModel> _readCustomerForInvoice({
@@ -524,6 +607,11 @@ class InvoiceRepository {
           financialPostedByName: existing?.financialPostedByName ?? '',
           customerTransactionIds: existing?.customerTransactionIds ?? const [],
           cashMovementIds: existing?.cashMovementIds ?? const [],
+          inventoryPosted: existing?.inventoryPosted ?? false,
+          inventoryPostedAt: existing?.inventoryPostedAt,
+          inventoryPostedByUid: existing?.inventoryPostedByUid ?? '',
+          inventoryPostedByName: existing?.inventoryPostedByName ?? '',
+          inventoryMovementIds: existing?.inventoryMovementIds ?? const [],
           government: existing?.government ?? invoice.government,
         )
         .withSearchFields();
@@ -739,6 +827,130 @@ class InvoiceRepository {
     }
   }
 
+  Future<_InventoryPosting> _buildInventoryPosting({
+    required Transaction transaction,
+    required InvoiceModel invoice,
+    required BusinessUserContext user,
+  }) async {
+    final quantitiesByItem = <String, double>{};
+    final snapshotByItem = <String, String>{};
+    for (final item in invoice.items) {
+      final itemId = item.itemId.trim();
+      if (itemId.isEmpty || itemId.startsWith('manual-')) continue;
+      quantitiesByItem[itemId] = _round(
+        (quantitiesByItem[itemId] ?? 0) + item.quantity,
+      );
+      snapshotByItem[itemId] = item.itemName;
+    }
+
+    final itemUpdates = <_InventoryItemUpdate>[];
+    final movementRefs = <DocumentReference<Map<String, dynamic>>>[];
+    final movementData = <Map<String, dynamic>>[];
+
+    for (final entry in quantitiesByItem.entries) {
+      final itemRef = _items.doc(entry.key);
+      final itemSnapshot = await transaction.get(itemRef);
+      if (!itemSnapshot.exists) continue;
+      final item = ItemModel.fromFirestore(itemSnapshot);
+      if (item.deleted || !item.trackStock) continue;
+      final requestedQuantity = _round(entry.value);
+      if (requestedQuantity <= 0) continue;
+      final quantityBefore = item.currentStock;
+      if (quantityBefore < requestedQuantity) {
+        throw InvoiceRepositoryException(
+          InvoiceRepositoryError.invalidState,
+          InsufficientStockFailure(
+            itemName: item.name.isEmpty
+                ? (snapshotByItem[entry.key] ?? entry.key)
+                : item.name,
+            requestedQuantity: requestedQuantity,
+            availableQuantity: quantityBefore,
+          ),
+        );
+      }
+      final quantityAfter = _round(quantityBefore - requestedQuantity);
+      final movementRef = _stockMovements(
+        invoice.companyId,
+      ).doc('${invoice.id}_${item.id}_invoice_sale');
+      final existingMovement = await transaction.get(movementRef);
+      if (existingMovement.exists) {
+        throw const InvoiceRepositoryException(
+          InvoiceRepositoryError.invalidState,
+        );
+      }
+      itemUpdates.add(
+        _InventoryItemUpdate(
+          itemRef: itemRef,
+          data: {
+            'currentStock': quantityAfter,
+            'inventoryUpdatedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+        ),
+      );
+      movementRefs.add(movementRef);
+      movementData.add({
+        'id': movementRef.id,
+        'companyId': invoice.companyId,
+        'warehouseId': item.warehouseId.trim().isEmpty
+            ? ItemModel.defaultWarehouseId
+            : item.warehouseId,
+        'itemId': item.id,
+        'itemName': item.name,
+        'itemCode': item.code,
+        'movementType': 'invoice_sale',
+        'direction': 'out',
+        'quantity': requestedQuantity,
+        'quantityBefore': quantityBefore,
+        'quantityAfter': quantityAfter,
+        'referenceType': 'invoice',
+        'referenceId': invoice.id,
+        'referenceNumber': invoice.invoiceNumber,
+        'movementDate': Timestamp.fromDate(invoice.invoiceDate),
+        'notes': invoice.notes,
+        'createdByUid': invoice.createdByUid,
+        'createdByName': invoice.createdByName,
+        'createdByRole': invoice.createdByRole,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    return _InventoryPosting(
+      itemUpdates: itemUpdates,
+      movementRefs: movementRefs,
+      movementData: movementData,
+    );
+  }
+
+  InvoiceModel _withInventoryPostingMetadata({
+    required InvoiceModel invoice,
+    required _InventoryPosting posting,
+    required BusinessUserContext user,
+    required DateTime postedAt,
+  }) {
+    return invoice.copyWith(
+      inventoryPosted: true,
+      inventoryPostedAt: postedAt,
+      inventoryPostedByUid: user.uid,
+      inventoryPostedByName: user.name,
+      inventoryMovementIds: posting.movementRefs
+          .map((reference) => reference.id)
+          .toList(growable: false),
+    );
+  }
+
+  void _applyInventoryPosting(
+    Transaction transaction,
+    _InventoryPosting posting,
+  ) {
+    for (final update in posting.itemUpdates) {
+      transaction.update(update.itemRef, update.data);
+    }
+    for (var index = 0; index < posting.movementRefs.length; index++) {
+      transaction.set(posting.movementRefs[index], posting.movementData[index]);
+    }
+  }
+
   void _requireCanAccessInvoice(
     BusinessUserContext user,
     InvoiceModel invoice,
@@ -880,6 +1092,18 @@ class _CalculatedPayment {
   final PaymentStatus status;
 }
 
+class _InvoiceNumberAllocation {
+  const _InvoiceNumberAllocation({
+    required this.number,
+    required this.counterRef,
+    required this.counterData,
+  });
+
+  final String number;
+  final DocumentReference<Map<String, dynamic>> counterRef;
+  final Map<String, dynamic> counterData;
+}
+
 class _FinancialPosting {
   const _FinancialPosting({
     required this.customerRef,
@@ -896,4 +1120,23 @@ class _FinancialPosting {
   final Map<String, dynamic>? customerTransactionData;
   final DocumentReference<Map<String, dynamic>>? cashMovementRef;
   final Map<String, dynamic>? cashMovementData;
+}
+
+class _InventoryPosting {
+  const _InventoryPosting({
+    required this.itemUpdates,
+    required this.movementRefs,
+    required this.movementData,
+  });
+
+  final List<_InventoryItemUpdate> itemUpdates;
+  final List<DocumentReference<Map<String, dynamic>>> movementRefs;
+  final List<Map<String, dynamic>> movementData;
+}
+
+class _InventoryItemUpdate {
+  const _InventoryItemUpdate({required this.itemRef, required this.data});
+
+  final DocumentReference<Map<String, dynamic>> itemRef;
+  final Map<String, dynamic> data;
 }

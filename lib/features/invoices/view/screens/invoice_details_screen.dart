@@ -221,6 +221,18 @@ class _RightColumn extends StatelessWidget {
                 icon: const Icon(Icons.edit_outlined),
                 label: Text('edit_invoice'.tr),
               ),
+              if (controller.canCreateSalesReturn) ...[
+                const SizedBox(height: 10),
+                FilledButton.icon(
+                  onPressed: controller.createSalesReturn,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColor.tertiaryColor,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  icon: const Icon(Icons.assignment_return_outlined),
+                  label: Text('create_sales_return'.tr),
+                ),
+              ],
               const SizedBox(height: 10),
               OutlinedButton.icon(
                 onPressed: controller.printOrExportPlaceholder,

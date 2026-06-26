@@ -171,6 +171,196 @@ service cloud.firestore {
         && request.resource.data.createdAt == resource.data.createdAt;
     }
 
+    function itemIdentityPreserved() {
+      return request.resource.data.id == resource.data.id
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function validInvoiceSaleItemStockUpdate() {
+      // TODO: OSAMA - Move stock posting to Cloud Functions for stronger
+      // server-side coupling between invoice confirmation and item stock.
+      return isApprovedCompanyUser('default_company')
+        && itemIdentityPreserved()
+        && resource.data.currentStock is number
+        && resource.data.trackStock == true
+        && resource.data.deleted == false
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'currentStock',
+          'inventoryUpdatedAt',
+          'updatedAt'
+        ])
+        && request.resource.data.currentStock is number
+        && request.resource.data.currentStock >= 0
+        && request.resource.data.currentStock < resource.data.currentStock
+        && request.resource.data.inventoryUpdatedAt == request.time
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validSalesReturnItemStockUpdate() {
+      // A confirmed sales return restores tracked stock in the same transaction
+      // as its immutable stock movement.
+      return isApprovedCompanyUser('default_company')
+        && itemIdentityPreserved()
+        && resource.data.currentStock is number
+        && resource.data.trackStock == true
+        && resource.data.deleted == false
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'currentStock',
+          'inventoryUpdatedAt',
+          'updatedAt'
+        ])
+        && request.resource.data.currentStock is number
+        && request.resource.data.currentStock > resource.data.currentStock
+        && request.resource.data.inventoryUpdatedAt == request.time
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function stockMovementBaseValid(companyId, movementId, data) {
+      return isApprovedCompanyUser(companyId)
+        && data.keys().hasOnly([
+          'id',
+          'companyId',
+          'warehouseId',
+          'itemId',
+          'itemName',
+          'itemCode',
+          'movementType',
+          'direction',
+          'quantity',
+          'quantityBefore',
+          'quantityAfter',
+          'referenceType',
+          'referenceId',
+          'referenceNumber',
+          'movementDate',
+          'notes',
+          'createdByUid',
+          'createdByName',
+          'createdByRole',
+          'createdAt'
+        ])
+        && data.id == movementId
+        && data.companyId == companyId
+        && data.warehouseId is string
+        && data.warehouseId.size() > 0
+        && data.itemId is string
+        && data.itemId.size() > 0
+        && data.itemName is string
+        && data.itemName.size() > 0
+        && data.itemCode is string
+        && data.direction in ['in', 'out']
+        && data.quantity is number
+        && data.quantity > 0
+        && data.quantityBefore is number
+        && data.quantityBefore >= 0
+        && data.quantityAfter is number
+        && data.quantityAfter >= 0
+        && (
+          (
+            data.direction == 'in'
+            && data.quantityAfter > data.quantityBefore
+          )
+          || (
+            data.direction == 'out'
+            && data.quantityAfter < data.quantityBefore
+            && data.quantity <= data.quantityBefore
+          )
+        )
+        && data.referenceType is string
+        && data.referenceId is string
+        && data.referenceId.size() > 0
+        && data.referenceNumber is string
+        && data.movementDate is timestamp
+        && data.notes is string
+        && (
+          data.createdByUid == request.auth.uid
+          || isActiveAdmin()
+        )
+        && data.createdByName is string
+        && data.createdByName.size() > 0
+        && data.createdByName != 'undefined'
+        && (
+          data.createdByRole == userDoc().data.role
+          || isActiveAdmin()
+        )
+        && data.createdAt == request.time;
+    }
+
+    function validAdminStockMovementCreate(companyId, movementId) {
+      return isActiveAdmin()
+        && stockMovementBaseValid(
+          companyId,
+          movementId,
+          request.resource.data
+        )
+        && request.resource.data.movementType in [
+          'opening_balance',
+          'manual_adjustment_in',
+          'manual_adjustment_out',
+          'damage',
+          'correction'
+        ]
+        && request.resource.data.referenceType in ['item', 'manual_adjustment']
+        && (
+          (
+            request.resource.data.movementType in [
+              'opening_balance',
+              'manual_adjustment_in'
+            ]
+            && request.resource.data.direction == 'in'
+          )
+          || (
+            request.resource.data.movementType in [
+              'manual_adjustment_out',
+              'damage'
+            ]
+            && request.resource.data.direction == 'out'
+          )
+          || (
+            request.resource.data.movementType == 'correction'
+            && request.resource.data.direction in ['in', 'out']
+          )
+        );
+    }
+
+    function validInvoiceStockMovementCreate(companyId, movementId) {
+      let invoicePath =
+        /databases/$(database)/documents/companies/$(companyId)/invoices/$(request.resource.data.referenceId);
+      let invoice = getAfter(invoicePath);
+      return stockMovementBaseValid(
+          companyId,
+          movementId,
+          request.resource.data
+        )
+        && request.resource.data.movementType == 'invoice_sale'
+        && request.resource.data.direction == 'out'
+        && request.resource.data.referenceType == 'invoice'
+        && existsAfter(invoicePath)
+        && invoice.data.companyId == companyId
+        && invoice.data.invoiceStatus == 'confirmed'
+        && invoice.data.inventoryPosted == true
+        && invoice.data.inventoryPostedByUid == request.auth.uid;
+    }
+
+    function validSalesReturnStockMovementCreate(companyId, movementId) {
+      let returnPath =
+        /databases/$(database)/documents/companies/$(companyId)/sales_returns/$(request.resource.data.referenceId);
+      let salesReturn = getAfter(returnPath);
+      return stockMovementBaseValid(
+          companyId,
+          movementId,
+          request.resource.data
+        )
+        && request.resource.data.movementType == 'sales_return'
+        && request.resource.data.direction == 'in'
+        && request.resource.data.referenceType == 'sales_return'
+        && existsAfter(returnPath)
+        && salesReturn.data.companyId == companyId
+        && salesReturn.data.status == 'confirmed'
+        && salesReturn.data.inventoryPosted == true;
+    }
+
     function invoiceIsEditableDraft(data) {
       return data.invoiceStatus == 'draft'
         && data.financialPosted == false
@@ -198,10 +388,206 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time;
     }
 
+    function validInvoiceReturnAllocationUpdate(companyId) {
+      let returnPath =
+        /databases/$(database)/documents/companies/$(companyId)/sales_returns/$(request.resource.data.lastSalesReturnId);
+      let salesReturn = getAfter(returnPath);
+      return canReadOwnedBusinessDoc(companyId, resource.data)
+        && invoiceIdentityPreserved()
+        && resource.data.invoiceStatus == 'confirmed'
+        && request.resource.data.invoiceStatus == 'confirmed'
+        && resource.data.financialPosted == true
+        && resource.data.inventoryPosted == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'returnedQuantitiesByItem',
+          'lastSalesReturnId',
+          'updatedAt'
+        ])
+        && request.resource.data.returnedQuantitiesByItem is map
+        && request.resource.data.lastSalesReturnId is string
+        && request.resource.data.lastSalesReturnId.size() > 0
+        && request.resource.data.updatedAt == request.time
+        && existsAfter(returnPath)
+        && salesReturn.data.companyId == companyId
+        && salesReturn.data.originalInvoiceId == resource.data.id
+        && salesReturn.data.status == 'confirmed'
+        && salesReturn.data.inventoryPosted == true
+        && salesReturn.data.financialPosted == true
+        && (
+          isActiveAdmin()
+          || salesReturn.data.createdByUid == request.auth.uid
+          || salesReturn.data.salesRepId == request.auth.uid
+        );
+    }
+
+    function salesReturnIdentityPreserved() {
+      return request.resource.data.id == resource.data.id
+        && request.resource.data.companyId == resource.data.companyId
+        && request.resource.data.returnNumber == resource.data.returnNumber
+        && request.resource.data.originalInvoiceId == resource.data.originalInvoiceId
+        && request.resource.data.originalInvoiceNumber == resource.data.originalInvoiceNumber
+        && request.resource.data.customerId == resource.data.customerId
+        && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.createdByName == resource.data.createdByName
+        && request.resource.data.createdByRole == resource.data.createdByRole
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function salesReturnSourceInvoiceIsAllowed(companyId, data) {
+      let invoicePath =
+        /databases/$(database)/documents/companies/$(companyId)/invoices/$(data.originalInvoiceId);
+      let invoice = get(invoicePath);
+      return exists(invoicePath)
+        && invoice.data.companyId == companyId
+        && invoice.data.invoiceStatus == 'confirmed'
+        && data.originalInvoiceNumber == invoice.data.invoiceNumber
+        && data.customerId == invoice.data.customerId
+        && data.salesRepId == invoice.data.salesRepId
+        && (
+          isActiveAdmin()
+          || invoice.data.createdByUid == request.auth.uid
+          || invoice.data.salesRepId == request.auth.uid
+        );
+    }
+
+    function salesReturnFieldsAreValid(companyId, returnId, data) {
+      return data.keys().hasOnly([
+          'id',
+          'companyId',
+          'returnNumber',
+          'originalInvoiceId',
+          'originalInvoiceNumber',
+          'customerId',
+          'customerSnapshot',
+          'items',
+          'subtotal',
+          'totalTax',
+          'grandTotal',
+          'refundType',
+          'returnDate',
+          'reason',
+          'status',
+          'salesRepId',
+          'salesRepName',
+          'createdByUid',
+          'createdByName',
+          'createdByRole',
+          'financialPosted',
+          'inventoryPosted',
+          'financialPostedAt',
+          'inventoryPostedAt',
+          'stockMovementIds',
+          'customerTransactionIds',
+          'cashMovementIds',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id == returnId
+        && data.companyId == companyId
+        && data.returnNumber.matches('^RET-[0-9]{4}-[0-9]{6}$')
+        && data.originalInvoiceId is string
+        && data.originalInvoiceId.size() > 0
+        && data.originalInvoiceNumber is string
+        && data.customerId is string
+        && data.customerId.size() > 0
+        && data.customerSnapshot is map
+        && data.items is list
+        && data.items.size() > 0
+        && data.subtotal is number
+        && data.subtotal >= 0
+        && data.totalTax is number
+        && data.totalTax >= 0
+        && data.grandTotal is number
+        && data.grandTotal > 0
+        && data.refundType in ['credit_customer_balance', 'cash_refund']
+        && data.returnDate is timestamp
+        && data.reason is string
+        && data.reason.size() > 0
+        && data.status in ['draft', 'confirmed', 'cancelled']
+        && data.salesRepId is string
+        && data.salesRepId.size() > 0
+        && data.salesRepName is string
+        && data.salesRepName.size() > 0
+        && data.createdByUid is string
+        && data.createdByName is string
+        && data.createdByName.size() > 0
+        && data.createdByName != 'undefined'
+        && data.createdByRole is string
+        && data.financialPosted is bool
+        && data.inventoryPosted is bool
+        && data.stockMovementIds is list
+        && data.customerTransactionIds is list
+        && data.cashMovementIds is list;
+    }
+
+    function validSalesReturnCreate(companyId, returnId) {
+      let data = request.resource.data;
+      return validBusinessCreate(companyId, data)
+        && salesReturnFieldsAreValid(companyId, returnId, data)
+        && salesReturnSourceInvoiceIsAllowed(companyId, data)
+        && data.createdAt == request.time
+        && data.updatedAt == request.time
+        && (
+          (
+            data.status == 'draft'
+            && data.financialPosted == false
+            && data.inventoryPosted == false
+            && data.stockMovementIds.size() == 0
+            && data.customerTransactionIds.size() == 0
+            && data.cashMovementIds.size() == 0
+          )
+          || (
+            data.status == 'confirmed'
+            && data.financialPosted == true
+            && data.inventoryPosted == true
+          )
+        );
+    }
+
+    function validSalesReturnDraftUpdate(companyId) {
+      return canReadOwnedBusinessDoc(companyId, resource.data)
+        && salesReturnIdentityPreserved()
+        && resource.data.status == 'draft'
+        && request.resource.data.status == 'draft'
+        && salesReturnFieldsAreValid(
+          companyId,
+          resource.data.id,
+          request.resource.data
+        )
+        && salesReturnSourceInvoiceIsAllowed(companyId, request.resource.data)
+        && request.resource.data.financialPosted == false
+        && request.resource.data.inventoryPosted == false
+        && request.resource.data.stockMovementIds.size() == 0
+        && request.resource.data.customerTransactionIds.size() == 0
+        && request.resource.data.cashMovementIds.size() == 0
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validSalesReturnPostingUpdate(companyId) {
+      return canReadOwnedBusinessDoc(companyId, resource.data)
+        && salesReturnIdentityPreserved()
+        && resource.data.status == 'draft'
+        && request.resource.data.status == 'confirmed'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'financialPosted',
+          'inventoryPosted',
+          'financialPostedAt',
+          'inventoryPostedAt',
+          'stockMovementIds',
+          'customerTransactionIds',
+          'cashMovementIds',
+          'updatedAt'
+        ])
+        && request.resource.data.financialPosted == true
+        && request.resource.data.inventoryPosted == true
+        && request.resource.data.updatedAt == request.time;
+    }
+
     function validCounterWrite(companyId, counterId) {
       // TODO: OSAMA - Generate official numbers in Cloud Functions when possible.
       return isApprovedCompanyUser(companyId)
-        && counterId.matches('^(invoices|receipts)_[0-9]{4}$')
+        && counterId.matches('^(invoices|receipts|sales_returns)_[0-9]{4}$')
         && request.resource.data.keys().hasOnly([
           'id',
           'companyId',
@@ -226,6 +612,10 @@ service cloud.firestore {
           || (
             counterId.matches('^receipts_[0-9]{4}$')
             && request.resource.data.prefix == 'REC'
+          )
+          || (
+            counterId.matches('^sales_returns_[0-9]{4}$')
+            && request.resource.data.prefix == 'RET'
           )
         );
     }
@@ -265,11 +655,15 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
 
-      allow update: if isActiveAdmin()
-        && request.resource.data.id == resource.data.id
-        && request.resource.data.createdBy == resource.data.createdBy
-        && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.updatedAt == request.time;
+      allow update: if (
+          isActiveAdmin()
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.updatedAt == request.time
+        )
+        || validInvoiceSaleItemStockUpdate()
+        || validSalesReturnItemStockUpdate();
 
       allow delete: if false;
     }
@@ -304,7 +698,8 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time;
 
       allow update: if validInvoiceDraftUpdate(companyId)
-        || validInvoicePostingUpdate(companyId);
+        || validInvoicePostingUpdate(companyId)
+        || validInvoiceReturnAllocationUpdate(companyId);
 
       allow delete: if canReadOwnedBusinessDoc(companyId, resource.data)
         && resource.data.invoiceStatus == 'draft'
@@ -333,6 +728,21 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time;
 
       allow update, delete: if false;
+    }
+
+    match /companies/{companyId}/sales_returns/{returnId} {
+      allow get: if canReadOwnedBusinessDoc(companyId, resource.data);
+      allow list: if isApprovedCompanyUser(companyId)
+        && (
+          isActiveAdmin()
+          || resource.data.createdByUid == request.auth.uid
+          || resource.data.salesRepId == request.auth.uid
+        );
+
+      allow create: if validSalesReturnCreate(companyId, returnId);
+      allow update: if validSalesReturnDraftUpdate(companyId)
+        || validSalesReturnPostingUpdate(companyId);
+      allow delete: if false;
     }
 
     match /companies/{companyId}/cash_movements/{movementId} {
@@ -364,6 +774,17 @@ service cloud.firestore {
           )
         )
         && request.resource.data.createdAt == request.time;
+
+      allow update, delete: if false;
+    }
+
+    match /companies/{companyId}/stock_movements/{movementId} {
+      allow get: if canReadOwnedBusinessDoc(companyId, resource.data);
+      allow list: if isApprovedCompanyUser(companyId);
+
+      allow create: if validAdminStockMovementCreate(companyId, movementId)
+        || validInvoiceStockMovementCreate(companyId, movementId)
+        || validSalesReturnStockMovementCreate(companyId, movementId);
 
       allow update, delete: if false;
     }

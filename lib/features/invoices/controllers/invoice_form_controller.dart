@@ -374,7 +374,18 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
       return true;
     } catch (error) {
       statusRequest = InvoiceErrorMapper.status(error);
-      _showError(InvoiceErrorMapper.messageKey(error));
+      final stockFailure = InvoiceErrorMapper.insufficientStock(error);
+      if (stockFailure == null) {
+        _showError(InvoiceErrorMapper.messageKey(error));
+      } else {
+        _showErrorText(
+          'stock_not_enough'.trParams({
+            'item': stockFailure.itemName,
+            'requested': _formatQuantity(stockFailure.requestedQuantity),
+            'available': _formatQuantity(stockFailure.availableQuantity),
+          }),
+        );
+      }
       return false;
     } finally {
       isSaving = false;
@@ -514,6 +525,11 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
       financialPostedByName: loadedInvoice?.financialPostedByName ?? '',
       customerTransactionIds: loadedInvoice?.customerTransactionIds ?? const [],
       cashMovementIds: loadedInvoice?.cashMovementIds ?? const [],
+      inventoryPosted: loadedInvoice?.inventoryPosted ?? false,
+      inventoryPostedAt: loadedInvoice?.inventoryPostedAt,
+      inventoryPostedByUid: loadedInvoice?.inventoryPostedByUid ?? '',
+      inventoryPostedByName: loadedInvoice?.inventoryPostedByName ?? '',
+      inventoryMovementIds: loadedInvoice?.inventoryMovementIds ?? const [],
       searchKeywords: const [],
       customerNameLower: '',
       itemNamesLower: const [],
@@ -571,6 +587,12 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     return rounded.toStringAsFixed(3);
   }
 
+  String _formatQuantity(double value) {
+    final rounded = _totalsService.round(value);
+    if (rounded == rounded.roundToDouble()) return rounded.toStringAsFixed(0);
+    return rounded.toStringAsFixed(3);
+  }
+
   void _clearItemInputs() {
     itemNameController.clear();
     itemCodeController.clear();
@@ -592,9 +614,13 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
   }
 
   void _showError(String messageKey) {
+    _showErrorText(messageKey.tr);
+  }
+
+  void _showErrorText(String message) {
     Get.snackbar(
       'invoices'.tr,
-      messageKey.tr,
+      message,
       snackPosition: SnackPosition.BOTTOM,
       backgroundColor: AppColor.error,
       colorText: AppColor.surface,

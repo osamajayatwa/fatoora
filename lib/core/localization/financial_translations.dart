@@ -47,5 +47,51 @@ const Map<String, String> financialEnglishTranslations = {
   'financial_movement_receipt': 'Receipt',
 };
 
-const Map<String, String> financialArabicTranslations =
-    financialEnglishTranslations;
+const Map<String, String> financialArabicTranslations = {
+  'financial_load_error':
+      'تعذر تحميل البيانات المالية. يرجى المحاولة مرة أخرى.',
+  'financial_session_error': 'انتهت صلاحية جلستك. يرجى تسجيل الدخول مرة أخرى.',
+  'financial_permission_error': 'ليس لديك صلاحية لعرض هذه البيانات المالية.',
+  'financial_offline_error':
+      'لا يوجد اتصال مع Firebase. تحقق من اتصال الإنترنت وحاول مرة أخرى.',
+  'financial_timeout_error':
+      'استغرق رد Firebase وقتا طويلا. يرجى المحاولة مرة أخرى.',
+  'financial_invalid_data': 'البيانات المالية مفقودة أو غير صالحة.',
+  'financial_receivables': 'الذمم المدينة',
+  'financial_receivables_subtitle':
+      'العملاء الذين لديهم أرصدة مستحقة من فواتير مؤكدة.',
+  'financial_total_receivables': 'إجمالي الذمم',
+  'financial_filter_dates': 'تصفية التواريخ',
+  'financial_clear_dates': 'مسح التواريخ',
+  'financial_no_receivables': 'لا توجد ذمم مستحقة.',
+  'financial_last_transaction': 'آخر حركة',
+  'financial_cash': 'النقد في الصندوق',
+  'financial_cash_subtitle':
+      'حركات النقد من الفواتير النقدية والدفعات الجزئية والإيصالات والتسويات.',
+  'financial_cash_in_hand': 'النقد في الصندوق',
+  'financial_cash_in': 'نقد داخل',
+  'financial_cash_out': 'نقد خارج',
+  'financial_cash_by_rep': 'النقد في الصندوق حسب المندوب',
+  'financial_settle': 'تسوية',
+  'financial_cash_settlement': 'تسوية نقدية',
+  'financial_cash_settlement_saved': 'تم حفظ التسوية النقدية.',
+  'financial_no_cash_movements': 'لا توجد حركات نقدية.',
+  'financial_amount': 'المبلغ',
+  'financial_total_sales': 'إجمالي المبيعات',
+  'financial_cash_sales': 'المبيعات النقدية',
+  'financial_credit_sales': 'المبيعات الآجلة',
+  'financial_partial_sales': 'مبيعات الدفع الجزئي',
+  'financial_recent_receipts': 'أحدث الإيصالات',
+  'financial_no_receipts': 'لا توجد إيصالات حديثة.',
+  'financial_sales_rep_summary': 'ملخص مبيعاتك وذممك والنقد لديك.',
+  'financial_alert_receivables': 'توجد ذمم مفتوحة على العملاء.',
+  'financial_alert_no_receivables': 'لا توجد ذمم مفتوحة على العملاء.',
+  'financial_alert_cash': 'يتم حساب النقد في الصندوق من حركات النقد.',
+  'financial_movement_invoice_cash': 'فاتورة نقدية',
+  'financial_movement_invoice_partial': 'دفعة جزئية على فاتورة',
+  'financial_movement_receipt_cash': 'إيصال نقدي',
+  'financial_movement_settlement_to_admin': 'تسوية إلى الإدارة',
+  'financial_movement_adjustment': 'تعديل نقدي',
+  'financial_movement_invoice_payment': 'دفعة فاتورة',
+  'financial_movement_receipt': 'إيصال',
+};

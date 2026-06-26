@@ -24,6 +24,11 @@ class AppRoute {
   static const String adminEditItem = "/admin/items/edit";
   static const String adminItemDetails = "/admin/items/details";
 
+  static const String inventory = "/inventory";
+  static const String stockMovements = "/inventory/stock-movements";
+  static const String inventoryAdjustment = "/inventory/adjustment";
+  static const String itemStockDetails = "/inventory/item-stock-details";
+
   // Backward-compatible aliases used by the existing dashboard navigation.
   static const String items = adminItems;
   static const String createItem = adminAddItem;
@@ -33,6 +38,10 @@ class AppRoute {
   static const String invoiceForm = "/invoices/form";
   static const String invoiceDetails = "/invoices/details";
   static const String createInvoice = invoiceForm;
+
+  static const String salesReturns = "/sales-returns";
+  static const String createSalesReturn = "/sales-returns/create";
+  static const String salesReturnDetails = "/sales-returns/details";
 
   static const String quotations = "/quotations";
   static const String createQuotation = "/create-quotation";

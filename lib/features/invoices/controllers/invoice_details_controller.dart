@@ -42,6 +42,10 @@ class InvoiceDetailsController extends GetxController
       invoice?.invoiceType == InvoiceType.electronic &&
       (invoice?.invoiceStatus == InvoiceStatus.draft ||
           invoice?.invoiceStatus == InvoiceStatus.rejected);
+  bool get canCreateSalesReturn =>
+      invoice?.invoiceStatus == InvoiceStatus.confirmed &&
+      invoice?.financialPosted == true &&
+      invoice?.inventoryPosted == true;
 
   @override
   void onReady() {
@@ -103,6 +107,22 @@ class InvoiceDetailsController extends GetxController
     if (changed == true) await loadInvoice();
   }
 
+  Future<void> createSalesReturn() async {
+    final current = invoice;
+    if (current == null || !canCreateSalesReturn) {
+      _showError('sales_return_invoice_not_eligible');
+      return;
+    }
+    final changed = await Get.toNamed(
+      AppRoute.createSalesReturn,
+      arguments: {
+        'companyId': current.companyId,
+        'originalInvoiceId': current.id,
+      },
+    );
+    if (changed == true) await loadInvoice();
+  }
+
   Future<void> submitElectronicInvoicePlaceholder() async {
     final current = invoice;
     if (current == null || !canSubmit || isSubmitting) return;
@@ -156,6 +176,7 @@ class InvoiceDetailsController extends GetxController
     final date = DateFormat.yMd();
     final customer = current.customerSnapshot;
 
+    // TODO: Localize PDF labels after adding Arabic-capable fonts and RTL layout support.
     document.addPage(
       pw.MultiPage(
         pageTheme: const pw.PageTheme(margin: pw.EdgeInsets.all(28)),

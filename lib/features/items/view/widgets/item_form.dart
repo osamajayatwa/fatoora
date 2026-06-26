@@ -13,8 +13,17 @@ class ItemForm extends StatelessWidget {
     required this.unitController,
     required this.priceController,
     required this.taxRateController,
+    required this.currentStockController,
+    required this.openingStockController,
+    required this.minStockController,
+    required this.costPriceController,
+    required this.barcodeController,
+    required this.categoryController,
+    required this.warehouseController,
     required this.active,
+    required this.trackStock,
     required this.onActiveChanged,
+    required this.onTrackStockChanged,
     required this.onSubmit,
     required this.submitLabel,
     required this.loading,
@@ -27,8 +36,17 @@ class ItemForm extends StatelessWidget {
   final TextEditingController unitController;
   final TextEditingController priceController;
   final TextEditingController taxRateController;
+  final TextEditingController currentStockController;
+  final TextEditingController openingStockController;
+  final TextEditingController minStockController;
+  final TextEditingController costPriceController;
+  final TextEditingController barcodeController;
+  final TextEditingController categoryController;
+  final TextEditingController warehouseController;
   final bool active;
+  final bool trackStock;
   final ValueChanged<bool> onActiveChanged;
+  final ValueChanged<bool> onTrackStockChanged;
   final VoidCallback onSubmit;
   final String submitLabel;
   final bool loading;
@@ -96,34 +114,91 @@ class ItemForm extends StatelessWidget {
                   ),
                   SizedBox(
                     width: fieldWidth,
-                    child: Container(
-                      constraints: const BoxConstraints(minHeight: 58),
-                      padding: const EdgeInsets.symmetric(horizontal: 15),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFAFBFD),
-                        borderRadius: BorderRadius.circular(13),
-                        border: Border.all(color: const Color(0xFFE1E5ED)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.toggle_on_outlined,
-                            color: AppColor.grey,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'items_active'.tr,
-                              style: Theme.of(context).textTheme.bodyLarge,
-                            ),
-                          ),
-                          Switch(
-                            value: active,
-                            onChanged: loading ? null : onActiveChanged,
-                            activeTrackColor: AppColor.success,
-                          ),
-                        ],
-                      ),
+                    child: _switchTile(
+                      context: context,
+                      label: 'items_active'.tr,
+                      icon: Icons.toggle_on_outlined,
+                      value: active,
+                      onChanged: onActiveChanged,
+                    ),
+                  ),
+                  SizedBox(
+                    width: fieldWidth,
+                    child: _switchTile(
+                      context: context,
+                      label: 'track_stock'.tr,
+                      icon: Icons.inventory_outlined,
+                      value: trackStock,
+                      onChanged: onTrackStockChanged,
+                    ),
+                  ),
+                  SizedBox(
+                    width: fieldWidth,
+                    child: _numberField(
+                      controller: currentStockController,
+                      label: 'current_stock'.tr,
+                      icon: Icons.inventory_2_outlined,
+                      validator: _validateNonNegative,
+                      suffix: 'quantity'.tr,
+                      enabled: trackStock,
+                    ),
+                  ),
+                  SizedBox(
+                    width: fieldWidth,
+                    child: _numberField(
+                      controller: openingStockController,
+                      label: 'opening_stock'.tr,
+                      icon: Icons.input_rounded,
+                      validator: _validateNonNegative,
+                      suffix: 'quantity'.tr,
+                      enabled: trackStock,
+                    ),
+                  ),
+                  SizedBox(
+                    width: fieldWidth,
+                    child: _numberField(
+                      controller: minStockController,
+                      label: 'min_stock'.tr,
+                      icon: Icons.warning_amber_rounded,
+                      validator: _validateNonNegative,
+                      suffix: 'quantity'.tr,
+                      enabled: trackStock,
+                    ),
+                  ),
+                  SizedBox(
+                    width: fieldWidth,
+                    child: _numberField(
+                      controller: costPriceController,
+                      label: 'cost_price'.tr,
+                      icon: Icons.price_change_outlined,
+                      validator: _validateNonNegative,
+                      suffix: 'items_jod'.tr,
+                    ),
+                  ),
+                  SizedBox(
+                    width: fieldWidth,
+                    child: _textField(
+                      controller: barcodeController,
+                      label: 'barcode'.tr,
+                      icon: Icons.qr_code_scanner_rounded,
+                      required: false,
+                    ),
+                  ),
+                  SizedBox(
+                    width: fieldWidth,
+                    child: _textField(
+                      controller: categoryController,
+                      label: 'category'.tr,
+                      icon: Icons.category_outlined,
+                      required: false,
+                    ),
+                  ),
+                  SizedBox(
+                    width: fieldWidth,
+                    child: _textField(
+                      controller: warehouseController,
+                      label: 'warehouse'.tr,
+                      icon: Icons.warehouse_outlined,
                     ),
                   ),
                   SizedBox(
@@ -178,9 +253,11 @@ class ItemForm extends StatelessWidget {
     required IconData icon,
     int maxLines = 1,
     bool required = true,
+    bool enabled = true,
   }) {
     return TextFormField(
       controller: controller,
+      enabled: enabled && !loading,
       maxLines: maxLines,
       textInputAction: maxLines > 1
           ? TextInputAction.newline
@@ -196,9 +273,11 @@ class ItemForm extends StatelessWidget {
     required IconData icon,
     required String? Function(String?) validator,
     required String suffix,
+    bool enabled = true,
   }) {
     return TextFormField(
       controller: controller,
+      enabled: enabled && !loading,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
@@ -209,6 +288,38 @@ class ItemForm extends StatelessWidget {
         label: label,
         icon: icon,
       ).copyWith(suffixText: suffix),
+    );
+  }
+
+  Widget _switchTile({
+    required BuildContext context,
+    required String label,
+    required IconData icon,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 58),
+      padding: const EdgeInsets.symmetric(horizontal: 15),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAFBFD),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: const Color(0xFFE1E5ED)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColor.grey),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(label, style: Theme.of(context).textTheme.bodyLarge),
+          ),
+          Switch(
+            value: value,
+            onChanged: loading ? null : onChanged,
+            activeTrackColor: AppColor.success,
+          ),
+        ],
+      ),
     );
   }
 
@@ -250,6 +361,14 @@ class ItemForm extends StatelessWidget {
     final number = double.tryParse(value.trim());
     if (number == null) return 'items_invalid_number'.tr;
     if (number < 0 || number > 100) return 'items_tax_validation'.tr;
+    return null;
+  }
+
+  String? _validateNonNegative(String? value) {
+    if (value == null || value.trim().isEmpty) return 'items_required'.tr;
+    final number = double.tryParse(value.trim());
+    if (number == null) return 'items_invalid_number'.tr;
+    if (number < 0) return 'inventory_number_non_negative'.tr;
     return null;
   }
 }

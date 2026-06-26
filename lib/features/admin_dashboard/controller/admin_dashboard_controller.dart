@@ -1,13 +1,21 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fatoora/app/routes/app_routes.dart';
+import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/localization/changelocal.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/features/admin_dashboard/model/admin_dashboard_models.dart';
+import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/auth/data/repositories/admin_auth_repository.dart';
 import 'package:fatoora/features/auth/utils/auth_session.dart';
+import 'package:fatoora/features/financial/controllers/financial_error_mapper.dart';
 import 'package:fatoora/features/financial/data/models/financial_dashboard_snapshot.dart';
 import 'package:fatoora/features/financial/data/repositories/financial_repository.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
+import 'package:fatoora/features/shared/business/business_user_context.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -17,15 +25,20 @@ class AdminDashboardController extends GetxController {
     required AdminAuthRepository repository,
     required FinancialRepository financialRepository,
     required MyServices myServices,
+    BusinessUserContextReader? contextReader,
   }) : _repository = repository,
        _financialRepository = financialRepository,
-       _myServices = myServices;
+       _myServices = myServices,
+       _contextReader = contextReader ?? BusinessUserContextReader();
 
   final AdminAuthRepository _repository;
   final FinancialRepository _financialRepository;
   final MyServices _myServices;
+  final BusinessUserContextReader _contextReader;
 
   final TextEditingController searchController = TextEditingController();
+  StatusRequest statusRequest = StatusRequest.loading;
+  String loadErrorMessageKey = 'financial_load_error';
   bool isRefreshing = false;
   bool isLoggingOut = false;
   String searchQuery = '';
@@ -40,8 +53,13 @@ class AdminDashboardController extends GetxController {
   String get adminEmail =>
       _myServices.sharedPreferences.getString('email') ?? '';
 
-  String get companyId =>
-      _myServices.sharedPreferences.getString('companyId') ?? 'default_company';
+  String get companyId {
+    final cachedCompanyId =
+        _myServices.sharedPreferences.getString('companyId')?.trim() ?? '';
+    return cachedCompanyId.isEmpty
+        ? AuthRepository.defaultCompanyId
+        : cachedCompanyId;
+  }
 
   NumberFormat get _money =>
       NumberFormat.currency(symbol: '', decimalDigits: 3);
@@ -227,21 +245,42 @@ class AdminDashboardController extends GetxController {
   Future<void> refreshDashboard() async {
     if (isRefreshing) return;
     isRefreshing = true;
+    statusRequest = StatusRequest.loading;
+    loadErrorMessageKey = 'financial_load_error';
     update();
     try {
+      final userContext = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = userContext.companyId;
+      _debugLog('companyId used: $resolvedCompanyId');
+      _debugLog('role used: ${userContext.role}');
+
       final loadedSnapshot = await _financialRepository.fetchDashboard(
-        companyId: companyId,
+        companyId: resolvedCompanyId,
       );
       var loadedPendingCount = pendingApprovalsCount;
       try {
         loadedPendingCount = (await _repository.fetchPendingUsers()).length;
-      } catch (_) {
+      } catch (error, stackTrace) {
+        _debugError('pending users count load failed', error, stackTrace);
         // Approval count is supplemental; keep the dashboard usable.
       }
       snapshot = loadedSnapshot;
       pendingApprovalsCount = loadedPendingCount;
-    } catch (_) {
-      // Dashboard stays usable with the last loaded snapshot.
+      statusRequest = StatusRequest.success;
+      _debugLog('customers count result: ${snapshot.customerCount}');
+      _debugLog('invoices count result: ${snapshot.invoiceCount}');
+      _debugLog(
+        'financial totals result: totalSales=${snapshot.totalSales}, '
+        'cashSales=${snapshot.cashSales}, '
+        'creditSales=${snapshot.creditSales}, '
+        'partialSales=${snapshot.partialSales}, '
+        'cashInHand=${snapshot.cashInHand}, '
+        'totalReceivables=${snapshot.totalReceivables}',
+      );
+    } catch (error, stackTrace) {
+      statusRequest = _statusFor(error);
+      loadErrorMessageKey = _messageKeyFor(error);
+      _debugError('dashboard load failed', error, stackTrace);
     } finally {
       isRefreshing = false;
       if (!isClosed) update();
@@ -322,6 +361,90 @@ class AdminDashboardController extends GetxController {
       PaymentStatus.partiallyPaid => const Color(0xFFFF9F2E),
       PaymentStatus.unpaid || PaymentStatus.overdue => AppColor.error,
     };
+  }
+
+  StatusRequest _statusFor(Object error) {
+    if (error is FinancialRepositoryException) {
+      return FinancialErrorMapper.status(error);
+    }
+    if (error is BusinessUserContextException) {
+      return switch (error.error) {
+        BusinessUserContextError.unauthenticated ||
+        BusinessUserContextError.profileMissing ||
+        BusinessUserContextError.permissionDenied => StatusRequest.unauthorized,
+        BusinessUserContextError.invalidProfile => StatusRequest.serverfailure,
+        BusinessUserContextError.timeout => StatusRequest.timeout,
+      };
+    }
+    if (error is TimeoutException) return StatusRequest.timeout;
+    if (error is FirebaseException) {
+      return switch (error.code) {
+        'permission-denied' || 'unauthenticated' => StatusRequest.unauthorized,
+        'unavailable' => StatusRequest.offlinefailure,
+        'deadline-exceeded' => StatusRequest.timeout,
+        _ => StatusRequest.serverfailure,
+      };
+    }
+    return StatusRequest.serverfailure;
+  }
+
+  String _messageKeyFor(Object error) {
+    if (error is FinancialRepositoryException) {
+      return FinancialErrorMapper.messageKey(error);
+    }
+    if (error is BusinessUserContextException) {
+      return switch (error.error) {
+        BusinessUserContextError.unauthenticated ||
+        BusinessUserContextError.profileMissing => 'financial_session_error',
+        BusinessUserContextError.permissionDenied =>
+          'financial_permission_error',
+        BusinessUserContextError.invalidProfile => 'financial_invalid_data',
+        BusinessUserContextError.timeout => 'financial_timeout_error',
+      };
+    }
+    if (error is TimeoutException) return 'financial_timeout_error';
+    if (error is FirebaseException) {
+      return switch (error.code) {
+        'permission-denied' => 'financial_permission_error',
+        'unauthenticated' => 'financial_session_error',
+        'unavailable' => 'financial_offline_error',
+        'deadline-exceeded' => 'financial_timeout_error',
+        _ => 'financial_load_error',
+      };
+    }
+    return 'financial_load_error';
+  }
+
+  void _debugLog(String message) {
+    if (!kDebugMode) return;
+    debugPrint('[AdminDashboard] $message');
+  }
+
+  void _debugError(String context, Object error, StackTrace stackTrace) {
+    if (!kDebugMode) return;
+    final firestoreError = _firestoreErrorFrom(error);
+    if (firestoreError == null) {
+      debugPrint('[AdminDashboard] $context: $error');
+    } else {
+      debugPrint(
+        '[AdminDashboard] Firestore error during $context: '
+        '${firestoreError.code} ${firestoreError.message ?? ''}',
+      );
+    }
+    debugPrintStack(stackTrace: stackTrace);
+  }
+
+  FirebaseException? _firestoreErrorFrom(Object error) {
+    if (error is FirebaseException) return error;
+    if (error is FinancialRepositoryException) {
+      final cause = error.cause;
+      if (cause is FirebaseException) return cause;
+    }
+    if (error is BusinessUserContextException) {
+      final cause = error.cause;
+      if (cause is FirebaseException) return cause;
+    }
+    return null;
   }
 
   @override

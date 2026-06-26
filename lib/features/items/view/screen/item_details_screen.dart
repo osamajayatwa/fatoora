@@ -197,6 +197,76 @@ class _DetailsContent extends StatelessWidget {
                               SizedBox(
                                 width: width,
                                 child: ItemDetailsInfoTile(
+                                  label: 'current_stock'.tr,
+                                  value: item.trackStock
+                                      ? NumberFormat(
+                                          '#,##0.###',
+                                        ).format(item.currentStock)
+                                      : 'track_stock_disabled'.tr,
+                                  icon: Icons.inventory_2_outlined,
+                                  valueColor: item.isOutOfStock
+                                      ? AppColor.error
+                                      : item.isLowStock
+                                      ? AppColor.accentYellow
+                                      : AppColor.success,
+                                ),
+                              ),
+                              SizedBox(
+                                width: width,
+                                child: ItemDetailsInfoTile(
+                                  label: 'min_stock'.tr,
+                                  value: NumberFormat(
+                                    '#,##0.###',
+                                  ).format(item.minStock),
+                                  icon: Icons.warning_amber_rounded,
+                                ),
+                              ),
+                              SizedBox(
+                                width: width,
+                                child: ItemDetailsInfoTile(
+                                  label: 'opening_stock'.tr,
+                                  value: NumberFormat(
+                                    '#,##0.###',
+                                  ).format(item.openingStock),
+                                  icon: Icons.input_rounded,
+                                ),
+                              ),
+                              SizedBox(
+                                width: width,
+                                child: ItemDetailsInfoTile(
+                                  label: 'cost_price'.tr,
+                                  value:
+                                      '${NumberFormat('#,##0.00').format(item.costPrice)} ${'items_jod'.tr}',
+                                  icon: Icons.price_change_outlined,
+                                ),
+                              ),
+                              SizedBox(
+                                width: width,
+                                child: ItemDetailsInfoTile(
+                                  label: 'barcode'.tr,
+                                  value: item.barcode ?? 'items_optional'.tr,
+                                  icon: Icons.qr_code_scanner_rounded,
+                                ),
+                              ),
+                              SizedBox(
+                                width: width,
+                                child: ItemDetailsInfoTile(
+                                  label: 'category'.tr,
+                                  value: item.category ?? 'items_optional'.tr,
+                                  icon: Icons.category_outlined,
+                                ),
+                              ),
+                              SizedBox(
+                                width: width,
+                                child: ItemDetailsInfoTile(
+                                  label: 'warehouse'.tr,
+                                  value: item.warehouseId,
+                                  icon: Icons.warehouse_outlined,
+                                ),
+                              ),
+                              SizedBox(
+                                width: width,
+                                child: ItemDetailsInfoTile(
                                   label: 'items_status'.tr,
                                   value: item.active
                                       ? 'items_active'.tr
@@ -232,6 +302,12 @@ class _DetailsContent extends StatelessWidget {
                         builder: (context, constraints) {
                           final narrow = constraints.maxWidth < 650;
                           final buttons = [
+                            ItemActionButton(
+                              label: 'stock_movements'.tr,
+                              icon: Icons.history_rounded,
+                              onPressed: controller.openStockDetails,
+                              outlined: true,
+                            ),
                             ItemActionButton(
                               label: 'items_edit'.tr,
                               icon: Icons.edit_outlined,

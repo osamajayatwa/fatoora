@@ -41,6 +41,11 @@ class InvoiceModel {
     required this.financialPostedByName,
     required this.customerTransactionIds,
     required this.cashMovementIds,
+    required this.inventoryPosted,
+    this.inventoryPostedAt,
+    required this.inventoryPostedByUid,
+    required this.inventoryPostedByName,
+    required this.inventoryMovementIds,
     required this.searchKeywords,
     required this.customerNameLower,
     required this.itemNamesLower,
@@ -84,6 +89,11 @@ class InvoiceModel {
   final String financialPostedByName;
   final List<String> customerTransactionIds;
   final List<String> cashMovementIds;
+  final bool inventoryPosted;
+  final DateTime? inventoryPostedAt;
+  final String inventoryPostedByUid;
+  final String inventoryPostedByName;
+  final List<String> inventoryMovementIds;
   final List<String> searchKeywords;
   final String customerNameLower;
   final List<String> itemNamesLower;
@@ -170,6 +180,11 @@ class InvoiceModel {
       financialPostedByName: _readString(data, 'financialPostedByName'),
       customerTransactionIds: _readStringList(data['customerTransactionIds']),
       cashMovementIds: _readStringList(data['cashMovementIds']),
+      inventoryPosted: _readBool(data, 'inventoryPosted'),
+      inventoryPostedAt: _readDate(data, 'inventoryPostedAt'),
+      inventoryPostedByUid: _readString(data, 'inventoryPostedByUid'),
+      inventoryPostedByName: _readString(data, 'inventoryPostedByName'),
+      inventoryMovementIds: _readStringList(data['inventoryMovementIds']),
       searchKeywords: _readStringList(data['searchKeywords']),
       customerNameLower: _readString(data, 'customerNameLower'),
       itemNamesLower: _readStringList(data['itemNamesLower']),
@@ -219,6 +234,13 @@ class InvoiceModel {
     'financialPostedByName': financialPostedByName,
     'customerTransactionIds': customerTransactionIds,
     'cashMovementIds': cashMovementIds,
+    'inventoryPosted': inventoryPosted,
+    'inventoryPostedAt': inventoryPostedAt == null
+        ? null
+        : Timestamp.fromDate(inventoryPostedAt!),
+    'inventoryPostedByUid': inventoryPostedByUid,
+    'inventoryPostedByName': inventoryPostedByName,
+    'inventoryMovementIds': inventoryMovementIds,
     'searchKeywords': searchKeywords,
     'customerNameLower': customerNameLower,
     'itemNamesLower': itemNamesLower,
@@ -264,6 +286,12 @@ class InvoiceModel {
     String? financialPostedByName,
     List<String>? customerTransactionIds,
     List<String>? cashMovementIds,
+    bool? inventoryPosted,
+    DateTime? inventoryPostedAt,
+    bool clearInventoryPostedAt = false,
+    String? inventoryPostedByUid,
+    String? inventoryPostedByName,
+    List<String>? inventoryMovementIds,
     List<String>? searchKeywords,
     String? customerNameLower,
     List<String>? itemNamesLower,
@@ -311,6 +339,14 @@ class InvoiceModel {
       customerTransactionIds:
           customerTransactionIds ?? this.customerTransactionIds,
       cashMovementIds: cashMovementIds ?? this.cashMovementIds,
+      inventoryPosted: inventoryPosted ?? this.inventoryPosted,
+      inventoryPostedAt: clearInventoryPostedAt
+          ? null
+          : inventoryPostedAt ?? this.inventoryPostedAt,
+      inventoryPostedByUid: inventoryPostedByUid ?? this.inventoryPostedByUid,
+      inventoryPostedByName:
+          inventoryPostedByName ?? this.inventoryPostedByName,
+      inventoryMovementIds: inventoryMovementIds ?? this.inventoryMovementIds,
       searchKeywords: searchKeywords ?? this.searchKeywords,
       customerNameLower: customerNameLower ?? this.customerNameLower,
       itemNamesLower: itemNamesLower ?? this.itemNamesLower,

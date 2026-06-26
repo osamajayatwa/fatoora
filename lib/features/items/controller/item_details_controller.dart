@@ -40,6 +40,12 @@ class ItemDetailsController extends GetxController with ItemPageNavigation {
         createdAt: DateTime.fromMillisecondsSinceEpoch(0),
         updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
         createdBy: '',
+        currentStock: 0,
+        openingStock: 0,
+        minStock: 0,
+        trackStock: true,
+        costPrice: 0,
+        warehouseId: ItemModel.defaultWarehouseId,
       );
       loadItem();
     } else {
@@ -74,6 +80,12 @@ class ItemDetailsController extends GetxController with ItemPageNavigation {
       changed = true;
       await loadItem();
     }
+  }
+
+  Future<void> openStockDetails() async {
+    if (item == null || isActionLoading) return;
+    await Get.toNamed(AppRoute.itemStockDetails, arguments: item);
+    await loadItem();
   }
 
   Future<void> toggleActive() async {

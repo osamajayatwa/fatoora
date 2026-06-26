@@ -22,6 +22,11 @@ import 'package:fatoora/features/invoices/bindings/invoices_list_binding.dart';
 import 'package:fatoora/features/invoices/view/screens/invoice_details_screen.dart';
 import 'package:fatoora/features/invoices/view/screens/invoice_form_screen.dart';
 import 'package:fatoora/features/invoices/view/screens/invoices_list_screen.dart';
+import 'package:fatoora/features/inventory/bindings/inventory_binding.dart';
+import 'package:fatoora/features/inventory/view/screens/inventory_adjustment_screen.dart';
+import 'package:fatoora/features/inventory/view/screens/inventory_dashboard_screen.dart';
+import 'package:fatoora/features/inventory/view/screens/item_stock_details_screen.dart';
+import 'package:fatoora/features/inventory/view/screens/stock_movements_screen.dart';
 import 'package:fatoora/features/admin_dashboard/binding/admin_dashboard_binding.dart';
 import 'package:fatoora/features/admin_dashboard/view/screen/admin_home_screen.dart';
 import 'package:fatoora/features/admin_dashboard/view/screen/admin_section_screen.dart';
@@ -41,6 +46,10 @@ import 'package:fatoora/features/receipts/bindings/receipts_binding.dart';
 import 'package:fatoora/features/receipts/view/screens/receipt_details_screen.dart';
 import 'package:fatoora/features/receipts/view/screens/receipt_form_screen.dart';
 import 'package:fatoora/features/receipts/view/screens/receipts_list_screen.dart';
+import 'package:fatoora/features/sales_returns/bindings/sales_returns_binding.dart';
+import 'package:fatoora/features/sales_returns/view/screens/sales_return_details_screen.dart';
+import 'package:fatoora/features/sales_returns/view/screens/sales_return_form_screen.dart';
+import 'package:fatoora/features/sales_returns/view/screens/sales_returns_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:fatoora/features/splash/view/screens/language.dart';
 import 'package:fatoora/features/splash/view/screens/splash.dart';
@@ -116,6 +125,12 @@ List<GetPage<dynamic>> routes = [
     middlewares: [ApprovedUserMiddleware()],
   ),
   GetPage(
+    name: AppRoute.salesReturns,
+    page: () => const SalesReturnsListScreen(),
+    binding: SalesReturnsBinding(),
+    middlewares: [ApprovedUserMiddleware()],
+  ),
+  GetPage(
     name: AppRoute.quotations,
     page: () => const AdminSectionScreen(
       titleKey: 'dashboard_quotations',
@@ -155,6 +170,30 @@ List<GetPage<dynamic>> routes = [
     middlewares: [AdminMiddleware()],
   ),
   GetPage(
+    name: AppRoute.inventory,
+    page: () => const InventoryDashboardScreen(),
+    binding: InventoryDashboardBinding(),
+    middlewares: [AdminMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.stockMovements,
+    page: () => const StockMovementsScreen(),
+    binding: StockMovementsBinding(),
+    middlewares: [AdminMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.inventoryAdjustment,
+    page: () => const InventoryAdjustmentScreen(),
+    binding: InventoryAdjustmentBinding(),
+    middlewares: [AdminMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.itemStockDetails,
+    page: () => const ItemStockDetailsScreen(),
+    binding: ItemStockDetailsBinding(),
+    middlewares: [AdminMiddleware()],
+  ),
+  GetPage(
     name: AppRoute.statements,
     page: () => const AdminSectionScreen(
       titleKey: 'dashboard_account_statement',
@@ -182,6 +221,18 @@ List<GetPage<dynamic>> routes = [
     name: AppRoute.invoiceDetails,
     page: () => const InvoiceDetailsScreen(),
     binding: InvoiceDetailsBinding(),
+    middlewares: [ApprovedUserMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.createSalesReturn,
+    page: () => const SalesReturnFormScreen(),
+    binding: SalesReturnFormBinding(),
+    middlewares: [ApprovedUserMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.salesReturnDetails,
+    page: () => const SalesReturnDetailsScreen(),
+    binding: SalesReturnDetailsBinding(),
     middlewares: [ApprovedUserMiddleware()],
   ),
   GetPage(

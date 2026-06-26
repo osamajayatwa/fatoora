@@ -19,9 +19,27 @@ class AddItemController extends GetxController with ItemPageNavigation {
   final TextEditingController unitController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
   final TextEditingController taxRateController = TextEditingController();
+  final TextEditingController currentStockController = TextEditingController(
+    text: '0',
+  );
+  final TextEditingController openingStockController = TextEditingController(
+    text: '0',
+  );
+  final TextEditingController minStockController = TextEditingController(
+    text: '0',
+  );
+  final TextEditingController costPriceController = TextEditingController(
+    text: '0',
+  );
+  final TextEditingController barcodeController = TextEditingController();
+  final TextEditingController categoryController = TextEditingController();
+  final TextEditingController warehouseController = TextEditingController(
+    text: 'default_warehouse',
+  );
 
   StatusRequest statusRequest = StatusRequest.none;
   bool active = true;
+  bool trackStock = true;
   bool isDirty = false;
 
   bool get isLoading => statusRequest == StatusRequest.loading;
@@ -41,6 +59,13 @@ class AddItemController extends GetxController with ItemPageNavigation {
     unitController,
     priceController,
     taxRateController,
+    currentStockController,
+    openingStockController,
+    minStockController,
+    costPriceController,
+    barcodeController,
+    categoryController,
+    warehouseController,
   ];
 
   void _markDirty() {
@@ -52,6 +77,12 @@ class AddItemController extends GetxController with ItemPageNavigation {
 
   void setActive(bool value) {
     active = value;
+    isDirty = true;
+    update();
+  }
+
+  void setTrackStock(bool value) {
+    trackStock = value;
     isDirty = true;
     update();
   }
@@ -69,6 +100,14 @@ class AddItemController extends GetxController with ItemPageNavigation {
         price: double.parse(priceController.text.trim()),
         taxRate: double.parse(taxRateController.text.trim()),
         active: active,
+        currentStock: double.parse(currentStockController.text.trim()),
+        openingStock: double.parse(openingStockController.text.trim()),
+        minStock: double.parse(minStockController.text.trim()),
+        trackStock: trackStock,
+        costPrice: double.parse(costPriceController.text.trim()),
+        barcode: barcodeController.text,
+        category: categoryController.text,
+        warehouseId: warehouseController.text,
       );
       statusRequest = StatusRequest.success;
       isDirty = false;

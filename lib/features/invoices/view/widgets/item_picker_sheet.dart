@@ -154,14 +154,39 @@ class _InvoiceItemPickerSheetState extends State<InvoiceItemPickerSheet> {
                               title: Text(item.name),
                               subtitle: Text(
                                 [
-                                      item.code,
-                                      item.unit,
-                                      '${item.taxRate}% ${'tax'.tr}',
-                                    ]
-                                    .where((value) => value.isNotEmpty)
-                                    .join(' / '),
+                                  item.code,
+                                  item.unit,
+                                  '${item.taxRate}% ${'tax'.tr}',
+                                  item.trackStock
+                                      ? '${'current_stock'.tr}: ${NumberFormat('#,##0.###').format(item.currentStock)}'
+                                      : 'track_stock_disabled'.tr,
+                                ].where((value) => value.isNotEmpty).join(' / '),
                               ),
-                              trailing: Text(currency.format(item.price)),
+                              trailing: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(currency.format(item.price)),
+                                  if (item.trackStock)
+                                    Text(
+                                      item.isOutOfStock
+                                          ? 'out_of_stock'.tr
+                                          : item.isLowStock
+                                          ? 'low_stock'.tr
+                                          : 'available_quantity'.tr,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall
+                                          ?.copyWith(
+                                            color: item.isOutOfStock
+                                                ? AppColor.error
+                                                : item.isLowStock
+                                                ? const Color(0xFFFFA43A)
+                                                : AppColor.success,
+                                          ),
+                                    ),
+                                ],
+                              ),
                               onTap: () => Get.back<ItemModel>(result: item),
                             );
                           },

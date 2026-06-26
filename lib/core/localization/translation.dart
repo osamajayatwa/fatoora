@@ -5,9 +5,11 @@ import 'package:fatoora/core/localization/admin_dashboard_translations.dart';
 import 'package:fatoora/core/localization/admin_users_translations.dart';
 import 'package:fatoora/core/localization/items_translations.dart';
 import 'package:fatoora/core/localization/invoices_translations.dart';
+import 'package:fatoora/core/localization/inventory_translations.dart';
 import 'package:fatoora/core/localization/customers_translations.dart';
 import 'package:fatoora/core/localization/financial_translations.dart';
 import 'package:fatoora/core/localization/receipts_translations.dart';
+import 'package:fatoora/core/localization/sales_return_translations.dart';
 import 'package:fatoora/core/localization/common_translations.dart';
 
 class MyTranslation extends Translations {
@@ -23,7 +25,9 @@ class MyTranslation extends Translations {
       ...customersArabicTranslations,
       ...financialArabicTranslations,
       ...receiptsArabicTranslations,
+      ...salesReturnArabicTranslations,
       ...commonArabicTranslations,
+      ...inventoryArabicTranslations,
       "Choose Language": "اختر اللغة",
       "Continue": "متابعه",
       "LogIn": "تسجيل الدخول",
@@ -308,6 +312,7 @@ class MyTranslation extends Translations {
       "Speed": "السرعة",
       "": "",
       ...commonArabicTranslations,
+      ...inventoryArabicTranslations,
     },
     "en": {
       ...adminLoginEnglishTranslations,
@@ -319,7 +324,9 @@ class MyTranslation extends Translations {
       ...customersEnglishTranslations,
       ...financialEnglishTranslations,
       ...receiptsEnglishTranslations,
+      ...salesReturnEnglishTranslations,
       ...commonEnglishTranslations,
+      ...inventoryEnglishTranslations,
     },
   };
 }

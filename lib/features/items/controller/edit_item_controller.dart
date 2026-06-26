@@ -20,10 +20,18 @@ class EditItemController extends GetxController with ItemPageNavigation {
   final TextEditingController unitController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
   final TextEditingController taxRateController = TextEditingController();
+  final TextEditingController currentStockController = TextEditingController();
+  final TextEditingController openingStockController = TextEditingController();
+  final TextEditingController minStockController = TextEditingController();
+  final TextEditingController costPriceController = TextEditingController();
+  final TextEditingController barcodeController = TextEditingController();
+  final TextEditingController categoryController = TextEditingController();
+  final TextEditingController warehouseController = TextEditingController();
 
   ItemModel? item;
   StatusRequest statusRequest = StatusRequest.none;
   bool active = true;
+  bool trackStock = true;
   bool isDirty = false;
 
   bool get isLoading => statusRequest == StatusRequest.loading;
@@ -35,6 +43,13 @@ class EditItemController extends GetxController with ItemPageNavigation {
     unitController,
     priceController,
     taxRateController,
+    currentStockController,
+    openingStockController,
+    minStockController,
+    costPriceController,
+    barcodeController,
+    categoryController,
+    warehouseController,
   ];
 
   @override
@@ -52,7 +67,15 @@ class EditItemController extends GetxController with ItemPageNavigation {
     unitController.text = argument.unit;
     priceController.text = _formatNumber(argument.price);
     taxRateController.text = _formatNumber(argument.taxRate);
+    currentStockController.text = _formatNumber(argument.currentStock);
+    openingStockController.text = _formatNumber(argument.openingStock);
+    minStockController.text = _formatNumber(argument.minStock);
+    costPriceController.text = _formatNumber(argument.costPrice);
+    barcodeController.text = argument.barcode ?? '';
+    categoryController.text = argument.category ?? '';
+    warehouseController.text = argument.warehouseId;
     active = argument.active;
+    trackStock = argument.trackStock;
     for (final controller in _textControllers) {
       controller.addListener(_markDirty);
     }
@@ -76,6 +99,12 @@ class EditItemController extends GetxController with ItemPageNavigation {
     update();
   }
 
+  void setTrackStock(bool value) {
+    trackStock = value;
+    isDirty = true;
+    update();
+  }
+
   Future<void> submit() async {
     final current = item;
     if (current == null ||
@@ -95,6 +124,14 @@ class EditItemController extends GetxController with ItemPageNavigation {
         price: double.parse(priceController.text.trim()),
         taxRate: double.parse(taxRateController.text.trim()),
         active: active,
+        currentStock: double.parse(currentStockController.text.trim()),
+        openingStock: double.parse(openingStockController.text.trim()),
+        minStock: double.parse(minStockController.text.trim()),
+        trackStock: trackStock,
+        costPrice: double.parse(costPriceController.text.trim()),
+        barcode: barcodeController.text,
+        category: categoryController.text,
+        warehouseId: warehouseController.text,
       );
       statusRequest = StatusRequest.success;
       isDirty = false;

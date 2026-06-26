@@ -1,3 +1,4 @@
+import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/admin_dashboard/controller/admin_dashboard_controller.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_alerts_card.dart';
@@ -17,80 +18,86 @@ class AdminDashboardContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetBuilder<AdminDashboardController>(
-      builder: (controller) => RefreshIndicator(
-        color: AppColor.primaryColor,
-        onRefresh: controller.refreshDashboard,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.all(
-            MediaQuery.sizeOf(context).width < 600 ? 14 : 24,
-          ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1440),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const _DashboardWelcome(),
-                  const SizedBox(height: 22),
-                  if (MediaQuery.sizeOf(context).width < 600) ...[
-                    TextField(
-                      controller: controller.searchController,
-                      onChanged: controller.onSearchChanged,
-                      decoration: InputDecoration(
-                        hintText: 'dashboard_search_hint'.tr,
-                        prefixIcon: const Icon(Icons.search_rounded),
-                        filled: true,
-                        fillColor: AppColor.surface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE1E5ED),
+      builder: (controller) => HandilingDataView(
+        statusrequest: controller.statusRequest,
+        errorMessage: controller.loadErrorMessageKey.tr,
+        retryLabel: 'items_retry'.tr,
+        onRetry: controller.refreshDashboard,
+        widget: RefreshIndicator(
+          color: AppColor.primaryColor,
+          onRefresh: controller.refreshDashboard,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.all(
+              MediaQuery.sizeOf(context).width < 600 ? 14 : 24,
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1440),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _DashboardWelcome(),
+                    const SizedBox(height: 22),
+                    if (MediaQuery.sizeOf(context).width < 600) ...[
+                      TextField(
+                        controller: controller.searchController,
+                        onChanged: controller.onSearchChanged,
+                        decoration: InputDecoration(
+                          hintText: 'dashboard_search_hint'.tr,
+                          prefixIcon: const Icon(Icons.search_rounded),
+                          filled: true,
+                          fillColor: AppColor.surface,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE1E5ED),
+                            ),
                           ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE1E5ED),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE1E5ED),
+                            ),
                           ),
                         ),
                       ),
+                      const SizedBox(height: 18),
+                    ],
+                    _StatsGrid(),
+                    const SizedBox(height: 18),
+                    _ResponsivePair(
+                      desktopHeight: 420,
+                      first: LatestInvoicesCard(),
+                      second: InvoiceLineChartCard(
+                        values: controller.weeklyInvoiceValues,
+                      ),
                     ),
                     const SizedBox(height: 18),
-                  ],
-                  const _StatsGrid(),
-                  const SizedBox(height: 18),
-                  _ResponsivePair(
-                    desktopHeight: 420,
-                    first: const LatestInvoicesCard(),
-                    second: InvoiceLineChartCard(
-                      values: controller.weeklyInvoiceValues,
+                    _ResponsivePair(
+                      desktopHeight: 430,
+                      first: QuickActionsCard(),
+                      second: InvoiceSummaryCard(),
                     ),
-                  ),
-                  const SizedBox(height: 18),
-                  const _ResponsivePair(
-                    desktopHeight: 430,
-                    first: QuickActionsCard(),
-                    second: InvoiceSummaryCard(),
-                  ),
-                  const SizedBox(height: 18),
-                  const SalesByRepCard(),
-                  const SizedBox(height: 18),
-                  const _ResponsivePair(
-                    desktopHeight: 310,
-                    first: TopCustomersCard(),
-                    second: DashboardAlertsCard(),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'dashboard_footer'.tr,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: AppColor.grey),
-                  ),
-                  const SizedBox(height: 6),
-                ],
+                    const SizedBox(height: 18),
+                    SalesByRepCard(),
+                    const SizedBox(height: 18),
+                    _ResponsivePair(
+                      desktopHeight: 310,
+                      first: TopCustomersCard(),
+                      second: DashboardAlertsCard(),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'dashboard_footer'.tr,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColor.grey),
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+                ),
               ),
             ),
           ),

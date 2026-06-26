@@ -135,6 +135,7 @@ class CustomerStatementController extends GetxController {
     final money = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
     final date = DateFormat.yMd();
 
+    // TODO: Localize PDF labels after adding Arabic-capable fonts and RTL layout support.
     doc.addPage(
       pw.MultiPage(
         pageTheme: const pw.PageTheme(margin: pw.EdgeInsets.all(28)),

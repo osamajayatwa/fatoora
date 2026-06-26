@@ -82,8 +82,24 @@ class EditItemScreen extends StatelessWidget {
                                   priceController: controller.priceController,
                                   taxRateController:
                                       controller.taxRateController,
+                                  currentStockController:
+                                      controller.currentStockController,
+                                  openingStockController:
+                                      controller.openingStockController,
+                                  minStockController:
+                                      controller.minStockController,
+                                  costPriceController:
+                                      controller.costPriceController,
+                                  barcodeController:
+                                      controller.barcodeController,
+                                  categoryController:
+                                      controller.categoryController,
+                                  warehouseController:
+                                      controller.warehouseController,
                                   active: controller.active,
+                                  trackStock: controller.trackStock,
                                   onActiveChanged: controller.setActive,
+                                  onTrackStockChanged: controller.setTrackStock,
                                   onSubmit: controller.submit,
                                   submitLabel: 'items_update'.tr,
                                   loading: controller.isLoading,

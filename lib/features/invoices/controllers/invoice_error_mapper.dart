@@ -25,6 +25,7 @@ class InvoiceErrorMapper {
     if (error is! InvoiceRepositoryException) {
       return fallback ?? 'invoice_action_error';
     }
+    if (insufficientStock(error) != null) return 'stock_not_enough';
     return switch (error.error) {
       InvoiceRepositoryError.unauthenticated => 'invoice_session_error',
       InvoiceRepositoryError.permissionDenied => 'invoice_permission_error',
@@ -36,5 +37,11 @@ class InvoiceErrorMapper {
       InvoiceRepositoryError.locked => 'accepted_invoice_cannot_be_edited',
       InvoiceRepositoryError.unknown => fallback ?? 'invoice_action_error',
     };
+  }
+
+  static InsufficientStockFailure? insufficientStock(Object error) {
+    if (error is! InvoiceRepositoryException) return null;
+    final cause = error.cause;
+    return cause is InsufficientStockFailure ? cause : null;
   }
 }

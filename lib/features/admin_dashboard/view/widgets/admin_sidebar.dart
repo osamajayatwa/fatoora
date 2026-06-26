@@ -25,6 +25,11 @@ class AdminSidebar extends StatelessWidget {
       AppRoute.receipts,
     ),
     _SidebarItem(
+      'sales_returns',
+      Icons.assignment_return_outlined,
+      AppRoute.salesReturns,
+    ),
+    _SidebarItem(
       'admin_users',
       Icons.manage_accounts_outlined,
       AppRoute.adminUsers,
@@ -49,6 +54,7 @@ class AdminSidebar extends StatelessWidget {
       Icons.inventory_2_outlined,
       AppRoute.adminItems,
     ),
+    _SidebarItem('inventory', Icons.warehouse_outlined, AppRoute.inventory),
     _SidebarItem(
       'dashboard_account_statement',
       Icons.article_outlined,
@@ -128,6 +134,12 @@ class AdminSidebar extends StatelessWidget {
                         AppRoute.adminEditItem,
                         AppRoute.adminItemDetails,
                       };
+                      final inventoryRoutes = {
+                        AppRoute.inventory,
+                        AppRoute.stockMovements,
+                        AppRoute.inventoryAdjustment,
+                        AppRoute.itemStockDetails,
+                      };
                       final invoiceRoutes = {
                         AppRoute.invoices,
                         AppRoute.invoiceForm,
@@ -138,6 +150,11 @@ class AdminSidebar extends StatelessWidget {
                         AppRoute.createReceipt,
                         AppRoute.receiptDetails,
                       };
+                      final salesReturnRoutes = {
+                        AppRoute.salesReturns,
+                        AppRoute.createSalesReturn,
+                        AppRoute.salesReturnDetails,
+                      };
                       final userRoutes = {
                         AppRoute.adminUsers,
                         AppRoute.pendingUsers,
@@ -147,10 +164,14 @@ class AdminSidebar extends StatelessWidget {
                           Get.currentRoute == item.route ||
                           (item.route == AppRoute.adminItems &&
                               itemRoutes.contains(Get.currentRoute)) ||
+                          (item.route == AppRoute.inventory &&
+                              inventoryRoutes.contains(Get.currentRoute)) ||
                           (item.route == AppRoute.invoices &&
                               invoiceRoutes.contains(Get.currentRoute)) ||
                           (item.route == AppRoute.receipts &&
                               receiptRoutes.contains(Get.currentRoute)) ||
+                          (item.route == AppRoute.salesReturns &&
+                              salesReturnRoutes.contains(Get.currentRoute)) ||
                           (item.route == AppRoute.adminUsers &&
                               userRoutes.contains(Get.currentRoute));
                       return _SidebarTile(
