@@ -54,6 +54,8 @@ import 'package:fatoora/features/sales_returns/bindings/sales_returns_binding.da
 import 'package:fatoora/features/sales_returns/view/screens/sales_return_details_screen.dart';
 import 'package:fatoora/features/sales_returns/view/screens/sales_return_form_screen.dart';
 import 'package:fatoora/features/sales_returns/view/screens/sales_returns_list_screen.dart';
+import 'package:fatoora/features/settings/bindings/settings_binding.dart';
+import 'package:fatoora/features/settings/view/screens/settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:fatoora/features/splash/view/screens/language.dart';
 import 'package:fatoora/features/splash/view/screens/splash.dart';
@@ -205,12 +207,9 @@ List<GetPage<dynamic>> routes = [
   ),
   GetPage(
     name: AppRoute.settings,
-    page: () => const AdminSectionScreen(
-      titleKey: 'dashboard_settings',
-      icon: Icons.settings_outlined,
-    ),
-    binding: AdminDashboardBinding(),
-    middlewares: [AdminMiddleware()],
+    page: () => const SettingsScreen(),
+    binding: SettingsBinding(),
+    middlewares: [ApprovedUserMiddleware()],
   ),
   GetPage(
     name: AppRoute.invoiceForm,

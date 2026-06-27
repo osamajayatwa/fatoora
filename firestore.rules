@@ -101,6 +101,208 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time;
     }
 
+    function validSafeSelfProfileUpdate(userId) {
+      return isSignedIn()
+        && request.auth.uid == userId
+        && isApprovedCompanyUser(resource.data.companyId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name',
+          'phone',
+          'photoUrl',
+          'updatedAt'
+        ])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.active == resource.data.active
+        && request.resource.data.approvalStatus == resource.data.approvalStatus
+        && request.resource.data.companyId == resource.data.companyId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2
+        && request.resource.data.name != 'undefined'
+        && request.resource.data.phone is string
+        && request.resource.data.photoUrl is string
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validAdminManagedUserUpdate(userId) {
+      return isActiveAdmin()
+        && request.auth.uid != userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name',
+          'phone',
+          'photoUrl',
+          'role',
+          'active',
+          'approvalStatus',
+          'approvedAt',
+          'approvedByUid',
+          'rejectedAt',
+          'rejectedByUid',
+          'updatedAt'
+        ])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.uid == userId
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.companyId == resource.data.companyId
+        && request.resource.data.companyId == 'default_company'
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.role in [
+          'admin',
+          'sales_rep',
+          'pending_sales_rep'
+        ]
+        && request.resource.data.approvalStatus in [
+          'approved',
+          'pending',
+          'rejected'
+        ]
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validAppSettingsWrite(companyId, settingsId) {
+      let data = request.resource.data;
+      return isActiveAdmin()
+        && settingsId == 'app'
+        && isApprovedCompanyUser(companyId)
+        && data.keys().hasOnly([
+          'companySettings',
+          'documentSettings',
+          'inventorySettings',
+          'pdfSettings',
+          'permissionSettings',
+          'jofotaraStatusSettings',
+          'schemaVersion',
+          'updatedAt',
+          'updatedByUid',
+          'updatedByName'
+        ])
+        && data.companySettings is map
+        && data.companySettings.keys().hasOnly([
+          'name',
+          'country',
+          'email',
+          'website',
+          'phone',
+          'address',
+          'logoEnabled'
+        ])
+        && data.companySettings.name is string
+        && data.companySettings.name.size() > 0
+        && data.companySettings.country is string
+        && data.companySettings.country.size() > 0
+        && data.companySettings.email is string
+        && data.companySettings.website is string
+        && data.companySettings.phone is string
+        && data.companySettings.address is string
+        && data.companySettings.logoEnabled is bool
+        && data.documentSettings is map
+        && data.documentSettings.keys().hasOnly([
+          'invoicePrefix',
+          'receiptPrefix',
+          'quotationPrefix',
+          'salesReturnPrefix',
+          'defaultDueDays',
+          'defaultTaxPercent',
+          'allowDiscount',
+          'allowSalesRepPriceEdit'
+        ])
+        && data.documentSettings.invoicePrefix.matches('^[A-Z0-9]{1,10}$')
+        && data.documentSettings.receiptPrefix.matches('^[A-Z0-9]{1,10}$')
+        && data.documentSettings.quotationPrefix.matches('^[A-Z0-9]{1,10}$')
+        && data.documentSettings.salesReturnPrefix.matches('^[A-Z0-9]{1,10}$')
+        && data.documentSettings.defaultDueDays is number
+        && data.documentSettings.defaultDueDays >= 0
+        && data.documentSettings.defaultDueDays <= 3650
+        && data.documentSettings.defaultTaxPercent is number
+        && data.documentSettings.defaultTaxPercent >= 0
+        && data.documentSettings.defaultTaxPercent <= 100
+        && data.documentSettings.allowDiscount is bool
+        && data.documentSettings.allowSalesRepPriceEdit is bool
+        && data.inventorySettings is map
+        && data.inventorySettings.keys().hasOnly([
+          'defaultWarehouseId',
+          'allowNegativeStock',
+          'lowStockAlertsEnabled',
+          'defaultMinStock',
+          'trackStockByDefault'
+        ])
+        && data.inventorySettings.defaultWarehouseId is string
+        && data.inventorySettings.defaultWarehouseId.size() > 0
+        && data.inventorySettings.allowNegativeStock is bool
+        && data.inventorySettings.lowStockAlertsEnabled is bool
+        && data.inventorySettings.defaultMinStock is number
+        && data.inventorySettings.defaultMinStock >= 0
+        && data.inventorySettings.trackStockByDefault is bool
+        && data.pdfSettings is map
+        && data.pdfSettings.keys().hasOnly([
+          'showLogo',
+          'showCompanyInfo',
+          'pdfLanguageMode',
+          'invoiceFooterText',
+          'quotationTerms',
+          'receiptFooterText',
+          'statementFooterText',
+          'defaultNotes'
+        ])
+        && data.pdfSettings.showLogo is bool
+        && data.pdfSettings.showCompanyInfo is bool
+        && data.pdfSettings.pdfLanguageMode in ['app_language', 'ar', 'en']
+        && data.pdfSettings.invoiceFooterText is string
+        && data.pdfSettings.quotationTerms is string
+        && data.pdfSettings.receiptFooterText is string
+        && data.pdfSettings.statementFooterText is string
+        && data.pdfSettings.defaultNotes is string
+        && data.permissionSettings is map
+        && data.permissionSettings.keys().hasOnly([
+          'allowSalesRepCreateCustomers',
+          'allowSalesRepCreateReceipts',
+          'allowSalesRepCreateReturns',
+          'allowSalesRepCreateQuotations',
+          'allowSalesRepPriceEdit',
+          'allowSalesRepDiscount'
+        ])
+        && data.permissionSettings.allowSalesRepCreateCustomers is bool
+        && data.permissionSettings.allowSalesRepCreateReceipts is bool
+        && data.permissionSettings.allowSalesRepCreateReturns is bool
+        && data.permissionSettings.allowSalesRepCreateQuotations is bool
+        && data.permissionSettings.allowSalesRepPriceEdit is bool
+        && data.permissionSettings.allowSalesRepDiscount is bool
+        && data.jofotaraStatusSettings is map
+        && data.jofotaraStatusSettings.keys().hasOnly([
+          'enabled',
+          'status'
+        ])
+        && data.jofotaraStatusSettings.enabled == false
+        && data.jofotaraStatusSettings.status in ['disabled', 'not_configured']
+        && data.schemaVersion is number
+        && data.schemaVersion >= 1
+        && data.updatedAt == request.time
+        && data.updatedByUid == request.auth.uid
+        && data.updatedByName is string
+        && data.updatedByName.size() > 0;
+    }
+
+    function validUserPreferencesWrite(userId, preferenceId) {
+      let data = request.resource.data;
+      return isSignedIn()
+        && request.auth.uid == userId
+        && preferenceId == 'app'
+        && data.keys().hasOnly([
+          'language',
+          'themeMode',
+          'defaultInvoiceNote',
+          'defaultReceiptNote',
+          'updatedAt'
+        ])
+        && data.language in ['ar', 'en']
+        && data.themeMode in ['system', 'light', 'dark']
+        && data.defaultInvoiceNote is string
+        && data.defaultReceiptNote is string
+        && data.updatedAt == request.time;
+    }
+
     function validBusinessCreate(companyId, data) {
       return isApprovedCompanyUser(companyId)
         && data.companyId == companyId
@@ -812,21 +1014,20 @@ service cloud.firestore {
 
       allow create: if isSignedIn() && validPendingUserCreate(userId);
 
-      allow update: if isActiveAdmin()
-        && request.resource.data.uid == userId
-        && request.resource.data.companyId == 'default_company'
-        && request.resource.data.role in [
-          'admin',
-          'sales_rep',
-          'pending_sales_rep'
-        ]
-        && request.resource.data.approvalStatus in [
-          'approved',
-          'pending',
-          'rejected'
-        ];
+      allow update: if validSafeSelfProfileUpdate(userId)
+        || validAdminManagedUserUpdate(userId);
 
       allow delete: if false;
+
+      match /preferences/{preferenceId} {
+        allow get: if isSignedIn() && request.auth.uid == userId;
+        allow list: if false;
+        allow create, update: if validUserPreferencesWrite(
+          userId,
+          preferenceId
+        );
+        allow delete: if false;
+      }
     }
 
     match /items/{itemId} {
@@ -995,6 +1196,14 @@ service cloud.firestore {
     match /companies/{companyId}/counters/{counterId} {
       allow get, list: if isApprovedCompanyUser(companyId);
       allow create, update: if validCounterWrite(companyId, counterId);
+      allow delete: if false;
+    }
+
+    match /companies/{companyId}/settings/{settingsId} {
+      allow get: if settingsId == 'app'
+        && isApprovedCompanyUser(companyId);
+      allow list: if false;
+      allow create, update: if validAppSettingsWrite(companyId, settingsId);
       allow delete: if false;
     }
 

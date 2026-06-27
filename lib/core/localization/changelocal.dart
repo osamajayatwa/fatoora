@@ -1,10 +1,11 @@
+import 'dart:async';
+
 import 'package:fatoora/core/constants/app.dart';
+import 'package:fatoora/core/services/services.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class LocaleController extends GetxController {
-  // final MyServices myServices = Get.find();
-
   final RxString activeLang = 'en'.obs;
   final Rx<Locale> _locale = Locale('en').obs;
   final Rx<ThemeData> _theme = themeEnglish.obs;
@@ -15,7 +16,7 @@ class LocaleController extends GetxController {
 
   Future<void> init() async {
     try {
-      // await _loadLanguagePreference();
+      _loadLanguagePreference();
 
       try {
         //   NotificationService.instance.init();
@@ -28,20 +29,22 @@ class LocaleController extends GetxController {
     }
   }
 
-  // Future<void> _loadLanguagePreference() async {
-  //   try {
-  //     // final sp = myServices.sharedPreferences;
-  //     // final saved = sp.getString('lang');
-  //     // String langCode = saved ??
-  //     //     (Get.deviceLocale?.languageCode ?? 'en');
-
-  //     if (!(langCode == 'en' || langCode == 'ar')) langCode = 'en';
-  //     _applyLanguage(langCode, saveToPrefs: false);
-  //   } catch (e) {
-  //     debugPrint("Error loading language pref: $e");
-  //     _applyLanguage('en', saveToPrefs: false);
-  //   }
-  // }
+  void _loadLanguagePreference() {
+    try {
+      if (!Get.isRegistered<MyServices>()) return;
+      final saved = Get.find<MyServices>().sharedPreferences.getString('lang');
+      var langCode = saved ?? Get.deviceLocale?.languageCode ?? 'en';
+      if (langCode != 'en' && langCode != 'ar') langCode = 'en';
+      activeLang.value = langCode;
+      _locale.value = Locale(langCode);
+      _theme.value = langCode == 'ar' ? themeArabic : themeEnglish;
+    } catch (error) {
+      debugPrint('Error loading language preference: $error');
+      activeLang.value = 'en';
+      _locale.value = const Locale('en');
+      _theme.value = themeEnglish;
+    }
+  }
 
   void changeLang(String langCode, {bool save = true}) {
     if (langCode == activeLang.value) return;
@@ -55,7 +58,14 @@ class LocaleController extends GetxController {
 
     if (saveToPrefs) {
       try {
-        // myServices.sharedPreferences.setString('lang', langCode);
+        if (Get.isRegistered<MyServices>()) {
+          unawaited(
+            Get.find<MyServices>().sharedPreferences.setString(
+              'lang',
+              langCode,
+            ),
+          );
+        }
       } catch (e) {
         debugPrint("Failed to save lang pref: $e");
       }
@@ -68,7 +78,9 @@ class LocaleController extends GetxController {
   }
 
   Future<void> resetToDefault() async {
-    // await myServices.sharedPreferences.remove('lang');
+    if (Get.isRegistered<MyServices>()) {
+      await Get.find<MyServices>().sharedPreferences.remove('lang');
+    }
     _applyLanguage('en', saveToPrefs: false);
   }
 

@@ -62,4 +62,5 @@ class SalesRepDashboardController extends GetxController {
   void openReceivables() => Get.toNamed(AppRoute.receivables);
   void openCash() => Get.toNamed(AppRoute.cashMovements);
   void openSalesReturns() => Get.toNamed(AppRoute.salesReturns);
+  void openSettings() => Get.toNamed(AppRoute.settings);
 }

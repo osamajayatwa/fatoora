@@ -25,6 +25,11 @@ class HomeScreen extends StatelessWidget {
           title: Text('home_title'.tr),
           actions: [
             IconButton(
+              tooltip: 'settings'.tr,
+              onPressed: controller.openSettings,
+              icon: const Icon(Icons.settings_outlined),
+            ),
+            IconButton(
               tooltip: 'dashboard_refresh'.tr,
               onPressed: controller.refreshDashboard,
               icon: const Icon(Icons.refresh_rounded),
@@ -282,6 +287,7 @@ class _QuickActions extends StatelessWidget {
         Icons.account_balance_wallet_outlined,
         controller.openCash,
       ),
+      _ActionData('settings', Icons.settings_outlined, controller.openSettings),
     ];
     return DashboardCard(
       child: Wrap(

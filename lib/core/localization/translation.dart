@@ -13,6 +13,7 @@ import 'package:fatoora/core/localization/sales_return_translations.dart';
 import 'package:fatoora/core/localization/pdf_translations.dart';
 import 'package:fatoora/core/localization/quotations_translations.dart';
 import 'package:fatoora/core/localization/common_translations.dart';
+import 'package:fatoora/core/localization/settings_translations.dart';
 
 class MyTranslation extends Translations {
   @override
@@ -32,6 +33,7 @@ class MyTranslation extends Translations {
       ...quotationsArabicTranslations,
       ...commonArabicTranslations,
       ...inventoryArabicTranslations,
+      ...settingsArabicTranslations,
       "Choose Language": "اختر اللغة",
       "Continue": "متابعه",
       "LogIn": "تسجيل الدخول",
@@ -333,6 +335,7 @@ class MyTranslation extends Translations {
       ...quotationsEnglishTranslations,
       ...commonEnglishTranslations,
       ...inventoryEnglishTranslations,
+      ...settingsEnglishTranslations,
     },
   };
 }
