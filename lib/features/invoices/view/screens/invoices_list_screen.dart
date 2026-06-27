@@ -142,7 +142,7 @@ class _InvoicesCards extends StatelessWidget {
             onView: () => controller.openDetails(invoice),
             onEdit: () => controller.editInvoice(invoice),
             onDelete: () => controller.deleteDraftInvoice(invoice),
-            onPrint: () => controller.printOrExportPlaceholder(invoice),
+            onPrint: () => controller.printInvoicePdf(invoice),
           ),
           const SizedBox(height: 12),
         ],
@@ -243,7 +243,7 @@ class _TableActions extends StatelessWidget {
       onView: () => controller.openDetails(invoice),
       onEdit: () => controller.editInvoice(invoice),
       onDelete: () => controller.deleteDraftInvoice(invoice),
-      onPrint: () => controller.printOrExportPlaceholder(invoice),
+      onPrint: () => controller.printInvoicePdf(invoice),
     );
   }
 }

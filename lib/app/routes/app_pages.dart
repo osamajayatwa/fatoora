@@ -42,6 +42,10 @@ import 'package:fatoora/features/items/view/screen/edit_item_screen.dart';
 import 'package:fatoora/features/items/view/screen/item_details_screen.dart';
 import 'package:fatoora/features/items/view/screen/items_screen.dart';
 import 'package:fatoora/features/home/view/screen/home_screen.dart';
+import 'package:fatoora/features/quotations/bindings/quotations_binding.dart';
+import 'package:fatoora/features/quotations/view/screens/quotation_details_screen.dart';
+import 'package:fatoora/features/quotations/view/screens/quotation_form_screen.dart';
+import 'package:fatoora/features/quotations/view/screens/quotations_list_screen.dart';
 import 'package:fatoora/features/receipts/bindings/receipts_binding.dart';
 import 'package:fatoora/features/receipts/view/screens/receipt_details_screen.dart';
 import 'package:fatoora/features/receipts/view/screens/receipt_form_screen.dart';
@@ -132,12 +136,9 @@ List<GetPage<dynamic>> routes = [
   ),
   GetPage(
     name: AppRoute.quotations,
-    page: () => const AdminSectionScreen(
-      titleKey: 'dashboard_quotations',
-      icon: Icons.request_quote_outlined,
-    ),
-    binding: AdminDashboardBinding(),
-    middlewares: [AdminMiddleware()],
+    page: () => const QuotationsListScreen(),
+    binding: QuotationsBinding(),
+    middlewares: [ApprovedUserMiddleware()],
   ),
   GetPage(
     name: AppRoute.receipts,
@@ -237,12 +238,15 @@ List<GetPage<dynamic>> routes = [
   ),
   GetPage(
     name: AppRoute.createQuotation,
-    page: () => const AdminSectionScreen(
-      titleKey: 'dashboard_new_quotation',
-      icon: Icons.sell_outlined,
-    ),
-    binding: AdminDashboardBinding(),
-    middlewares: [AdminMiddleware()],
+    page: () => const QuotationFormScreen(),
+    binding: QuotationFormBinding(),
+    middlewares: [ApprovedUserMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.quotationDetails,
+    page: () => const QuotationDetailsScreen(),
+    binding: QuotationDetailsBinding(),
+    middlewares: [ApprovedUserMiddleware()],
   ),
   GetPage(
     name: AppRoute.createReceipt,

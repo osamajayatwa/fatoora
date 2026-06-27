@@ -16,44 +16,46 @@ service cloud.firestore {
     }
 
     function isApprovedCompanyUser(companyId) {
+      let user = userDoc().data;
       return hasUserDoc()
         && (
           (
-            userDoc().data.keys().hasAny(['companyId'])
-            && userDoc().data.companyId == companyId
+            user.keys().hasAny(['companyId'])
+            && user.companyId == companyId
           )
           || (
             companyId == 'default_company'
-            && !userDoc().data.keys().hasAny(['companyId'])
+            && !user.keys().hasAny(['companyId'])
           )
         )
-        && userDoc().data.active == true
+        && user.active == true
         && (
           (
-            userDoc().data.keys().hasAny(['approvalStatus'])
-            && userDoc().data.approvalStatus == 'approved'
+            user.keys().hasAny(['approvalStatus'])
+            && user.approvalStatus == 'approved'
           )
           || (
-            !userDoc().data.keys().hasAny(['approvalStatus'])
-            && userDoc().data.role == 'admin'
+            !user.keys().hasAny(['approvalStatus'])
+            && user.role == 'admin'
           )
         )
         && (
-          userDoc().data.role == 'admin'
-          || userDoc().data.role == 'sales_rep'
+          user.role == 'admin'
+          || user.role == 'sales_rep'
         );
     }
 
     function isActiveAdmin() {
+      let user = userDoc().data;
       return hasUserDoc()
-        && userDoc().data.role == 'admin'
-        && userDoc().data.active == true
+        && user.role == 'admin'
+        && user.active == true
         && (
           (
-            userDoc().data.keys().hasAny(['approvalStatus'])
-            && userDoc().data.approvalStatus == 'approved'
+            user.keys().hasAny(['approvalStatus'])
+            && user.approvalStatus == 'approved'
           )
-          || !userDoc().data.keys().hasAny(['approvalStatus'])
+          || !user.keys().hasAny(['approvalStatus'])
         );
     }
 
@@ -65,7 +67,7 @@ service cloud.firestore {
     function canReadOwnedBusinessDoc(companyId, data) {
       return isApprovedCompanyUser(companyId)
         && (
-          isActiveAdmin()
+          userDoc().data.role == 'admin'
           || isOwnerField(data)
         );
     }
@@ -584,10 +586,188 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time;
     }
 
+    function quotationIdentityPreserved() {
+      return request.resource.data.id == resource.data.id
+        && request.resource.data.companyId == resource.data.companyId
+        && request.resource.data.quotationNumber == resource.data.quotationNumber
+        && request.resource.data.customerId == resource.data.customerId
+        && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.createdByName == resource.data.createdByName
+        && request.resource.data.createdByRole == resource.data.createdByRole
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function quotationFieldsAreValid(companyId, quotationId, data) {
+      return data.keys().hasOnly([
+          'id',
+          'companyId',
+          'quotationNumber',
+          'quotationDate',
+          'validUntil',
+          'customerId',
+          'customerSnapshot',
+          'items',
+          'subtotal',
+          'totalDiscount',
+          'totalTax',
+          'grandTotal',
+          'notes',
+          'terms',
+          'status',
+          'salesRepId',
+          'salesRepName',
+          'createdByUid',
+          'createdByName',
+          'createdByRole',
+          'convertedInvoiceId',
+          'convertedInvoiceNumber',
+          'createdAt',
+          'updatedAt',
+          'searchKeywords'
+        ])
+        && data.id == quotationId
+        && data.companyId == companyId
+        && data.quotationNumber.matches('^QUO-[0-9]{4}-[0-9]{6}$')
+        && data.quotationDate is timestamp
+        && data.validUntil is timestamp
+        && data.validUntil >= data.quotationDate
+        && data.customerId is string
+        && data.customerId.size() > 0
+        && data.customerSnapshot is map
+        && data.customerSnapshot.id == data.customerId
+        && data.customerSnapshot.name is string
+        && data.customerSnapshot.name.size() > 0
+        && data.items is list
+        && data.items.size() > 0
+        && data.subtotal is number
+        && data.subtotal >= 0
+        && data.totalDiscount is number
+        && data.totalDiscount >= 0
+        && data.totalTax is number
+        && data.totalTax >= 0
+        && data.grandTotal is number
+        && data.grandTotal >= 0
+        && data.notes is string
+        && data.terms is string
+        && data.status in [
+          'draft',
+          'sent',
+          'accepted',
+          'rejected',
+          'expired',
+          'converted'
+        ]
+        && data.salesRepId is string
+        && data.salesRepId.size() > 0
+        && data.salesRepName is string
+        && data.salesRepName.size() > 0
+        && data.salesRepName != 'undefined'
+        && data.createdByUid is string
+        && data.createdByName is string
+        && data.createdByName.size() > 0
+        && data.createdByName != 'undefined'
+        && data.createdByRole is string
+        && data.convertedInvoiceId is string
+        && data.convertedInvoiceNumber is string
+        && data.searchKeywords is list;
+    }
+
+    function quotationCustomerIsAllowed(companyId, data) {
+      let customerPath =
+        /databases/$(database)/documents/companies/$(companyId)/customers/$(data.customerId);
+      let customer = get(customerPath);
+      return exists(customerPath)
+        && customer.data.companyId == companyId
+        && customer.data.active == true
+        && (
+          isActiveAdmin()
+          || customer.data.createdByUid == request.auth.uid
+        );
+    }
+
+    function validQuotationCreate(companyId, quotationId) {
+      let data = request.resource.data;
+      return validBusinessCreate(companyId, data)
+        && quotationFieldsAreValid(companyId, quotationId, data)
+        && quotationCustomerIsAllowed(companyId, data)
+        && data.status == 'draft'
+        && data.convertedInvoiceId == ''
+        && data.convertedInvoiceNumber == ''
+        && (
+          isActiveAdmin()
+          || data.salesRepId == request.auth.uid
+        )
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
+    function validQuotationDraftUpdate(companyId) {
+      return resource.data.status == 'draft'
+        && request.resource.data.status == 'draft'
+        && canReadOwnedBusinessDoc(companyId, resource.data)
+        && quotationIdentityPreserved()
+        && quotationFieldsAreValid(
+          companyId,
+          resource.data.id,
+          request.resource.data
+        )
+        && quotationCustomerIsAllowed(companyId, request.resource.data)
+        && request.resource.data.convertedInvoiceId == ''
+        && request.resource.data.convertedInvoiceNumber == ''
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validQuotationStatusUpdate(companyId) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'updatedAt'
+        ])
+        && resource.data.status != 'converted'
+        && request.resource.data.status in [
+          'sent',
+          'accepted',
+          'rejected',
+          'expired'
+        ]
+        && canReadOwnedBusinessDoc(companyId, resource.data)
+        && quotationIdentityPreserved()
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validQuotationConversionUpdate(companyId) {
+      let invoicePath =
+        /databases/$(database)/documents/companies/$(companyId)/invoices/$(request.resource.data.convertedInvoiceId);
+      let invoice = getAfter(invoicePath);
+      return resource.data.status in ['sent', 'accepted']
+        && request.resource.data.status == 'converted'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'convertedInvoiceId',
+          'convertedInvoiceNumber',
+          'updatedAt'
+        ])
+        && request.resource.data.convertedInvoiceId is string
+        && request.resource.data.convertedInvoiceId.size() > 0
+        && request.resource.data.convertedInvoiceNumber.matches('^INV-[0-9]{4}-[0-9]{6}$')
+        && request.resource.data.updatedAt == request.time
+        && canReadOwnedBusinessDoc(companyId, resource.data)
+        && quotationIdentityPreserved()
+        && existsAfter(invoicePath)
+        && invoice.data.companyId == companyId
+        && invoice.data.id == request.resource.data.convertedInvoiceId
+        && invoice.data.invoiceNumber == request.resource.data.convertedInvoiceNumber
+        && invoice.data.invoiceStatus == 'draft'
+        && invoice.data.financialPosted == false
+        && invoice.data.inventoryPosted == false
+        && invoice.data.customerId == resource.data.customerId
+        && invoice.data.grandTotal == resource.data.grandTotal
+        && invoice.data.createdByUid == request.auth.uid;
+    }
+
     function validCounterWrite(companyId, counterId) {
       // TODO: OSAMA - Generate official numbers in Cloud Functions when possible.
       return isApprovedCompanyUser(companyId)
-        && counterId.matches('^(invoices|receipts|sales_returns)_[0-9]{4}$')
+        && counterId.matches('^(invoices|receipts|sales_returns|quotations)_[0-9]{4}$')
         && request.resource.data.keys().hasOnly([
           'id',
           'companyId',
@@ -616,6 +796,10 @@ service cloud.firestore {
           || (
             counterId.matches('^sales_returns_[0-9]{4}$')
             && request.resource.data.prefix == 'RET'
+          )
+          || (
+            counterId.matches('^quotations_[0-9]{4}$')
+            && request.resource.data.prefix == 'QUO'
           )
         );
     }
@@ -690,7 +874,10 @@ service cloud.firestore {
 
       allow create: if validBusinessCreate(companyId, request.resource.data)
         && request.resource.data.id == invoiceId
-        && request.resource.data.salesRepId == request.auth.uid
+        && (
+          isActiveAdmin()
+          || request.resource.data.salesRepId == request.auth.uid
+        )
         && request.resource.data.salesRepName is string
         && request.resource.data.salesRepName.size() > 0
         && request.resource.data.salesRepName != 'undefined'
@@ -742,6 +929,22 @@ service cloud.firestore {
       allow create: if validSalesReturnCreate(companyId, returnId);
       allow update: if validSalesReturnDraftUpdate(companyId)
         || validSalesReturnPostingUpdate(companyId);
+      allow delete: if false;
+    }
+
+    match /companies/{companyId}/quotations/{quotationId} {
+      allow get: if canReadOwnedBusinessDoc(companyId, resource.data);
+      allow list: if isApprovedCompanyUser(companyId)
+        && (
+          isActiveAdmin()
+          || resource.data.createdByUid == request.auth.uid
+          || resource.data.salesRepId == request.auth.uid
+        );
+
+      allow create: if validQuotationCreate(companyId, quotationId);
+      allow update: if validQuotationDraftUpdate(companyId)
+        || validQuotationStatusUpdate(companyId)
+        || validQuotationConversionUpdate(companyId);
       allow delete: if false;
     }
 

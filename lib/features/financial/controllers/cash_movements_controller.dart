@@ -1,10 +1,14 @@
 import 'package:fatoora/core/class/statusrequest.dart';
+import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
+import 'package:fatoora/features/auth/utils/auth_session.dart';
 import 'package:fatoora/features/financial/controllers/financial_error_mapper.dart';
 import 'package:fatoora/features/financial/data/models/financial_dashboard_snapshot.dart';
 import 'package:fatoora/features/financial/data/repositories/financial_repository.dart';
+import 'package:fatoora/features/financial/data/services/cash_report_pdf_service.dart';
 import 'package:get/get.dart';
+import 'package:printing/printing.dart';
 
 class CashMovementsController extends GetxController {
   CashMovementsController({
@@ -28,6 +32,7 @@ class CashMovementsController extends GetxController {
     cashBySalesRep: [],
   );
   bool isSavingSettlement = false;
+  bool isPrinting = false;
 
   String get companyId =>
       _myServices.sharedPreferences.getString('companyId') ??
@@ -103,6 +108,37 @@ class CashMovementsController extends GetxController {
       );
     } finally {
       isSavingSettlement = false;
+      if (!isClosed) update();
+    }
+  }
+
+  Future<void> printCashReport() async {
+    if (isPrinting) return;
+    isPrinting = true;
+    update();
+    try {
+      final filterLabel = isAdmin
+          ? 'all'.tr
+          : AuthSession.cachedDisplayName(_myServices);
+      await Printing.layoutPdf(
+        name: 'cash-report.pdf',
+        onLayout: (_) => CashReportPdfService.build(
+          snapshot: snapshot,
+          fromDate: fromDate,
+          toDate: toDate,
+          salesRepFilterLabel: filterLabel,
+        ),
+      );
+    } catch (_) {
+      Get.snackbar(
+        'financial_cash'.tr,
+        'cash_report_pdf_error'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColor.error,
+        colorText: AppColor.surface,
+      );
+    } finally {
+      isPrinting = false;
       if (!isClosed) update();
     }
   }

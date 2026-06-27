@@ -235,7 +235,9 @@ class _RightColumn extends StatelessWidget {
               ],
               const SizedBox(height: 10),
               OutlinedButton.icon(
-                onPressed: controller.printOrExportPlaceholder,
+                onPressed: controller.isPrinting
+                    ? null
+                    : controller.printInvoicePdf,
                 icon: const Icon(Icons.print_outlined),
                 label: Text('print_export'.tr),
               ),

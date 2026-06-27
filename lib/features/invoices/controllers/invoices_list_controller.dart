@@ -10,9 +10,11 @@ import 'package:fatoora/features/invoices/controllers/invoice_error_mapper.dart'
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/invoices/data/repositories/invoice_repository.dart';
+import 'package:fatoora/features/invoices/data/services/invoice_pdf_service.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_type_picker_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:printing/printing.dart';
 
 class InvoicesListController extends GetxController {
   InvoicesListController({
@@ -34,6 +36,7 @@ class InvoicesListController extends GetxController {
   String searchText = '';
   String loadErrorMessageKey = 'invoice_load_error';
   bool isDeleting = false;
+  bool isPrinting = false;
   Timer? _searchDebounce;
 
   String get companyId {
@@ -219,8 +222,21 @@ class InvoicesListController extends GetxController {
     }
   }
 
-  void printOrExportPlaceholder(InvoiceModel invoice) {
-    _showInfo('invoice_details'.tr, 'print_export_placeholder'.tr);
+  Future<void> printInvoicePdf(InvoiceModel invoice) async {
+    if (isPrinting) return;
+    isPrinting = true;
+    update();
+    try {
+      await Printing.layoutPdf(
+        name: '${invoice.invoiceNumber}.pdf',
+        onLayout: (_) => InvoicePdfService.build(invoice),
+      );
+    } catch (_) {
+      _showError('invoice_pdf_error');
+    } finally {
+      isPrinting = false;
+      if (!isClosed) update();
+    }
   }
 
   void _showSuccess(String messageKey) {

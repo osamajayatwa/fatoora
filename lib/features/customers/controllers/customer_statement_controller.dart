@@ -1,17 +1,13 @@
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
-import 'package:fatoora/core/constants/imageassests.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/controllers/customer_error_mapper.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
 import 'package:fatoora/features/customers/data/repositories/customer_repository.dart';
-import 'package:flutter/services.dart';
+import 'package:fatoora/features/customers/data/services/customer_statement_pdf_service.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 class CustomerStatementController extends GetxController {
@@ -113,7 +109,15 @@ class CustomerStatementController extends GetxController {
     try {
       await Printing.layoutPdf(
         name: '${current.name}-statement.pdf',
-        onLayout: (_) => _buildPdf(current),
+        onLayout: (_) => CustomerStatementPdfService.build(
+          customer: current,
+          transactions: transactions,
+          fromDate: fromDate,
+          toDate: toDate,
+          totalDebit: totalDebit,
+          totalCredit: totalCredit,
+          finalBalance: finalBalance,
+        ),
       );
     } catch (_) {
       _showError('customers_statement_pdf_error');
@@ -121,111 +125,6 @@ class CustomerStatementController extends GetxController {
       isPrinting = false;
       if (!isClosed) update();
     }
-  }
-
-  Future<Uint8List> _buildPdf(CustomerModel current) async {
-    final doc = pw.Document();
-    pw.MemoryImage? logo;
-    try {
-      final bytes = await rootBundle.load(ImageAssest.logo);
-      logo = pw.MemoryImage(bytes.buffer.asUint8List());
-    } catch (_) {
-      logo = null;
-    }
-    final money = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
-    final date = DateFormat.yMd();
-
-    // TODO: Localize PDF labels after adding Arabic-capable fonts and RTL layout support.
-    doc.addPage(
-      pw.MultiPage(
-        pageTheme: const pw.PageTheme(margin: pw.EdgeInsets.all(28)),
-        build: (context) => [
-          pw.Row(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              if (logo != null) pw.Image(logo, width: 64, height: 64),
-              pw.SizedBox(width: 14),
-              pw.Expanded(
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(
-                      'Jayatwa Trading Establishment',
-                      style: pw.TextStyle(
-                        fontSize: 16,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                    ),
-                    pw.Text('Jordan'),
-                    pw.Text('jtrdest@gmail.com'),
-                    pw.Text('www.fujikaindustries.com'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          pw.SizedBox(height: 24),
-          pw.Text(
-            'Customer Statement',
-            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 8),
-          pw.Text('Customer: ${current.name}'),
-          if (current.phone.isNotEmpty) pw.Text('Phone: ${current.phone}'),
-          if (current.addressText.isNotEmpty)
-            pw.Text('Address: ${current.addressText}'),
-          pw.Text('Current balance: ${money.format(current.currentBalance)}'),
-          pw.Text(
-            'Date range: ${fromDate == null ? 'All' : date.format(fromDate!)} - ${toDate == null ? 'All' : date.format(toDate!)}',
-          ),
-          pw.SizedBox(height: 18),
-          pw.TableHelper.fromTextArray(
-            headers: const [
-              'Date',
-              'Type',
-              'Number',
-              'Debit',
-              'Credit',
-              'Balance',
-            ],
-            data: transactions
-                .map(
-                  (transaction) => [
-                    date.format(transaction.transactionDate),
-                    transaction.transactionType,
-                    transaction.sourceNumber,
-                    money.format(transaction.debitAmount),
-                    money.format(transaction.creditAmount),
-                    money.format(transaction.balanceAfter),
-                  ],
-                )
-                .toList(),
-            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-            headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-            cellAlignment: pw.Alignment.centerLeft,
-            cellStyle: const pw.TextStyle(fontSize: 9),
-          ),
-          pw.SizedBox(height: 18),
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.end,
-            children: [
-              pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.end,
-                children: [
-                  pw.Text('Total debit: ${money.format(totalDebit)}'),
-                  pw.Text('Total credit: ${money.format(totalCredit)}'),
-                  pw.Text(
-                    'Final balance: ${money.format(finalBalance)}',
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-    return doc.save();
   }
 
   Future<void> requestBack() async {

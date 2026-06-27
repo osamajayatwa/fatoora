@@ -72,6 +72,20 @@ class _Details extends StatelessWidget {
                       ],
                     ),
                   ),
+                  OutlinedButton.icon(
+                    onPressed: controller.isPrinting
+                        ? null
+                        : controller.printSalesReturn,
+                    icon: controller.isPrinting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.picture_as_pdf_outlined),
+                    label: Text('export_pdf'.tr),
+                  ),
+                  const SizedBox(width: 10),
                   SalesReturnStatusChip(status: salesReturn.status),
                 ],
               ),
@@ -130,7 +144,6 @@ class _Details extends StatelessWidget {
                   ),
                 ),
               ],
-              // TODO: Add a printable sales-return PDF without changing invoice PDFs.
             ],
           ),
         ),

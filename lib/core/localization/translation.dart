@@ -10,6 +10,8 @@ import 'package:fatoora/core/localization/customers_translations.dart';
 import 'package:fatoora/core/localization/financial_translations.dart';
 import 'package:fatoora/core/localization/receipts_translations.dart';
 import 'package:fatoora/core/localization/sales_return_translations.dart';
+import 'package:fatoora/core/localization/pdf_translations.dart';
+import 'package:fatoora/core/localization/quotations_translations.dart';
 import 'package:fatoora/core/localization/common_translations.dart';
 
 class MyTranslation extends Translations {
@@ -26,6 +28,8 @@ class MyTranslation extends Translations {
       ...financialArabicTranslations,
       ...receiptsArabicTranslations,
       ...salesReturnArabicTranslations,
+      ...pdfArabicTranslations,
+      ...quotationsArabicTranslations,
       ...commonArabicTranslations,
       ...inventoryArabicTranslations,
       "Choose Language": "اختر اللغة",
@@ -325,6 +329,8 @@ class MyTranslation extends Translations {
       ...financialEnglishTranslations,
       ...receiptsEnglishTranslations,
       ...salesReturnEnglishTranslations,
+      ...pdfEnglishTranslations,
+      ...quotationsEnglishTranslations,
       ...commonEnglishTranslations,
       ...inventoryEnglishTranslations,
     },

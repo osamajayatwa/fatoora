@@ -253,6 +253,16 @@ class _QuickActions extends StatelessWidget {
         controller.openInvoices,
       ),
       _ActionData(
+        'dashboard_new_quotation',
+        Icons.request_quote_outlined,
+        controller.createQuotation,
+      ),
+      _ActionData(
+        'dashboard_quotations',
+        Icons.format_quote_outlined,
+        controller.openQuotations,
+      ),
+      _ActionData(
         'sales_returns',
         Icons.assignment_return_outlined,
         controller.openSalesReturns,

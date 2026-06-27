@@ -25,7 +25,10 @@ class ReceiptDetailsScreen extends StatelessWidget {
           onRetry: controller.loadReceipt,
           widget: controller.receipt == null
               ? const SizedBox.shrink()
-              : _ReceiptDetails(receipt: controller.receipt!),
+              : _ReceiptDetails(
+                  controller: controller,
+                  receipt: controller.receipt!,
+                ),
         ),
       ),
     );
@@ -33,8 +36,9 @@ class ReceiptDetailsScreen extends StatelessWidget {
 }
 
 class _ReceiptDetails extends StatelessWidget {
-  const _ReceiptDetails({required this.receipt});
+  const _ReceiptDetails({required this.controller, required this.receipt});
 
+  final ReceiptDetailsController controller;
   final ReceiptModel receipt;
 
   @override
@@ -94,6 +98,22 @@ class _ReceiptDetails extends StatelessWidget {
                             ),
                           ],
                         ),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton.icon(
+                        onPressed: controller.isPrinting
+                            ? null
+                            : controller.printReceipt,
+                        icon: controller.isPrinting
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.picture_as_pdf_outlined),
+                        label: Text('export_pdf'.tr),
                       ),
                     ],
                   ),

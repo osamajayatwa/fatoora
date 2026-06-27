@@ -1,10 +1,13 @@
 import 'package:fatoora/core/class/statusrequest.dart';
+import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/receipts/controllers/receipt_error_mapper.dart';
 import 'package:fatoora/features/receipts/data/models/receipt_model.dart';
 import 'package:fatoora/features/receipts/data/repositories/receipt_repository.dart';
+import 'package:fatoora/features/receipts/data/services/receipt_pdf_service.dart';
 import 'package:get/get.dart';
+import 'package:printing/printing.dart';
 
 class ReceiptDetailsController extends GetxController {
   ReceiptDetailsController({
@@ -19,6 +22,7 @@ class ReceiptDetailsController extends GetxController {
   StatusRequest statusRequest = StatusRequest.loading;
   String loadErrorMessageKey = 'receipts_load_error';
   ReceiptModel? receipt;
+  bool isPrinting = false;
 
   String get companyId {
     final args = Get.arguments;
@@ -71,5 +75,29 @@ class ReceiptDetailsController extends GetxController {
       );
     }
     if (!isClosed) update();
+  }
+
+  Future<void> printReceipt() async {
+    final current = receipt;
+    if (current == null || isPrinting) return;
+    isPrinting = true;
+    update();
+    try {
+      await Printing.layoutPdf(
+        name: '${current.receiptNumber}.pdf',
+        onLayout: (_) => ReceiptPdfService.build(current),
+      );
+    } catch (_) {
+      Get.snackbar(
+        'receipts'.tr,
+        'receipt_pdf_error'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColor.error,
+        colorText: AppColor.surface,
+      );
+    } finally {
+      isPrinting = false;
+      if (!isClosed) update();
+    }
   }
 }

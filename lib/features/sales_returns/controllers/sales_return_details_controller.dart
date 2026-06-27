@@ -5,7 +5,9 @@ import 'package:fatoora/features/sales_returns/controllers/sales_return_context.
 import 'package:fatoora/features/sales_returns/controllers/sales_return_error_mapper.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_model.dart';
 import 'package:fatoora/features/sales_returns/data/repositories/sales_return_repository.dart';
+import 'package:fatoora/features/sales_returns/data/services/sales_return_pdf_service.dart';
 import 'package:get/get.dart';
+import 'package:printing/printing.dart';
 
 class SalesReturnDetailsController extends GetxController {
   SalesReturnDetailsController({
@@ -23,6 +25,7 @@ class SalesReturnDetailsController extends GetxController {
   String returnId = '';
   SalesReturnModel? salesReturn;
   bool isConfirming = false;
+  bool isPrinting = false;
 
   bool get canConfirm => salesReturn?.isDraft == true && !isConfirming;
 
@@ -92,6 +95,24 @@ class SalesReturnDetailsController extends GetxController {
       }
     } finally {
       isConfirming = false;
+      if (!isClosed) update();
+    }
+  }
+
+  Future<void> printSalesReturn() async {
+    final current = salesReturn;
+    if (current == null || isPrinting) return;
+    isPrinting = true;
+    update();
+    try {
+      await Printing.layoutPdf(
+        name: '${current.returnNumber}.pdf',
+        onLayout: (_) => SalesReturnPdfService.build(current),
+      );
+    } catch (_) {
+      _showError('sales_return_pdf_error');
+    } finally {
+      isPrinting = false;
       if (!isClosed) update();
     }
   }

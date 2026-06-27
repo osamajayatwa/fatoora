@@ -1,0 +1,96 @@
+const Map<String, String> quotationsEnglishTranslations = {
+  'quotations': 'Quotations',
+  'quotation': 'Quotation',
+  'create_quotation': 'Create quotation',
+  'edit_quotation': 'Edit quotation',
+  'quotation_details': 'Quotation details',
+  'quotation_number': 'Quotation number',
+  'quotation_date': 'Quotation date',
+  'valid_until': 'Valid until',
+  'quotation_status': 'Quotation status',
+  'draft': 'Draft',
+  'sent': 'Sent',
+  'accepted': 'Accepted',
+  'rejected': 'Rejected',
+  'expired': 'Expired',
+  'converted': 'Converted',
+  'convert_to_invoice': 'Convert to invoice',
+  'converted_invoice': 'Converted invoice',
+  'quotation_converted_successfully':
+      'Quotation converted to draft invoice successfully.',
+  'quotation_saved_successfully': 'Quotation saved successfully.',
+  'quotation_updated_successfully': 'Quotation updated successfully.',
+  'quotation_pdf_exported': 'Quotation PDF exported.',
+  'terms': 'Terms',
+  'validity': 'Validity',
+  'no_quotations_found': 'No quotations found.',
+  'search_quotations': 'Search by customer, item, number, rep, or date...',
+  'all_quotation_statuses': 'All quotation statuses',
+  'quotation_has_no_financial_effect':
+      'Quotations do not affect stock, balances, debts, or cash.',
+  'quotation_valid_until_invalid':
+      'Valid until cannot be before the quotation date.',
+  'quotations_load_error': 'Unable to load quotations. Please try again.',
+  'quotation_load_error': 'Unable to load this quotation. Please try again.',
+  'quotation_error': 'The quotation action could not be completed.',
+  'quotation_session_error': 'Your session has expired. Please sign in again.',
+  'quotation_permission_error':
+      'You do not have permission to access this quotation.',
+  'quotation_offline_error':
+      'No connection to Firebase. Check your internet connection and try again.',
+  'quotation_timeout_error':
+      'Firebase took too long to respond. Please try again.',
+  'quotation_not_found': 'This quotation could not be found.',
+  'quotation_invalid_data': 'The quotation contains missing or invalid data.',
+  'quotation_invalid_state':
+      'This quotation cannot be changed in its current state.',
+  'quotation_locked': 'This quotation is locked and cannot be edited.',
+};
+
+const Map<String, String> quotationsArabicTranslations = {
+  'quotations': 'عروض الأسعار',
+  'quotation': 'عرض سعر',
+  'create_quotation': 'إنشاء عرض سعر',
+  'edit_quotation': 'تعديل عرض السعر',
+  'quotation_details': 'تفاصيل عرض السعر',
+  'quotation_number': 'رقم عرض السعر',
+  'quotation_date': 'تاريخ عرض السعر',
+  'valid_until': 'صالح حتى',
+  'quotation_status': 'حالة عرض السعر',
+  'draft': 'مسودة',
+  'sent': 'مرسل',
+  'accepted': 'مقبول',
+  'rejected': 'مرفوض',
+  'expired': 'منتهي',
+  'converted': 'محول',
+  'convert_to_invoice': 'تحويل إلى فاتورة',
+  'converted_invoice': 'الفاتورة المحولة',
+  'quotation_converted_successfully':
+      'تم تحويل عرض السعر إلى فاتورة مسودة بنجاح.',
+  'quotation_saved_successfully': 'تم حفظ عرض السعر بنجاح.',
+  'quotation_updated_successfully': 'تم تحديث عرض السعر بنجاح.',
+  'quotation_pdf_exported': 'تم تصدير عرض السعر بصيغة PDF.',
+  'terms': 'الشروط',
+  'validity': 'الصلاحية',
+  'no_quotations_found': 'لا توجد عروض أسعار.',
+  'search_quotations':
+      'ابحث باسم العميل أو الصنف أو الرقم أو المندوب أو التاريخ...',
+  'all_quotation_statuses': 'كل حالات عروض الأسعار',
+  'quotation_has_no_financial_effect':
+      'عروض الأسعار لا تؤثر على المخزون أو الأرصدة أو الديون أو النقد.',
+  'quotation_valid_until_invalid':
+      'تاريخ الصلاحية لا يمكن أن يكون قبل تاريخ عرض السعر.',
+  'quotations_load_error': 'تعذر تحميل عروض الأسعار. يرجى المحاولة مرة أخرى.',
+  'quotation_load_error': 'تعذر تحميل عرض السعر. يرجى المحاولة مرة أخرى.',
+  'quotation_error': 'تعذر تنفيذ إجراء عرض السعر.',
+  'quotation_session_error': 'انتهت صلاحية الجلسة. يرجى تسجيل الدخول مرة أخرى.',
+  'quotation_permission_error': 'ليست لديك صلاحية للوصول إلى عرض السعر هذا.',
+  'quotation_offline_error':
+      'لا يوجد اتصال مع Firebase. تحقق من اتصال الإنترنت وحاول مرة أخرى.',
+  'quotation_timeout_error':
+      'استغرق رد Firebase وقتا طويلا. يرجى المحاولة مرة أخرى.',
+  'quotation_not_found': 'لم يتم العثور على عرض السعر هذا.',
+  'quotation_invalid_data': 'يحتوي عرض السعر على بيانات ناقصة أو غير صالحة.',
+  'quotation_invalid_state': 'لا يمكن تغيير عرض السعر في حالته الحالية.',
+  'quotation_locked': 'عرض السعر مقفل ولا يمكن تعديله.',
+};

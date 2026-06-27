@@ -44,7 +44,8 @@ class AppRoute {
   static const String salesReturnDetails = "/sales-returns/details";
 
   static const String quotations = "/quotations";
-  static const String createQuotation = "/create-quotation";
+  static const String createQuotation = "/quotations/create";
+  static const String quotationDetails = "/quotations/details";
 
   static const String receipts = "/receipts";
   static const String createReceipt = "/create-receipt";

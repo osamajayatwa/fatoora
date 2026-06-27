@@ -145,6 +145,11 @@ class AdminSidebar extends StatelessWidget {
                         AppRoute.invoiceForm,
                         AppRoute.invoiceDetails,
                       };
+                      final quotationRoutes = {
+                        AppRoute.quotations,
+                        AppRoute.createQuotation,
+                        AppRoute.quotationDetails,
+                      };
                       final receiptRoutes = {
                         AppRoute.receipts,
                         AppRoute.createReceipt,
@@ -168,6 +173,8 @@ class AdminSidebar extends StatelessWidget {
                               inventoryRoutes.contains(Get.currentRoute)) ||
                           (item.route == AppRoute.invoices &&
                               invoiceRoutes.contains(Get.currentRoute)) ||
+                          (item.route == AppRoute.quotations &&
+                              quotationRoutes.contains(Get.currentRoute)) ||
                           (item.route == AppRoute.receipts &&
                               receiptRoutes.contains(Get.currentRoute)) ||
                           (item.route == AppRoute.salesReturns &&

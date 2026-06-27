@@ -105,6 +105,17 @@ class _CashHeader extends StatelessWidget {
             onPressed: controller.clearDateRange,
             icon: const Icon(Icons.close_rounded),
           ),
+        OutlinedButton.icon(
+          onPressed: controller.isPrinting ? null : controller.printCashReport,
+          icon: controller.isPrinting
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.picture_as_pdf_outlined),
+          label: Text('export_pdf'.tr),
+        ),
       ],
     );
 
