@@ -127,6 +127,7 @@ class CashMovementsController extends GetxController {
           fromDate: fromDate,
           toDate: toDate,
           salesRepFilterLabel: filterLabel,
+          companyId: companyId,
         ),
       );
     } catch (_) {

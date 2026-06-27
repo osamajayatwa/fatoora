@@ -1,7 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:fatoora/core/pdf/app_pdf_assets.dart';
-import 'package:fatoora/core/pdf/app_pdf_localization.dart';
+import 'package:fatoora/core/pdf/business_pdf_configuration.dart';
+import 'package:fatoora/core/pdf/business_pdf_settings_resolver.dart';
 import 'package:fatoora/core/pdf/business_pdf_widgets.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
@@ -10,9 +11,18 @@ import 'package:pdf/widgets.dart' as pw;
 class InvoicePdfService {
   const InvoicePdfService._();
 
-  static Future<Uint8List> build(InvoiceModel invoice) async {
-    final assets = await AppPdfAssets.load();
-    final loc = AppPdfLocalization.current();
+  static Future<Uint8List> build(
+    InvoiceModel invoice, {
+    BusinessPdfConfiguration? configuration,
+  }) async {
+    final pdfConfiguration =
+        configuration ??
+        await BusinessPdfSettingsResolver.resolve(
+          companyId: invoice.companyId,
+          includeUserPreferences: true,
+        );
+    final assets = await AppPdfAssets.load(loadLogo: pdfConfiguration.showLogo);
+    final loc = pdfConfiguration.localization;
     final customer = invoice.customerSnapshot;
     final document = pw.Document(theme: assets.theme);
 
@@ -22,7 +32,7 @@ class InvoicePdfService {
         build: (_) => [
           BusinessPdfWidgets.shell(
             assets: assets,
-            loc: loc,
+            configuration: pdfConfiguration,
             title: loc.t('invoice_pdf_title'),
             subtitle: invoice.invoiceNumber,
             children: [
@@ -133,7 +143,11 @@ class InvoicePdfService {
               BusinessPdfWidgets.notes(
                 loc: loc,
                 title: loc.t('notes'),
-                text: invoice.notes,
+                text: pdfConfiguration.invoiceNotes(invoice.notes),
+              ),
+              BusinessPdfWidgets.footer(
+                loc: loc,
+                text: pdfConfiguration.pdfSettings.invoiceFooterText,
               ),
             ],
           ),

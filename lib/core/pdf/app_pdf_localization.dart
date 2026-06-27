@@ -5,9 +5,15 @@ import 'package:pdf/widgets.dart' as pw;
 class AppPdfLocalization {
   AppPdfLocalization._(this.languageCode);
 
+  factory AppPdfLocalization.forLanguage(String languageCode) {
+    return AppPdfLocalization._(
+      languageCode.trim().toLowerCase() == 'ar' ? 'ar' : 'en',
+    );
+  }
+
   factory AppPdfLocalization.current() {
     final code = Get.locale?.languageCode.toLowerCase() ?? 'en';
-    return AppPdfLocalization._(code == 'ar' ? 'ar' : 'en');
+    return AppPdfLocalization.forLanguage(code);
   }
 
   final String languageCode;
@@ -26,7 +32,8 @@ class AppPdfLocalization {
     return map[key] ?? _en[key] ?? key;
   }
 
-  String date(DateTime value) => DateFormat.yMd(localeName).format(value);
+  String date(DateTime value) =>
+      _withoutDirectionalMarks(DateFormat.yMd(localeName).format(value));
 
   String money(num value) {
     final formatter = NumberFormat.currency(
@@ -34,7 +41,7 @@ class AppPdfLocalization {
       symbol: isArabic ? 'د.أ ' : 'JOD ',
       decimalDigits: 3,
     );
-    return formatter.format(value);
+    return _withoutDirectionalMarks(formatter.format(value));
   }
 
   String quantity(num value) {
@@ -51,6 +58,9 @@ class AppPdfLocalization {
   }
 
   String enumValue(String value) => t(value);
+
+  String _withoutDirectionalMarks(String value) =>
+      value.replaceAll(RegExp(r'[\u061C\u200E\u200F]'), '');
 
   static const Map<String, String> _en = {
     'all': 'All',
@@ -93,6 +103,12 @@ class AppPdfLocalization {
     'payment_method_other': 'Other',
     'payment_status': 'Payment status',
     'payment_type': 'Payment type',
+    'pdf_company_info': 'Company information',
+    'pdf_footer': 'Footer',
+    'pdf_generated_at': 'Generated at',
+    'pdf_language_mode': 'PDF language mode',
+    'pdf_prepared_by': 'Prepared by',
+    'pdf_terms': 'Terms',
     'prepared_by': 'Prepared by',
     'qr_placeholder': 'QR placeholder for future JoFotara',
     'quantity': 'Quantity',
@@ -200,6 +216,12 @@ class AppPdfLocalization {
     'payment_method_other': 'أخرى',
     'payment_status': 'حالة الدفع',
     'payment_type': 'نوع الدفع',
+    'pdf_company_info': 'بيانات الشركة',
+    'pdf_footer': 'التذييل',
+    'pdf_generated_at': 'تاريخ الإنشاء',
+    'pdf_language_mode': 'لغة ملف PDF',
+    'pdf_prepared_by': 'إعداد',
+    'pdf_terms': 'الشروط',
     'prepared_by': 'أعده',
     'qr_placeholder': 'مكان رمز QR المستقبلي للفوترة الأردنية',
     'quantity': 'الكمية',

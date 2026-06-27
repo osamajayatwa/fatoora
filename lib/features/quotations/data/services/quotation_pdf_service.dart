@@ -1,7 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:fatoora/core/pdf/app_pdf_assets.dart';
-import 'package:fatoora/core/pdf/app_pdf_localization.dart';
+import 'package:fatoora/core/pdf/business_pdf_configuration.dart';
+import 'package:fatoora/core/pdf/business_pdf_settings_resolver.dart';
 import 'package:fatoora/core/pdf/business_pdf_widgets.dart';
 import 'package:fatoora/features/quotations/data/models/quotation_model.dart';
 import 'package:fatoora/features/quotations/data/models/quotation_status.dart';
@@ -10,9 +11,17 @@ import 'package:pdf/widgets.dart' as pw;
 class QuotationPdfService {
   const QuotationPdfService._();
 
-  static Future<Uint8List> build(QuotationModel quotation) async {
-    final assets = await AppPdfAssets.load();
-    final loc = AppPdfLocalization.current();
+  static Future<Uint8List> build(
+    QuotationModel quotation, {
+    BusinessPdfConfiguration? configuration,
+  }) async {
+    final pdfConfiguration =
+        configuration ??
+        await BusinessPdfSettingsResolver.resolve(
+          companyId: quotation.companyId,
+        );
+    final assets = await AppPdfAssets.load(loadLogo: pdfConfiguration.showLogo);
+    final loc = pdfConfiguration.localization;
     final document = pw.Document(theme: assets.theme);
     final customer = quotation.customerSnapshot;
 
@@ -22,7 +31,7 @@ class QuotationPdfService {
         build: (_) => [
           BusinessPdfWidgets.shell(
             assets: assets,
-            loc: loc,
+            configuration: pdfConfiguration,
             title: loc.t('quotation'),
             subtitle: quotation.quotationNumber,
             children: [
@@ -101,13 +110,13 @@ class QuotationPdfService {
               BusinessPdfWidgets.notes(
                 loc: loc,
                 title: loc.t('terms'),
-                text: quotation.terms,
+                text: pdfConfiguration.quotationTerms(quotation.terms),
               ),
               pw.SizedBox(height: 8),
               BusinessPdfWidgets.notes(
                 loc: loc,
                 title: loc.t('notes'),
-                text: quotation.notes,
+                text: pdfConfiguration.generalNotes(quotation.notes),
               ),
             ],
           ),

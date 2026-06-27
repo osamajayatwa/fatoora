@@ -1,7 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:fatoora/core/pdf/app_pdf_assets.dart';
-import 'package:fatoora/core/pdf/app_pdf_localization.dart';
+import 'package:fatoora/core/pdf/business_pdf_configuration.dart';
+import 'package:fatoora/core/pdf/business_pdf_settings_resolver.dart';
 import 'package:fatoora/core/pdf/business_pdf_widgets.dart';
 import 'package:fatoora/features/receipts/data/models/receipt_model.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -9,9 +10,18 @@ import 'package:pdf/widgets.dart' as pw;
 class ReceiptPdfService {
   const ReceiptPdfService._();
 
-  static Future<Uint8List> build(ReceiptModel receipt) async {
-    final assets = await AppPdfAssets.load();
-    final loc = AppPdfLocalization.current();
+  static Future<Uint8List> build(
+    ReceiptModel receipt, {
+    BusinessPdfConfiguration? configuration,
+  }) async {
+    final pdfConfiguration =
+        configuration ??
+        await BusinessPdfSettingsResolver.resolve(
+          companyId: receipt.companyId,
+          includeUserPreferences: true,
+        );
+    final assets = await AppPdfAssets.load(loadLogo: pdfConfiguration.showLogo);
+    final loc = pdfConfiguration.localization;
     final document = pw.Document(theme: assets.theme);
 
     document.addPage(
@@ -20,7 +30,7 @@ class ReceiptPdfService {
         build: (_) => [
           BusinessPdfWidgets.shell(
             assets: assets,
-            loc: loc,
+            configuration: pdfConfiguration,
             title: loc.t('receipt'),
             subtitle: receipt.receiptNumber,
             children: [
@@ -54,10 +64,14 @@ class ReceiptPdfService {
               BusinessPdfWidgets.notes(
                 loc: loc,
                 title: loc.t('notes'),
-                text: receipt.notes,
+                text: pdfConfiguration.receiptNotes(receipt.notes),
               ),
               pw.SizedBox(height: 26),
               BusinessPdfWidgets.signatures(loc),
+              BusinessPdfWidgets.footer(
+                loc: loc,
+                text: pdfConfiguration.pdfSettings.receiptFooterText,
+              ),
             ],
           ),
         ],

@@ -1,7 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:fatoora/core/pdf/app_pdf_assets.dart';
-import 'package:fatoora/core/pdf/app_pdf_localization.dart';
+import 'package:fatoora/core/pdf/business_pdf_configuration.dart';
+import 'package:fatoora/core/pdf/business_pdf_settings_resolver.dart';
 import 'package:fatoora/core/pdf/business_pdf_widgets.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_enums.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_model.dart';
@@ -10,9 +11,17 @@ import 'package:pdf/widgets.dart' as pw;
 class SalesReturnPdfService {
   const SalesReturnPdfService._();
 
-  static Future<Uint8List> build(SalesReturnModel salesReturn) async {
-    final assets = await AppPdfAssets.load();
-    final loc = AppPdfLocalization.current();
+  static Future<Uint8List> build(
+    SalesReturnModel salesReturn, {
+    BusinessPdfConfiguration? configuration,
+  }) async {
+    final pdfConfiguration =
+        configuration ??
+        await BusinessPdfSettingsResolver.resolve(
+          companyId: salesReturn.companyId,
+        );
+    final assets = await AppPdfAssets.load(loadLogo: pdfConfiguration.showLogo);
+    final loc = pdfConfiguration.localization;
     final document = pw.Document(theme: assets.theme);
     final customer = salesReturn.customerSnapshot;
 
@@ -22,7 +31,7 @@ class SalesReturnPdfService {
         build: (_) => [
           BusinessPdfWidgets.shell(
             assets: assets,
-            loc: loc,
+            configuration: pdfConfiguration,
             title: loc.t('sales_return'),
             subtitle: salesReturn.returnNumber,
             children: [
@@ -110,6 +119,11 @@ class SalesReturnPdfService {
                 loc: loc,
                 title: loc.t('reason'),
                 text: salesReturn.reason,
+              ),
+              BusinessPdfWidgets.notes(
+                loc: loc,
+                title: loc.t('notes'),
+                text: pdfConfiguration.pdfSettings.defaultNotes,
               ),
             ],
           ),

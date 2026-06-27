@@ -1,7 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:fatoora/core/pdf/app_pdf_assets.dart';
-import 'package:fatoora/core/pdf/app_pdf_localization.dart';
+import 'package:fatoora/core/pdf/business_pdf_configuration.dart';
+import 'package:fatoora/core/pdf/business_pdf_settings_resolver.dart';
 import 'package:fatoora/core/pdf/business_pdf_widgets.dart';
 import 'package:fatoora/features/financial/data/models/financial_dashboard_snapshot.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -14,9 +15,14 @@ class CashReportPdfService {
     required DateTime? fromDate,
     required DateTime? toDate,
     required String salesRepFilterLabel,
+    String companyId = 'default_company',
+    BusinessPdfConfiguration? configuration,
   }) async {
-    final assets = await AppPdfAssets.load();
-    final loc = AppPdfLocalization.current();
+    final pdfConfiguration =
+        configuration ??
+        await BusinessPdfSettingsResolver.resolve(companyId: companyId);
+    final assets = await AppPdfAssets.load(loadLogo: pdfConfiguration.showLogo);
+    final loc = pdfConfiguration.localization;
     final document = pw.Document(theme: assets.theme);
 
     document.addPage(
@@ -25,7 +31,7 @@ class CashReportPdfService {
         build: (_) => [
           BusinessPdfWidgets.shell(
             assets: assets,
-            loc: loc,
+            configuration: pdfConfiguration,
             title: loc.t('cash_report'),
             subtitle: loc.dateRange(fromDate, toDate),
             children: [
@@ -89,6 +95,15 @@ class CashReportPdfService {
                     bold: true,
                   ),
                 ],
+              ),
+              BusinessPdfWidgets.notes(
+                loc: loc,
+                title: loc.t('notes'),
+                text: pdfConfiguration.pdfSettings.defaultNotes,
+              ),
+              BusinessPdfWidgets.footer(
+                loc: loc,
+                text: pdfConfiguration.pdfSettings.statementFooterText,
               ),
             ],
           ),

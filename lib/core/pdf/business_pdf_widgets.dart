@@ -1,14 +1,11 @@
 import 'package:fatoora/core/pdf/app_pdf_assets.dart';
 import 'package:fatoora/core/pdf/app_pdf_localization.dart';
+import 'package:fatoora/core/pdf/business_pdf_configuration.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 class BusinessPdfWidgets {
   const BusinessPdfWidgets._();
-
-  static const companyName = 'Jayatwa Trading Establishment';
-  static const companyEmail = 'jtrdest@gmail.com';
-  static const companyWebsite = 'www.fujikaindustries.com';
 
   static pw.PageTheme pageTheme(AppPdfAssets assets) {
     return pw.PageTheme(
@@ -19,17 +16,23 @@ class BusinessPdfWidgets {
 
   static pw.Widget shell({
     required AppPdfAssets assets,
-    required AppPdfLocalization loc,
+    required BusinessPdfConfiguration configuration,
     required String title,
     String? subtitle,
     required List<pw.Widget> children,
   }) {
+    final loc = configuration.localization;
     return pw.Directionality(
       textDirection: loc.textDirection,
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
-          header(assets: assets, loc: loc, title: title, subtitle: subtitle),
+          header(
+            assets: assets,
+            configuration: configuration,
+            title: title,
+            subtitle: subtitle,
+          ),
           pw.SizedBox(height: 20),
           ...children,
         ],
@@ -39,24 +42,37 @@ class BusinessPdfWidgets {
 
   static pw.Widget header({
     required AppPdfAssets assets,
-    required AppPdfLocalization loc,
+    required BusinessPdfConfiguration configuration,
     required String title,
     String? subtitle,
   }) {
-    final company = pw.Expanded(
-      child: pw.Column(
-        crossAxisAlignment: loc.startCrossAxis,
-        children: [
-          pw.Text(
-            companyName,
-            style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.Text(loc.t('company_country')),
-          pw.Text(companyEmail),
-          pw.Text(companyWebsite),
-        ],
-      ),
-    );
+    final loc = configuration.localization;
+    final companySettings = configuration.companySettings;
+    final company = configuration.showCompanyInfo
+        ? pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: loc.startCrossAxis,
+              children: [
+                if (companySettings.name.trim().isNotEmpty)
+                  pw.Text(
+                    companySettings.name.trim(),
+                    style: pw.TextStyle(
+                      fontSize: 15,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                for (final value in [
+                  companySettings.country,
+                  companySettings.email,
+                  companySettings.website,
+                  companySettings.phone,
+                  companySettings.address,
+                ])
+                  if (value.trim().isNotEmpty) pw.Text(value.trim()),
+              ],
+            ),
+          )
+        : null;
     final documentTitle = pw.Column(
       crossAxisAlignment: loc.isArabic
           ? pw.CrossAxisAlignment.start
@@ -70,23 +86,22 @@ class BusinessPdfWidgets {
           pw.Text(subtitle.trim(), style: const pw.TextStyle(fontSize: 10)),
       ],
     );
-    final logo = assets.logo == null
-        ? pw.SizedBox(width: 62, height: 62)
-        : pw.Image(assets.logo!, width: 62, height: 62, fit: pw.BoxFit.contain);
+    final logo = configuration.showLogo && assets.logo != null
+        ? pw.Image(assets.logo!, width: 62, height: 62, fit: pw.BoxFit.contain)
+        : null;
 
     final rowChildren = loc.isArabic
         ? <pw.Widget>[
             documentTitle,
-            pw.SizedBox(width: 16),
-            company,
-            pw.SizedBox(width: 12),
-            logo,
+            if (company == null) pw.Spacer(),
+            if (company != null) ...[pw.SizedBox(width: 16), company],
+            if (logo != null) ...[pw.SizedBox(width: 12), logo],
           ]
         : <pw.Widget>[
-            logo,
-            pw.SizedBox(width: 12),
-            company,
-            pw.SizedBox(width: 16),
+            if (logo != null) ...[logo, pw.SizedBox(width: 12)],
+            if (company != null) company,
+            if (company == null) pw.Spacer(),
+            if (company != null) pw.SizedBox(width: 16),
             documentTitle,
           ];
 
@@ -270,6 +285,41 @@ class BusinessPdfWidgets {
           ),
         ),
       ],
+    );
+  }
+
+  static pw.Widget footer({
+    required AppPdfLocalization loc,
+    required String text,
+  }) {
+    if (text.trim().isEmpty) return pw.SizedBox.shrink();
+    return pw.Container(
+      width: double.infinity,
+      margin: const pw.EdgeInsets.only(top: 14),
+      padding: const pw.EdgeInsets.only(top: 8),
+      decoration: const pw.BoxDecoration(
+        border: pw.Border(
+          top: pw.BorderSide(color: PdfColors.grey400, width: 0.5),
+        ),
+      ),
+      child: pw.Align(
+        alignment: loc.startAlignment,
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              loc.t('pdf_footer'),
+              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 3),
+            pw.Text(
+              text.trim(),
+              textAlign: loc.isArabic ? pw.TextAlign.right : pw.TextAlign.left,
+              style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

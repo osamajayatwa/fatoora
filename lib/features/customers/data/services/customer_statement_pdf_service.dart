@@ -1,7 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:fatoora/core/pdf/app_pdf_assets.dart';
-import 'package:fatoora/core/pdf/app_pdf_localization.dart';
+import 'package:fatoora/core/pdf/business_pdf_configuration.dart';
+import 'package:fatoora/core/pdf/business_pdf_settings_resolver.dart';
 import 'package:fatoora/core/pdf/business_pdf_widgets.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
@@ -18,9 +19,15 @@ class CustomerStatementPdfService {
     required double totalDebit,
     required double totalCredit,
     required double finalBalance,
+    BusinessPdfConfiguration? configuration,
   }) async {
-    final assets = await AppPdfAssets.load();
-    final loc = AppPdfLocalization.current();
+    final pdfConfiguration =
+        configuration ??
+        await BusinessPdfSettingsResolver.resolve(
+          companyId: customer.companyId,
+        );
+    final assets = await AppPdfAssets.load(loadLogo: pdfConfiguration.showLogo);
+    final loc = pdfConfiguration.localization;
     final document = pw.Document(theme: assets.theme);
 
     document.addPage(
@@ -29,7 +36,7 @@ class CustomerStatementPdfService {
         build: (_) => [
           BusinessPdfWidgets.shell(
             assets: assets,
-            loc: loc,
+            configuration: pdfConfiguration,
             title: loc.t('customer_statement'),
             subtitle: customer.name,
             children: [
@@ -87,6 +94,15 @@ class CustomerStatementPdfService {
                     bold: true,
                   ),
                 ],
+              ),
+              BusinessPdfWidgets.notes(
+                loc: loc,
+                title: loc.t('notes'),
+                text: pdfConfiguration.pdfSettings.defaultNotes,
+              ),
+              BusinessPdfWidgets.footer(
+                loc: loc,
+                text: pdfConfiguration.pdfSettings.statementFooterText,
               ),
             ],
           ),
