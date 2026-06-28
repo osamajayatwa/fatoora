@@ -1355,7 +1355,14 @@ service cloud.firestore {
 
     match /companies/{companyId}/counters/{counterId} {
       allow get, list: if isApprovedCompanyUser(companyId);
-      allow create, update: if validCounterWrite(companyId, counterId);
+      allow create: if validCounterWrite(companyId, counterId)
+        && request.resource.data.lastNumber == 1;
+      allow update: if validCounterWrite(companyId, counterId)
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.companyId == resource.data.companyId
+        && request.resource.data.year == resource.data.year
+        && resource.data.lastNumber is number
+        && request.resource.data.lastNumber == resource.data.lastNumber + 1;
       allow delete: if false;
     }
 
