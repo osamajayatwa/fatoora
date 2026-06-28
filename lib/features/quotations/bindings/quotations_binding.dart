@@ -1,4 +1,5 @@
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/invoices/bindings/invoices_list_binding.dart';
 import 'package:fatoora/features/invoices/data/services/invoice_totals_service.dart';
 import 'package:fatoora/features/quotations/controllers/quotation_details_controller.dart';
@@ -22,6 +23,7 @@ class QuotationsBinding extends Bindings {
       () => QuotationsListController(
         repository: Get.find<QuotationRepository>(),
         myServices: Get.find<MyServices>(),
+        permissionResolver: Get.find<BusinessPermissionResolver>(),
       ),
     );
   }
@@ -36,6 +38,7 @@ class QuotationFormBinding extends Bindings {
         repository: Get.find<QuotationRepository>(),
         totalsService: Get.find<InvoiceTotalsService>(),
         myServices: Get.find<MyServices>(),
+        permissionResolver: Get.find<BusinessPermissionResolver>(),
       ),
     );
   }

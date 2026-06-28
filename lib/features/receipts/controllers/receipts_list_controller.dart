@@ -4,6 +4,7 @@ import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/receipts/controllers/receipt_error_mapper.dart';
 import 'package:fatoora/features/receipts/data/models/receipt_model.dart';
@@ -15,11 +16,14 @@ class ReceiptsListController extends GetxController {
   ReceiptsListController({
     required ReceiptRepository repository,
     required MyServices myServices,
+    required BusinessPermissionResolver permissionResolver,
   }) : _repository = repository,
-       _myServices = myServices;
+       _myServices = myServices,
+       _permissionResolver = permissionResolver;
 
   final ReceiptRepository _repository;
   final MyServices _myServices;
+  final BusinessPermissionResolver _permissionResolver;
   final TextEditingController searchController = TextEditingController();
 
   StatusRequest statusRequest = StatusRequest.loading;
@@ -29,6 +33,8 @@ class ReceiptsListController extends GetxController {
   DateTime? fromDate;
   DateTime? toDate;
   Timer? _searchDebounce;
+  EffectiveBusinessPermissions permissions =
+      EffectiveBusinessPermissions.denied;
 
   String get companyId =>
       _myServices.sharedPreferences.getString('companyId') ??
@@ -36,6 +42,7 @@ class ReceiptsListController extends GetxController {
 
   bool get hasFilters =>
       searchText.trim().isNotEmpty || fromDate != null || toDate != null;
+  bool get canCreateReceipt => permissions.createReceipts;
 
   @override
   void onReady() {
@@ -48,6 +55,7 @@ class ReceiptsListController extends GetxController {
     loadErrorMessageKey = 'receipts_load_error';
     update();
     try {
+      permissions = await _permissionResolver.resolve(companyId);
       receipts = await _repository.fetchReceipts(
         companyId: companyId,
         searchText: searchText,
@@ -90,6 +98,10 @@ class ReceiptsListController extends GetxController {
   }
 
   Future<void> openCreateReceipt() async {
+    if (!canCreateReceipt) {
+      _showError('sales_rep_receipt_create_disabled');
+      return;
+    }
     final changed = await Get.toNamed(
       AppRoute.createReceipt,
       arguments: {'companyId': companyId},

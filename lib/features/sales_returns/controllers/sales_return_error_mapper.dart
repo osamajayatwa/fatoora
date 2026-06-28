@@ -10,7 +10,8 @@ class SalesReturnErrorMapper {
     }
     return switch (error.error) {
       SalesReturnRepositoryError.unauthenticated ||
-      SalesReturnRepositoryError.permissionDenied => StatusRequest.unauthorized,
+      SalesReturnRepositoryError.permissionDenied ||
+      SalesReturnRepositoryError.createDisabled => StatusRequest.unauthorized,
       SalesReturnRepositoryError.unavailable => StatusRequest.offlinefailure,
       SalesReturnRepositoryError.timeout => StatusRequest.timeout,
       SalesReturnRepositoryError.notFound ||
@@ -32,6 +33,8 @@ class SalesReturnErrorMapper {
         'sales_return_session_error',
       SalesReturnRepositoryError.permissionDenied =>
         'sales_return_permission_error',
+      SalesReturnRepositoryError.createDisabled =>
+        'sales_rep_return_create_disabled',
       SalesReturnRepositoryError.unavailable => 'sales_return_offline_error',
       SalesReturnRepositoryError.timeout => 'sales_return_timeout_error',
       SalesReturnRepositoryError.notFound => 'sales_return_not_found',

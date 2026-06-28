@@ -2,6 +2,7 @@ import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/auth/utils/auth_session.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
@@ -22,13 +23,16 @@ class QuotationFormController extends GetxController {
     required QuotationRepository repository,
     required InvoiceTotalsService totalsService,
     required MyServices myServices,
+    required BusinessPermissionResolver permissionResolver,
   }) : _repository = repository,
        _totalsService = totalsService,
-       _myServices = myServices;
+       _myServices = myServices,
+       _permissionResolver = permissionResolver;
 
   final QuotationRepository _repository;
   final InvoiceTotalsService _totalsService;
   final MyServices _myServices;
+  final BusinessPermissionResolver _permissionResolver;
 
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
   final TextEditingController quotationNumberController =
@@ -52,8 +56,12 @@ class QuotationFormController extends GetxController {
   bool readOnly = false;
   bool isSaving = false;
   QuotationModel? loadedQuotation;
+  EffectiveBusinessPermissions permissions =
+      EffectiveBusinessPermissions.denied;
 
   bool get isCreateMode => mode == 'create';
+  bool get canEditCatalogPrice => !readOnly && permissions.editCatalogPrice;
+  bool get canApplyDiscount => !readOnly && permissions.applyDiscount;
   List<InvoiceItemSnapshot> get invoiceItems =>
       items.map((item) => item.toInvoiceItem()).toList(growable: false);
 
@@ -78,6 +86,15 @@ class QuotationFormController extends GetxController {
       companyId =
           _myServices.sharedPreferences.getString('companyId') ??
           AuthRepository.defaultCompanyId;
+    }
+
+    permissions = await _permissionResolver.resolve(companyId);
+    if (isCreateMode && !permissions.createQuotations) {
+      statusRequest = StatusRequest.unauthorized;
+      loadErrorMessageKey = 'sales_rep_quotation_create_disabled';
+      _showError(loadErrorMessageKey);
+      update();
+      return;
     }
 
     if (isCreateMode) {
@@ -190,8 +207,15 @@ class QuotationFormController extends GetxController {
     double? discount,
     double? taxPercent,
   }) {
-    // TODO(settings-stage-2c): enforce discount and sales-rep price controls.
     if (readOnly || index < 0 || index >= items.length) return;
+    if (unitPrice != null && !canEditCatalogPrice) {
+      _showError('sales_rep_price_edit_disabled');
+      return;
+    }
+    if (discount != null && !canApplyDiscount) {
+      _showError('sales_rep_discount_disabled');
+      return;
+    }
     final updated = items[index].toInvoiceItem().copyWith(
       quantity: quantity,
       unitPrice: unitPrice,
@@ -220,6 +244,10 @@ class QuotationFormController extends GetxController {
 
   Future<void> saveDraft() async {
     if (readOnly || isSaving) return;
+    if (isCreateMode && !permissions.createQuotations) {
+      _showError('sales_rep_quotation_create_disabled');
+      return;
+    }
     if (!_validate()) return;
     isSaving = true;
     statusRequest = StatusRequest.loading;

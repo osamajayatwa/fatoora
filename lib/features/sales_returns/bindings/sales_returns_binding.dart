@@ -1,4 +1,5 @@
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/invoices/bindings/invoices_list_binding.dart';
 import 'package:fatoora/features/invoices/data/repositories/invoice_repository.dart';
 import 'package:fatoora/features/sales_returns/controllers/sales_return_details_controller.dart';
@@ -36,6 +37,7 @@ class SalesReturnFormBinding extends Bindings {
         repository: Get.find<SalesReturnRepository>(),
         invoiceRepository: Get.find<InvoiceRepository>(),
         myServices: Get.find<MyServices>(),
+        permissionResolver: Get.find<BusinessPermissionResolver>(),
       ),
     );
   }

@@ -9,6 +9,7 @@ class ReceiptErrorMapper {
       return switch (error.error) {
         ReceiptRepositoryError.unauthenticated => StatusRequest.unauthorized,
         ReceiptRepositoryError.permissionDenied => StatusRequest.unauthorized,
+        ReceiptRepositoryError.createDisabled => StatusRequest.unauthorized,
         ReceiptRepositoryError.unavailable => StatusRequest.offlinefailure,
         ReceiptRepositoryError.timeout => StatusRequest.timeout,
         ReceiptRepositoryError.notFound => StatusRequest.failure,
@@ -24,6 +25,8 @@ class ReceiptErrorMapper {
       return switch (error.error) {
         ReceiptRepositoryError.unauthenticated => 'receipts_session_error',
         ReceiptRepositoryError.permissionDenied => 'receipts_permission_error',
+        ReceiptRepositoryError.createDisabled =>
+          'sales_rep_receipt_create_disabled',
         ReceiptRepositoryError.unavailable => 'receipts_offline_error',
         ReceiptRepositoryError.timeout => 'receipts_timeout_error',
         ReceiptRepositoryError.notFound => 'receipts_not_found',

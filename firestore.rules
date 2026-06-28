@@ -301,6 +301,40 @@ service cloud.firestore {
         );
     }
 
+    function businessPermissionAllows(companyId, field) {
+      let settingsPath =
+        /databases/$(database)/documents/companies/$(companyId)/settings/app;
+      return isApprovedCompanyUser(companyId)
+        && (
+          isActiveAdmin()
+          || (
+            userDoc().data.role == 'sales_rep'
+            && (
+              !exists(settingsPath)
+              || !get(settingsPath).data.keys().hasAny([
+                'permissionSettings'
+              ])
+              || !get(settingsPath).data.permissionSettings.keys().hasAny([
+                field
+              ])
+              || get(settingsPath).data.permissionSettings[field] == true
+            )
+          )
+        );
+    }
+
+    function documentDiscountAllowed(companyId, data) {
+      // Rules cannot safely iterate document item lists to compare every
+      // catalog price. Repositories enforce price equality; rules enforce the
+      // aggregate discount gate without weakening existing document guards.
+      return isActiveAdmin()
+        || businessPermissionAllows(companyId, 'allowSalesRepDiscount')
+        || (
+          data.totalDiscount is number
+          && data.totalDiscount == 0
+        );
+    }
+
     function configuredDocumentNumberMatches(
       companyId,
       number,
@@ -617,6 +651,7 @@ service cloud.firestore {
 
     function validInvoiceDraftUpdate(companyId) {
       return canReadOwnedBusinessDoc(companyId, resource.data)
+        && documentDiscountAllowed(companyId, request.resource.data)
         && invoiceIdentityPreserved()
         && invoiceIsEditableDraft(resource.data)
         && invoiceIsEditableDraft(request.resource.data)
@@ -625,6 +660,7 @@ service cloud.firestore {
 
     function validInvoicePostingUpdate(companyId) {
       return canReadOwnedBusinessDoc(companyId, resource.data)
+        && documentDiscountAllowed(companyId, request.resource.data)
         && invoiceIdentityPreserved()
         && invoiceIsEditableDraft(resource.data)
         && request.resource.data.invoiceStatus == 'confirmed'
@@ -773,6 +809,10 @@ service cloud.firestore {
     function validSalesReturnCreate(companyId, returnId) {
       let data = request.resource.data;
       return validBusinessCreate(companyId, data)
+        && businessPermissionAllows(
+          companyId,
+          'allowSalesRepCreateReturns'
+        )
         && salesReturnFieldsAreValid(companyId, returnId, data)
         && configuredDocumentNumberMatches(
           companyId,
@@ -802,6 +842,10 @@ service cloud.firestore {
 
     function validSalesReturnDraftUpdate(companyId) {
       return canReadOwnedBusinessDoc(companyId, resource.data)
+        && businessPermissionAllows(
+          companyId,
+          'allowSalesRepCreateReturns'
+        )
         && salesReturnIdentityPreserved()
         && resource.data.status == 'draft'
         && request.resource.data.status == 'draft'
@@ -821,6 +865,10 @@ service cloud.firestore {
 
     function validSalesReturnPostingUpdate(companyId) {
       return canReadOwnedBusinessDoc(companyId, resource.data)
+        && businessPermissionAllows(
+          companyId,
+          'allowSalesRepCreateReturns'
+        )
         && salesReturnIdentityPreserved()
         && resource.data.status == 'draft'
         && request.resource.data.status == 'confirmed'
@@ -944,6 +992,11 @@ service cloud.firestore {
     function validQuotationCreate(companyId, quotationId) {
       let data = request.resource.data;
       return validBusinessCreate(companyId, data)
+        && businessPermissionAllows(
+          companyId,
+          'allowSalesRepCreateQuotations'
+        )
+        && documentDiscountAllowed(companyId, data)
         && quotationFieldsAreValid(companyId, quotationId, data)
         && configuredDocumentNumberMatches(
           companyId,
@@ -965,6 +1018,7 @@ service cloud.firestore {
 
     function validQuotationDraftUpdate(companyId) {
       return resource.data.status == 'draft'
+        && documentDiscountAllowed(companyId, request.resource.data)
         && request.resource.data.status == 'draft'
         && canReadOwnedBusinessDoc(companyId, resource.data)
         && quotationIdentityPreserved()
@@ -1143,6 +1197,10 @@ service cloud.firestore {
       allow list: if isApprovedCompanyUser(companyId);
 
       allow create: if validBusinessCreate(companyId, request.resource.data)
+        && businessPermissionAllows(
+          companyId,
+          'allowSalesRepCreateCustomers'
+        )
         && request.resource.data.id == customerId
         && request.resource.data.active == true
         && request.resource.data.createdAt == request.time
@@ -1160,6 +1218,7 @@ service cloud.firestore {
 
       allow create: if validBusinessCreate(companyId, request.resource.data)
         && request.resource.data.id == invoiceId
+        && documentDiscountAllowed(companyId, request.resource.data)
         && configuredDocumentNumberMatches(
           companyId,
           request.resource.data.invoiceNumber,
@@ -1201,6 +1260,10 @@ service cloud.firestore {
       allow list: if isApprovedCompanyUser(companyId);
 
       allow create: if validBusinessCreate(companyId, request.resource.data)
+        && businessPermissionAllows(
+          companyId,
+          'allowSalesRepCreateReceipts'
+        )
         && request.resource.data.id == receiptId
         && configuredDocumentNumberMatches(
           companyId,

@@ -10,6 +10,8 @@ class InvoiceItemRow extends StatelessWidget {
     required this.item,
     required this.index,
     required this.editable,
+    required this.canEditUnitPrice,
+    required this.canEditDiscount,
     required this.onUpdate,
     required this.onRemove,
   });
@@ -17,6 +19,8 @@ class InvoiceItemRow extends StatelessWidget {
   final InvoiceItemSnapshot item;
   final int index;
   final bool editable;
+  final bool canEditUnitPrice;
+  final bool canEditDiscount;
   final void Function({
     double? quantity,
     double? unitPrice,
@@ -74,18 +78,30 @@ class InvoiceItemRow extends StatelessWidget {
                     value: item.quantity,
                     onChanged: (value) => onUpdate(quantity: value),
                   ),
-                  _NumberField(
-                    width: 150,
-                    label: 'unit_price'.tr,
-                    value: item.unitPrice,
-                    onChanged: (value) => onUpdate(unitPrice: value),
-                  ),
-                  _NumberField(
-                    width: 140,
-                    label: 'discount'.tr,
-                    value: item.discount,
-                    onChanged: (value) => onUpdate(discount: value),
-                  ),
+                  if (canEditUnitPrice)
+                    _NumberField(
+                      width: 150,
+                      label: 'unit_price'.tr,
+                      value: item.unitPrice,
+                      onChanged: (value) => onUpdate(unitPrice: value),
+                    )
+                  else
+                    _Pill(
+                      label: 'unit_price'.tr,
+                      value: currency.format(item.unitPrice),
+                    ),
+                  if (canEditDiscount)
+                    _NumberField(
+                      width: 140,
+                      label: 'discount'.tr,
+                      value: item.discount,
+                      onChanged: (value) => onUpdate(discount: value),
+                    )
+                  else
+                    _Pill(
+                      label: 'discount'.tr,
+                      value: currency.format(item.discount),
+                    ),
                   _NumberField(
                     width: 130,
                     label: 'tax'.tr,

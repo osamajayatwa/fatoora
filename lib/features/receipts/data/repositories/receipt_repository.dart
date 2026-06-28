@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fatoora/core/settings/business_settings_defaults.dart';
+import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/receipts/data/models/receipt_model.dart';
@@ -14,6 +15,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 enum ReceiptRepositoryError {
   unauthenticated,
   permissionDenied,
+  createDisabled,
   unavailable,
   timeout,
   notFound,
@@ -170,6 +172,18 @@ class ReceiptRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      final settingsSnapshot = await _appSettings(
+        resolvedCompanyId,
+      ).get().timeout(const Duration(seconds: 20));
+      final permissions = EffectiveBusinessPermissions.fromUser(
+        user,
+        AppSettingsModel.fromMap(settingsSnapshot.data()).permissionSettings,
+      );
+      if (!permissions.createReceipts) {
+        throw const ReceiptRepositoryException(
+          ReceiptRepositoryError.createDisabled,
+        );
+      }
       if (!amount.isFinite || amount <= 0) {
         throw const ReceiptRepositoryException(
           ReceiptRepositoryError.invalidData,

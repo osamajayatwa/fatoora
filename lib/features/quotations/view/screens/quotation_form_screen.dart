@@ -147,6 +147,8 @@ class _MainColumn extends StatelessWidget {
         InvoiceItemsTable(
           items: controller.invoiceItems,
           editable: !controller.readOnly,
+          canEditUnitPrice: controller.canEditCatalogPrice,
+          canEditDiscount: controller.canApplyDiscount,
           onUpdateItem: controller.updateItem,
           onRemoveItem: controller.removeItem,
         ),

@@ -1,4 +1,5 @@
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/invoices/bindings/invoices_list_binding.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_details_controller.dart';
 import 'package:fatoora/features/invoices/data/repositories/invoice_repository.dart';
@@ -12,6 +13,7 @@ class InvoiceDetailsBinding extends Bindings {
       () => InvoiceDetailsController(
         repository: Get.find<InvoiceRepository>(),
         myServices: Get.find<MyServices>(),
+        permissionResolver: Get.find<BusinessPermissionResolver>(),
       ),
     );
   }

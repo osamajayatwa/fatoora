@@ -4,6 +4,7 @@ import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/controllers/customer_error_mapper.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
@@ -15,11 +16,14 @@ class CustomersController extends GetxController {
   CustomersController({
     required CustomerRepository repository,
     required MyServices myServices,
+    required BusinessPermissionResolver permissionResolver,
   }) : _repository = repository,
-       _myServices = myServices;
+       _myServices = myServices,
+       _permissionResolver = permissionResolver;
 
   final CustomerRepository _repository;
   final MyServices _myServices;
+  final BusinessPermissionResolver _permissionResolver;
   final TextEditingController searchController = TextEditingController();
 
   StatusRequest statusRequest = StatusRequest.loading;
@@ -27,12 +31,15 @@ class CustomersController extends GetxController {
   String searchText = '';
   String loadErrorMessageKey = 'customers_load_error';
   Timer? _searchDebounce;
+  EffectiveBusinessPermissions permissions =
+      EffectiveBusinessPermissions.denied;
 
   String get companyId =>
       _myServices.sharedPreferences.getString('companyId') ??
       AuthRepository.defaultCompanyId;
 
   bool get hasSearch => searchText.trim().isNotEmpty;
+  bool get canCreateCustomer => permissions.createCustomers;
 
   @override
   void onReady() {
@@ -45,6 +52,7 @@ class CustomersController extends GetxController {
     loadErrorMessageKey = 'customers_load_error';
     update();
     try {
+      permissions = await _permissionResolver.resolve(companyId);
       customers = await _repository.fetchCustomers(
         companyId: companyId,
         searchText: searchText,
@@ -77,6 +85,10 @@ class CustomersController extends GetxController {
   }
 
   Future<void> openCreateCustomer() async {
+    if (!canCreateCustomer) {
+      _showError('sales_rep_customer_create_disabled');
+      return;
+    }
     final result = await Get.toNamed(AppRoute.createCustomer);
     if (result == true || result is CustomerModel) await loadCustomers();
   }

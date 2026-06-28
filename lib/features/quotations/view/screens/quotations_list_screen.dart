@@ -76,25 +76,30 @@ class _Header extends StatelessWidget {
         fontWeight: FontWeight.w900,
       ),
     );
-    final action = FilledButton.icon(
-      onPressed: controller.openCreateQuotation,
-      style: FilledButton.styleFrom(
-        backgroundColor: AppColor.primaryColor,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      ),
-      icon: const Icon(Icons.add_rounded),
-      label: Text('create_quotation'.tr),
-    );
+    final action = controller.canCreateQuotation
+        ? FilledButton.icon(
+            onPressed: controller.openCreateQuotation,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColor.primaryColor,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+            icon: const Icon(Icons.add_rounded),
+            label: Text('create_quotation'.tr),
+          )
+        : null;
     if (MediaQuery.sizeOf(context).width < 620) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [title, const SizedBox(height: 12), action],
+        children: [
+          title,
+          if (action != null) ...[const SizedBox(height: 12), action],
+        ],
       );
     }
     return Row(
       children: [
         Expanded(child: title),
-        action,
+        if (action != null) action,
       ],
     );
   }

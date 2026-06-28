@@ -4,9 +4,11 @@ import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:fatoora/core/settings/business_settings_defaults.dart';
+import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
+import 'package:fatoora/features/invoices/data/models/invoice_item_snapshot.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/invoices/data/services/jofotara_placeholder_service.dart';
 import 'package:fatoora/features/items/data/models/item_model.dart';
@@ -18,6 +20,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 enum InvoiceRepositoryError {
   unauthenticated,
   permissionDenied,
+  priceEditDisabled,
+  discountDisabled,
   unavailable,
   timeout,
   notFound,
@@ -215,6 +219,21 @@ class InvoiceRepository {
       await _firestore
           .runTransaction((transaction) async {
             final now = DateTime.now();
+            final settingsSnapshot = await transaction.get(
+              _appSettings(companyId),
+            );
+            final permissions = EffectiveBusinessPermissions.fromUser(
+              user,
+              AppSettingsModel.fromMap(
+                settingsSnapshot.data(),
+              ).permissionSettings,
+            );
+            await _enforceLinePermissions(
+              transaction: transaction,
+              permissions: permissions,
+              items: invoice.items,
+              existingItems: null,
+            );
             final rawCustomerId = invoice.customerSnapshot?.id.trim() ?? '';
             final customer = await _readCustomerForInvoice(
               transaction: transaction,
@@ -338,6 +357,22 @@ class InvoiceRepository {
                 InvoiceRepositoryError.locked,
               );
             }
+
+            final settingsSnapshot = await transaction.get(
+              _appSettings(companyId),
+            );
+            final permissions = EffectiveBusinessPermissions.fromUser(
+              user,
+              AppSettingsModel.fromMap(
+                settingsSnapshot.data(),
+              ).permissionSettings,
+            );
+            await _enforceLinePermissions(
+              transaction: transaction,
+              permissions: permissions,
+              items: invoice.items,
+              existingItems: existing.items,
+            );
 
             var normalized = _normalizeInvoice(
               invoice: invoice,
@@ -561,6 +596,52 @@ class InvoiceRepository {
     }
     _requireCanAccessCustomer(user, customer);
     return customer;
+  }
+
+  Future<void> _enforceLinePermissions({
+    required Transaction transaction,
+    required EffectiveBusinessPermissions permissions,
+    required List<InvoiceItemSnapshot> items,
+    required List<InvoiceItemSnapshot>? existingItems,
+  }) async {
+    if (!permissions.applyDiscount && items.any((item) => item.discount > 0)) {
+      throw const InvoiceRepositoryException(
+        InvoiceRepositoryError.discountDisabled,
+      );
+    }
+    if (permissions.editCatalogPrice) return;
+    for (final item in items) {
+      if (item.itemId.trim().isEmpty || item.itemId.startsWith('manual-')) {
+        continue;
+      }
+      InvoiceItemSnapshot? existing;
+      for (final candidate in existingItems ?? const <InvoiceItemSnapshot>[]) {
+        if (candidate.itemId == item.itemId) {
+          existing = candidate;
+          break;
+        }
+      }
+      if (existing != null) {
+        if ((existing.unitPrice - item.unitPrice).abs() > 0.0005) {
+          throw const InvoiceRepositoryException(
+            InvoiceRepositoryError.priceEditDisabled,
+          );
+        }
+        continue;
+      }
+      final snapshot = await transaction.get(_items.doc(item.itemId));
+      if (!snapshot.exists) {
+        throw const InvoiceRepositoryException(
+          InvoiceRepositoryError.priceEditDisabled,
+        );
+      }
+      final catalogItem = ItemModel.fromFirestore(snapshot);
+      if ((catalogItem.price - item.unitPrice).abs() > 0.0005) {
+        throw const InvoiceRepositoryException(
+          InvoiceRepositoryError.priceEditDisabled,
+        );
+      }
+    }
   }
 
   InvoiceModel _normalizeInvoice({

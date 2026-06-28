@@ -257,11 +257,12 @@ class _QuickActions extends StatelessWidget {
         Icons.receipt_long_outlined,
         controller.openInvoices,
       ),
-      _ActionData(
-        'dashboard_new_quotation',
-        Icons.request_quote_outlined,
-        controller.createQuotation,
-      ),
+      if (controller.canCreateQuotation)
+        _ActionData(
+          'dashboard_new_quotation',
+          Icons.request_quote_outlined,
+          controller.createQuotation,
+        ),
       _ActionData(
         'dashboard_quotations',
         Icons.format_quote_outlined,

@@ -9,6 +9,9 @@ class QuotationErrorMapper {
     return switch (repositoryError) {
       QuotationRepositoryError.unauthenticated => StatusRequest.unauthorized,
       QuotationRepositoryError.permissionDenied => StatusRequest.unauthorized,
+      QuotationRepositoryError.createDisabled ||
+      QuotationRepositoryError.priceEditDisabled ||
+      QuotationRepositoryError.discountDisabled => StatusRequest.unauthorized,
       QuotationRepositoryError.unavailable => StatusRequest.offlinefailure,
       QuotationRepositoryError.timeout => StatusRequest.serverfailure,
       QuotationRepositoryError.notFound => StatusRequest.failure,
@@ -27,6 +30,12 @@ class QuotationErrorMapper {
     return switch (repositoryError) {
       QuotationRepositoryError.unauthenticated => 'quotation_session_error',
       QuotationRepositoryError.permissionDenied => 'quotation_permission_error',
+      QuotationRepositoryError.createDisabled =>
+        'sales_rep_quotation_create_disabled',
+      QuotationRepositoryError.priceEditDisabled =>
+        'sales_rep_price_edit_disabled',
+      QuotationRepositoryError.discountDisabled =>
+        'sales_rep_discount_disabled',
       QuotationRepositoryError.unavailable => 'quotation_offline_error',
       QuotationRepositoryError.timeout => 'quotation_timeout_error',
       QuotationRepositoryError.notFound => 'quotation_not_found',

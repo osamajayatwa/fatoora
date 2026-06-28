@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fatoora/core/settings/business_settings_defaults.dart';
+import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
@@ -20,6 +21,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 enum SalesReturnRepositoryError {
   unauthenticated,
   permissionDenied,
+  createDisabled,
   unavailable,
   timeout,
   notFound,
@@ -217,6 +219,12 @@ class SalesReturnRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final companyId = _resolveCompanyId(salesReturn.companyId, user);
+      final permissions = await _loadPermissions(companyId, user);
+      if (!permissions.createReturns) {
+        throw const SalesReturnRepositoryException(
+          SalesReturnRepositoryError.createDisabled,
+        );
+      }
       final fallbackQuantities = await _fetchConfirmedReturnedQuantities(
         companyId: companyId,
         originalInvoiceId: salesReturn.originalInvoiceId,
@@ -310,6 +318,12 @@ class SalesReturnRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final companyId = _resolveCompanyId(salesReturn.companyId, user);
+      final permissions = await _loadPermissions(companyId, user);
+      if (!permissions.createReturns) {
+        throw const SalesReturnRepositoryException(
+          SalesReturnRepositoryError.createDisabled,
+        );
+      }
       final fallbackQuantities = await _fetchConfirmedReturnedQuantities(
         companyId: companyId,
         originalInvoiceId: salesReturn.originalInvoiceId,
@@ -521,6 +535,20 @@ class SalesReturnRepository {
       ),
       counterRef: counterRef,
       counterData: counterData,
+    );
+  }
+
+  Future<EffectiveBusinessPermissions> _loadPermissions(
+    String companyId,
+    BusinessUserContext user,
+  ) async {
+    final snapshot = await _appSettings(
+      companyId,
+    ).get().timeout(const Duration(seconds: 20));
+    final settings = AppSettingsModel.fromMap(snapshot.data());
+    return EffectiveBusinessPermissions.fromUser(
+      user,
+      settings.permissionSettings,
     );
   }
 

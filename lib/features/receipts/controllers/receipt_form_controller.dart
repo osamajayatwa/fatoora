@@ -2,6 +2,7 @@ import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/core/settings/business_settings_defaults.dart';
 import 'package:fatoora/core/settings/business_settings_resolver.dart';
+import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/customers/view/widgets/customer_picker_sheet.dart';
@@ -15,13 +16,16 @@ class ReceiptFormController extends GetxController {
     required ReceiptRepository repository,
     required MyServices myServices,
     required BusinessSettingsResolver settingsResolver,
+    required BusinessPermissionResolver permissionResolver,
   }) : _repository = repository,
        _myServices = myServices,
-       _settingsResolver = settingsResolver;
+       _settingsResolver = settingsResolver,
+       _permissionResolver = permissionResolver;
 
   final ReceiptRepository _repository;
   final MyServices _myServices;
   final BusinessSettingsResolver _settingsResolver;
+  final BusinessPermissionResolver _permissionResolver;
   final TextEditingController amountController = TextEditingController();
   final TextEditingController notesController = TextEditingController();
 
@@ -29,6 +33,8 @@ class ReceiptFormController extends GetxController {
   DateTime receiptDate = DateTime.now();
   String paymentMethod = 'cash';
   bool isSaving = false;
+  EffectiveBusinessPermissions permissions =
+      EffectiveBusinessPermissions.denied;
 
   static const paymentMethods = ['cash', 'bank', 'check', 'cliq'];
 
@@ -40,6 +46,12 @@ class ReceiptFormController extends GetxController {
   void onReady() {
     super.onReady();
     _loadDefaultNote();
+    _loadPermissions();
+  }
+
+  Future<void> _loadPermissions() async {
+    permissions = await _permissionResolver.resolve(companyId);
+    if (!isClosed) update();
   }
 
   Future<void> _loadDefaultNote() async {
@@ -73,6 +85,10 @@ class ReceiptFormController extends GetxController {
 
   Future<void> saveReceipt() async {
     if (isSaving) return;
+    if (!permissions.createReceipts) {
+      _showError('sales_rep_receipt_create_disabled');
+      return;
+    }
     final selectedCustomer = customer;
     final amount = _parseAmount(amountController.text);
     if (selectedCustomer == null) {

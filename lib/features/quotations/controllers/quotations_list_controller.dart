@@ -4,6 +4,7 @@ import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/quotations/controllers/quotation_error_mapper.dart';
 import 'package:fatoora/features/quotations/data/models/quotation_model.dart';
@@ -16,11 +17,14 @@ class QuotationsListController extends GetxController {
   QuotationsListController({
     required QuotationRepository repository,
     required MyServices myServices,
+    required BusinessPermissionResolver permissionResolver,
   }) : _repository = repository,
-       _myServices = myServices;
+       _myServices = myServices,
+       _permissionResolver = permissionResolver;
 
   final QuotationRepository _repository;
   final MyServices _myServices;
+  final BusinessPermissionResolver _permissionResolver;
   final TextEditingController searchController = TextEditingController();
 
   StatusRequest statusRequest = StatusRequest.loading;
@@ -29,12 +33,15 @@ class QuotationsListController extends GetxController {
   String searchText = '';
   QuotationStatus? statusFilter;
   Timer? _searchDebounce;
+  EffectiveBusinessPermissions permissions =
+      EffectiveBusinessPermissions.denied;
 
   String get companyId =>
       _myServices.sharedPreferences.getString('companyId') ??
       AuthRepository.defaultCompanyId;
 
   bool get hasFilters => searchText.trim().isNotEmpty || statusFilter != null;
+  bool get canCreateQuotation => permissions.createQuotations;
 
   @override
   void onReady() {
@@ -47,6 +54,7 @@ class QuotationsListController extends GetxController {
     loadErrorMessageKey = 'quotations_load_error';
     update();
     try {
+      permissions = await _permissionResolver.resolve(companyId);
       quotations = await _repository.fetchQuotations(
         companyId: companyId,
         status: statusFilter,
@@ -86,6 +94,10 @@ class QuotationsListController extends GetxController {
   }
 
   Future<void> openCreateQuotation() async {
+    if (!canCreateQuotation) {
+      _showError('sales_rep_quotation_create_disabled');
+      return;
+    }
     final changed = await Get.toNamed(
       AppRoute.createQuotation,
       arguments: {'companyId': companyId},

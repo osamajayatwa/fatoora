@@ -4,6 +4,7 @@ import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_item_snapshot.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
@@ -22,13 +23,16 @@ class SalesReturnFormController extends GetxController {
     required SalesReturnRepository repository,
     required InvoiceRepository invoiceRepository,
     required MyServices myServices,
+    required BusinessPermissionResolver permissionResolver,
   }) : _repository = repository,
        _invoiceRepository = invoiceRepository,
-       _myServices = myServices;
+       _myServices = myServices,
+       _permissionResolver = permissionResolver;
 
   final SalesReturnRepository _repository;
   final InvoiceRepository _invoiceRepository;
   final MyServices _myServices;
+  final BusinessPermissionResolver _permissionResolver;
   final reasonController = TextEditingController();
   final Map<String, TextEditingController> quantityControllers = {};
   final Map<String, String> quantityErrors = {};
@@ -43,6 +47,8 @@ class SalesReturnFormController extends GetxController {
   RefundType refundType = RefundType.creditCustomerBalance;
   DateTime returnDate = DateTime.now();
   bool isSaving = false;
+  EffectiveBusinessPermissions permissions =
+      EffectiveBusinessPermissions.denied;
 
   double get subtotal =>
       _round(items.fold<double>(0, (total, item) => total + item.subtotal));
@@ -64,6 +70,14 @@ class SalesReturnFormController extends GetxController {
       args,
       'originalInvoiceId',
     );
+    permissions = await _permissionResolver.resolve(companyId);
+    if (!permissions.createReturns) {
+      statusRequest = StatusRequest.unauthorized;
+      loadErrorMessageKey = 'sales_rep_return_create_disabled';
+      _showError(loadErrorMessageKey);
+      update();
+      return;
+    }
     if (originalInvoiceId.isEmpty) {
       statusRequest = StatusRequest.failure;
       loadErrorMessageKey = 'select_invoice_to_return';
@@ -173,6 +187,10 @@ class SalesReturnFormController extends GetxController {
   Future<void> confirmReturn() => _save(confirm: true);
 
   Future<void> _save({required bool confirm}) async {
+    if (!permissions.createReturns) {
+      _showError('sales_rep_return_create_disabled');
+      return;
+    }
     if (isSaving || !hasSelectedItems) {
       _showError('return_items_required');
       return;

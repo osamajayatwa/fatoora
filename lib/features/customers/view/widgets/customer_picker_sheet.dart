@@ -2,6 +2,9 @@ import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/settings/business_permission_resolver.dart';
+import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/bindings/customers_binding.dart';
 import 'package:fatoora/features/customers/controllers/customer_error_mapper.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
@@ -40,12 +43,21 @@ class CustomerPickerSheet extends StatefulWidget {
 
 class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
   final CustomerRepository _repository = Get.find<CustomerRepository>();
+  final BusinessPermissionResolver _permissionResolver =
+      Get.find<BusinessPermissionResolver>();
+  final MyServices _myServices = Get.find<MyServices>();
   final TextEditingController _searchController = TextEditingController();
 
   StatusRequest _statusRequest = StatusRequest.loading;
   List<CustomerModel> _customers = const [];
   String _errorMessageKey = 'customers_load_error';
   String _searchText = '';
+  EffectiveBusinessPermissions _permissions =
+      EffectiveBusinessPermissions.denied;
+
+  String get _companyId =>
+      _myServices.sharedPreferences.getString('companyId') ??
+      AuthRepository.defaultCompanyId;
 
   @override
   void initState() {
@@ -59,12 +71,19 @@ class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
       _errorMessageKey = 'customers_load_error';
     });
     try {
-      final customers = await _repository.fetchCustomers(
-        searchText: _searchText,
-      );
+      final values = await Future.wait<Object>([
+        _repository.fetchCustomers(
+          companyId: _companyId,
+          searchText: _searchText,
+        ),
+        _permissionResolver.resolve(_companyId),
+      ]);
+      final customers = values[0] as List<CustomerModel>;
+      final permissions = values[1] as EffectiveBusinessPermissions;
       if (!mounted) return;
       setState(() {
         _customers = customers;
+        _permissions = permissions;
         _statusRequest = StatusRequest.success;
       });
     } catch (error) {
@@ -80,6 +99,16 @@ class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
   }
 
   Future<void> _addCustomer() async {
+    if (!_permissions.createCustomers) {
+      Get.snackbar(
+        'permission_denied'.tr,
+        'sales_rep_customer_create_disabled'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColor.error,
+        colorText: AppColor.surface,
+      );
+      return;
+    }
     final created = await Get.toNamed(
       AppRoute.createCustomer,
       arguments: {'returnCustomer': true},
@@ -152,7 +181,11 @@ class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
                   retryLabel: 'items_retry'.tr,
                   onRetry: _loadCustomers,
                   widget: _customers.isEmpty
-                      ? _EmptyPicker(onAdd: _addCustomer)
+                      ? _EmptyPicker(
+                          onAdd: _permissions.createCustomers
+                              ? _addCustomer
+                              : null,
+                        )
                       : ListView.separated(
                           shrinkWrap: true,
                           itemBuilder: (context, index) {
@@ -181,12 +214,14 @@ class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
                         ),
                 ),
               ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _addCustomer,
-                icon: const Icon(Icons.person_add_alt_1_outlined),
-                label: Text('customers_add'.tr),
-              ),
+              if (_permissions.createCustomers) ...[
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _addCustomer,
+                  icon: const Icon(Icons.person_add_alt_1_outlined),
+                  label: Text('customers_add'.tr),
+                ),
+              ],
             ],
           ),
         ),
@@ -204,7 +239,7 @@ class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
 class _EmptyPicker extends StatelessWidget {
   const _EmptyPicker({required this.onAdd});
 
-  final VoidCallback onAdd;
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -215,12 +250,14 @@ class _EmptyPicker extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text('customers_empty'.tr),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.person_add_alt_1_outlined),
-              label: Text('customers_add'.tr),
-            ),
+            if (onAdd != null) ...[
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: onAdd,
+                icon: const Icon(Icons.person_add_alt_1_outlined),
+                label: Text('customers_add'.tr),
+              ),
+            ],
           ],
         ),
       ),

@@ -3,6 +3,7 @@ import 'package:fatoora/core/constants/app_feature_flags.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_context.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_error_mapper.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_page_navigation.dart';
@@ -18,11 +19,14 @@ class InvoiceDetailsController extends GetxController
   InvoiceDetailsController({
     required InvoiceRepository repository,
     required MyServices myServices,
+    required BusinessPermissionResolver permissionResolver,
   }) : _repository = repository,
-       _myServices = myServices;
+       _myServices = myServices,
+       _permissionResolver = permissionResolver;
 
   final InvoiceRepository _repository;
   final MyServices _myServices;
+  final BusinessPermissionResolver _permissionResolver;
 
   StatusRequest statusRequest = StatusRequest.loading;
   String loadErrorMessageKey = 'invoice_load_error';
@@ -31,6 +35,8 @@ class InvoiceDetailsController extends GetxController
   InvoiceModel? invoice;
   bool isSubmitting = false;
   bool isPrinting = false;
+  EffectiveBusinessPermissions permissions =
+      EffectiveBusinessPermissions.denied;
 
   bool get canEdit => invoice?.canEdit ?? false;
   bool get canSubmit =>
@@ -39,6 +45,7 @@ class InvoiceDetailsController extends GetxController
       (invoice?.invoiceStatus == InvoiceStatus.draft ||
           invoice?.invoiceStatus == InvoiceStatus.rejected);
   bool get canCreateSalesReturn =>
+      permissions.createReturns &&
       invoice?.invoiceStatus == InvoiceStatus.confirmed &&
       invoice?.financialPosted == true &&
       invoice?.inventoryPosted == true;
@@ -64,6 +71,7 @@ class InvoiceDetailsController extends GetxController
     loadErrorMessageKey = 'invoice_load_error';
     update();
     try {
+      permissions = await _permissionResolver.resolve(companyId);
       invoice = await _repository.getInvoiceById(
         companyId: companyId,
         invoiceId: invoiceId,
@@ -105,6 +113,10 @@ class InvoiceDetailsController extends GetxController
 
   Future<void> createSalesReturn() async {
     final current = invoice;
+    if (!permissions.createReturns) {
+      _showError('sales_rep_return_create_disabled');
+      return;
+    }
     if (current == null || !canCreateSalesReturn) {
       _showError('sales_return_invoice_not_eligible');
       return;

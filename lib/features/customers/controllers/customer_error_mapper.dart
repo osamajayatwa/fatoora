@@ -11,7 +11,8 @@ class CustomerErrorMapper {
     return switch (error.error) {
       CustomerRepositoryError.unauthenticated ||
       CustomerRepositoryError.profileMissing ||
-      CustomerRepositoryError.permissionDenied => StatusRequest.unauthorized,
+      CustomerRepositoryError.permissionDenied ||
+      CustomerRepositoryError.createDisabled => StatusRequest.unauthorized,
       CustomerRepositoryError.unavailable => StatusRequest.offlinefailure,
       CustomerRepositoryError.timeout => StatusRequest.timeout,
       CustomerRepositoryError.notFound ||
@@ -29,6 +30,8 @@ class CustomerErrorMapper {
       CustomerRepositoryError.unauthenticated => 'customers_session_error',
       CustomerRepositoryError.profileMissing => 'customers_profile_missing',
       CustomerRepositoryError.permissionDenied => 'customers_permission_error',
+      CustomerRepositoryError.createDisabled =>
+        'sales_rep_customer_create_disabled',
       CustomerRepositoryError.unavailable => 'customers_offline_error',
       CustomerRepositoryError.timeout => 'customers_timeout_error',
       CustomerRepositoryError.notFound => 'customers_not_found',

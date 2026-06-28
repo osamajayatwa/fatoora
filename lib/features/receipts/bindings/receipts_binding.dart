@@ -1,4 +1,5 @@
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/core/settings/business_settings_resolver.dart';
 import 'package:fatoora/features/admin_dashboard/binding/admin_dashboard_binding.dart';
 import 'package:fatoora/features/customers/bindings/customers_binding.dart';
@@ -26,6 +27,7 @@ class ReceiptsBinding extends Bindings {
       () => ReceiptsListController(
         repository: Get.find<ReceiptRepository>(),
         myServices: Get.find<MyServices>(),
+        permissionResolver: Get.find<BusinessPermissionResolver>(),
       ),
     );
   }
@@ -40,6 +42,7 @@ class ReceiptFormBinding extends Bindings {
         repository: Get.find<ReceiptRepository>(),
         myServices: Get.find<MyServices>(),
         settingsResolver: Get.find<BusinessSettingsResolver>(),
+        permissionResolver: Get.find<BusinessPermissionResolver>(),
       ),
     );
   }

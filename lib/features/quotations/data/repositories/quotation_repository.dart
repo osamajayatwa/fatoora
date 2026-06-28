@@ -2,10 +2,13 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fatoora/core/settings/business_settings_defaults.dart';
+import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
+import 'package:fatoora/features/items/data/models/item_model.dart';
+import 'package:fatoora/features/quotations/data/models/quotation_item_model.dart';
 import 'package:fatoora/features/quotations/data/models/quotation_model.dart';
 import 'package:fatoora/features/quotations/data/models/quotation_status.dart';
 import 'package:fatoora/features/settings/data/models/app_settings_model.dart';
@@ -16,6 +19,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 enum QuotationRepositoryError {
   unauthenticated,
   permissionDenied,
+  createDisabled,
+  priceEditDisabled,
+  discountDisabled,
   unavailable,
   timeout,
   notFound,
@@ -57,6 +63,9 @@ class QuotationRepository {
 
   final FirebaseFirestore _firestore;
   final BusinessUserContextReader _contextReader;
+
+  CollectionReference<Map<String, dynamic>> get _items =>
+      _firestore.collection('items');
 
   CollectionReference<Map<String, dynamic>> _quotations(String companyId) {
     return _firestore
@@ -183,6 +192,28 @@ class QuotationRepository {
               }
             }
 
+            final settingsSnapshot = await transaction.get(
+              _appSettings(companyId),
+            );
+            final appSettings = AppSettingsModel.fromMap(
+              settingsSnapshot.data(),
+            );
+            final permissions = EffectiveBusinessPermissions.fromUser(
+              user,
+              appSettings.permissionSettings,
+            );
+            if (isCreate && !permissions.createQuotations) {
+              throw const QuotationRepositoryException(
+                QuotationRepositoryError.createDisabled,
+              );
+            }
+            await _enforceLinePermissions(
+              transaction: transaction,
+              permissions: permissions,
+              items: quotation.items,
+              existingItems: existing?.items,
+            );
+
             final customer = await _readCustomerForQuotation(
               transaction: transaction,
               companyId: companyId,
@@ -306,10 +337,20 @@ class QuotationRepository {
               user: user,
             );
             final invoiceRef = _invoices(resolvedCompanyId).doc();
-            final documents = await _readDocumentSettings(
+            final appSettings = await _readAppSettings(
               transaction: transaction,
               companyId: resolvedCompanyId,
             );
+            final documents = appSettings.documentSettings;
+            final permissions = EffectiveBusinessPermissions.fromUser(
+              user,
+              appSettings.permissionSettings,
+            );
+            if (!permissions.applyDiscount && quotation.totalDiscount > 0) {
+              throw const QuotationRepositoryException(
+                QuotationRepositoryError.discountDisabled,
+              );
+            }
             final numberAllocation = await _allocateInvoiceNumber(
               transaction: transaction,
               companyId: resolvedCompanyId,
@@ -560,8 +601,64 @@ class QuotationRepository {
     required Transaction transaction,
     required String companyId,
   }) async {
+    return (await _readAppSettings(
+      transaction: transaction,
+      companyId: companyId,
+    )).documentSettings;
+  }
+
+  Future<AppSettingsModel> _readAppSettings({
+    required Transaction transaction,
+    required String companyId,
+  }) async {
     final snapshot = await transaction.get(_appSettings(companyId));
-    return AppSettingsModel.fromMap(snapshot.data()).documentSettings;
+    return AppSettingsModel.fromMap(snapshot.data());
+  }
+
+  Future<void> _enforceLinePermissions({
+    required Transaction transaction,
+    required EffectiveBusinessPermissions permissions,
+    required List<QuotationItemModel> items,
+    required List<QuotationItemModel>? existingItems,
+  }) async {
+    if (!permissions.applyDiscount && items.any((item) => item.discount > 0)) {
+      throw const QuotationRepositoryException(
+        QuotationRepositoryError.discountDisabled,
+      );
+    }
+    if (permissions.editCatalogPrice) return;
+    for (final item in items) {
+      if (item.itemId.trim().isEmpty || item.itemId.startsWith('manual-')) {
+        continue;
+      }
+      QuotationItemModel? existing;
+      for (final candidate in existingItems ?? const <QuotationItemModel>[]) {
+        if (candidate.itemId == item.itemId) {
+          existing = candidate;
+          break;
+        }
+      }
+      if (existing != null) {
+        if ((existing.unitPrice - item.unitPrice).abs() > 0.0005) {
+          throw const QuotationRepositoryException(
+            QuotationRepositoryError.priceEditDisabled,
+          );
+        }
+        continue;
+      }
+      final snapshot = await transaction.get(_items.doc(item.itemId));
+      if (!snapshot.exists) {
+        throw const QuotationRepositoryException(
+          QuotationRepositoryError.priceEditDisabled,
+        );
+      }
+      final catalogItem = ItemModel.fromFirestore(snapshot);
+      if ((catalogItem.price - item.unitPrice).abs() > 0.0005) {
+        throw const QuotationRepositoryException(
+          QuotationRepositoryError.priceEditDisabled,
+        );
+      }
+    }
   }
 
   void _requireCanAccessQuotation(

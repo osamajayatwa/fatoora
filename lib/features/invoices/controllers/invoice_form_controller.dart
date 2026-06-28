@@ -5,6 +5,7 @@ import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/core/settings/business_settings_defaults.dart';
 import 'package:fatoora/core/settings/business_settings_resolver.dart';
+import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/utils/auth_session.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_context.dart';
@@ -30,17 +31,20 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     required InvoiceTotalsService totalsService,
     required MyServices myServices,
     required BusinessSettingsResolver settingsResolver,
+    required BusinessPermissionResolver permissionResolver,
   }) : _repository = repository,
        _numberService = numberService,
        _totalsService = totalsService,
        _myServices = myServices,
-       _settingsResolver = settingsResolver;
+       _settingsResolver = settingsResolver,
+       _permissionResolver = permissionResolver;
 
   final InvoiceRepository _repository;
   final InvoiceNumberService _numberService;
   final InvoiceTotalsService _totalsService;
   final MyServices _myServices;
   final BusinessSettingsResolver _settingsResolver;
+  final BusinessPermissionResolver _permissionResolver;
 
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
   final TextEditingController invoiceNumberController = TextEditingController();
@@ -93,6 +97,8 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
   int _defaultDueDays = 0;
   double _defaultTaxPercent = 0;
   bool _dueDateManuallyChanged = false;
+  EffectiveBusinessPermissions permissions =
+      EffectiveBusinessPermissions.denied;
 
   bool get isCreateMode => mode == 'create';
   bool get isEditMode => mode == 'edit';
@@ -101,6 +107,8 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
       invoiceType == InvoiceType.electronic && AppFeatureFlags.jofotaraEnabled;
   bool get canSubmitElectronic =>
       canUseElectronic && !readOnly && !isSaving && items.isNotEmpty;
+  bool get canEditCatalogPrice => !readOnly && permissions.editCatalogPrice;
+  bool get canApplyDiscount => !readOnly && permissions.applyDiscount;
 
   @override
   void onReady() {
@@ -152,9 +160,11 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     final values = await Future.wait<Object>([
       _settingsResolver.loadAppSettings(companyId),
       _settingsResolver.loadUserPreferences(uid),
+      _permissionResolver.resolve(companyId),
     ]);
     final appSettings = values[0] as AppSettingsModel;
     final preferences = values[1] as UserPreferencesModel;
+    permissions = values[2] as EffectiveBusinessPermissions;
     final documents = appSettings.documentSettings;
     _defaultDueDays = documents.defaultDueDays;
     _defaultTaxPercent = BusinessSettingsDefaults.taxPercent(
@@ -188,10 +198,12 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     loadErrorMessageKey = 'invoice_load_error';
     update();
     try {
-      final invoice = await _repository.getInvoiceById(
-        companyId: companyId,
-        invoiceId: invoiceId,
-      );
+      final values = await Future.wait<Object?>([
+        _repository.getInvoiceById(companyId: companyId, invoiceId: invoiceId),
+        _permissionResolver.resolve(companyId),
+      ]);
+      final invoice = values[0] as InvoiceModel?;
+      permissions = values[1] as EffectiveBusinessPermissions;
       if (invoice == null) {
         statusRequest = StatusRequest.failure;
         loadErrorMessageKey = 'invoice_not_found';
@@ -311,6 +323,11 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
       _showError('invalid_price');
       return;
     }
+    final discount = _parseDouble(itemDiscountController.text);
+    if (!canApplyDiscount && discount > 0) {
+      _showError('sales_rep_discount_disabled');
+      return;
+    }
 
     final rawItem = InvoiceItemSnapshot(
       itemId: 'manual-${DateTime.now().millisecondsSinceEpoch}',
@@ -321,7 +338,7 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
           : itemUnitController.text.trim(),
       quantity: quantity,
       unitPrice: price,
-      discount: _parseDouble(itemDiscountController.text),
+      discount: canApplyDiscount ? discount : 0,
       taxPercent: BusinessSettingsDefaults.taxPercent(
         existingTaxPercent: double.tryParse(itemTaxController.text.trim()),
         defaultTaxPercent: _defaultTaxPercent,
@@ -348,8 +365,15 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     double? discount,
     double? taxPercent,
   }) {
-    // TODO(settings-stage-2c): enforce discount and sales-rep price controls.
     if (readOnly || index < 0 || index >= items.length) return;
+    if (unitPrice != null && !canEditCatalogPrice) {
+      _showError('sales_rep_price_edit_disabled');
+      return;
+    }
+    if (discount != null && !canApplyDiscount) {
+      _showError('sales_rep_discount_disabled');
+      return;
+    }
     final item = items[index].copyWith(
       quantity: quantity,
       unitPrice: unitPrice,

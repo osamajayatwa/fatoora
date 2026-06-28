@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
+import 'package:fatoora/features/settings/data/models/app_settings_model.dart';
 import 'package:fatoora/features/shared/business/business_user_context.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -11,6 +13,7 @@ enum CustomerRepositoryError {
   unauthenticated,
   profileMissing,
   permissionDenied,
+  createDisabled,
   unavailable,
   timeout,
   notFound,
@@ -54,6 +57,14 @@ class CustomerRepository {
         .collection('companies')
         .doc(companyId)
         .collection('customer_transactions');
+  }
+
+  DocumentReference<Map<String, dynamic>> _appSettings(String companyId) {
+    return _firestore
+        .collection('companies')
+        .doc(companyId)
+        .collection('settings')
+        .doc('app');
   }
 
   Future<List<CustomerModel>> fetchCustomers({
@@ -116,6 +127,12 @@ class CustomerRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      final permissions = await _loadPermissions(resolvedCompanyId, user);
+      if (!permissions.createCustomers) {
+        throw const CustomerRepositoryException(
+          CustomerRepositoryError.createDisabled,
+        );
+      }
       final normalizedPhone = CustomerModel.normalizePhone(phone);
       await _ensurePhoneIsUnique(
         companyId: resolvedCompanyId,
@@ -316,6 +333,20 @@ class CustomerRepository {
         CustomerRepositoryError.duplicatePhone,
       );
     }
+  }
+
+  Future<EffectiveBusinessPermissions> _loadPermissions(
+    String companyId,
+    BusinessUserContext user,
+  ) async {
+    final snapshot = await _appSettings(
+      companyId,
+    ).get().timeout(const Duration(seconds: 20));
+    final settings = AppSettingsModel.fromMap(snapshot.data());
+    return EffectiveBusinessPermissions.fromUser(
+      user,
+      settings.permissionSettings,
+    );
   }
 
   void _requireCanAccessCustomer(

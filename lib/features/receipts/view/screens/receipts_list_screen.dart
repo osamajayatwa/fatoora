@@ -77,26 +77,30 @@ class _ReceiptsHeader extends StatelessWidget {
         fontWeight: FontWeight.w900,
       ),
     );
-    final action = FilledButton.icon(
-      onPressed: controller.openCreateReceipt,
-      style: FilledButton.styleFrom(
-        backgroundColor: AppColor.primaryColor,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      ),
-      icon: const Icon(Icons.add_rounded),
-      label: Text('create_receipt'.tr),
-    );
+    final action = controller.canCreateReceipt
+        ? FilledButton.icon(
+            onPressed: controller.openCreateReceipt,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColor.primaryColor,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+            icon: const Icon(Icons.add_rounded),
+            label: Text('create_receipt'.tr),
+          )
+        : null;
     if (compact) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [title, const SizedBox(height: 12), action],
+        children: [
+          title,
+          if (action != null) ...[const SizedBox(height: 12), action],
+        ],
       );
     }
     return Row(
       children: [
         Expanded(child: title),
-        const SizedBox(width: 16),
-        action,
+        if (action != null) ...[const SizedBox(width: 16), action],
       ],
     );
   }

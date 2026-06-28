@@ -76,26 +76,30 @@ class _CustomersHeader extends StatelessWidget {
         fontWeight: FontWeight.w900,
       ),
     );
-    final action = FilledButton.icon(
-      onPressed: controller.openCreateCustomer,
-      style: FilledButton.styleFrom(
-        backgroundColor: AppColor.primaryColor,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      ),
-      icon: const Icon(Icons.person_add_alt_1_outlined),
-      label: Text('customers_add'.tr),
-    );
+    final action = controller.canCreateCustomer
+        ? FilledButton.icon(
+            onPressed: controller.openCreateCustomer,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColor.primaryColor,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+            icon: const Icon(Icons.person_add_alt_1_outlined),
+            label: Text('customers_add'.tr),
+          )
+        : null;
     if (compact) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [title, const SizedBox(height: 12), action],
+        children: [
+          title,
+          if (action != null) ...[const SizedBox(height: 12), action],
+        ],
       );
     }
     return Row(
       children: [
         Expanded(child: title),
-        const SizedBox(width: 16),
-        action,
+        if (action != null) ...[const SizedBox(width: 16), action],
       ],
     );
   }

@@ -13,10 +13,14 @@ class InvoiceItemsTable extends StatelessWidget {
     required this.editable,
     required this.onUpdateItem,
     required this.onRemoveItem,
+    this.canEditUnitPrice = true,
+    this.canEditDiscount = true,
   });
 
   final List<InvoiceItemSnapshot> items;
   final bool editable;
+  final bool canEditUnitPrice;
+  final bool canEditDiscount;
   final void Function({
     required int index,
     double? quantity,
@@ -54,6 +58,8 @@ class InvoiceItemsTable extends StatelessWidget {
                       item: items[i],
                       index: i,
                       editable: editable,
+                      canEditUnitPrice: canEditUnitPrice,
+                      canEditDiscount: canEditDiscount,
                       onUpdate: ({quantity, unitPrice, discount, taxPercent}) =>
                           onUpdateItem(
                             index: i,
@@ -106,7 +112,7 @@ class InvoiceItemsTable extends StatelessWidget {
                         ),
                       ),
                       DataCell(
-                        editable
+                        editable && canEditUnitPrice
                             ? _InlineNumberField(
                                 value: items[i].quantity,
                                 onChanged: (value) =>
@@ -115,7 +121,7 @@ class InvoiceItemsTable extends StatelessWidget {
                             : Text(items[i].quantity.toString()),
                       ),
                       DataCell(
-                        editable
+                        editable && canEditDiscount
                             ? _InlineNumberField(
                                 value: items[i].unitPrice,
                                 onChanged: (value) =>
