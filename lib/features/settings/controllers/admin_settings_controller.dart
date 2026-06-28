@@ -133,12 +133,49 @@ class AdminSettingsController extends GetxController {
   void setAllowSalesRepDiscount(bool value) =>
       _set(() => allowSalesRepDiscount = value);
 
-  Future<void> save() async {
+  Future<void> save() => _save(_buildSettings);
+
+  Future<void> saveCompanySettings() => _save(
+    () => settings.copyWith(
+      companySettings: _buildCompanySettings(),
+      updatedAt: DateTime.now(),
+    ),
+  );
+
+  Future<void> saveDocumentSettings() => _save(
+    () => settings.copyWith(
+      documentSettings: _buildDocumentSettings(),
+      updatedAt: DateTime.now(),
+    ),
+  );
+
+  Future<void> saveInventorySettings() => _save(
+    () => settings.copyWith(
+      inventorySettings: _buildInventorySettings(),
+      updatedAt: DateTime.now(),
+    ),
+  );
+
+  Future<void> savePdfSettings() => _save(
+    () => settings.copyWith(
+      pdfSettings: _buildPdfSettings(),
+      updatedAt: DateTime.now(),
+    ),
+  );
+
+  Future<void> savePermissionSettings() => _save(
+    () => settings.copyWith(
+      permissionSettings: _buildPermissionSettings(),
+      updatedAt: DateTime.now(),
+    ),
+  );
+
+  Future<void> _save(AppSettingsModel Function() buildSettings) async {
     if (isSaving || !(formKey.currentState?.validate() ?? false)) return;
     isSaving = true;
     update();
     try {
-      final next = _buildSettings();
+      final next = buildSettings();
       await _repository.updateAppSettings(next);
       settings = next;
       _show('settings_save_success', AppColor.success);
@@ -156,7 +193,18 @@ class AdminSettingsController extends GetxController {
   }
 
   AppSettingsModel _buildSettings() {
-    final company = CompanySettingsModel(
+    return settings.copyWith(
+      companySettings: _buildCompanySettings(),
+      documentSettings: _buildDocumentSettings(),
+      inventorySettings: _buildInventorySettings(),
+      pdfSettings: _buildPdfSettings(),
+      permissionSettings: _buildPermissionSettings(),
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  CompanySettingsModel _buildCompanySettings() {
+    return CompanySettingsModel(
       name: companyNameController.text.trim(),
       country: countryController.text.trim(),
       email: emailController.text.trim(),
@@ -165,7 +213,10 @@ class AdminSettingsController extends GetxController {
       address: addressController.text.trim(),
       logoEnabled: logoEnabled,
     );
-    final documents = DocumentSettingsModel(
+  }
+
+  DocumentSettingsModel _buildDocumentSettings() {
+    return DocumentSettingsModel(
       invoicePrefix: invoicePrefixController.text.trim(),
       receiptPrefix: receiptPrefixController.text.trim(),
       quotationPrefix: quotationPrefixController.text.trim(),
@@ -176,7 +227,10 @@ class AdminSettingsController extends GetxController {
       allowDiscount: allowDiscount,
       allowSalesRepPriceEdit: allowSalesRepPriceEdit,
     );
-    final inventory = InventorySettingsModel(
+  }
+
+  InventorySettingsModel _buildInventorySettings() {
+    return InventorySettingsModel(
       defaultWarehouseId: defaultWarehouseController.text.trim(),
       allowNegativeStock: allowNegativeStock,
       lowStockAlertsEnabled: lowStockAlertsEnabled,
@@ -184,7 +238,10 @@ class AdminSettingsController extends GetxController {
           double.tryParse(defaultMinStockController.text.trim()) ?? 0,
       trackStockByDefault: trackStockByDefault,
     );
-    final pdf = PdfSettingsModel(
+  }
+
+  PdfSettingsModel _buildPdfSettings() {
+    return PdfSettingsModel(
       showLogo: showLogo,
       showCompanyInfo: showCompanyInfo,
       pdfLanguageMode: pdfLanguageMode,
@@ -194,21 +251,16 @@ class AdminSettingsController extends GetxController {
       statementFooterText: statementFooterController.text.trim(),
       defaultNotes: defaultNotesController.text.trim(),
     );
-    final permissions = PermissionSettingsModel(
+  }
+
+  PermissionSettingsModel _buildPermissionSettings() {
+    return PermissionSettingsModel(
       allowSalesRepCreateCustomers: allowSalesRepCreateCustomers,
       allowSalesRepCreateReceipts: allowSalesRepCreateReceipts,
       allowSalesRepCreateReturns: allowSalesRepCreateReturns,
       allowSalesRepCreateQuotations: allowSalesRepCreateQuotations,
       allowSalesRepPriceEdit: allowSalesRepPermissionPriceEdit,
       allowSalesRepDiscount: allowSalesRepDiscount,
-    );
-    return settings.copyWith(
-      companySettings: company,
-      documentSettings: documents,
-      inventorySettings: inventory,
-      pdfSettings: pdf,
-      permissionSettings: permissions,
-      updatedAt: DateTime.now(),
     );
   }
 

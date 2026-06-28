@@ -56,6 +56,8 @@ import 'package:fatoora/features/sales_returns/view/screens/sales_return_form_sc
 import 'package:fatoora/features/sales_returns/view/screens/sales_returns_list_screen.dart';
 import 'package:fatoora/features/settings/bindings/settings_binding.dart';
 import 'package:fatoora/features/settings/view/screens/settings_screen.dart';
+import 'package:fatoora/features/settings/view/screens/admin_settings_screens.dart';
+import 'package:fatoora/features/settings/view/screens/user_settings_screens.dart';
 import 'package:flutter/material.dart';
 import 'package:fatoora/features/splash/view/screens/language.dart';
 import 'package:fatoora/features/splash/view/screens/splash.dart';
@@ -208,6 +210,60 @@ List<GetPage<dynamic>> routes = [
   GetPage(
     name: AppRoute.settings,
     page: () => const SettingsScreen(),
+    binding: SettingsBinding(),
+    middlewares: [ApprovedUserMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.companySettings,
+    page: () => const CompanySettingsScreen(),
+    binding: SettingsBinding(),
+    middlewares: [ApprovedUserMiddleware(), AdminSettingsMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.documentSettings,
+    page: () => const DocumentSettingsScreen(),
+    binding: SettingsBinding(),
+    middlewares: [ApprovedUserMiddleware(), AdminSettingsMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.inventorySettings,
+    page: () => const InventorySettingsScreen(),
+    binding: SettingsBinding(),
+    middlewares: [ApprovedUserMiddleware(), AdminSettingsMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.pdfSettings,
+    page: () => const PdfSettingsScreen(),
+    binding: SettingsBinding(),
+    middlewares: [ApprovedUserMiddleware(), AdminSettingsMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.permissionSettings,
+    page: () => const PermissionSettingsScreen(),
+    binding: SettingsBinding(),
+    middlewares: [ApprovedUserMiddleware(), AdminSettingsMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.jofotaraSettings,
+    page: () => const JofotaraSettingsScreen(),
+    binding: SettingsBinding(),
+    middlewares: [ApprovedUserMiddleware(), AdminSettingsMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.profileSettings,
+    page: () => const ProfileSettingsScreen(),
+    binding: SettingsBinding(),
+    middlewares: [ApprovedUserMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.appPreferencesSettings,
+    page: () => const AppPreferencesSettingsScreen(),
+    binding: SettingsBinding(),
+    middlewares: [ApprovedUserMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.accountSettings,
+    page: () => const AccountSettingsScreen(),
     binding: SettingsBinding(),
     middlewares: [ApprovedUserMiddleware()],
   ),

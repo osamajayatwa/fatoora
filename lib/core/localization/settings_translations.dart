@@ -4,12 +4,32 @@ const Map<String, String> settingsEnglishTranslations = {
   'settings_documents': 'Document settings',
   'settings_inventory': 'Inventory settings',
   'settings_pdf': 'PDF settings',
-  'settings_permissions': 'Permission settings',
+  'settings_permissions': 'Sales rep permissions',
   'settings_jofotara': 'JoFotara status',
   'settings_profile': 'Profile settings',
   'settings_preferences': 'App preferences',
   'settings_account': 'Account',
   'settings_about': 'Account status and app information',
+  'settings_main_subtitle': 'Manage company and app settings.',
+  'settings_company_subtitle':
+      'Company details shown on invoices and PDF documents.',
+  'settings_documents_subtitle':
+      'Invoice, receipt, quotation, and return numbering and defaults.',
+  'settings_inventory_subtitle':
+      'Stock defaults, tracking, and low-stock alerts.',
+  'settings_pdf_subtitle':
+      'Logo, company details, language, footers, and default notes.',
+  'settings_permissions_subtitle':
+      'Control which customer and sales actions sales reps can perform.',
+  'settings_jofotara_subtitle': 'View the current JoFotara integration status.',
+  'settings_profile_subtitle':
+      'Update your name, phone number, and profile photo URL.',
+  'settings_preferences_subtitle':
+      'Choose app language and personal document notes.',
+  'settings_account_subtitle':
+      'Review your role, account status, app version, or log out.',
+  'settings_open_section': 'Open section',
+  'settings_back_to_settings': 'Back to settings',
   'settings_admin_description':
       'Manage company defaults and your personal preferences.',
   'settings_sales_rep_description':
@@ -94,6 +114,7 @@ const Map<String, String> settingsEnglishTranslations = {
   'settings_logout_failed': 'Could not log out. Please try again.',
   'settings_cancel': 'Cancel',
   'settings_save_company_settings': 'Save company settings',
+  'settings_save_section': 'Save changes',
   'settings_save_profile': 'Save profile',
   'settings_save_preferences': 'Save preferences',
   'settings_save_success': 'Settings saved successfully.',
@@ -120,12 +141,31 @@ const Map<String, String> settingsArabicTranslations = {
   'settings_documents': 'إعدادات المستندات',
   'settings_inventory': 'إعدادات المخزون',
   'settings_pdf': 'إعدادات PDF',
-  'settings_permissions': 'إعدادات الصلاحيات',
+  'settings_permissions': 'صلاحيات مندوبي المبيعات',
   'settings_jofotara': 'حالة الفوترة الأردنية',
   'settings_profile': 'إعدادات الملف الشخصي',
   'settings_preferences': 'تفضيلات التطبيق',
   'settings_account': 'الحساب',
   'settings_about': 'حالة الحساب ومعلومات التطبيق',
+  'settings_main_subtitle': 'إدارة إعدادات الشركة والتطبيق.',
+  'settings_company_subtitle':
+      'بيانات الشركة التي تظهر في الفواتير وملفات PDF.',
+  'settings_documents_subtitle':
+      'ترقيم الفواتير وسندات القبض وعروض الأسعار والمرتجعات وإعداداتها الافتراضية.',
+  'settings_inventory_subtitle':
+      'إعدادات المخزون والتتبع وتنبيهات انخفاض الكمية.',
+  'settings_pdf_subtitle':
+      'الشعار وبيانات الشركة واللغة والتذييلات والملاحظات الافتراضية.',
+  'settings_permissions_subtitle':
+      'التحكم في صلاحيات إنشاء العملاء والقبض والمرتجعات والعروض للمندوبين.',
+  'settings_jofotara_subtitle': 'عرض الحالة الحالية لتكامل الفوترة الأردنية.',
+  'settings_profile_subtitle': 'تحديث الاسم ورقم الهاتف ورابط الصورة الشخصية.',
+  'settings_preferences_subtitle':
+      'اختيار لغة التطبيق والملاحظات الشخصية الافتراضية للمستندات.',
+  'settings_account_subtitle':
+      'مراجعة الدور وحالة الحساب وإصدار التطبيق أو تسجيل الخروج.',
+  'settings_open_section': 'فتح القسم',
+  'settings_back_to_settings': 'العودة إلى الإعدادات',
   'settings_admin_description':
       'إدارة الإعدادات الافتراضية للشركة وتفضيلاتك الشخصية.',
   'settings_sales_rep_description':
@@ -208,6 +248,7 @@ const Map<String, String> settingsArabicTranslations = {
   'settings_logout_failed': 'تعذر تسجيل الخروج. حاول مرة أخرى.',
   'settings_cancel': 'إلغاء',
   'settings_save_company_settings': 'حفظ إعدادات الشركة',
+  'settings_save_section': 'حفظ التغييرات',
   'settings_save_profile': 'حفظ الملف الشخصي',
   'settings_save_preferences': 'حفظ التفضيلات',
   'settings_save_success': 'تم حفظ الإعدادات بنجاح.',

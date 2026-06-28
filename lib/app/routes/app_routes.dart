@@ -56,4 +56,13 @@ class AppRoute {
 
   static const String statements = "/statements";
   static const String settings = "/settings";
+  static const String companySettings = "/settings/company";
+  static const String documentSettings = "/settings/documents";
+  static const String inventorySettings = "/settings/inventory";
+  static const String pdfSettings = "/settings/pdf";
+  static const String permissionSettings = "/settings/permissions";
+  static const String jofotaraSettings = "/settings/jofotara";
+  static const String profileSettings = "/settings/profile";
+  static const String appPreferencesSettings = "/settings/preferences";
+  static const String accountSettings = "/settings/account";
 }

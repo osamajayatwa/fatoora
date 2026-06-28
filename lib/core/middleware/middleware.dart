@@ -82,6 +82,31 @@ class ApprovedUserMiddleware extends GetMiddleware {
   }
 }
 
+class AdminSettingsMiddleware extends GetMiddleware {
+  @override
+  int? get priority => 2;
+
+  final MyServices myServices = Get.find<MyServices>();
+
+  @override
+  RouteSettings? redirect(String? route) {
+    if (FirebaseAuth.instance.currentUser == null) {
+      return const RouteSettings(name: AppRoute.userLogin);
+    }
+    final session = _SessionSnapshot.fromServices(myServices);
+    if (session.isRejected || session.isInactiveApproved) {
+      return const RouteSettings(name: AppRoute.approvalRejected);
+    }
+    if (session.isPending) {
+      return const RouteSettings(name: AppRoute.waitingApproval);
+    }
+    if (!session.isApprovedAdmin) {
+      return const RouteSettings(name: AppRoute.settings);
+    }
+    return null;
+  }
+}
+
 class SalesRepMiddleware extends GetMiddleware {
   @override
   int? get priority => 1;
