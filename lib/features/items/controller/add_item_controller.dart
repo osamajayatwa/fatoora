@@ -1,6 +1,10 @@
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/app/routes/app_routes.dart';
+import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/settings/business_settings_defaults.dart';
+import 'package:fatoora/core/settings/business_settings_resolver.dart';
+import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/items/data/repositories/item_repository.dart';
 import 'package:fatoora/features/items/controller/item_error_mapper.dart';
 import 'package:fatoora/features/items/controller/item_page_navigation.dart';
@@ -8,10 +12,17 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class AddItemController extends GetxController with ItemPageNavigation {
-  AddItemController({required ItemRepository repository})
-    : _repository = repository;
+  AddItemController({
+    required ItemRepository repository,
+    required BusinessSettingsResolver settingsResolver,
+    required MyServices myServices,
+  }) : _repository = repository,
+       _settingsResolver = settingsResolver,
+       _myServices = myServices;
 
   final ItemRepository _repository;
+  final BusinessSettingsResolver _settingsResolver;
+  final MyServices _myServices;
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
   final TextEditingController nameController = TextEditingController();
   final TextEditingController codeController = TextEditingController();
@@ -41,15 +52,18 @@ class AddItemController extends GetxController with ItemPageNavigation {
   bool active = true;
   bool trackStock = true;
   bool isDirty = false;
+  bool _applyingDefaults = false;
 
   bool get isLoading => statusRequest == StatusRequest.loading;
 
   @override
   void onInit() {
     super.onInit();
+    statusRequest = StatusRequest.loading;
     for (final controller in _textControllers) {
       controller.addListener(_markDirty);
     }
+    _loadDefaults();
   }
 
   List<TextEditingController> get _textControllers => [
@@ -69,10 +83,39 @@ class AddItemController extends GetxController with ItemPageNavigation {
   ];
 
   void _markDirty() {
+    if (_applyingDefaults) return;
     if (!isDirty) {
       isDirty = true;
       update();
     }
+  }
+
+  Future<void> _loadDefaults() async {
+    final companyId =
+        _myServices.sharedPreferences.getString('companyId') ??
+        AuthRepository.defaultCompanyId;
+    final settings = await _settingsResolver.loadAppSettings(companyId);
+    if (isClosed) return;
+    final documents = settings.documentSettings;
+    final inventory = settings.inventorySettings;
+    _applyingDefaults = true;
+    taxRateController.text = BusinessSettingsDefaults.inputNumber(
+      BusinessSettingsDefaults.taxPercent(
+        existingTaxPercent: null,
+        defaultTaxPercent: documents.defaultTaxPercent,
+      ),
+    );
+    minStockController.text = BusinessSettingsDefaults.inputNumber(
+      BusinessSettingsDefaults.minimumStock(inventory.defaultMinStock),
+    );
+    warehouseController.text = BusinessSettingsDefaults.warehouseId(
+      inventory.defaultWarehouseId,
+    );
+    trackStock = inventory.trackStockByDefault;
+    _applyingDefaults = false;
+    isDirty = false;
+    statusRequest = StatusRequest.success;
+    update();
   }
 
   void setActive(bool value) {

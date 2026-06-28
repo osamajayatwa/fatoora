@@ -3,6 +3,8 @@ import 'package:fatoora/core/constants/app_feature_flags.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/settings/business_settings_defaults.dart';
+import 'package:fatoora/core/settings/business_settings_resolver.dart';
 import 'package:fatoora/features/auth/utils/auth_session.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_context.dart';
@@ -16,6 +18,8 @@ import 'package:fatoora/features/invoices/data/repositories/invoice_repository.d
 import 'package:fatoora/features/invoices/data/services/invoice_number_service.dart';
 import 'package:fatoora/features/invoices/data/services/invoice_totals_service.dart';
 import 'package:fatoora/features/items/data/models/item_model.dart';
+import 'package:fatoora/features/settings/data/models/app_settings_model.dart';
+import 'package:fatoora/features/settings/data/models/user_preferences_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -25,15 +29,18 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     required InvoiceNumberService numberService,
     required InvoiceTotalsService totalsService,
     required MyServices myServices,
+    required BusinessSettingsResolver settingsResolver,
   }) : _repository = repository,
        _numberService = numberService,
        _totalsService = totalsService,
-       _myServices = myServices;
+       _myServices = myServices,
+       _settingsResolver = settingsResolver;
 
   final InvoiceRepository _repository;
   final InvoiceNumberService _numberService;
   final InvoiceTotalsService _totalsService;
   final MyServices _myServices;
+  final BusinessSettingsResolver _settingsResolver;
 
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
   final TextEditingController invoiceNumberController = TextEditingController();
@@ -83,6 +90,9 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
   bool readOnly = false;
   bool isSaving = false;
   InvoiceModel? loadedInvoice;
+  int _defaultDueDays = 0;
+  double _defaultTaxPercent = 0;
+  bool _dueDateManuallyChanged = false;
 
   bool get isCreateMode => mode == 'create';
   bool get isEditMode => mode == 'edit';
@@ -138,11 +148,35 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
   Future<void> _prepareCreateMode() async {
     statusRequest = StatusRequest.loading;
     update();
+    final uid = _myServices.sharedPreferences.getString('uid') ?? '';
+    final values = await Future.wait<Object>([
+      _settingsResolver.loadAppSettings(companyId),
+      _settingsResolver.loadUserPreferences(uid),
+    ]);
+    final appSettings = values[0] as AppSettingsModel;
+    final preferences = values[1] as UserPreferencesModel;
+    final documents = appSettings.documentSettings;
+    _defaultDueDays = documents.defaultDueDays;
+    _defaultTaxPercent = BusinessSettingsDefaults.taxPercent(
+      existingTaxPercent: null,
+      defaultTaxPercent: documents.defaultTaxPercent,
+    );
     invoiceNumberController.text = await _numberService.generate(
       companyId: companyId,
       invoiceType: invoiceType,
+      settings: documents,
     );
-    dueDate = invoiceDate;
+    dueDate = BusinessSettingsDefaults.invoiceDueDate(
+      invoiceDate,
+      _defaultDueDays,
+    );
+    itemTaxController.text = BusinessSettingsDefaults.inputNumber(
+      _defaultTaxPercent,
+    );
+    notesController.text = BusinessSettingsDefaults.prefilledNote(
+      currentNote: notesController.text,
+      defaultNote: preferences.defaultInvoiceNote,
+    );
     hasReceivedPayment = false;
     _syncPaymentAmounts(updateView: false);
     statusRequest = StatusRequest.success;
@@ -206,13 +240,18 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
   void setInvoiceDate(DateTime value) {
     if (readOnly) return;
     invoiceDate = value;
-    if (dueDate.isBefore(_dateOnly(value))) dueDate = value;
+    if (isCreateMode && !_dueDateManuallyChanged) {
+      dueDate = BusinessSettingsDefaults.invoiceDueDate(value, _defaultDueDays);
+    } else if (dueDate.isBefore(_dateOnly(value))) {
+      dueDate = value;
+    }
     update();
   }
 
   void setDueDate(DateTime value) {
     if (readOnly) return;
     dueDate = value;
+    _dueDateManuallyChanged = true;
     update();
   }
 
@@ -283,7 +322,10 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
       quantity: quantity,
       unitPrice: price,
       discount: _parseDouble(itemDiscountController.text),
-      taxPercent: _parseDouble(itemTaxController.text),
+      taxPercent: BusinessSettingsDefaults.taxPercent(
+        existingTaxPercent: double.tryParse(itemTaxController.text.trim()),
+        defaultTaxPercent: _defaultTaxPercent,
+      ),
       subtotal: 0,
       taxAmount: 0,
       total: 0,
@@ -306,6 +348,7 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     double? discount,
     double? taxPercent,
   }) {
+    // TODO(settings-stage-2c): enforce discount and sales-rep price controls.
     if (readOnly || index < 0 || index >= items.length) return;
     final item = items[index].copyWith(
       quantity: quantity,
@@ -600,7 +643,9 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     itemQuantityController.text = '1';
     itemPriceController.text = '0';
     itemDiscountController.text = '0';
-    itemTaxController.text = '0';
+    itemTaxController.text = BusinessSettingsDefaults.inputNumber(
+      _defaultTaxPercent,
+    );
   }
 
   void _showSuccess(String messageKey) {

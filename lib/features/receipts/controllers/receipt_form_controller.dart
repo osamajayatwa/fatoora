@@ -1,5 +1,7 @@
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/settings/business_settings_defaults.dart';
+import 'package:fatoora/core/settings/business_settings_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/customers/view/widgets/customer_picker_sheet.dart';
@@ -12,11 +14,14 @@ class ReceiptFormController extends GetxController {
   ReceiptFormController({
     required ReceiptRepository repository,
     required MyServices myServices,
+    required BusinessSettingsResolver settingsResolver,
   }) : _repository = repository,
-       _myServices = myServices;
+       _myServices = myServices,
+       _settingsResolver = settingsResolver;
 
   final ReceiptRepository _repository;
   final MyServices _myServices;
+  final BusinessSettingsResolver _settingsResolver;
   final TextEditingController amountController = TextEditingController();
   final TextEditingController notesController = TextEditingController();
 
@@ -30,6 +35,23 @@ class ReceiptFormController extends GetxController {
   String get companyId =>
       _myServices.sharedPreferences.getString('companyId') ??
       AuthRepository.defaultCompanyId;
+
+  @override
+  void onReady() {
+    super.onReady();
+    _loadDefaultNote();
+  }
+
+  Future<void> _loadDefaultNote() async {
+    final uid = _myServices.sharedPreferences.getString('uid') ?? '';
+    final preferences = await _settingsResolver.loadUserPreferences(uid);
+    if (isClosed) return;
+    notesController.text = BusinessSettingsDefaults.prefilledNote(
+      currentNote: notesController.text,
+      defaultNote: preferences.defaultReceiptNote,
+    );
+    update();
+  }
 
   Future<void> selectCustomer(BuildContext context) async {
     final selected = await showCustomerPicker(context);

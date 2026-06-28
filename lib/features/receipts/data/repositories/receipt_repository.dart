@@ -2,9 +2,12 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fatoora/core/settings/business_settings_defaults.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/receipts/data/models/receipt_model.dart';
+import 'package:fatoora/features/settings/data/models/app_settings_model.dart';
+import 'package:fatoora/features/settings/data/models/document_settings_model.dart';
 import 'package:fatoora/features/shared/business/business_user_context.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -78,6 +81,14 @@ class ReceiptRepository {
         .doc(companyId)
         .collection('counters')
         .doc('receipts_$year');
+  }
+
+  DocumentReference<Map<String, dynamic>> _appSettings(String companyId) {
+    return _firestore
+        .collection('companies')
+        .doc(companyId)
+        .collection('settings')
+        .doc('app');
   }
 
   Future<List<ReceiptModel>> fetchReceipts({
@@ -335,6 +346,14 @@ class ReceiptRepository {
     required DateTime receiptDate,
   }) async {
     final year = receiptDate.year;
+    final settingsSnapshot = await transaction.get(_appSettings(companyId));
+    final documents = AppSettingsModel.fromMap(
+      settingsSnapshot.data(),
+    ).documentSettings;
+    final prefix = BusinessSettingsDefaults.prefix(
+      documents.receiptPrefix,
+      DocumentSettingsModel.defaults.receiptPrefix,
+    );
     final counterRef = _receiptCounter(companyId, year);
     final counter = await transaction.get(counterRef);
     final current = counter.data()?['lastNumber'];
@@ -344,10 +363,14 @@ class ReceiptRepository {
       'companyId': companyId,
       'year': year,
       'lastNumber': next,
-      'prefix': 'REC',
+      'prefix': prefix,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
-    return 'REC-$year-${next.toString().padLeft(6, '0')}';
+    return BusinessSettingsDefaults.documentNumber(
+      prefix: prefix,
+      year: year,
+      sequence: next,
+    );
   }
 
   void _requireCanAccessCustomer(

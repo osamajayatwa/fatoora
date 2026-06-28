@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fatoora/core/settings/business_settings_defaults.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
@@ -11,6 +12,8 @@ import 'package:fatoora/features/items/data/models/item_model.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_enums.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_item_model.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_model.dart';
+import 'package:fatoora/features/settings/data/models/app_settings_model.dart';
+import 'package:fatoora/features/settings/data/models/document_settings_model.dart';
 import 'package:fatoora/features/shared/business/business_user_context.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -116,6 +119,14 @@ class SalesReturnRepository {
         .doc(companyId)
         .collection('counters')
         .doc('sales_returns_$year');
+  }
+
+  DocumentReference<Map<String, dynamic>> _appSettings(String companyId) {
+    return _firestore
+        .collection('companies')
+        .doc(companyId)
+        .collection('settings')
+        .doc('app');
   }
 
   Future<List<SalesReturnModel>> fetchSalesReturns({
@@ -482,6 +493,14 @@ class SalesReturnRepository {
     required DateTime returnDate,
   }) async {
     final year = returnDate.year;
+    final settingsSnapshot = await transaction.get(_appSettings(companyId));
+    final documents = AppSettingsModel.fromMap(
+      settingsSnapshot.data(),
+    ).documentSettings;
+    final prefix = BusinessSettingsDefaults.prefix(
+      documents.salesReturnPrefix,
+      DocumentSettingsModel.defaults.salesReturnPrefix,
+    );
     final counterRef = _returnCounter(companyId, year);
     final counter = await transaction.get(counterRef);
     final current = counter.data()?['lastNumber'];
@@ -491,11 +510,15 @@ class SalesReturnRepository {
       'companyId': companyId,
       'year': year,
       'lastNumber': next,
-      'prefix': 'RET',
+      'prefix': prefix,
       'updatedAt': FieldValue.serverTimestamp(),
     };
     return _ReturnNumberAllocation(
-      number: 'RET-$year-${next.toString().padLeft(6, '0')}',
+      number: BusinessSettingsDefaults.documentNumber(
+        prefix: prefix,
+        year: year,
+        sequence: next,
+      ),
       counterRef: counterRef,
       counterData: counterData,
     );

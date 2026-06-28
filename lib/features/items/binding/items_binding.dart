@@ -5,9 +5,11 @@ import 'package:fatoora/features/admin_dashboard/controller/admin_dashboard_cont
 import 'package:fatoora/features/items/controller/items_controller.dart';
 import 'package:fatoora/features/financial/bindings/financial_binding.dart';
 import 'package:fatoora/features/financial/data/repositories/financial_repository.dart';
+import 'package:fatoora/features/settings/bindings/settings_dependencies.dart';
 import 'package:get/get.dart';
 
 void registerItemsCoreDependencies() {
+  registerSettingsDependencies();
   registerFinancialDependencies();
   if (!Get.isRegistered<AdminAuthRepository>()) {
     Get.lazyPut<AdminAuthRepository>(AdminAuthRepository.new, fenix: true);

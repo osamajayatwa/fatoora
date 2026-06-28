@@ -190,6 +190,7 @@ class QuotationFormController extends GetxController {
     double? discount,
     double? taxPercent,
   }) {
+    // TODO(settings-stage-2c): enforce discount and sales-rep price controls.
     if (readOnly || index < 0 || index >= items.length) return;
     final updated = items[index].toInvoiceItem().copyWith(
       quantity: quantity,

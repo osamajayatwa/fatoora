@@ -1,12 +1,15 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fatoora/core/settings/business_settings_defaults.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/quotations/data/models/quotation_model.dart';
 import 'package:fatoora/features/quotations/data/models/quotation_status.dart';
+import 'package:fatoora/features/settings/data/models/app_settings_model.dart';
+import 'package:fatoora/features/settings/data/models/document_settings_model.dart';
 import 'package:fatoora/features/shared/business/business_user_context.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -96,6 +99,14 @@ class QuotationRepository {
         .doc(companyId)
         .collection('counters')
         .doc('invoices_$year');
+  }
+
+  DocumentReference<Map<String, dynamic>> _appSettings(String companyId) {
+    return _firestore
+        .collection('companies')
+        .doc(companyId)
+        .collection('settings')
+        .doc('app');
   }
 
   Future<List<QuotationModel>> fetchQuotations({
@@ -295,10 +306,15 @@ class QuotationRepository {
               user: user,
             );
             final invoiceRef = _invoices(resolvedCompanyId).doc();
+            final documents = await _readDocumentSettings(
+              transaction: transaction,
+              companyId: resolvedCompanyId,
+            );
             final numberAllocation = await _allocateInvoiceNumber(
               transaction: transaction,
               companyId: resolvedCompanyId,
               invoiceDate: DateTime.now(),
+              settings: documents,
             );
             final now = DateTime.now();
             final invoice = InvoiceModel(
@@ -311,7 +327,10 @@ class QuotationRepository {
               paymentStatus: PaymentStatus.unpaid,
               hasReceivedPayment: false,
               invoiceDate: now,
-              dueDate: now,
+              dueDate: BusinessSettingsDefaults.invoiceDueDate(
+                now,
+                documents.defaultDueDays,
+              ),
               createdAt: now,
               updatedAt: now,
               createdByUid: user.uid,
@@ -474,19 +493,31 @@ class QuotationRepository {
     required DateTime quotationDate,
   }) async {
     final year = quotationDate.year;
+    final documents = await _readDocumentSettings(
+      transaction: transaction,
+      companyId: companyId,
+    );
+    final prefix = BusinessSettingsDefaults.prefix(
+      documents.quotationPrefix,
+      DocumentSettingsModel.defaults.quotationPrefix,
+    );
     final counterRef = _quotationCounter(companyId, year);
     final counter = await transaction.get(counterRef);
     final current = counter.data()?['lastNumber'];
     final next = current is num ? current.toInt() + 1 : 1;
     return _NumberAllocation(
-      number: 'QUO-$year-${next.toString().padLeft(6, '0')}',
+      number: BusinessSettingsDefaults.documentNumber(
+        prefix: prefix,
+        year: year,
+        sequence: next,
+      ),
       counterRef: counterRef,
       counterData: {
         'id': counterRef.id,
         'companyId': companyId,
         'year': year,
         'lastNumber': next,
-        'prefix': 'QUO',
+        'prefix': prefix,
         'updatedAt': FieldValue.serverTimestamp(),
       },
     );
@@ -496,24 +527,41 @@ class QuotationRepository {
     required Transaction transaction,
     required String companyId,
     required DateTime invoiceDate,
+    required DocumentSettingsModel settings,
   }) async {
     final year = invoiceDate.year;
+    final prefix = BusinessSettingsDefaults.prefix(
+      settings.invoicePrefix,
+      DocumentSettingsModel.defaults.invoicePrefix,
+    );
     final counterRef = _invoiceCounter(companyId, year);
     final counter = await transaction.get(counterRef);
     final current = counter.data()?['lastNumber'];
     final next = current is num ? current.toInt() + 1 : 1;
     return _NumberAllocation(
-      number: 'INV-$year-${next.toString().padLeft(6, '0')}',
+      number: BusinessSettingsDefaults.documentNumber(
+        prefix: prefix,
+        year: year,
+        sequence: next,
+      ),
       counterRef: counterRef,
       counterData: {
         'id': counterRef.id,
         'companyId': companyId,
         'year': year,
         'lastNumber': next,
-        'prefix': 'INV',
+        'prefix': prefix,
         'updatedAt': FieldValue.serverTimestamp(),
       },
     );
+  }
+
+  Future<DocumentSettingsModel> _readDocumentSettings({
+    required Transaction transaction,
+    required String companyId,
+  }) async {
+    final snapshot = await transaction.get(_appSettings(companyId));
+    return AppSettingsModel.fromMap(snapshot.data()).documentSettings;
   }
 
   void _requireCanAccessQuotation(

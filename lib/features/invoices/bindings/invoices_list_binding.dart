@@ -1,4 +1,5 @@
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/features/settings/bindings/settings_dependencies.dart';
 import 'package:fatoora/features/auth/data/repositories/admin_auth_repository.dart';
 import 'package:fatoora/features/customers/bindings/customers_binding.dart';
 import 'package:fatoora/features/invoices/controllers/invoices_list_controller.dart';
@@ -13,6 +14,7 @@ import 'package:fatoora/features/financial/data/repositories/financial_repositor
 import 'package:get/get.dart';
 
 void registerInvoiceCoreDependencies() {
+  registerSettingsDependencies();
   registerCustomerDependencies();
   registerItemsCoreDependencies();
   registerFinancialDependencies();

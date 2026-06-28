@@ -284,6 +284,50 @@ service cloud.firestore {
         && data.updatedByName.size() > 0;
     }
 
+    function configuredPrefixMatches(companyId, prefix, field, fallback) {
+      let settingsPath =
+        /databases/$(database)/documents/companies/$(companyId)/settings/app;
+      return prefix is string
+        && prefix.matches('^[A-Z0-9]{1,10}$')
+        && (
+          (
+            exists(settingsPath)
+            && prefix == get(settingsPath).data.documentSettings[field]
+          )
+          || (
+            !exists(settingsPath)
+            && prefix == fallback
+          )
+        );
+    }
+
+    function configuredDocumentNumberMatches(
+      companyId,
+      number,
+      field,
+      fallback
+    ) {
+      let settingsPath =
+        /databases/$(database)/documents/companies/$(companyId)/settings/app;
+      return number is string
+        && number.matches('^[A-Z0-9]{1,10}-[0-9]{4}-[0-9]{6}$')
+        && (
+          (
+            exists(settingsPath)
+            && number.matches(
+              '^' + get(settingsPath).data.documentSettings[field]
+              + '-[0-9]{4}-[0-9]{6}$'
+            )
+          )
+          || (
+            !exists(settingsPath)
+            && number.matches(
+              '^' + fallback + '-[0-9]{4}-[0-9]{6}$'
+            )
+          )
+        );
+    }
+
     function validUserPreferencesWrite(userId, preferenceId) {
       let data = request.resource.data;
       return isSignedIn()
@@ -688,7 +732,9 @@ service cloud.firestore {
         ])
         && data.id == returnId
         && data.companyId == companyId
-        && data.returnNumber.matches('^RET-[0-9]{4}-[0-9]{6}$')
+        && data.returnNumber.matches(
+          '^[A-Z0-9]{1,10}-[0-9]{4}-[0-9]{6}$'
+        )
         && data.originalInvoiceId is string
         && data.originalInvoiceId.size() > 0
         && data.originalInvoiceNumber is string
@@ -728,6 +774,12 @@ service cloud.firestore {
       let data = request.resource.data;
       return validBusinessCreate(companyId, data)
         && salesReturnFieldsAreValid(companyId, returnId, data)
+        && configuredDocumentNumberMatches(
+          companyId,
+          data.returnNumber,
+          'salesReturnPrefix',
+          'RET'
+        )
         && salesReturnSourceInvoiceIsAllowed(companyId, data)
         && data.createdAt == request.time
         && data.updatedAt == request.time
@@ -829,7 +881,9 @@ service cloud.firestore {
         ])
         && data.id == quotationId
         && data.companyId == companyId
-        && data.quotationNumber.matches('^QUO-[0-9]{4}-[0-9]{6}$')
+        && data.quotationNumber.matches(
+          '^[A-Z0-9]{1,10}-[0-9]{4}-[0-9]{6}$'
+        )
         && data.quotationDate is timestamp
         && data.validUntil is timestamp
         && data.validUntil >= data.quotationDate
@@ -891,6 +945,12 @@ service cloud.firestore {
       let data = request.resource.data;
       return validBusinessCreate(companyId, data)
         && quotationFieldsAreValid(companyId, quotationId, data)
+        && configuredDocumentNumberMatches(
+          companyId,
+          data.quotationNumber,
+          'quotationPrefix',
+          'QUO'
+        )
         && quotationCustomerIsAllowed(companyId, data)
         && data.status == 'draft'
         && data.convertedInvoiceId == ''
@@ -950,7 +1010,12 @@ service cloud.firestore {
         ])
         && request.resource.data.convertedInvoiceId is string
         && request.resource.data.convertedInvoiceId.size() > 0
-        && request.resource.data.convertedInvoiceNumber.matches('^INV-[0-9]{4}-[0-9]{6}$')
+        && configuredDocumentNumberMatches(
+          companyId,
+          request.resource.data.convertedInvoiceNumber,
+          'invoicePrefix',
+          'INV'
+        )
         && request.resource.data.updatedAt == request.time
         && canReadOwnedBusinessDoc(companyId, resource.data)
         && quotationIdentityPreserved()
@@ -989,19 +1054,39 @@ service cloud.firestore {
         && (
           (
             counterId.matches('^invoices_[0-9]{4}$')
-            && request.resource.data.prefix == 'INV'
+            && configuredPrefixMatches(
+              companyId,
+              request.resource.data.prefix,
+              'invoicePrefix',
+              'INV'
+            )
           )
           || (
             counterId.matches('^receipts_[0-9]{4}$')
-            && request.resource.data.prefix == 'REC'
+            && configuredPrefixMatches(
+              companyId,
+              request.resource.data.prefix,
+              'receiptPrefix',
+              'REC'
+            )
           )
           || (
             counterId.matches('^sales_returns_[0-9]{4}$')
-            && request.resource.data.prefix == 'RET'
+            && configuredPrefixMatches(
+              companyId,
+              request.resource.data.prefix,
+              'salesReturnPrefix',
+              'RET'
+            )
           )
           || (
             counterId.matches('^quotations_[0-9]{4}$')
-            && request.resource.data.prefix == 'QUO'
+            && configuredPrefixMatches(
+              companyId,
+              request.resource.data.prefix,
+              'quotationPrefix',
+              'QUO'
+            )
           )
         );
     }
@@ -1075,6 +1160,12 @@ service cloud.firestore {
 
       allow create: if validBusinessCreate(companyId, request.resource.data)
         && request.resource.data.id == invoiceId
+        && configuredDocumentNumberMatches(
+          companyId,
+          request.resource.data.invoiceNumber,
+          'invoicePrefix',
+          'INV'
+        )
         && (
           isActiveAdmin()
           || request.resource.data.salesRepId == request.auth.uid
@@ -1111,6 +1202,12 @@ service cloud.firestore {
 
       allow create: if validBusinessCreate(companyId, request.resource.data)
         && request.resource.data.id == receiptId
+        && configuredDocumentNumberMatches(
+          companyId,
+          request.resource.data.receiptNumber,
+          'receiptPrefix',
+          'REC'
+        )
         && request.resource.data.salesRepId == request.auth.uid
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;

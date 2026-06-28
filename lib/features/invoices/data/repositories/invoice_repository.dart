@@ -3,12 +3,15 @@ import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:fatoora/core/settings/business_settings_defaults.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/invoices/data/services/jofotara_placeholder_service.dart';
 import 'package:fatoora/features/items/data/models/item_model.dart';
+import 'package:fatoora/features/settings/data/models/app_settings_model.dart';
+import 'package:fatoora/features/settings/data/models/document_settings_model.dart';
 import 'package:fatoora/features/shared/business/business_user_context.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -109,6 +112,14 @@ class InvoiceRepository {
         .doc(companyId)
         .collection('counters')
         .doc('invoices_$year');
+  }
+
+  DocumentReference<Map<String, dynamic>> _appSettings(String companyId) {
+    return _firestore
+        .collection('companies')
+        .doc(companyId)
+        .collection('settings')
+        .doc('app');
   }
 
   Future<List<InvoiceModel>> getInvoices({
@@ -495,6 +506,14 @@ class InvoiceRepository {
     required DateTime invoiceDate,
   }) async {
     final year = invoiceDate.year;
+    final settingsSnapshot = await transaction.get(_appSettings(companyId));
+    final documents = AppSettingsModel.fromMap(
+      settingsSnapshot.data(),
+    ).documentSettings;
+    final prefix = BusinessSettingsDefaults.prefix(
+      documents.invoicePrefix,
+      DocumentSettingsModel.defaults.invoicePrefix,
+    );
     final counterRef = _invoiceCounter(companyId, year);
     final counter = await transaction.get(counterRef);
     final current = counter.data()?['lastNumber'];
@@ -504,11 +523,15 @@ class InvoiceRepository {
       'companyId': companyId,
       'year': year,
       'lastNumber': next,
-      'prefix': 'INV',
+      'prefix': prefix,
       'updatedAt': FieldValue.serverTimestamp(),
     };
     return _InvoiceNumberAllocation(
-      number: 'INV-$year-${next.toString().padLeft(6, '0')}',
+      number: BusinessSettingsDefaults.documentNumber(
+        prefix: prefix,
+        year: year,
+        sequence: next,
+      ),
       counterRef: counterRef,
       counterData: data,
     );
