@@ -13,6 +13,7 @@ class AppRoute {
   static const String adminUsers = "/admin/users";
   static const String pendingUsers = "/admin/users/pending";
   static const String salesReps = "/admin/users/sales-reps";
+  static const String adminSalesRepDetails = "/admin/sales-reps/details";
 
   static const String customers = "/customers";
   static const String createCustomer = "/create-customer";

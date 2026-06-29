@@ -1,12 +1,12 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/admin_dashboard/controller/admin_dashboard_controller.dart';
+import 'package:fatoora/features/admin_dashboard/view/widgets/admin_welcome_card.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_alerts_card.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_stat_card.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/invoice_line_chart.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/invoice_summary_card.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/latest_invoices_card.dart';
-import 'package:fatoora/features/admin_dashboard/view/widgets/quick_actions_card.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/sales_by_rep_card.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/top_customers_card.dart';
 import 'package:flutter/material.dart';
@@ -37,7 +37,7 @@ class AdminDashboardContent extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _DashboardWelcome(),
+                    const AdminWelcomeCard(),
                     const SizedBox(height: 22),
                     if (MediaQuery.sizeOf(context).width < 600) ...[
                       TextField(
@@ -47,19 +47,7 @@ class AdminDashboardContent extends StatelessWidget {
                           hintText: 'dashboard_search_hint'.tr,
                           prefixIcon: const Icon(Icons.search_rounded),
                           filled: true,
-                          fillColor: AppColor.surface,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFE1E5ED),
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFE1E5ED),
-                            ),
-                          ),
+                          fillColor: context.appSurface,
                         ),
                       ),
                       const SizedBox(height: 18),
@@ -76,24 +64,20 @@ class AdminDashboardContent extends StatelessWidget {
                     const SizedBox(height: 18),
                     _ResponsivePair(
                       desktopHeight: 430,
-                      first: QuickActionsCard(),
-                      second: InvoiceSummaryCard(),
+                      first: InvoiceSummaryCard(),
+                      second: TopCustomersCard(),
                     ),
                     const SizedBox(height: 18),
                     SalesByRepCard(),
                     const SizedBox(height: 18),
-                    _ResponsivePair(
-                      desktopHeight: 310,
-                      first: TopCustomersCard(),
-                      second: DashboardAlertsCard(),
-                    ),
+                    DashboardAlertsCard(),
                     const SizedBox(height: 20),
                     Text(
                       'dashboard_footer'.tr,
                       textAlign: TextAlign.center,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: AppColor.grey),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.appMutedText,
+                      ),
                     ),
                     const SizedBox(height: 6),
                   ],
@@ -107,111 +91,6 @@ class AdminDashboardContent extends StatelessWidget {
   }
 }
 
-class _DashboardWelcome extends StatelessWidget {
-  const _DashboardWelcome();
-
-  @override
-  Widget build(BuildContext context) {
-    final controller = Get.find<AdminDashboardController>();
-    final compact = MediaQuery.sizeOf(context).width < 650;
-    final title = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'dashboard_welcome'.trParams({'name': controller.adminName}),
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            color: AppColor.secondaryColor,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          'dashboard_daily_summary'.tr,
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: AppColor.grey),
-        ),
-      ],
-    );
-    final controls = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppColor.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE1E5ED)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.calendar_today_outlined,
-                size: 17,
-                color: AppColor.primaryColor,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                MaterialLocalizations.of(
-                  context,
-                ).formatMediumDate(DateTime.now()),
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: AppColor.secondaryColor,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        GetBuilder<AdminDashboardController>(
-          builder: (controller) => IconButton.filled(
-            tooltip: 'dashboard_refresh'.tr,
-            onPressed: controller.isRefreshing
-                ? null
-                : controller.refreshDashboard,
-            style: IconButton.styleFrom(
-              backgroundColor: AppColor.primaryColor,
-              foregroundColor: AppColor.surface,
-            ),
-            icon: controller.isRefreshing
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColor.surface,
-                    ),
-                  )
-                : const Icon(Icons.refresh_rounded),
-          ),
-        ),
-      ],
-    );
-
-    return compact
-        ? Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              title,
-              const SizedBox(height: 16),
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: controls,
-              ),
-            ],
-          )
-        : Row(
-            children: [
-              Expanded(child: title),
-              const SizedBox(width: 18),
-              controls,
-            ],
-          );
-  }
-}
-
 class _StatsGrid extends StatelessWidget {
   const _StatsGrid();
 
@@ -220,8 +99,10 @@ class _StatsGrid extends StatelessWidget {
     final stats = Get.find<AdminDashboardController>().stats;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 820
-            ? 4
+        final columns = constraints.maxWidth >= 1200
+            ? 5
+            : constraints.maxWidth >= 820
+            ? 3
             : constraints.maxWidth >= 560
             ? 2
             : 1;

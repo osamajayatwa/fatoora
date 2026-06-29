@@ -1,6 +1,7 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/widgets/fatoora_app_bar.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/auth/utils/auth_session.dart';
 import 'package:fatoora/features/financial/controllers/sales_rep_dashboard_controller.dart';
@@ -20,9 +21,10 @@ class HomeScreen extends StatelessWidget {
 
     return GetBuilder<SalesRepDashboardController>(
       builder: (controller) => Scaffold(
-        backgroundColor: AppColor.background,
-        appBar: AppBar(
-          title: Text('home_title'.tr),
+        backgroundColor: context.appBackground,
+        appBar: FatooraAppBar(
+          title: 'home_title'.tr,
+          subtitle: 'financial_sales_rep_summary'.tr,
           actions: [
             IconButton(
               tooltip: 'settings'.tr,
@@ -98,7 +100,7 @@ class _WelcomeCard extends StatelessWidget {
               Text(
                 'home_welcome_admin'.trParams({'name': name}),
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: AppColor.secondaryColor,
+                  color: context.appText,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -107,7 +109,7 @@ class _WelcomeCard extends StatelessWidget {
                 'financial_sales_rep_summary'.tr,
                 style: Theme.of(
                   context,
-                ).textTheme.bodyMedium?.copyWith(color: AppColor.grey),
+                ).textTheme.bodyMedium?.copyWith(color: context.appMutedText),
               ),
             ],
           );
@@ -149,7 +151,7 @@ class _HighlightAmount extends StatelessWidget {
           labelKey.tr,
           style: Theme.of(
             context,
-          ).textTheme.labelMedium?.copyWith(color: AppColor.grey),
+          ).textTheme.labelMedium?.copyWith(color: context.appMutedText),
         ),
         const SizedBox(height: 4),
         Text(
@@ -367,7 +369,7 @@ class _RecentInvoices extends StatelessWidget {
           Text(
             'dashboard_latest_invoices'.tr,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppColor.secondaryColor,
+              color: context.appText,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -396,7 +398,7 @@ class _RecentReceipts extends StatelessWidget {
           Text(
             'financial_recent_receipts'.tr,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppColor.secondaryColor,
+              color: context.appText,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -475,7 +477,7 @@ class _ActivityLine extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColor.secondaryColor,
+                    color: context.appText,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -483,7 +485,7 @@ class _ActivityLine extends StatelessWidget {
                   subtitle,
                   style: Theme.of(
                     context,
-                  ).textTheme.labelSmall?.copyWith(color: AppColor.grey),
+                  ).textTheme.labelSmall?.copyWith(color: context.appMutedText),
                 ),
               ],
             ),
@@ -491,7 +493,7 @@ class _ActivityLine extends StatelessWidget {
           Text(
             amount,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: AppColor.secondaryColor,
+              color: context.appText,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -532,9 +534,9 @@ class _StatTile extends StatelessWidget {
                     data.titleKey.tr,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.labelMedium?.copyWith(color: AppColor.grey),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: context.appMutedText,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -542,7 +544,7 @@ class _StatTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColor.secondaryColor,
+                      color: context.appText,
                       fontWeight: FontWeight.w900,
                     ),
                   ),

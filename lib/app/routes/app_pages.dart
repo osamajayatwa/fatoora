@@ -29,6 +29,7 @@ import 'package:fatoora/features/inventory/view/screens/item_stock_details_scree
 import 'package:fatoora/features/inventory/view/screens/stock_movements_screen.dart';
 import 'package:fatoora/features/admin_dashboard/binding/admin_dashboard_binding.dart';
 import 'package:fatoora/features/admin_dashboard/view/screen/admin_home_screen.dart';
+import 'package:fatoora/features/admin_dashboard/view/screen/admin_sales_rep_details_screen.dart';
 import 'package:fatoora/features/admin_dashboard/view/screen/admin_section_screen.dart';
 import 'package:fatoora/features/financial/bindings/financial_binding.dart';
 import 'package:fatoora/features/financial/view/screens/cash_movements_screen.dart';
@@ -124,6 +125,12 @@ List<GetPage<dynamic>> routes = [
     name: AppRoute.salesReps,
     page: () => const AdminUsersScreen(initialTab: 1),
     binding: AdminUsersBinding(),
+    middlewares: [AdminMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.adminSalesRepDetails,
+    page: () => const AdminSalesRepDetailsScreen(),
+    binding: AdminDashboardBinding(),
     middlewares: [AdminMiddleware()],
   ),
   GetPage(

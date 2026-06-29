@@ -32,7 +32,7 @@ class AdminSectionScreen extends StatelessWidget {
                 Text(
                   titleKey.tr,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: AppColor.secondaryColor,
+                    color: context.appText,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -46,7 +46,9 @@ class AdminSectionScreen extends StatelessWidget {
                           width: 82,
                           height: 82,
                           decoration: BoxDecoration(
-                            color: AppColor.primaryLight.withValues(alpha: 0.6),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(24),
                           ),
                           child: Icon(
@@ -61,7 +63,7 @@ class AdminSectionScreen extends StatelessWidget {
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(
-                                color: AppColor.secondaryColor,
+                                color: context.appText,
                                 fontWeight: FontWeight.w700,
                               ),
                         ),
@@ -70,7 +72,7 @@ class AdminSectionScreen extends StatelessWidget {
                           descriptionKey.tr,
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: AppColor.grey),
+                              ?.copyWith(color: context.appMutedText),
                         ),
                       ],
                     ),

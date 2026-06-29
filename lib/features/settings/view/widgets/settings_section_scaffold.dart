@@ -104,10 +104,10 @@ class _SectionContent extends StatelessWidget {
               Card(
                 margin: EdgeInsets.zero,
                 elevation: 0,
-                color: AppColor.surface,
+                color: context.appSurface,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(18),
-                  side: const BorderSide(color: Color(0xFFE7EAF0)),
+                  side: BorderSide(color: context.appBorder),
                 ),
                 child: Padding(
                   padding: EdgeInsets.all(compact ? 16 : 24),
@@ -155,7 +155,9 @@ class _PageHeader extends StatelessWidget {
           width: 46,
           height: 46,
           decoration: BoxDecoration(
-            color: AppColor.primaryLight.withValues(alpha: 0.65),
+            color: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(13),
           ),
           child: Icon(icon, color: AppColor.primaryColor),
@@ -168,7 +170,7 @@ class _PageHeader extends StatelessWidget {
               Text(
                 title,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: AppColor.secondaryColor,
+                  color: context.appText,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -177,7 +179,7 @@ class _PageHeader extends StatelessWidget {
                 subtitle,
                 style: Theme.of(
                   context,
-                ).textTheme.bodyMedium?.copyWith(color: AppColor.grey),
+                ).textTheme.bodyMedium?.copyWith(color: context.appMutedText),
               ),
             ],
           ),

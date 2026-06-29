@@ -25,13 +25,24 @@ class AppPreferencesForm extends StatelessWidget {
             onChanged: controller.setLanguage,
           ),
           const SizedBox(height: 12),
-          TextFormField(
-            initialValue: 'settings_theme_system'.tr,
-            enabled: false,
-            decoration: InputDecoration(
-              labelText: 'settings_theme'.tr,
-              helperText: 'settings_theme_todo'.tr,
-            ),
+          DropdownButtonFormField<String>(
+            value: controller.themeMode,
+            decoration: InputDecoration(labelText: 'settings_theme'.tr),
+            items: [
+              DropdownMenuItem(
+                value: 'system',
+                child: Text('settings_theme_system'.tr),
+              ),
+              DropdownMenuItem(
+                value: 'light',
+                child: Text('settings_theme_light'.tr),
+              ),
+              DropdownMenuItem(
+                value: 'dark',
+                child: Text('settings_theme_dark'.tr),
+              ),
+            ],
+            onChanged: controller.setThemeMode,
           ),
           const SizedBox(height: 12),
           TextFormField(
@@ -64,7 +75,7 @@ class AppPreferencesForm extends StatelessWidget {
                       dimension: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: AppColor.surface,
+                        color: Colors.white,
                       ),
                     )
                   : const Icon(Icons.tune_rounded),

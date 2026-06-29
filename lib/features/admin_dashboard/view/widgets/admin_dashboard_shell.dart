@@ -14,7 +14,7 @@ class AdminDashboardShell extends StatelessWidget {
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 1080;
         return Scaffold(
-          backgroundColor: AppColor.background,
+          backgroundColor: context.appBackground,
           drawer: compact
               ? const Drawer(
                   width: 286,

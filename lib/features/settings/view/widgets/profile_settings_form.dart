@@ -64,7 +64,7 @@ class ProfileSettingsForm extends StatelessWidget {
                       dimension: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: AppColor.surface,
+                        color: Colors.white,
                       ),
                     )
                   : const Icon(Icons.person_outline_rounded),

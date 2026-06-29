@@ -58,7 +58,7 @@ class TopCustomersCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColor.secondaryColor,
+                        color: context.appText,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -70,15 +70,15 @@ class TopCustomersCard extends StatelessWidget {
                       Text(
                         customers[index].amount,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColor.secondaryColor,
+                          color: context.appText,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       Text(
                         'dashboard_jod'.tr,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.labelSmall?.copyWith(color: AppColor.grey),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: context.appMutedText,
+                        ),
                       ),
                     ],
                   ),

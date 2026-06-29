@@ -65,9 +65,9 @@ class InvoiceLineChartCard extends StatelessWidget {
                     child: Text(
                       key.tr,
                       textAlign: TextAlign.center,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.labelSmall?.copyWith(color: AppColor.grey),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: context.appMutedText,
+                      ),
                     ),
                   ),
                 )

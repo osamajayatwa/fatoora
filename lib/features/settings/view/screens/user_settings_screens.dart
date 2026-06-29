@@ -139,7 +139,7 @@ class _InfoRow extends StatelessWidget {
               label,
               style: Theme.of(
                 context,
-              ).textTheme.bodyMedium?.copyWith(color: AppColor.grey),
+              ).textTheme.bodyMedium?.copyWith(color: context.appMutedText),
             ),
           ),
           const SizedBox(width: 16),
@@ -148,7 +148,7 @@ class _InfoRow extends StatelessWidget {
               value,
               textAlign: TextAlign.end,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColor.secondaryColor,
+                color: context.appText,
                 fontWeight: FontWeight.w800,
               ),
             ),

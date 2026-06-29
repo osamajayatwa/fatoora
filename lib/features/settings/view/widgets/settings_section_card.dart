@@ -33,7 +33,9 @@ class SettingsSectionCard extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: AppColor.primaryLight.withValues(alpha: 0.65),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: AppColor.primaryColor),
@@ -46,7 +48,7 @@ class SettingsSectionCard extends StatelessWidget {
                     Text(
                       title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppColor.secondaryColor,
+                        color: context.appText,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -54,9 +56,9 @@ class SettingsSectionCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         subtitle!,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodySmall?.copyWith(color: AppColor.grey),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.appMutedText,
+                        ),
                       ),
                     ],
                   ],
@@ -73,11 +75,11 @@ class SettingsSectionCard extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       elevation: 0,
-      color: AppColor.surface,
+      color: context.appSurface,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFE7EAF0)),
+        side: BorderSide(color: context.appBorder),
       ),
       child: onTap == null ? content : InkWell(onTap: onTap, child: content),
     );

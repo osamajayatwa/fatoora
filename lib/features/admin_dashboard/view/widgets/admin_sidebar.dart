@@ -72,7 +72,7 @@ class AdminSidebar extends StatelessWidget {
     return GetBuilder<AdminDashboardController>(
       builder: (controller) {
         return ColoredBox(
-          color: AppColor.surface,
+          color: context.appSurface,
           child: SafeArea(
             child: Column(
               children: [
@@ -89,7 +89,7 @@ class AdminSidebar extends StatelessWidget {
                         ),
                         child: const Icon(
                           Icons.receipt_long_rounded,
-                          color: AppColor.surface,
+                          color: Colors.white,
                           size: 25,
                         ),
                       ),
@@ -102,14 +102,14 @@ class AdminSidebar extends StatelessWidget {
                               'fatoora'.tr,
                               style: Theme.of(context).textTheme.titleLarge
                                   ?.copyWith(
-                                    color: AppColor.secondaryColor,
+                                    color: context.appText,
                                     fontWeight: FontWeight.w800,
                                   ),
                             ),
                             Text(
                               'dashboard_management_system'.tr,
                               style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(color: AppColor.grey),
+                                  ?.copyWith(color: context.appMutedText),
                             ),
                           ],
                         ),
@@ -117,7 +117,7 @@ class AdminSidebar extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Divider(height: 1, color: Color(0xFFECEEF3)),
+                Divider(height: 1, color: context.appBorder),
                 Expanded(
                   child: ListView.separated(
                     padding: const EdgeInsets.symmetric(
@@ -189,7 +189,7 @@ class AdminSidebar extends StatelessWidget {
                     },
                   ),
                 ),
-                const Divider(height: 1, color: Color(0xFFECEEF3)),
+                Divider(height: 1, color: context.appBorder),
                 Padding(
                   padding: const EdgeInsets.all(14),
                   child: _SidebarTile(
@@ -233,8 +233,8 @@ class _SidebarTile extends StatelessWidget {
     final foreground = danger
         ? AppColor.error
         : selected
-        ? AppColor.surface
-        : AppColor.secondaryColor;
+        ? Colors.white
+        : context.appText;
     return Material(
       color: selected ? AppColor.primaryColor : Colors.transparent,
       borderRadius: BorderRadius.circular(13),

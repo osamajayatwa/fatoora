@@ -114,7 +114,7 @@ class _AdminEditableSettingsScreen extends StatelessWidget {
                           dimension: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: AppColor.surface,
+                            color: Colors.white,
                           ),
                         )
                       : const Icon(Icons.save_outlined),

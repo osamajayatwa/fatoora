@@ -13,7 +13,7 @@ class JofotaraStatusCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColor.background,
+        color: context.appSurfaceMuted,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -21,13 +21,13 @@ class JofotaraStatusCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.lock_outline_rounded, color: AppColor.grey),
+              Icon(Icons.lock_outline_rounded, color: context.appMutedText),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'settings_jofotara_disabled'.tr,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: AppColor.secondaryColor,
+                    color: context.appText,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -40,7 +40,7 @@ class JofotaraStatusCard extends StatelessWidget {
             'settings_jofotara_placeholder'.tr,
             style: Theme.of(
               context,
-            ).textTheme.bodySmall?.copyWith(color: AppColor.grey),
+            ).textTheme.bodySmall?.copyWith(color: context.appMutedText),
           ),
           const SizedBox(height: 8),
           Text(

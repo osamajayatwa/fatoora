@@ -13,12 +13,13 @@ class AdminDashboardHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.find<AdminDashboardController>();
     final localeController = Get.find<LocaleController>();
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       height: 82,
       padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 24),
-      decoration: const BoxDecoration(
-        color: AppColor.surface,
-        border: Border(bottom: BorderSide(color: Color(0xFFE8EBF1))),
+      decoration: BoxDecoration(
+        color: context.appSurface,
+        border: Border(bottom: BorderSide(color: context.appBorder)),
       ),
       child: Row(
         children: [
@@ -28,7 +29,7 @@ class AdminDashboardHeader extends StatelessWidget {
                 tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
                 onPressed: () => Scaffold.of(context).openDrawer(),
                 icon: const Icon(Icons.menu_rounded),
-                color: AppColor.secondaryColor,
+                color: context.appText,
               ),
             ),
           if (compact) const SizedBox(width: 4),
@@ -37,7 +38,7 @@ class AdminDashboardHeader extends StatelessWidget {
               child: Text(
                 'fatoora'.tr,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppColor.secondaryColor,
+                  color: context.appText,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -53,40 +54,62 @@ class AdminDashboardHeader extends StatelessWidget {
                     hintText: 'dashboard_search_hint'.tr,
                     prefixIcon: const Icon(Icons.search_rounded),
                     filled: true,
-                    fillColor: const Color(0xFFFAFBFD),
+                    fillColor: context.appSurfaceMuted,
                     contentPadding: const EdgeInsets.symmetric(vertical: 12),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: Color(0xFFE1E5ED)),
+                      borderSide: BorderSide(color: context.appBorder),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: Color(0xFFE1E5ED)),
+                      borderSide: BorderSide(color: context.appBorder),
                     ),
                   ),
                 ),
               ),
             ),
           if (!compact) const SizedBox(width: 18),
-          Obx(
-            () => TextButton.icon(
+          Obx(() {
+            if (compact) {
+              return IconButton(
+                tooltip: localeController.isRtl ? 'English' : 'العربية',
+                onPressed: controller.toggleLanguage,
+                icon: const Icon(Icons.language_rounded),
+              );
+            }
+            return TextButton.icon(
               onPressed: controller.toggleLanguage,
               icon: const Icon(Icons.language_rounded, size: 19),
               label: Text(localeController.isRtl ? 'English' : 'العربية'),
               style: TextButton.styleFrom(
-                foregroundColor: AppColor.secondaryColor,
+                foregroundColor: context.appText,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 10,
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: const BorderSide(color: Color(0xFFE1E5ED)),
+                  side: BorderSide(color: context.appBorder),
                 ),
               ),
+            );
+          }),
+          const SizedBox(width: 8),
+          IconButton(
+            tooltip: Theme.of(context).brightness == Brightness.dark
+                ? 'settings_theme_light'.tr
+                : 'settings_theme_dark'.tr,
+            onPressed: () => localeController.changeThemeMode(
+              Theme.of(context).brightness == Brightness.dark
+                  ? 'light'
+                  : 'dark',
+            ),
+            icon: Icon(
+              Theme.of(context).brightness == Brightness.dark
+                  ? Icons.light_mode_outlined
+                  : Icons.dark_mode_outlined,
             ),
           ),
-          const SizedBox(width: 8),
           Stack(
             clipBehavior: Clip.none,
             children: [
@@ -94,7 +117,7 @@ class AdminDashboardHeader extends StatelessWidget {
                 tooltip: 'dashboard_notifications'.tr,
                 onPressed: controller.showNotifications,
                 icon: const Icon(Icons.notifications_none_rounded),
-                color: AppColor.secondaryColor,
+                color: context.appText,
               ),
               PositionedDirectional(
                 top: 6,
@@ -112,15 +135,15 @@ class AdminDashboardHeader extends StatelessWidget {
           ),
           if (!compact) ...[
             const SizedBox(width: 10),
-            Container(width: 1, height: 34, color: const Color(0xFFE4E7ED)),
+            Container(width: 1, height: 34, color: context.appBorder),
             const SizedBox(width: 14),
             CircleAvatar(
               radius: 20,
-              backgroundColor: AppColor.primaryLight,
+              backgroundColor: scheme.primary.withValues(alpha: .13),
               child: Text(
                 _initials(controller.adminName),
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: AppColor.primaryDark,
+                  color: scheme.primary,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -137,15 +160,15 @@ class AdminDashboardHeader extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColor.secondaryColor,
+                      color: context.appText,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   Text(
                     'dashboard_admin'.tr,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.labelSmall?.copyWith(color: AppColor.grey),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: context.appMutedText,
+                    ),
                   ),
                 ],
               ),

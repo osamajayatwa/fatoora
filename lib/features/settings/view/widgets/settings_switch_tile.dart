@@ -22,7 +22,7 @@ class SettingsSwitchTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: AppColor.background,
+        color: context.appSurfaceMuted,
         borderRadius: BorderRadius.circular(13),
       ),
       child: SwitchListTile.adaptive(
@@ -30,7 +30,7 @@ class SettingsSwitchTile extends StatelessWidget {
         title: Text(
           title,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: enabled ? AppColor.secondaryColor : AppColor.grey,
+            color: enabled ? context.appText : context.appMutedText,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -40,7 +40,7 @@ class SettingsSwitchTile extends StatelessWidget {
                 subtitle!,
                 style: Theme.of(
                   context,
-                ).textTheme.bodySmall?.copyWith(color: AppColor.grey),
+                ).textTheme.bodySmall?.copyWith(color: context.appMutedText),
               ),
         value: value,
         onChanged: enabled ? onChanged : null,

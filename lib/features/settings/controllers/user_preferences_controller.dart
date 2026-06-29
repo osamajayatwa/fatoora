@@ -55,6 +55,11 @@ class UserPreferencesController extends GetxController {
         ? localLanguage!
         : preferences.language;
     themeMode = preferences.themeMode;
+    if (Get.isRegistered<LocaleController>()) {
+      final localeController = Get.find<LocaleController>();
+      localeController.changeLang(language, save: false);
+      localeController.changeThemeMode(themeMode, save: false);
+    }
     if (!isClosed) update();
   }
 
@@ -64,6 +69,15 @@ class UserPreferencesController extends GetxController {
       return;
     }
     language = value;
+    update();
+  }
+
+  void setThemeMode(String? value) {
+    if (value == null ||
+        !UserPreferencesModel.supportedThemeModes.contains(value)) {
+      return;
+    }
+    themeMode = value;
     update();
   }
 
@@ -128,8 +142,11 @@ class UserPreferencesController extends GetxController {
       await _repository.updateUserPreferences(current.uid, next);
       preferences = next;
       await _myServices.sharedPreferences.setString('lang', language);
+      await _myServices.sharedPreferences.setString('themeMode', themeMode);
       if (Get.isRegistered<LocaleController>()) {
-        Get.find<LocaleController>().changeLang(language, save: false);
+        final localeController = Get.find<LocaleController>();
+        localeController.changeLang(language, save: false);
+        localeController.changeThemeMode(themeMode, save: false);
       }
       _show('settings_preferences_updated', AppColor.success);
     } catch (error) {

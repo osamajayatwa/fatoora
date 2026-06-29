@@ -54,7 +54,7 @@ class _SettingsMenu extends StatelessWidget {
               Text(
                 'settings'.tr,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: AppColor.secondaryColor,
+                  color: context.appText,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -63,7 +63,7 @@ class _SettingsMenu extends StatelessWidget {
                 'settings_main_subtitle'.tr,
                 style: Theme.of(
                   context,
-                ).textTheme.bodyMedium?.copyWith(color: AppColor.grey),
+                ).textTheme.bodyMedium?.copyWith(color: context.appMutedText),
               ),
               const SizedBox(height: 20),
               LayoutBuilder(
@@ -115,7 +115,7 @@ class _SettingsMenuCard extends StatelessWidget {
           message: 'settings_open_section'.tr,
           child: Icon(
             rtl ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
-            color: AppColor.grey,
+            color: context.appMutedText,
           ),
         ),
       ),

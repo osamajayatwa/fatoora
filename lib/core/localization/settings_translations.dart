@@ -25,7 +25,7 @@ const Map<String, String> settingsEnglishTranslations = {
   'settings_profile_subtitle':
       'Update your name, phone number, and profile photo URL.',
   'settings_preferences_subtitle':
-      'Choose app language and personal document notes.',
+      'Choose app language, theme, and personal document notes.',
   'settings_account_subtitle':
       'Review your role, account status, app version, or log out.',
   'settings_open_section': 'Open section',
@@ -102,8 +102,9 @@ const Map<String, String> settingsEnglishTranslations = {
   'settings_photo_upload_todo': 'Photo upload is not included in Stage 1.',
   'settings_language': 'Language',
   'settings_theme': 'Theme',
-  'settings_theme_system': 'Current app theme',
-  'settings_theme_todo': 'Theme switching is not implemented yet.',
+  'settings_theme_system': 'Follow system',
+  'settings_theme_light': 'Light mode',
+  'settings_theme_dark': 'Dark mode',
   'settings_default_invoice_note': 'Default personal invoice note',
   'settings_default_receipt_note': 'Default personal receipt note',
   'settings_role': 'Role',
@@ -161,7 +162,7 @@ const Map<String, String> settingsArabicTranslations = {
   'settings_jofotara_subtitle': 'عرض الحالة الحالية لتكامل الفوترة الأردنية.',
   'settings_profile_subtitle': 'تحديث الاسم ورقم الهاتف ورابط الصورة الشخصية.',
   'settings_preferences_subtitle':
-      'اختيار لغة التطبيق والملاحظات الشخصية الافتراضية للمستندات.',
+      'اختيار لغة التطبيق ومظهره والملاحظات الشخصية الافتراضية للمستندات.',
   'settings_account_subtitle':
       'مراجعة الدور وحالة الحساب وإصدار التطبيق أو تسجيل الخروج.',
   'settings_open_section': 'فتح القسم',
@@ -236,8 +237,9 @@ const Map<String, String> settingsArabicTranslations = {
   'settings_photo_upload_todo': 'رفع الصور غير مشمول في المرحلة الأولى.',
   'settings_language': 'اللغة',
   'settings_theme': 'المظهر',
-  'settings_theme_system': 'مظهر التطبيق الحالي',
-  'settings_theme_todo': 'تبديل المظهر غير مطبق حالياً.',
+  'settings_theme_system': 'اتباع إعداد النظام',
+  'settings_theme_light': 'الوضع الفاتح',
+  'settings_theme_dark': 'الوضع الداكن',
   'settings_default_invoice_note': 'ملاحظة الفاتورة الشخصية الافتراضية',
   'settings_default_receipt_note': 'ملاحظة سند القبض الشخصية الافتراضية',
   'settings_role': 'الدور',

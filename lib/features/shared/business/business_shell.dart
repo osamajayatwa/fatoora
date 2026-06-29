@@ -1,5 +1,6 @@
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/widgets/fatoora_app_bar.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/admin_dashboard_shell.dart';
 import 'package:flutter/material.dart';
@@ -28,19 +29,11 @@ class BusinessShell extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: AppColor.background,
-      appBar: AppBar(
-        title: Text(title),
-        leading: showBackButton
-            ? IconButton(
-                onPressed: onBack ?? Get.back<void>,
-                icon: Icon(
-                  Directionality.of(context) == TextDirection.rtl
-                      ? Icons.arrow_forward_rounded
-                      : Icons.arrow_back_rounded,
-                ),
-              )
-            : null,
+      backgroundColor: context.appBackground,
+      appBar: FatooraAppBar(
+        title: title,
+        showBackButton: showBackButton,
+        onBack: onBack,
       ),
       body: SafeArea(child: child),
     );

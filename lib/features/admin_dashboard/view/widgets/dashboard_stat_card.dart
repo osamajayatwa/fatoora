@@ -24,7 +24,7 @@ class DashboardStatCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColor.secondaryColor,
+                    color: context.appText,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -44,7 +44,7 @@ class DashboardStatCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Icon(stat.icon, color: AppColor.surface, size: 25),
+                child: Icon(stat.icon, color: Colors.white, size: 25),
               ),
             ],
           ),
@@ -53,7 +53,7 @@ class DashboardStatCard extends StatelessWidget {
             stat.value,
             maxLines: 1,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: const Color(0xFF17213B),
+              color: context.appText,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -62,7 +62,7 @@ class DashboardStatCard extends StatelessWidget {
             stat.captionKey.tr,
             style: Theme.of(
               context,
-            ).textTheme.bodySmall?.copyWith(color: AppColor.grey),
+            ).textTheme.bodySmall?.copyWith(color: context.appMutedText),
           ),
           const Spacer(),
           Row(
@@ -87,7 +87,7 @@ class DashboardStatCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(
                     context,
-                  ).textTheme.bodySmall?.copyWith(color: AppColor.grey),
+                  ).textTheme.bodySmall?.copyWith(color: context.appMutedText),
                 ),
               ),
             ],

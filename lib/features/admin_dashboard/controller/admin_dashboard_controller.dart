@@ -137,19 +137,9 @@ class AdminDashboardController extends GetxController {
       route: AppRoute.createInvoice,
     ),
     DashboardQuickAction(
-      labelKey: 'financial_receivables',
-      icon: Icons.account_balance_outlined,
-      route: AppRoute.receivables,
-    ),
-    DashboardQuickAction(
-      labelKey: 'financial_cash',
-      icon: Icons.account_balance_wallet_outlined,
-      route: AppRoute.cashMovements,
-    ),
-    DashboardQuickAction(
-      labelKey: 'dashboard_new_receipt',
-      icon: Icons.receipt_outlined,
-      route: AppRoute.createReceipt,
+      labelKey: 'dashboard_new_quotation',
+      icon: Icons.request_quote_outlined,
+      route: AppRoute.createQuotation,
     ),
     DashboardQuickAction(
       labelKey: 'dashboard_new_customer',
@@ -162,14 +152,24 @@ class AdminDashboardController extends GetxController {
       route: AppRoute.createItem,
     ),
     DashboardQuickAction(
-      labelKey: 'admin_users',
-      icon: Icons.manage_accounts_outlined,
-      route: AppRoute.adminUsers,
+      labelKey: 'dashboard_record_payment',
+      icon: Icons.payments_outlined,
+      route: AppRoute.createReceipt,
     ),
     DashboardQuickAction(
-      labelKey: 'dashboard_open_settings',
-      icon: Icons.settings_outlined,
-      route: AppRoute.settings,
+      labelKey: 'dashboard_view_invoices',
+      icon: Icons.receipt_long_outlined,
+      route: AppRoute.invoices,
+    ),
+    DashboardQuickAction(
+      labelKey: 'dashboard_view_returns',
+      icon: Icons.assignment_return_outlined,
+      route: AppRoute.salesReturns,
+    ),
+    DashboardQuickAction(
+      labelKey: 'dashboard_view_quotations',
+      icon: Icons.format_quote_outlined,
+      route: AppRoute.quotations,
     ),
   ];
 
@@ -290,6 +290,10 @@ class AdminDashboardController extends GetxController {
   void navigateTo(String route) {
     if (Get.currentRoute == route) return;
     Get.toNamed(route);
+  }
+
+  void openSalesRepDetails(FinancialRepSalesSummary row) {
+    Get.toNamed(AppRoute.adminSalesRepDetails, arguments: row);
   }
 
   void showNotifications() {

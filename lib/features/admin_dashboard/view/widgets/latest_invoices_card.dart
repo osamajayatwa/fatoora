@@ -33,10 +33,10 @@ class LatestInvoicesCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 60),
                   child: Column(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.search_off_rounded,
                         size: 42,
-                        color: AppColor.grey,
+                        color: context.appMutedText,
                       ),
                       const SizedBox(height: 10),
                       Text('dashboard_no_invoice_results'.tr),
@@ -49,7 +49,7 @@ class LatestInvoicesCard extends StatelessWidget {
                   for (var index = 0; index < invoices.length; index++) ...[
                     _InvoiceRow(invoice: invoices[index]),
                     if (index != invoices.length - 1)
-                      const Divider(height: 1, color: Color(0xFFF0F1F5)),
+                      Divider(height: 1, color: context.appBorder),
                   ],
                 ],
               );
@@ -76,7 +76,9 @@ class _InvoiceRow extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: AppColor.primaryLight.withValues(alpha: 0.45),
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
@@ -96,7 +98,7 @@ class _InvoiceRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColor.secondaryColor,
+                    color: context.appText,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -105,7 +107,7 @@ class _InvoiceRow extends StatelessWidget {
                   invoice.number,
                   style: Theme.of(
                     context,
-                  ).textTheme.bodySmall?.copyWith(color: AppColor.grey),
+                  ).textTheme.bodySmall?.copyWith(color: context.appMutedText),
                 ),
               ],
             ),
@@ -135,7 +137,7 @@ class _InvoiceRow extends StatelessWidget {
                   invoice.amount,
                   maxLines: 1,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFF17213B),
+                    color: context.appText,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -143,7 +145,7 @@ class _InvoiceRow extends StatelessWidget {
                   'dashboard_jod'.tr,
                   style: Theme.of(
                     context,
-                  ).textTheme.labelSmall?.copyWith(color: AppColor.grey),
+                  ).textTheme.labelSmall?.copyWith(color: context.appMutedText),
                 ),
               ],
             ),

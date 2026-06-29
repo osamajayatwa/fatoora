@@ -5,7 +5,7 @@ import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dar
 import 'package:fatoora/features/financial/data/models/financial_dashboard_snapshot.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 
 class SalesByRepCard extends StatelessWidget {
   const SalesByRepCard({super.key});
@@ -18,192 +18,208 @@ class SalesByRepCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'sales_by_rep'.tr,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColor.secondaryColor,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              TextButton.icon(
-                onPressed: () => controller.navigateTo(AppRoute.adminUsers),
-                icon: const Icon(Icons.manage_accounts_outlined),
-                label: Text('admin_users'.tr),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (rows.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 34),
-              child: Center(child: Text('sales_by_rep_empty'.tr)),
-            )
-          else if (MediaQuery.sizeOf(context).width < 760)
-            Column(
-              children: [
-                for (final row in rows) ...[
-                  _RepSummaryCard(row: row),
-                  const SizedBox(height: 10),
-                ],
-              ],
-            )
-          else
-            _RepSummaryTable(rows: rows),
-        ],
-      ),
-    );
-  }
-}
-
-class _RepSummaryTable extends StatelessWidget {
-  const _RepSummaryTable({required this.rows});
-
-  final List<FinancialRepSalesSummary> rows;
-
-  @override
-  Widget build(BuildContext context) {
-    final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        headingTextStyle: Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: AppColor.secondaryColor,
-          fontWeight: FontWeight.w800,
-        ),
-        columns: [
-          DataColumn(label: Text('sales_rep'.tr)),
-          DataColumn(label: Text('financial_total_sales'.tr)),
-          DataColumn(label: Text('financial_cash_sales'.tr)),
-          DataColumn(label: Text('financial_credit_sales'.tr)),
-          DataColumn(label: Text('financial_partial_sales'.tr)),
-          DataColumn(label: Text('receipts_collected'.tr)),
-          DataColumn(label: Text('financial_cash_in_hand'.tr)),
-          DataColumn(label: Text('dashboard_invoices_count'.tr)),
-        ],
-        rows: rows
-            .map(
-              (row) => DataRow(
-                cells: [
-                  DataCell(Text(_repName(row))),
-                  DataCell(Text(currency.format(row.totalSales))),
-                  DataCell(Text(currency.format(row.cashSales))),
-                  DataCell(Text(currency.format(row.creditSales))),
-                  DataCell(Text(currency.format(row.partialSales))),
-                  DataCell(Text(currency.format(row.receiptsCollected))),
-                  DataCell(Text(currency.format(row.cashInHand))),
-                  DataCell(Text(row.invoiceCount.toString())),
-                ],
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
-}
-
-class _RepSummaryCard extends StatelessWidget {
-  const _RepSummaryCard({required this.row});
-
-  final FinancialRepSalesSummary row;
-
-  @override
-  Widget build(BuildContext context) {
-    final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFD),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE4E8EF)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            _repName(row),
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: AppColor.secondaryColor,
-              fontWeight: FontWeight.w900,
+          DashboardSectionTitle(
+            titleKey: 'dashboard_sales_by_representative',
+            subtitleKey: 'dashboard_sales_by_rep_subtitle',
+            trailing: TextButton.icon(
+              onPressed: () => controller.navigateTo(AppRoute.adminUsers),
+              icon: const Icon(Icons.manage_accounts_outlined),
+              label: Text('admin_users'.tr),
             ),
           ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 14,
-            runSpacing: 10,
+          const SizedBox(height: 18),
+          if (rows.isEmpty)
+            const DashboardEmptyState(
+              icon: Icons.groups_2_outlined,
+              messageKey: 'dashboard_no_sales_reps_yet',
+            )
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = constraints.maxWidth >= 1080
+                    ? 3
+                    : constraints.maxWidth >= 660
+                    ? 2
+                    : 1;
+                const spacing = 14.0;
+                final width =
+                    (constraints.maxWidth - (columns - 1) * spacing) / columns;
+                return Wrap(
+                  spacing: spacing,
+                  runSpacing: spacing,
+                  children: [
+                    for (final row in rows)
+                      SizedBox(
+                        width: width,
+                        child: DashboardSalesRepCard(
+                          row: row,
+                          onTap: () => controller.openSalesRepDetails(row),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class DashboardSalesRepCard extends StatelessWidget {
+  const DashboardSalesRepCard({
+    super.key,
+    required this.row,
+    required this.onTap,
+  });
+
+  final FinancialRepSalesSummary row;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: context.appSurfaceMuted,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: context.appBorder),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _Metric(
-                label: 'financial_total_sales'.tr,
-                value: currency.format(row.totalSales),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: scheme.primary.withValues(alpha: .13),
+                    child: Text(
+                      _initial(row.salesRepName),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _repName(row),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w900),
+                        ),
+                        Text(
+                          'sales_rep'.tr,
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(color: context.appMutedText),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Directionality.of(context) == TextDirection.rtl
+                        ? Icons.chevron_left_rounded
+                        : Icons.chevron_right_rounded,
+                    color: context.appMutedText,
+                  ),
+                ],
               ),
-              _Metric(
-                label: 'financial_cash_sales'.tr,
-                value: currency.format(row.cashSales),
+              const SizedBox(height: 18),
+              Text(
+                'dashboard_net_confirmed_sales'.tr,
+                style: Theme.of(
+                  context,
+                ).textTheme.labelMedium?.copyWith(color: context.appMutedText),
               ),
-              _Metric(
-                label: 'financial_credit_sales'.tr,
-                value: currency.format(row.creditSales),
+              const SizedBox(height: 4),
+              Text(
+                currency.format(row.totalSales),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: scheme.primary,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-              _Metric(
-                label: 'financial_partial_sales'.tr,
-                value: currency.format(row.partialSales),
+              const SizedBox(height: 16),
+              Divider(color: context.appBorder),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: _RepMetric(
+                      label: 'dashboard_invoices_count'.tr,
+                      value: row.invoiceCount.toString(),
+                    ),
+                  ),
+                  Expanded(
+                    child: _RepMetric(
+                      label: 'receipts_collected'.tr,
+                      value: currency.format(row.receiptsCollected),
+                    ),
+                  ),
+                ],
               ),
-              _Metric(
-                label: 'receipts_collected'.tr,
-                value: currency.format(row.receiptsCollected),
-              ),
-              _Metric(
+              const SizedBox(height: 12),
+              _RepMetric(
                 label: 'financial_cash_in_hand'.tr,
                 value: currency.format(row.cashInHand),
               ),
-              _Metric(
-                label: 'dashboard_invoices_count'.tr,
-                value: row.invoiceCount.toString(),
-              ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _Metric extends StatelessWidget {
-  const _Metric({required this.label, required this.value});
+class _RepMetric extends StatelessWidget {
+  const _RepMetric({required this.label, required this.value});
 
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 150,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(color: AppColor.grey),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColor.secondaryColor,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: context.appMutedText),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(
+            context,
+          ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+      ],
     );
   }
 }
 
 String _repName(FinancialRepSalesSummary row) {
-  return row.salesRepName.isEmpty ? 'sales_rep'.tr : row.salesRepName;
+  return row.salesRepName.trim().isEmpty ? 'sales_rep'.tr : row.salesRepName;
+}
+
+String _initial(String value) {
+  final name = value.trim();
+  return name.isEmpty ? 'S' : name.characters.first.toUpperCase();
 }

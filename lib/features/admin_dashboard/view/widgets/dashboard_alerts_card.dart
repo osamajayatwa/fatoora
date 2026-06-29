@@ -41,7 +41,7 @@ class DashboardAlertsCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColor.secondaryColor,
+                        color: context.appText,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -49,15 +49,15 @@ class DashboardAlertsCard extends StatelessWidget {
                   const SizedBox(width: 10),
                   Text(
                     alerts[index].date,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.labelSmall?.copyWith(color: AppColor.grey),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: context.appMutedText,
+                    ),
                   ),
                 ],
               ),
             ),
             if (index != alerts.length - 1)
-              const Divider(height: 1, color: Color(0xFFF0F1F5)),
+              Divider(height: 1, color: context.appBorder),
           ],
         ],
       ),

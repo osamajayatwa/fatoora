@@ -40,14 +40,14 @@ class InvoiceSummaryCard extends StatelessWidget {
                           controller.stats[2].value,
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(
-                                color: AppColor.secondaryColor,
+                                color: context.appText,
                                 fontWeight: FontWeight.w800,
                               ),
                         ),
                         Text(
                           'dashboard_jod'.tr,
                           style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(color: AppColor.grey),
+                              ?.copyWith(color: context.appMutedText),
                         ),
                       ],
                     ),
@@ -100,15 +100,15 @@ class _SummaryLegend extends StatelessWidget {
                   Expanded(
                     child: Text(
                       item.labelKey.tr,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: AppColor.grey),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.appMutedText,
+                      ),
                     ),
                   ),
                   Text(
                     '${(item.percentage * 100).round()}%',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppColor.secondaryColor,
+                      color: context.appText,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -116,7 +116,7 @@ class _SummaryLegend extends StatelessWidget {
                   Text(
                     item.amount,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppColor.secondaryColor,
+                      color: context.appText,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
