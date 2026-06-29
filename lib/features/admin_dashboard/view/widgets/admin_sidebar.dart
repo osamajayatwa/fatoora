@@ -165,6 +165,10 @@ class AdminSidebar extends StatelessWidget {
                         AppRoute.pendingUsers,
                         AppRoute.salesReps,
                       };
+                      final statementRoutes = {
+                        AppRoute.statements,
+                        AppRoute.customerStatement,
+                      };
                       final selected =
                           Get.currentRoute == item.route ||
                           (item.route == AppRoute.adminItems &&
@@ -180,7 +184,9 @@ class AdminSidebar extends StatelessWidget {
                           (item.route == AppRoute.salesReturns &&
                               salesReturnRoutes.contains(Get.currentRoute)) ||
                           (item.route == AppRoute.adminUsers &&
-                              userRoutes.contains(Get.currentRoute));
+                              userRoutes.contains(Get.currentRoute)) ||
+                          (item.route == AppRoute.statements &&
+                              statementRoutes.contains(Get.currentRoute));
                       return _SidebarTile(
                         item: item,
                         selected: selected,

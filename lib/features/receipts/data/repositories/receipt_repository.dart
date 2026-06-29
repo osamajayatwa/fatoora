@@ -220,11 +220,12 @@ class ReceiptRepository {
             final customer = CustomerModel.fromFirestore(customerSnapshot);
             _requireCanAccessCustomer(user, customer);
 
-            final receiptNumber = await _nextReceiptNumber(
+            final numberAllocation = await _nextReceiptNumber(
               transaction: transaction,
               companyId: resolvedCompanyId,
               receiptDate: receiptDate,
             );
+            final receiptNumber = numberAllocation.number;
             final receiptRef = _receipts(resolvedCompanyId).doc();
             final customerTransactionRef = _receiptCustomerTransactionRef(
               resolvedCompanyId,
@@ -256,12 +257,25 @@ class ReceiptRepository {
             final normalizedPaymentMethod = paymentMethod.trim().isEmpty
                 ? 'cash'
                 : paymentMethod.trim().toLowerCase();
+            final invoiceSnapshots = <DocumentSnapshot<Map<String, dynamic>>>[];
+            for (final invoiceId in candidateInvoiceIds) {
+              invoiceSnapshots.add(
+                await transaction.get(
+                  _invoices(resolvedCompanyId).doc(invoiceId),
+                ),
+              );
+            }
+
+            transaction.set(
+              numberAllocation.counterRef,
+              numberAllocation.counterData,
+              SetOptions(merge: true),
+            );
+
             final invoiceAllocations = <String, double>{};
             var amountToAllocate = roundedAmount;
-            for (final invoiceId in candidateInvoiceIds) {
+            for (final invoiceSnapshot in invoiceSnapshots) {
               if (amountToAllocate <= 0) break;
-              final invoiceRef = _invoices(resolvedCompanyId).doc(invoiceId);
-              final invoiceSnapshot = await transaction.get(invoiceRef);
               if (!invoiceSnapshot.exists) continue;
               final invoice = InvoiceModel.fromFirestore(invoiceSnapshot);
               if (invoice.customerId != customer.id ||
@@ -281,7 +295,7 @@ class ReceiptRepository {
               final effectiveRemaining = _round(
                 math.max(nextRemaining - invoice.returnedReceivableAmount, 0),
               );
-              transaction.update(invoiceRef, {
+              transaction.update(invoiceSnapshot.reference, {
                 'paidAmount': nextPaid,
                 'remainingAmount': nextRemaining,
                 'paymentStatus': effectiveRemaining <= 0
@@ -463,7 +477,7 @@ class ReceiptRepository {
     return _cashMovements(companyId).doc('${receiptId}_cash');
   }
 
-  Future<String> _nextReceiptNumber({
+  Future<_ReceiptNumberAllocation> _nextReceiptNumber({
     required Transaction transaction,
     required String companyId,
     required DateTime receiptDate,
@@ -481,18 +495,22 @@ class ReceiptRepository {
     final counter = await transaction.get(counterRef);
     final current = counter.data()?['lastNumber'];
     final next = current is num ? current.toInt() + 1 : 1;
-    transaction.set(counterRef, {
+    final counterData = {
       'id': counterRef.id,
       'companyId': companyId,
       'year': year,
       'lastNumber': next,
       'prefix': prefix,
       'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-    return BusinessSettingsDefaults.documentNumber(
-      prefix: prefix,
-      year: year,
-      sequence: next,
+    };
+    return _ReceiptNumberAllocation(
+      number: BusinessSettingsDefaults.documentNumber(
+        prefix: prefix,
+        year: year,
+        sequence: next,
+      ),
+      counterRef: counterRef,
+      counterData: counterData,
     );
   }
 
@@ -581,4 +599,16 @@ class ReceiptRepository {
       _ => ReceiptRepositoryError.unknown,
     };
   }
+}
+
+class _ReceiptNumberAllocation {
+  const _ReceiptNumberAllocation({
+    required this.number,
+    required this.counterRef,
+    required this.counterData,
+  });
+
+  final String number;
+  final DocumentReference<Map<String, dynamic>> counterRef;
+  final Map<String, dynamic> counterData;
 }

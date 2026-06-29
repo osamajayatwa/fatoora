@@ -55,6 +55,7 @@ void main() {
         transactions: [fixture.transaction],
         fromDate: fixture.now,
         toDate: fixture.now,
+        openingBalance: 0,
         totalDebit: 22.04,
         totalCredit: 0,
         finalBalance: 22.04,

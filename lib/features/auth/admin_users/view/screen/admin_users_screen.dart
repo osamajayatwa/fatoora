@@ -23,9 +23,13 @@ class AdminUsersScreen extends StatelessWidget {
         });
       },
       builder: (controller) {
-        final users = controller.selectedTab == 0
-            ? controller.pendingUsers
-            : controller.salesReps;
+        final users = switch (controller.selectedTab) {
+          0 => controller.pendingUsers,
+          1 => controller.salesReps,
+          _ => controller.admins,
+        };
+        final pending = controller.selectedTab == 0;
+        final adminList = controller.selectedTab == 2;
         return BusinessShell(
           title: 'admin_users'.tr,
           child: HandilingDataView(
@@ -57,18 +61,22 @@ class AdminUsersScreen extends StatelessWidget {
                               _EmptyUsers(
                                 messageKey: controller.selectedTab == 0
                                     ? 'admin_users_no_pending'
-                                    : 'admin_users_no_sales_reps',
+                                    : controller.selectedTab == 1
+                                    ? 'admin_users_no_sales_reps'
+                                    : 'admin_users_no_admins',
                               )
                             else if (compact)
                               _UsersCards(
                                 users: users,
-                                pending: controller.selectedTab == 0,
+                                pending: pending,
+                                adminList: adminList,
                                 controller: controller,
                               )
                             else
                               _UsersTable(
                                 users: users,
-                                pending: controller.selectedTab == 0,
+                                pending: pending,
+                                adminList: adminList,
                                 controller: controller,
                               ),
                           ],
@@ -159,6 +167,13 @@ class _TabSelector extends StatelessWidget {
             '${'admin_users_sales_reps'.tr} (${controller.salesReps.length})',
           ),
         ),
+        ChoiceChip(
+          selected: controller.selectedTab == 2,
+          onSelected: (_) => controller.selectTab(2),
+          label: Text(
+            '${'admin_users_admins'.tr} (${controller.admins.length})',
+          ),
+        ),
       ],
     );
   }
@@ -168,11 +183,13 @@ class _UsersCards extends StatelessWidget {
   const _UsersCards({
     required this.users,
     required this.pending,
+    required this.adminList,
     required this.controller,
   });
 
   final List<AppUserModel> users;
   final bool pending;
+  final bool adminList;
   final AdminUsersController controller;
 
   @override
@@ -180,7 +197,12 @@ class _UsersCards extends StatelessWidget {
     return Column(
       children: [
         for (final user in users) ...[
-          _UserCard(user: user, pending: pending, controller: controller),
+          _UserCard(
+            user: user,
+            pending: pending,
+            adminList: adminList,
+            controller: controller,
+          ),
           const SizedBox(height: 12),
         ],
       ],
@@ -192,11 +214,13 @@ class _UserCard extends StatelessWidget {
   const _UserCard({
     required this.user,
     required this.pending,
+    required this.adminList,
     required this.controller,
   });
 
   final AppUserModel user;
   final bool pending;
+  final bool adminList;
   final AdminUsersController controller;
 
   @override
@@ -251,6 +275,7 @@ class _UserCard extends StatelessWidget {
               runSpacing: 8,
               children: [
                 _Meta(icon: Icons.phone_outlined, text: user.phone),
+                _RoleChip(user: user),
                 _Meta(
                   icon: Icons.calendar_today_outlined,
                   text: DateFormat.yMd().format(user.createdAt),
@@ -258,7 +283,12 @@ class _UserCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            _UserActions(user: user, pending: pending, controller: controller),
+            _UserActions(
+              user: user,
+              pending: pending,
+              adminList: adminList,
+              controller: controller,
+            ),
           ],
         ),
       ),
@@ -270,11 +300,13 @@ class _UsersTable extends StatelessWidget {
   const _UsersTable({
     required this.users,
     required this.pending,
+    required this.adminList,
     required this.controller,
   });
 
   final List<AppUserModel> users;
   final bool pending;
+  final bool adminList;
   final AdminUsersController controller;
 
   @override
@@ -301,6 +333,7 @@ class _UsersTable extends StatelessWidget {
             DataColumn(label: Text('Name'.tr)),
             DataColumn(label: Text('Email'.tr)),
             DataColumn(label: Text('Phone'.tr)),
+            DataColumn(label: Text('admin_users_role'.tr)),
             DataColumn(label: Text('admin_users_status'.tr)),
             DataColumn(label: Text('items_created_at'.tr)),
             DataColumn(label: Text('actions'.tr)),
@@ -312,12 +345,14 @@ class _UsersTable extends StatelessWidget {
                     DataCell(_NameCell(user: user)),
                     DataCell(Text(user.email)),
                     DataCell(Text(user.phone.isEmpty ? '-' : user.phone)),
+                    DataCell(_RoleChip(user: user)),
                     DataCell(_StatusChip(user: user)),
                     DataCell(Text(DateFormat.yMd().format(user.createdAt))),
                     DataCell(
                       _UserActions(
                         user: user,
                         pending: pending,
+                        adminList: adminList,
                         controller: controller,
                       ),
                     ),
@@ -352,11 +387,13 @@ class _UserActions extends StatelessWidget {
   const _UserActions({
     required this.user,
     required this.pending,
+    required this.adminList,
     required this.controller,
   });
 
   final AppUserModel user;
   final bool pending;
+  final bool adminList;
   final AdminUsersController controller;
 
   @override
@@ -377,7 +414,15 @@ class _UserActions extends StatelessWidget {
           FilledButton.icon(
             onPressed: () => controller.approveUser(user),
             icon: const Icon(Icons.check_rounded),
-            label: Text('admin_users_approve'.tr),
+            label: Text('admin_users_approve_as_sales_rep'.tr),
+          ),
+          FilledButton.icon(
+            onPressed: () => controller.approveUserAsAdmin(user),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColor.secondaryColor,
+            ),
+            icon: const Icon(Icons.admin_panel_settings_outlined),
+            label: Text('admin_users_approve_as_admin'.tr),
           ),
           OutlinedButton.icon(
             onPressed: () => controller.rejectUser(user),
@@ -385,6 +430,12 @@ class _UserActions extends StatelessWidget {
             label: Text('admin_users_reject'.tr),
           ),
         ],
+      );
+    }
+    if (adminList && controller.isCurrentUser(user)) {
+      return Chip(
+        avatar: const Icon(Icons.verified_user_outlined, size: 18),
+        label: Text('admin_users_current_account'.tr),
       );
     }
     return Wrap(
@@ -396,19 +447,57 @@ class _UserActions extends StatelessWidget {
           onPressed: () => _showEditDialog(context, controller, user),
           icon: const Icon(Icons.edit_outlined),
         ),
+        if (adminList)
+          IconButton.filledTonal(
+            tooltip: 'admin_users_demote'.tr,
+            onPressed: () => controller.demoteToSalesRep(user),
+            icon: const Icon(Icons.person_outline_rounded),
+          )
+        else
+          IconButton.filledTonal(
+            tooltip: 'admin_users_promote'.tr,
+            onPressed: () => controller.promoteToAdmin(user),
+            icon: const Icon(Icons.admin_panel_settings_outlined),
+          ),
         if (user.active)
           IconButton.filledTonal(
             tooltip: 'admin_users_deactivate'.tr,
-            onPressed: () => controller.deactivateSalesRep(user),
+            onPressed: () => controller.deactivateUser(user),
             icon: const Icon(Icons.block_outlined),
           )
         else
           IconButton.filledTonal(
             tooltip: 'admin_users_activate'.tr,
-            onPressed: () => controller.activateSalesRep(user),
+            onPressed: () => controller.activateUser(user),
             icon: const Icon(Icons.check_circle_outline),
           ),
       ],
+    );
+  }
+}
+
+class _RoleChip extends StatelessWidget {
+  const _RoleChip({required this.user});
+
+  final AppUserModel user;
+
+  @override
+  Widget build(BuildContext context) {
+    final admin = user.isAdmin;
+    final color = admin ? AppColor.secondaryColor : AppColor.primaryColor;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        (admin ? 'admin_users_role_admin' : 'admin_users_role_sales_rep').tr,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
     );
   }
 }
@@ -522,7 +611,12 @@ Future<void> _showEditDialog(
   try {
     final saved = await Get.dialog<bool>(
       AlertDialog(
-        title: Text('admin_users_edit_sales_rep'.tr),
+        title: Text(
+          (user.isAdmin
+                  ? 'admin_users_edit_admin'
+                  : 'admin_users_edit_sales_rep')
+              .tr,
+        ),
         content: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
           child: Column(
@@ -554,7 +648,7 @@ Future<void> _showEditDialog(
       ),
     );
     if (saved == true) {
-      await controller.updateSalesRep(
+      await controller.updateUser(
         user,
         nameController.text,
         phoneController.text,

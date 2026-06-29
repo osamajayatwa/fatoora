@@ -25,6 +25,10 @@ class InvoicePdfService {
     final loc = pdfConfiguration.localization;
     final customer = invoice.customerSnapshot;
     final document = pw.Document(theme: assets.theme);
+    final qrCodeData = invoice.isElectronic
+        ? invoice.government?.qrCode.trim()
+        : null;
+    final showQrCode = qrCodeData != null && qrCodeData.isNotEmpty;
 
     document.addPage(
       pw.MultiPage(
@@ -33,7 +37,9 @@ class InvoicePdfService {
           BusinessPdfWidgets.shell(
             assets: assets,
             configuration: pdfConfiguration,
-            title: loc.t('invoice_pdf_title'),
+            title: loc.t(
+              invoice.isElectronic ? 'tax_invoice' : 'sales_invoice',
+            ),
             subtitle: invoice.invoiceNumber,
             children: [
               BusinessPdfWidgets.infoGrid(
@@ -105,8 +111,10 @@ class InvoicePdfService {
               pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  BusinessPdfWidgets.qrPlaceholder(loc),
-                  pw.Spacer(),
+                  if (showQrCode) ...[
+                    BusinessPdfWidgets.qrCode(qrCodeData),
+                    pw.Spacer(),
+                  ],
                   BusinessPdfWidgets.totals(
                     loc: loc,
                     rows: [

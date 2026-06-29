@@ -72,6 +72,19 @@ service cloud.firestore {
         );
     }
 
+    function canReadCustomerTransaction(companyId, data) {
+      let customerPath =
+        /databases/$(database)/documents/companies/$(companyId)/customers/$(data.customerId);
+      return isApprovedCompanyUser(companyId)
+        && data.customerId is string
+        && exists(customerPath)
+        && (
+          isActiveAdmin()
+          || data.salesRepId == request.auth.uid
+          || get(customerPath).data.createdByUid == request.auth.uid
+        );
+    }
+
     function validPendingUserCreate(userId) {
       return request.auth.uid == userId
         && request.auth.token.email != null
@@ -492,6 +505,12 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time;
     }
 
+    function isCustomerReturnPostingUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'lastSalesReturnId'
+      ]);
+    }
+
     function invoiceIdentityPreserved() {
       return request.resource.data.id == resource.data.id
         && request.resource.data.companyId == resource.data.companyId
@@ -795,6 +814,12 @@ service cloud.firestore {
         );
     }
 
+    function isInvoiceReturnAllocationUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'lastSalesReturnId'
+      ]);
+    }
+
     function returnedReceivableAmount(data) {
       return data.keys().hasAny(['returnedReceivableAmount'])
         ? data.returnedReceivableAmount
@@ -862,6 +887,12 @@ service cloud.firestore {
           request.resource.data.receiptIds.size() - 1
         ] == request.resource.data.lastReceiptId
         && request.resource.data.updatedAt == request.time;
+    }
+
+    function isInvoiceReceiptPaymentUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'lastReceiptId'
+      ]);
     }
 
     function salesReturnIdentityPreserved() {
@@ -1421,7 +1452,11 @@ service cloud.firestore {
 
     match /companies/{companyId}/customers/{customerId} {
       allow get: if canReadOwnedBusinessDoc(companyId, resource.data);
-      allow list: if isApprovedCompanyUser(companyId);
+      allow list: if isApprovedCompanyUser(companyId)
+        && (
+          isActiveAdmin()
+          || resource.data.createdByUid == request.auth.uid
+        );
 
       allow create: if validBusinessCreate(companyId, request.resource.data)
         && businessPermissionAllows(
@@ -1433,9 +1468,17 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
 
-      allow update: if validCustomerProfileUpdate(companyId)
-        || validCustomerFinancialPostingUpdate(companyId)
-        || validCustomerReturnPostingUpdate(companyId);
+      allow update: if (
+          isCustomerReturnPostingUpdate()
+          && validCustomerReturnPostingUpdate(companyId)
+        )
+        || (
+          !isCustomerReturnPostingUpdate()
+          && (
+            validCustomerProfileUpdate(companyId)
+            || validCustomerFinancialPostingUpdate(companyId)
+          )
+        );
 
       allow delete: if false;
     }
@@ -1463,10 +1506,22 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
 
-      allow update: if validInvoiceDraftUpdate(companyId)
-        || validInvoicePostingUpdate(companyId)
-        || validInvoiceReturnAllocationUpdate(companyId)
-        || validInvoiceReceiptPaymentUpdate(companyId);
+      allow update: if (
+          isInvoiceReturnAllocationUpdate()
+          && validInvoiceReturnAllocationUpdate(companyId)
+        )
+        || (
+          isInvoiceReceiptPaymentUpdate()
+          && validInvoiceReceiptPaymentUpdate(companyId)
+        )
+        || (
+          !isInvoiceReturnAllocationUpdate()
+          && !isInvoiceReceiptPaymentUpdate()
+          && (
+            validInvoiceDraftUpdate(companyId)
+            || validInvoicePostingUpdate(companyId)
+          )
+        );
 
       allow delete: if canReadOwnedBusinessDoc(companyId, resource.data)
         && resource.data.invoiceStatus == 'draft'
@@ -1474,8 +1529,17 @@ service cloud.firestore {
     }
 
     match /companies/{companyId}/customer_transactions/{transactionId} {
-      allow get: if canReadOwnedBusinessDoc(companyId, resource.data);
-      allow list: if isApprovedCompanyUser(companyId);
+      allow get: if isApprovedCompanyUser(companyId)
+        && (
+          !exists(
+            /databases/$(database)/documents/companies/$(companyId)/customer_transactions/$(transactionId)
+          )
+          || canReadCustomerTransaction(companyId, resource.data)
+        );
+      allow list: if canReadCustomerTransaction(
+        companyId,
+        resource.data
+      );
 
       allow create: if validFinancialCreate(companyId, request.resource.data)
         && request.resource.data.id == transactionId
@@ -1539,7 +1603,13 @@ service cloud.firestore {
     }
 
     match /companies/{companyId}/cash_movements/{movementId} {
-      allow get: if canReadOwnedBusinessDoc(companyId, resource.data);
+      allow get: if isApprovedCompanyUser(companyId)
+        && (
+          !exists(
+            /databases/$(database)/documents/companies/$(companyId)/cash_movements/$(movementId)
+          )
+          || canReadOwnedBusinessDoc(companyId, resource.data)
+        );
       allow list: if isApprovedCompanyUser(companyId);
 
       allow create: if validFinancialCreate(companyId, request.resource.data)
@@ -1572,12 +1642,33 @@ service cloud.firestore {
     }
 
     match /companies/{companyId}/stock_movements/{movementId} {
-      allow get: if canReadOwnedBusinessDoc(companyId, resource.data);
+      allow get: if isApprovedCompanyUser(companyId)
+        && (
+          !exists(
+            /databases/$(database)/documents/companies/$(companyId)/stock_movements/$(movementId)
+          )
+          || canReadOwnedBusinessDoc(companyId, resource.data)
+        );
       allow list: if isApprovedCompanyUser(companyId);
 
-      allow create: if validAdminStockMovementCreate(companyId, movementId)
-        || validInvoiceStockMovementCreate(companyId, movementId)
-        || validSalesReturnStockMovementCreate(companyId, movementId);
+      allow create: if (
+          request.resource.data.movementType == 'sales_return'
+          && validSalesReturnStockMovementCreate(companyId, movementId)
+        )
+        || (
+          request.resource.data.movementType == 'invoice_sale'
+          && validInvoiceStockMovementCreate(companyId, movementId)
+        )
+        || (
+          request.resource.data.movementType in [
+            'opening_balance',
+            'manual_adjustment_in',
+            'manual_adjustment_out',
+            'damage',
+            'correction'
+          ]
+          && validAdminStockMovementCreate(companyId, movementId)
+        );
 
       allow update, delete: if false;
     }

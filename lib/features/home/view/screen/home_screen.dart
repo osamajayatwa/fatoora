@@ -281,6 +281,11 @@ class _QuickActions extends StatelessWidget {
         controller.openCustomers,
       ),
       _ActionData(
+        'dashboard_account_statement',
+        Icons.article_outlined,
+        controller.openStatements,
+      ),
+      _ActionData(
         'financial_receivables',
         Icons.account_balance_outlined,
         controller.openReceivables,

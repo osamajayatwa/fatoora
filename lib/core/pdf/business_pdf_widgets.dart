@@ -323,20 +323,13 @@ class BusinessPdfWidgets {
     );
   }
 
-  static pw.Widget qrPlaceholder(AppPdfLocalization loc) {
-    return pw.Container(
+  static pw.Widget qrCode(String data) {
+    return pw.BarcodeWidget(
+      barcode: pw.Barcode.qrCode(),
+      data: data,
       width: 92,
       height: 92,
-      alignment: pw.Alignment.center,
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey500, width: 0.7),
-        borderRadius: pw.BorderRadius.circular(6),
-      ),
-      child: pw.Text(
-        loc.t('qr_placeholder'),
-        textAlign: pw.TextAlign.center,
-        style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700),
-      ),
+      drawText: false,
     );
   }
 

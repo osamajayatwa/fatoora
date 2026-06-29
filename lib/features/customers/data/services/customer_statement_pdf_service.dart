@@ -16,6 +16,7 @@ class CustomerStatementPdfService {
     required List<CustomerTransactionModel> transactions,
     required DateTime? fromDate,
     required DateTime? toDate,
+    required double openingBalance,
     required double totalDebit,
     required double totalCredit,
     required double finalBalance,
@@ -47,12 +48,17 @@ class CustomerStatementPdfService {
                   PdfInfoItem(loc.t('phone'), customer.phone),
                   PdfInfoItem(loc.t('address'), customer.addressText),
                   PdfInfoItem(
-                    loc.t('balance'),
-                    loc.money(customer.currentBalance),
-                  ),
-                  PdfInfoItem(
                     loc.t('date_range'),
                     loc.dateRange(fromDate, toDate),
+                  ),
+                  PdfInfoItem(
+                    loc.t('opening_balance'),
+                    loc.money(openingBalance),
+                  ),
+                  PdfInfoItem(
+                    loc.t('final_balance'),
+                    loc.money(finalBalance),
+                    bold: true,
                   ),
                 ],
               ),
@@ -86,6 +92,10 @@ class CustomerStatementPdfService {
               BusinessPdfWidgets.totals(
                 loc: loc,
                 rows: [
+                  PdfInfoItem(
+                    loc.t('opening_balance'),
+                    loc.money(openingBalance),
+                  ),
                   PdfInfoItem(loc.t('total_debit'), loc.money(totalDebit)),
                   PdfInfoItem(loc.t('total_credit'), loc.money(totalCredit)),
                   PdfInfoItem(

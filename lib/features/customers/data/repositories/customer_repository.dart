@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
+import 'package:fatoora/features/customers/data/models/customer_statement_snapshot.dart';
 import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
 import 'package:fatoora/features/settings/data/models/app_settings_model.dart';
 import 'package:fatoora/features/shared/business/business_user_context.dart';
@@ -271,7 +272,7 @@ class CustomerRepository {
     });
   }
 
-  Future<List<CustomerTransactionModel>> fetchStatement({
+  Future<CustomerStatementSnapshot> fetchStatement({
     String companyId = AuthRepository.defaultCompanyId,
     required String customerId,
     DateTime? fromDate,
@@ -301,15 +302,52 @@ class CustomerRepository {
           isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(toDate)),
         );
       }
-      final snapshot = await query
+      final periodFuture = query
           .orderBy('transactionDate')
           .limit(500)
           .get()
           .timeout(const Duration(seconds: 20));
-      return snapshot.docs
+      final openingBalanceFuture = fromDate == null
+          ? Future<double>.value(0)
+          : _fetchOpeningBalance(
+              companyId: resolvedCompanyId,
+              customerId: customerId,
+              beforeDate: fromDate,
+            );
+      final results = await Future.wait<Object>([
+        periodFuture,
+        openingBalanceFuture,
+      ]);
+      final snapshot = results[0] as QuerySnapshot<Map<String, dynamic>>;
+      final transactions = snapshot.docs
           .map(CustomerTransactionModel.fromFirestore)
           .toList(growable: false);
+      return CustomerStatementSnapshot.fromTransactions(
+        transactions: transactions,
+        openingBalance: results[1] as double,
+      );
     });
+  }
+
+  Future<double> _fetchOpeningBalance({
+    required String companyId,
+    required String customerId,
+    required DateTime beforeDate,
+  }) async {
+    final snapshot = await _transactions(companyId)
+        .where('customerId', isEqualTo: customerId)
+        .where(
+          'transactionDate',
+          isLessThan: Timestamp.fromDate(_startOfDay(beforeDate)),
+        )
+        .orderBy('transactionDate')
+        .limitToLast(1)
+        .get()
+        .timeout(const Duration(seconds: 20));
+    if (snapshot.docs.isEmpty) return 0;
+    return CustomerTransactionModel.fromFirestore(
+      snapshot.docs.single,
+    ).balanceAfter;
   }
 
   Future<void> _ensurePhoneIsUnique({

@@ -108,15 +108,22 @@ class _StatementBody extends StatelessWidget {
                         icon: const Icon(Icons.close_rounded),
                         label: Text('clear_filters'.tr),
                       ),
-                    FilledButton.icon(
+                    OutlinedButton.icon(
                       onPressed: controller.isPrinting
                           ? null
                           : controller.printStatement,
+                      icon: const Icon(Icons.print_outlined),
+                      label: Text('print'.tr),
+                    ),
+                    FilledButton.icon(
+                      onPressed: controller.isPrinting
+                          ? null
+                          : controller.exportStatementPdf,
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColor.primaryColor,
                       ),
                       icon: const Icon(Icons.picture_as_pdf_outlined),
-                      label: Text('print_export'.tr),
+                      label: Text('export_pdf'.tr),
                     ),
                   ],
                 ),
@@ -160,6 +167,10 @@ class _Totals extends StatelessWidget {
       spacing: 12,
       runSpacing: 12,
       children: [
+        _TotalChip(
+          label: 'customers_opening_balance'.tr,
+          value: currency.format(controller.openingBalance),
+        ),
         _TotalChip(
           label: 'customers_total_debit'.tr,
           value: currency.format(controller.totalDebit),
@@ -233,6 +244,7 @@ class _TransactionsTable extends StatelessWidget {
             DataColumn(label: Text('invoice_date'.tr)),
             DataColumn(label: Text('customers_transaction_type'.tr)),
             DataColumn(label: Text('invoice_number'.tr)),
+            DataColumn(label: Text('description'.tr)),
             DataColumn(label: Text('customers_debit'.tr)),
             DataColumn(label: Text('customers_credit'.tr)),
             DataColumn(label: Text('customers_balance'.tr)),
@@ -244,6 +256,7 @@ class _TransactionsTable extends StatelessWidget {
                     DataCell(Text(date.format(transaction.transactionDate))),
                     DataCell(Text(transaction.transactionType.tr)),
                     DataCell(Text(transaction.sourceNumber)),
+                    DataCell(Text(transaction.notes)),
                     DataCell(Text(currency.format(transaction.debitAmount))),
                     DataCell(Text(currency.format(transaction.creditAmount))),
                     DataCell(Text(currency.format(transaction.balanceAfter))),

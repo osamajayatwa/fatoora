@@ -4,6 +4,7 @@ const Map<String, String> customersEnglishTranslations = {
   'customers_edit': 'Edit customer',
   'customers_details': 'Customer details',
   'customers_statement': 'Customer statement',
+  'customers_opening_balance': 'Opening balance',
   'customers_search_hint': 'Search by name, phone, city, area, or address...',
   'customers_empty': 'No customers found',
   'customers_no_search_results': 'No matching customers found',
@@ -42,6 +43,18 @@ const Map<String, String> customersEnglishTranslations = {
   'customers_transaction_type': 'Type',
   'customers_debit': 'Debit',
   'customers_credit': 'Credit',
+  'statements_admin_scope':
+      'Choose any customer to review, print, or export their account statement.',
+  'statements_user_scope':
+      'Only customers created by you are available in this list.',
+  'statements_customer_count': '@count customers',
+  'statements_search_hint': 'Search customers for an account statement...',
+  'statements_open': 'Open statement',
+  'statements_created_by': 'Created by',
+  'statements_empty': 'No customers are available for account statements.',
+  'statements_no_search_results': 'No matching statement customers found.',
+  'statements_load_error':
+      'Unable to load account statement customers. Please try again.',
   'invoice': 'Invoice',
   'receipt': 'Receipt',
   'payment': 'Payment',
@@ -55,6 +68,7 @@ const Map<String, String> customersArabicTranslations = {
   'customers_edit': 'تعديل العميل',
   'customers_details': 'تفاصيل العميل',
   'customers_statement': 'كشف حساب العميل',
+  'customers_opening_balance': 'الرصيد الافتتاحي',
   'customers_search_hint':
       'ابحث بالاسم أو الهاتف أو المدينة أو المنطقة أو العنوان...',
   'customers_empty': 'لا يوجد عملاء.',
@@ -93,6 +107,17 @@ const Map<String, String> customersArabicTranslations = {
   'customers_transaction_type': 'النوع',
   'customers_debit': 'مدين',
   'customers_credit': 'دائن',
+  'statements_admin_scope':
+      'اختر أي عميل لمراجعة كشف حسابه أو طباعته أو تصديره.',
+  'statements_user_scope':
+      'تظهر في هذه القائمة فقط حسابات العملاء الذين أضفتهم.',
+  'statements_customer_count': '@count عميل',
+  'statements_search_hint': 'ابحث عن عميل لإنشاء كشف حساب...',
+  'statements_open': 'فتح كشف الحساب',
+  'statements_created_by': 'أضيف بواسطة',
+  'statements_empty': 'لا يوجد عملاء متاحون لكشوف الحساب.',
+  'statements_no_search_results': 'لا يوجد عملاء مطابقون للبحث.',
+  'statements_load_error': 'تعذر تحميل عملاء كشوف الحساب. حاول مرة أخرى.',
   'invoice': 'فاتورة',
   'receipt': 'إيصال',
   'payment': 'دفعة',

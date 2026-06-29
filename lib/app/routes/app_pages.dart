@@ -30,7 +30,6 @@ import 'package:fatoora/features/inventory/view/screens/stock_movements_screen.d
 import 'package:fatoora/features/admin_dashboard/binding/admin_dashboard_binding.dart';
 import 'package:fatoora/features/admin_dashboard/view/screen/admin_home_screen.dart';
 import 'package:fatoora/features/admin_dashboard/view/screen/admin_sales_rep_details_screen.dart';
-import 'package:fatoora/features/admin_dashboard/view/screen/admin_section_screen.dart';
 import 'package:fatoora/features/financial/bindings/financial_binding.dart';
 import 'package:fatoora/features/financial/view/screens/cash_movements_screen.dart';
 import 'package:fatoora/features/financial/view/screens/receivables_screen.dart';
@@ -59,7 +58,8 @@ import 'package:fatoora/features/settings/bindings/settings_binding.dart';
 import 'package:fatoora/features/settings/view/screens/settings_screen.dart';
 import 'package:fatoora/features/settings/view/screens/admin_settings_screens.dart';
 import 'package:fatoora/features/settings/view/screens/user_settings_screens.dart';
-import 'package:flutter/material.dart';
+import 'package:fatoora/features/statements/bindings/statements_binding.dart';
+import 'package:fatoora/features/statements/view/screens/statements_screen.dart';
 import 'package:fatoora/features/splash/view/screens/language.dart';
 import 'package:fatoora/features/splash/view/screens/splash.dart';
 import 'package:get/get_navigation/src/routes/get_route.dart';
@@ -207,12 +207,9 @@ List<GetPage<dynamic>> routes = [
   ),
   GetPage(
     name: AppRoute.statements,
-    page: () => const AdminSectionScreen(
-      titleKey: 'dashboard_account_statement',
-      icon: Icons.article_outlined,
-    ),
-    binding: AdminDashboardBinding(),
-    middlewares: [AdminMiddleware()],
+    page: () => const StatementsScreen(),
+    binding: StatementsBinding(),
+    middlewares: [ApprovedUserMiddleware()],
   ),
   GetPage(
     name: AppRoute.settings,

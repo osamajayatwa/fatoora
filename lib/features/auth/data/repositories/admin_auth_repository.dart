@@ -51,20 +51,32 @@ class AdminAuthRepository extends AuthRepository {
     return users;
   }
 
-  Future<void> approveSalesRep(String uid) {
-    final adminUid = _requireAdminUid();
-    return _users
-        .doc(uid)
-        .update({
-          'role': AuthRepository.salesRepRole,
-          'active': true,
-          'approvalStatus': AuthRepository.approvalApproved,
-          'companyId': AuthRepository.defaultCompanyId,
-          'approvedAt': FieldValue.serverTimestamp(),
-          'approvedByUid': adminUid,
-          'updatedAt': FieldValue.serverTimestamp(),
-        })
+  Future<List<AppUserModel>> fetchAdmins() async {
+    final snapshot = await _users
+        .where('role', isEqualTo: AuthRepository.adminRole)
+        .get()
         .timeout(const Duration(seconds: 20));
+    final users = _filterDefaultCompany(
+      snapshot.docs.map(AppUserModel.fromFirestore),
+    ).toList(growable: false);
+    users.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return users;
+  }
+
+  Future<void> approveSalesRep(String uid) {
+    return _setApprovedRole(uid, AuthRepository.salesRepRole);
+  }
+
+  Future<void> approveAdmin(String uid) {
+    return _setApprovedRole(uid, AuthRepository.adminRole);
+  }
+
+  Future<void> promoteToAdmin(String uid) {
+    return _setApprovedRole(uid, AuthRepository.adminRole);
+  }
+
+  Future<void> demoteToSalesRep(String uid) {
+    return _setApprovedRole(uid, AuthRepository.salesRepRole);
   }
 
   Future<void> rejectSalesRep(String uid) {
@@ -83,7 +95,7 @@ class AdminAuthRepository extends AuthRepository {
         .timeout(const Duration(seconds: 20));
   }
 
-  Future<void> updateSalesRep({
+  Future<void> updateManagedUser({
     required String uid,
     required String name,
     required String phone,
@@ -92,6 +104,7 @@ class AdminAuthRepository extends AuthRepository {
     if (safeName.isEmpty || safeName.toLowerCase() == 'undefined') {
       throw const FormatException('A valid sales rep name is required.');
     }
+    _requireCanManage(uid);
     return _users
         .doc(uid)
         .update({
@@ -102,24 +115,70 @@ class AdminAuthRepository extends AuthRepository {
         .timeout(const Duration(seconds: 20));
   }
 
-  Future<void> deactivateSalesRep(String uid) {
+  Future<void> deactivateUser(String uid) {
+    _requireCanManage(uid);
     return _users
         .doc(uid)
         .update({'active': false, 'updatedAt': FieldValue.serverTimestamp()})
         .timeout(const Duration(seconds: 20));
   }
 
-  Future<void> activateSalesRep(String uid) {
-    return _users
-        .doc(uid)
-        .update({
-          'role': AuthRepository.salesRepRole,
-          'active': true,
-          'approvalStatus': AuthRepository.approvalApproved,
-          'companyId': AuthRepository.defaultCompanyId,
-          'updatedAt': FieldValue.serverTimestamp(),
+  Future<void> activateUser(String uid) {
+    _requireCanManage(uid);
+    final userRef = _users.doc(uid);
+    return _firestore
+        .runTransaction((transaction) async {
+          final snapshot = await transaction.get(userRef);
+          if (!snapshot.exists) throw StateError('User was not found.');
+          final user = AppUserModel.fromFirestore(snapshot);
+          if (!user.isAdmin && !user.isSalesRep) {
+            throw StateError('Only approved user roles can be activated.');
+          }
+          transaction.update(userRef, {
+            'active': true,
+            'approvalStatus': AuthRepository.approvalApproved,
+            'companyId': AuthRepository.defaultCompanyId,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
         })
         .timeout(const Duration(seconds: 20));
+  }
+
+  Future<void> _setApprovedRole(String uid, String role) {
+    if (role != AuthRepository.adminRole &&
+        role != AuthRepository.salesRepRole) {
+      throw ArgumentError.value(role, 'role', 'Unsupported user role.');
+    }
+    final adminUid = _requireCanManage(uid);
+    final userRef = _users.doc(uid);
+    return _firestore
+        .runTransaction((transaction) async {
+          final snapshot = await transaction.get(userRef);
+          if (!snapshot.exists) throw StateError('User was not found.');
+          final user = AppUserModel.fromFirestore(snapshot);
+          if (user.companyId != AuthRepository.defaultCompanyId) {
+            throw StateError('User belongs to another company.');
+          }
+          transaction.update(userRef, {
+            'role': role,
+            'active': true,
+            'approvalStatus': AuthRepository.approvalApproved,
+            'companyId': AuthRepository.defaultCompanyId,
+            'approvedAt': FieldValue.serverTimestamp(),
+            'approvedByUid': adminUid,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        })
+        .timeout(const Duration(seconds: 20));
+  }
+
+  String _requireCanManage(String uid) {
+    final adminUid = _requireAdminUid();
+    if (uid.trim().isEmpty) throw ArgumentError.value(uid, 'uid');
+    if (uid == adminUid) {
+      throw StateError('Admins cannot change their own managed role.');
+    }
+    return adminUid;
   }
 
   String _requireAdminUid() {

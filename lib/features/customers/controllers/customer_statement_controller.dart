@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/services/services.dart';
@@ -30,17 +32,10 @@ class CustomerStatementController extends GetxController {
   List<CustomerTransactionModel> transactions = const [];
   bool isPrinting = false;
 
-  double get totalDebit => transactions.fold<double>(
-    0,
-    (sum, transaction) => sum + transaction.debitAmount,
-  );
-  double get totalCredit => transactions.fold<double>(
-    0,
-    (sum, transaction) => sum + transaction.creditAmount,
-  );
-  double get finalBalance => transactions.isEmpty
-      ? (customer?.currentBalance ?? 0)
-      : transactions.last.balanceAfter;
+  double openingBalance = 0;
+  double totalDebit = 0;
+  double totalCredit = 0;
+  double finalBalance = 0;
 
   @override
   void onReady() {
@@ -71,12 +66,21 @@ class CustomerStatementController extends GetxController {
         companyId: companyId,
         customerId: customerId,
       );
-      transactions = await _repository.fetchStatement(
+      final statement = await _repository.fetchStatement(
         companyId: companyId,
         customerId: customerId,
         fromDate: fromDate,
         toDate: toDate,
       );
+      transactions = statement.transactions;
+      openingBalance = statement.openingBalance;
+      totalDebit = statement.totalDebit;
+      totalCredit = statement.totalCredit;
+      finalBalance = statement.closingBalance;
+      if (fromDate == null && toDate == null && transactions.isEmpty) {
+        openingBalance = customer!.currentBalance;
+        finalBalance = customer!.currentBalance;
+      }
       statusRequest = StatusRequest.success;
     } catch (error) {
       statusRequest = CustomerErrorMapper.status(error);
@@ -108,16 +112,8 @@ class CustomerStatementController extends GetxController {
     update();
     try {
       await Printing.layoutPdf(
-        name: '${current.name}-statement.pdf',
-        onLayout: (_) => CustomerStatementPdfService.build(
-          customer: current,
-          transactions: transactions,
-          fromDate: fromDate,
-          toDate: toDate,
-          totalDebit: totalDebit,
-          totalCredit: totalCredit,
-          finalBalance: finalBalance,
-        ),
+        name: _pdfFilename(current),
+        onLayout: (_) => _buildPdf(current),
       );
     } catch (_) {
       _showError('customers_statement_pdf_error');
@@ -125,6 +121,47 @@ class CustomerStatementController extends GetxController {
       isPrinting = false;
       if (!isClosed) update();
     }
+  }
+
+  Future<void> exportStatementPdf() async {
+    final current = customer;
+    if (current == null || isPrinting) return;
+    isPrinting = true;
+    update();
+    try {
+      await Printing.sharePdf(
+        bytes: await _buildPdf(current),
+        filename: _pdfFilename(current),
+      );
+    } catch (_) {
+      _showError('customers_statement_pdf_error');
+    } finally {
+      isPrinting = false;
+      if (!isClosed) update();
+    }
+  }
+
+  Future<Uint8List> _buildPdf(CustomerModel current) {
+    return CustomerStatementPdfService.build(
+      customer: current,
+      transactions: transactions,
+      fromDate: fromDate,
+      toDate: toDate,
+      openingBalance: openingBalance,
+      totalDebit: totalDebit,
+      totalCredit: totalCredit,
+      finalBalance: finalBalance,
+    );
+  }
+
+  String _pdfFilename(CustomerModel current) {
+    final safeName = current.name
+        .trim()
+        .replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1F]'), '-')
+        .replaceAll(RegExp(r'\s+'), '-')
+        .replaceAll(RegExp(r'-+'), '-')
+        .replaceAll(RegExp(r'^-|-$'), '');
+    return '${safeName.isEmpty ? 'customer' : safeName}-statement.pdf';
   }
 
   Future<void> requestBack() async {
