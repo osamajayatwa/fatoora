@@ -1,4 +1,5 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/core/settings/business_settings_defaults.dart';
 import 'package:fatoora/core/settings/business_settings_resolver.dart';
@@ -33,6 +34,7 @@ class ReceiptFormController extends GetxController {
   DateTime receiptDate = DateTime.now();
   String paymentMethod = 'cash';
   bool isSaving = false;
+  bool payFullBalance = false;
   EffectiveBusinessPermissions permissions =
       EffectiveBusinessPermissions.denied;
 
@@ -68,6 +70,10 @@ class ReceiptFormController extends GetxController {
   Future<void> selectCustomer(BuildContext context) async {
     final selected = await showCustomerPicker(context);
     if (selected == null) return;
+    if (customer?.id != selected.id) {
+      amountController.clear();
+      payFullBalance = false;
+    }
     customer = selected;
     update();
   }
@@ -80,6 +86,23 @@ class ReceiptFormController extends GetxController {
   void setPaymentMethod(String value) {
     if (!paymentMethods.contains(value)) return;
     paymentMethod = value;
+    update();
+  }
+
+  void onAmountChanged(String value) {
+    if (!payFullBalance) return;
+    payFullBalance = false;
+    update();
+  }
+
+  void useFullBalance() {
+    final balance = customer?.currentBalance ?? 0;
+    if (balance <= 0) {
+      _showError('receipts_no_outstanding_balance');
+      return;
+    }
+    payFullBalance = true;
+    amountController.text = balance.toStringAsFixed(3);
     update();
   }
 
@@ -99,6 +122,10 @@ class ReceiptFormController extends GetxController {
       _showError('receipts_amount_required');
       return;
     }
+    if (amount > selectedCustomer.currentBalance) {
+      _showError('receipts_amount_exceeds_balance');
+      return;
+    }
 
     isSaving = true;
     update();
@@ -110,6 +137,7 @@ class ReceiptFormController extends GetxController {
         paymentMethod: paymentMethod,
         receiptDate: receiptDate,
         notes: notesController.text,
+        payFullBalance: payFullBalance,
       );
       Get.snackbar(
         'receipts'.tr,
@@ -118,7 +146,11 @@ class ReceiptFormController extends GetxController {
         backgroundColor: AppColor.success,
         colorText: AppColor.surface,
       );
-      Get.back(result: true);
+      if (Get.previousRoute == AppRoute.receipts) {
+        Get.back(result: true);
+      } else {
+        await Get.offNamed(AppRoute.receipts);
+      }
     } catch (error) {
       _showError(ReceiptErrorMapper.messageKey(error));
     } finally {

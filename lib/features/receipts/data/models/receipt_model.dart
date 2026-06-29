@@ -19,6 +19,8 @@ class ReceiptModel {
     required this.createdByRole,
     required this.customerTransactionIds,
     required this.cashMovementIds,
+    this.invoiceAllocations = const {},
+    this.payFullBalance = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -39,6 +41,8 @@ class ReceiptModel {
   final String createdByRole;
   final List<String> customerTransactionIds;
   final List<String> cashMovementIds;
+  final Map<String, double> invoiceAllocations;
+  final bool payFullBalance;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -65,6 +69,8 @@ class ReceiptModel {
       createdByRole: _readString(data, 'createdByRole'),
       customerTransactionIds: _readStringList(data['customerTransactionIds']),
       cashMovementIds: _readStringList(data['cashMovementIds']),
+      invoiceAllocations: _readDoubleMap(data['invoiceAllocations']),
+      payFullBalance: data['payFullBalance'] == true,
       createdAt: _readDate(data, 'createdAt'),
       updatedAt: _readDate(data, 'updatedAt'),
     );
@@ -87,6 +93,8 @@ class ReceiptModel {
     'createdByRole': createdByRole,
     'customerTransactionIds': customerTransactionIds,
     'cashMovementIds': cashMovementIds,
+    'invoiceAllocations': invoiceAllocations,
+    'payFullBalance': payFullBalance,
     'createdAt': Timestamp.fromDate(createdAt),
     'updatedAt': Timestamp.fromDate(updatedAt),
   };
@@ -118,5 +126,15 @@ class ReceiptModel {
         .map((item) => item.toString().trim())
         .where((item) => item.isNotEmpty)
         .toList(growable: false);
+  }
+
+  static Map<String, double> _readDoubleMap(Object? value) {
+    if (value is! Map) return const {};
+    return value.map((key, amount) {
+      final number = amount is num
+          ? amount.toDouble()
+          : double.tryParse(amount.toString()) ?? 0;
+      return MapEntry(key.toString(), number);
+    });
   }
 }

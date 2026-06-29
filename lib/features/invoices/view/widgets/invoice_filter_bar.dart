@@ -8,22 +8,30 @@ class InvoiceFilterBar extends StatelessWidget {
     super.key,
     required this.type,
     required this.status,
+    required this.paymentStatus,
+    required this.returnStatus,
     required this.fromDate,
     required this.toDate,
     required this.hasFilters,
     required this.onTypeChanged,
     required this.onStatusChanged,
+    required this.onPaymentStatusChanged,
+    required this.onReturnStatusChanged,
     required this.onDateRangeChanged,
     required this.onClear,
   });
 
   final InvoiceType? type;
   final InvoiceStatus? status;
+  final PaymentStatus? paymentStatus;
+  final InvoiceReturnStatus? returnStatus;
   final DateTime? fromDate;
   final DateTime? toDate;
   final bool hasFilters;
   final ValueChanged<InvoiceType?> onTypeChanged;
   final ValueChanged<InvoiceStatus?> onStatusChanged;
+  final ValueChanged<PaymentStatus?> onPaymentStatusChanged;
+  final ValueChanged<InvoiceReturnStatus?> onReturnStatusChanged;
   final ValueChanged<DateTimeRange?> onDateRangeChanged;
   final VoidCallback onClear;
 
@@ -53,6 +61,50 @@ class InvoiceFilterBar extends StatelessWidget {
               ),
             ],
             onChanged: onTypeChanged,
+          ),
+        ),
+        SizedBox(
+          width: 210,
+          child: DropdownButtonFormField<PaymentStatus?>(
+            value: paymentStatus,
+            isExpanded: true,
+            decoration: _decoration(
+              'payment_status'.tr,
+              Icons.payments_outlined,
+            ),
+            items: [
+              DropdownMenuItem(
+                value: null,
+                child: Text('all_payment_statuses'.tr),
+              ),
+              ...PaymentStatus.values.map(
+                (value) =>
+                    DropdownMenuItem(value: value, child: Text(value.value.tr)),
+              ),
+            ],
+            onChanged: onPaymentStatusChanged,
+          ),
+        ),
+        SizedBox(
+          width: 210,
+          child: DropdownButtonFormField<InvoiceReturnStatus?>(
+            value: returnStatus,
+            isExpanded: true,
+            decoration: _decoration(
+              'return_status'.tr,
+              Icons.assignment_return_outlined,
+            ),
+            items: [
+              DropdownMenuItem(
+                value: null,
+                child: Text('all_return_statuses'.tr),
+              ),
+              ...InvoiceReturnStatus.values.map(
+                (value) =>
+                    DropdownMenuItem(value: value, child: Text(value.value.tr)),
+              ),
+            ],
+            onChanged: onReturnStatusChanged,
           ),
         ),
         SizedBox(

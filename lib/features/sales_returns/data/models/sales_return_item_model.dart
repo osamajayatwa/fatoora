@@ -6,6 +6,8 @@ class SalesReturnItemModel {
     required this.unit,
     required this.returnedQuantity,
     required this.unitPrice,
+    this.discountPerUnit = 0,
+    this.discountAmount = 0,
     required this.taxPercent,
     required this.subtotal,
     required this.taxAmount,
@@ -19,6 +21,8 @@ class SalesReturnItemModel {
   final String unit;
   final double returnedQuantity;
   final double unitPrice;
+  final double discountPerUnit;
+  final double discountAmount;
   final double taxPercent;
   final double subtotal;
   final double taxAmount;
@@ -34,6 +38,8 @@ class SalesReturnItemModel {
       unit: _readString(data, 'unit'),
       returnedQuantity: _readDouble(data, 'returnedQuantity'),
       unitPrice: _readDouble(data, 'unitPrice'),
+      discountPerUnit: _readDouble(data, 'discountPerUnit'),
+      discountAmount: _readDouble(data, 'discountAmount'),
       taxPercent: _readDouble(data, 'taxPercent'),
       subtotal: _readDouble(data, 'subtotal'),
       taxAmount: _readDouble(data, 'taxAmount'),
@@ -49,6 +55,8 @@ class SalesReturnItemModel {
     'unit': unit,
     'returnedQuantity': returnedQuantity,
     'unitPrice': unitPrice,
+    'discountPerUnit': discountPerUnit,
+    'discountAmount': discountAmount,
     'taxPercent': taxPercent,
     'subtotal': subtotal,
     'taxAmount': taxAmount,
@@ -63,6 +71,8 @@ class SalesReturnItemModel {
     String? unit,
     double? returnedQuantity,
     double? unitPrice,
+    double? discountPerUnit,
+    double? discountAmount,
     double? taxPercent,
     double? subtotal,
     double? taxAmount,
@@ -76,6 +86,8 @@ class SalesReturnItemModel {
       unit: unit ?? this.unit,
       returnedQuantity: returnedQuantity ?? this.returnedQuantity,
       unitPrice: unitPrice ?? this.unitPrice,
+      discountPerUnit: discountPerUnit ?? this.discountPerUnit,
+      discountAmount: discountAmount ?? this.discountAmount,
       taxPercent: taxPercent ?? this.taxPercent,
       subtotal: subtotal ?? this.subtotal,
       taxAmount: taxAmount ?? this.taxAmount,

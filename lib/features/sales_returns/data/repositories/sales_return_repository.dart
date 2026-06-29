@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fatoora/core/finance/financial_posting_calculator.dart';
 import 'package:fatoora/core/settings/business_settings_defaults.dart';
 import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
@@ -411,6 +412,17 @@ class SalesReturnRepository {
               salesReturn: normalized,
               user: user,
             );
+            final returnImpact = FinancialPostingCalculator.salesReturn(
+              returnTotal: normalized.grandTotal,
+              outstandingReceivable: originalInvoice.effectiveOutstandingAmount,
+              refundPaidPortionToCash:
+                  normalized.refundType == RefundType.cashRefund,
+            );
+            normalized = normalized.copyWith(
+              receivableReduction: returnImpact.receivableReduction,
+              customerCreditAmount: returnImpact.customerCreditAmount,
+              cashRefundAmount: returnImpact.cashRefundAmount,
+            );
             final financialPosting = await _buildFinancialPosting(
               transaction: transaction,
               salesReturn: normalized,
@@ -419,6 +431,10 @@ class SalesReturnRepository {
             final allocation = _nextAllocationMap(
               current: alreadyReturned,
               salesReturn: normalized,
+            );
+            final returnStatus = _returnStatusForAllocation(
+              originalInvoice: originalInvoice,
+              allocation: allocation,
             );
 
             normalized = normalized.copyWith(
@@ -429,10 +445,9 @@ class SalesReturnRepository {
               stockMovementIds: inventoryPosting.movementRefs
                   .map((reference) => reference.id)
                   .toList(growable: false),
-              customerTransactionIds:
-                  financialPosting.customerTransactionRef == null
-                  ? const []
-                  : [financialPosting.customerTransactionRef!.id],
+              customerTransactionIds: financialPosting.customerTransactionRefs
+                  .map((reference) => reference.id)
+                  .toList(growable: false),
               cashMovementIds: financialPosting.cashMovementRef == null
                   ? const []
                   : [financialPosting.cashMovementRef!.id],
@@ -459,6 +474,35 @@ class SalesReturnRepository {
               // simultaneous returns exceeding the original invoice quantity.
               'returnedQuantitiesByItem': allocation,
               'lastSalesReturnId': returnRef.id,
+              'returnStatus': returnStatus.value,
+              'returnedTotal': _round(
+                originalInvoice.returnedTotal + normalized.grandTotal,
+              ),
+              'returnedSubtotal': _round(
+                originalInvoice.returnedSubtotal + normalized.subtotal,
+              ),
+              'returnedDiscount': _round(
+                originalInvoice.returnedDiscount + normalized.totalDiscount,
+              ),
+              'returnedTax': _round(
+                originalInvoice.returnedTax + normalized.totalTax,
+              ),
+              'returnedReceivableAmount': _round(
+                originalInvoice.returnedReceivableAmount +
+                    normalized.receivableReduction,
+              ),
+              'customerCreditAmount': _round(
+                originalInvoice.customerCreditAmount +
+                    normalized.customerCreditAmount,
+              ),
+              'cashRefundAmount': _round(
+                originalInvoice.cashRefundAmount + normalized.cashRefundAmount,
+              ),
+              'returnInvoiceIds': [
+                ...originalInvoice.returnInvoiceIds,
+                returnRef.id,
+              ],
+              'latestReturnAt': FieldValue.serverTimestamp(),
               'updatedAt': FieldValue.serverTimestamp(),
             });
             _applyInventoryPosting(transaction, inventoryPosting);
@@ -598,6 +642,9 @@ class SalesReturnRepository {
         );
       }
       final unitPrice = _netUnitPrice(invoiceItem);
+      final discountPerUnit = invoiceItem.quantity <= 0
+          ? 0.0
+          : _round(invoiceItem.discount / invoiceItem.quantity);
       final taxPercent = _round(
         invoiceItem.taxPercent.clamp(0, 100).toDouble(),
       );
@@ -611,6 +658,8 @@ class SalesReturnRepository {
           unit: invoiceItem.unit,
           returnedQuantity: quantity,
           unitPrice: unitPrice,
+          discountPerUnit: discountPerUnit,
+          discountAmount: _round(quantity * discountPerUnit),
           taxPercent: taxPercent,
           subtotal: subtotal,
           taxAmount: taxAmount,
@@ -624,6 +673,12 @@ class SalesReturnRepository {
     );
     final totalTax = _round(
       normalizedItems.fold<double>(0, (total, item) => total + item.taxAmount),
+    );
+    final totalDiscount = _round(
+      normalizedItems.fold<double>(
+        0,
+        (total, item) => total + item.discountAmount,
+      ),
     );
     final grandTotal = _round(subtotal + totalTax);
     if (grandTotal <= 0) {
@@ -642,14 +697,20 @@ class SalesReturnRepository {
       id: id,
       companyId: originalInvoice.companyId,
       returnNumber: returnNumber,
+      returnInvoiceId: id,
       originalInvoiceId: originalInvoice.id,
       originalInvoiceNumber: originalInvoice.invoiceNumber,
+      originalInvoiceDate: originalInvoice.invoiceDate,
       customerId: originalInvoice.customerId,
       customerSnapshot: originalInvoice.customerSnapshot,
       items: normalizedItems,
       subtotal: subtotal,
+      totalDiscount: totalDiscount,
       totalTax: totalTax,
       grandTotal: grandTotal,
+      receivableReduction: existing?.receivableReduction ?? 0,
+      customerCreditAmount: existing?.customerCreditAmount ?? 0,
+      cashRefundAmount: existing?.cashRefundAmount ?? 0,
       refundType: input.refundType,
       returnDate: input.returnDate,
       reason: input.reason.trim(),
@@ -802,57 +863,117 @@ class SalesReturnRepository {
     required SalesReturnModel salesReturn,
     required BusinessUserContext user,
   }) async {
-    DocumentReference<Map<String, dynamic>>? customerRef;
-    Map<String, dynamic>? customerUpdate;
-    DocumentReference<Map<String, dynamic>>? customerTransactionRef;
-    Map<String, dynamic>? customerTransactionData;
+    final customerRef = _customers(
+      salesReturn.companyId,
+    ).doc(salesReturn.customerId);
+    final customerSnapshot = await transaction.get(customerRef);
+    if (!customerSnapshot.exists) {
+      throw const SalesReturnRepositoryException(
+        SalesReturnRepositoryError.notFound,
+      );
+    }
+    final customer = CustomerModel.fromFirestore(customerSnapshot);
+    _requireCanAccessCustomer(user, customer);
+    final balanceAfterReturn = _round(
+      customer.currentBalance - salesReturn.grandTotal,
+    );
+    final finalBalance = _round(
+      customer.currentBalance -
+          salesReturn.receivableReduction -
+          salesReturn.customerCreditAmount,
+    );
+    final customerUpdate = <String, dynamic>{
+      'currentBalance': finalBalance,
+      'totalSales': _round(
+        math.max(customer.totalSales - salesReturn.grandTotal, 0),
+      ),
+      'totalPaid': _round(
+        math.max(customer.totalPaid - salesReturn.cashRefundAmount, 0),
+      ),
+      'lastSalesReturnId': salesReturn.id,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    final customerTransactionRefs = <DocumentReference<Map<String, dynamic>>>[];
+    final customerTransactionData = <Map<String, dynamic>>[];
     DocumentReference<Map<String, dynamic>>? cashMovementRef;
     Map<String, dynamic>? cashMovementData;
 
-    if (salesReturn.refundType == RefundType.creditCustomerBalance) {
-      customerRef = _customers(
-        salesReturn.companyId,
-      ).doc(salesReturn.customerId);
-      final customerSnapshot = await transaction.get(customerRef);
-      if (!customerSnapshot.exists) {
-        throw const SalesReturnRepositoryException(
-          SalesReturnRepositoryError.notFound,
-        );
-      }
-      final customer = CustomerModel.fromFirestore(customerSnapshot);
-      _requireCanAccessCustomer(user, customer);
-      final balanceAfter = _round(
-        customer.currentBalance - salesReturn.grandTotal,
+    final returnTransactionRef = _transactions(
+      salesReturn.companyId,
+    ).doc('${salesReturn.id}_credit');
+    final existingReturnTransaction = await transaction.get(
+      returnTransactionRef,
+    );
+    if (existingReturnTransaction.exists) {
+      throw const SalesReturnRepositoryException(
+        SalesReturnRepositoryError.alreadyPosted,
       );
-      customerUpdate = {
-        'currentBalance': balanceAfter,
-        'totalSales': customer.totalSales,
-        'totalPaid': customer.totalPaid,
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-      customerTransactionRef = _transactions(
+    }
+    customerTransactionRefs.add(returnTransactionRef);
+    customerTransactionData.add({
+      'id': returnTransactionRef.id,
+      'companyId': salesReturn.companyId,
+      'customerId': customer.id,
+      'customerName': customer.name,
+      'transactionType': 'return',
+      'type': 'return',
+      'referenceId': salesReturn.id,
+      'returnInvoiceId': salesReturn.id,
+      'returnNumber': salesReturn.returnNumber,
+      'originalInvoiceId': salesReturn.originalInvoiceId,
+      'originalInvoiceNumber': salesReturn.originalInvoiceNumber,
+      'sourceCollection': 'sales_returns',
+      'sourceId': salesReturn.id,
+      'sourceNumber': salesReturn.returnNumber,
+      'transactionDate': Timestamp.fromDate(salesReturn.returnDate),
+      'debitAmount': 0,
+      'creditAmount': salesReturn.grandTotal,
+      'amount': salesReturn.grandTotal,
+      'signedAmount': -salesReturn.grandTotal,
+      'balanceAfter': balanceAfterReturn,
+      'notes': salesReturn.reason,
+      'createdByUid': user.uid,
+      'createdByName': user.name,
+      'createdByRole': user.role,
+      'salesRepId': salesReturn.salesRepId,
+      'salesRepName': salesReturn.salesRepName,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    if (salesReturn.cashRefundAmount > 0) {
+      final refundTransactionRef = _transactions(
         salesReturn.companyId,
-      ).doc('${salesReturn.id}_credit');
-      final existingTransaction = await transaction.get(customerTransactionRef);
-      if (existingTransaction.exists) {
+      ).doc('${salesReturn.id}_refund');
+      final existingRefundTransaction = await transaction.get(
+        refundTransactionRef,
+      );
+      if (existingRefundTransaction.exists) {
         throw const SalesReturnRepositoryException(
           SalesReturnRepositoryError.alreadyPosted,
         );
       }
-      customerTransactionData = {
-        'id': customerTransactionRef.id,
+      customerTransactionRefs.add(refundTransactionRef);
+      customerTransactionData.add({
+        'id': refundTransactionRef.id,
         'companyId': salesReturn.companyId,
         'customerId': customer.id,
         'customerName': customer.name,
-        'transactionType': 'sales_return',
+        'transactionType': 'refund',
+        'type': 'refund',
         'referenceId': salesReturn.id,
+        'returnInvoiceId': salesReturn.id,
+        'returnNumber': salesReturn.returnNumber,
+        'originalInvoiceId': salesReturn.originalInvoiceId,
+        'originalInvoiceNumber': salesReturn.originalInvoiceNumber,
         'sourceCollection': 'sales_returns',
         'sourceId': salesReturn.id,
         'sourceNumber': salesReturn.returnNumber,
         'transactionDate': Timestamp.fromDate(salesReturn.returnDate),
-        'debitAmount': 0,
-        'creditAmount': salesReturn.grandTotal,
-        'balanceAfter': balanceAfter,
+        'debitAmount': salesReturn.cashRefundAmount,
+        'creditAmount': 0,
+        'amount': salesReturn.cashRefundAmount,
+        'signedAmount': salesReturn.cashRefundAmount,
+        'balanceAfter': finalBalance,
         'notes': salesReturn.reason,
         'createdByUid': user.uid,
         'createdByName': user.name,
@@ -860,8 +981,7 @@ class SalesReturnRepository {
         'salesRepId': salesReturn.salesRepId,
         'salesRepName': salesReturn.salesRepName,
         'createdAt': FieldValue.serverTimestamp(),
-      };
-    } else {
+      });
       cashMovementRef = _cashMovements(
         salesReturn.companyId,
       ).doc('${salesReturn.id}_cash_refund');
@@ -877,7 +997,7 @@ class SalesReturnRepository {
         'movementType': 'sales_return',
         'type': 'sales_return_cash_refund',
         'direction': 'out',
-        'amount': salesReturn.grandTotal,
+        'amount': salesReturn.cashRefundAmount,
         'paymentType': salesReturn.refundType.value,
         'customerId': salesReturn.customerId,
         'customerName': salesReturn.customerSnapshot?.name ?? '',
@@ -900,11 +1020,24 @@ class SalesReturnRepository {
     return _FinancialPosting(
       customerRef: customerRef,
       customerUpdate: customerUpdate,
-      customerTransactionRef: customerTransactionRef,
+      customerTransactionRefs: customerTransactionRefs,
       customerTransactionData: customerTransactionData,
       cashMovementRef: cashMovementRef,
       cashMovementData: cashMovementData,
     );
+  }
+
+  InvoiceReturnStatus _returnStatusForAllocation({
+    required InvoiceModel originalInvoice,
+    required Map<String, double> allocation,
+  }) {
+    for (var index = 0; index < originalInvoice.items.length; index++) {
+      final lineId = originalInvoiceItemId(originalInvoice.id, index);
+      if ((allocation[lineId] ?? 0) < originalInvoice.items[index].quantity) {
+        return InvoiceReturnStatus.partiallyReturned;
+      }
+    }
+    return InvoiceReturnStatus.returned;
   }
 
   Map<String, double> _nextAllocationMap({
@@ -939,11 +1072,14 @@ class SalesReturnRepository {
     if (posting.customerRef != null && posting.customerUpdate != null) {
       transaction.update(posting.customerRef!, posting.customerUpdate!);
     }
-    if (posting.customerTransactionRef != null &&
-        posting.customerTransactionData != null) {
+    for (
+      var index = 0;
+      index < posting.customerTransactionRefs.length;
+      index++
+    ) {
       transaction.set(
-        posting.customerTransactionRef!,
-        posting.customerTransactionData!,
+        posting.customerTransactionRefs[index],
+        posting.customerTransactionData[index],
       );
     }
     if (posting.cashMovementRef != null && posting.cashMovementData != null) {
@@ -1130,7 +1266,7 @@ class _FinancialPosting {
   const _FinancialPosting({
     required this.customerRef,
     required this.customerUpdate,
-    required this.customerTransactionRef,
+    required this.customerTransactionRefs,
     required this.customerTransactionData,
     required this.cashMovementRef,
     required this.cashMovementData,
@@ -1138,8 +1274,8 @@ class _FinancialPosting {
 
   final DocumentReference<Map<String, dynamic>>? customerRef;
   final Map<String, dynamic>? customerUpdate;
-  final DocumentReference<Map<String, dynamic>>? customerTransactionRef;
-  final Map<String, dynamic>? customerTransactionData;
+  final List<DocumentReference<Map<String, dynamic>>> customerTransactionRefs;
+  final List<Map<String, dynamic>> customerTransactionData;
   final DocumentReference<Map<String, dynamic>>? cashMovementRef;
   final Map<String, dynamic>? cashMovementData;
 }

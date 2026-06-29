@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:fatoora/core/finance/financial_posting_calculator.dart';
 import 'package:fatoora/core/settings/business_settings_defaults.dart';
 import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
@@ -251,7 +251,7 @@ class InvoiceRepository {
                 transaction: transaction,
                 companyId: companyId,
                 invoiceId: document.id,
-                needsCustomerTransaction: paymentPreview.remainingAmount > 0,
+                needsPaymentTransaction: paymentPreview.paidAmount > 0,
                 needsCashMovement: paymentPreview.paidAmount > 0,
               );
             }
@@ -400,15 +400,14 @@ class InvoiceRepository {
                 normalized.invoiceStatus == InvoiceStatus.confirmed;
             if (shouldPost || shouldPostInventory) {
               _FinancialPosting? posting;
-              await _guardAgainstDuplicatePosting(
-                transaction: transaction,
-                companyId: companyId,
-                invoiceId: normalized.id,
-                needsCustomerTransaction:
-                    shouldPost && normalized.remainingAmount > 0,
-                needsCashMovement: shouldPost && normalized.paidAmount > 0,
-              );
               if (shouldPost) {
+                await _guardAgainstDuplicatePosting(
+                  transaction: transaction,
+                  companyId: companyId,
+                  invoiceId: normalized.id,
+                  needsPaymentTransaction: normalized.paidAmount > 0,
+                  needsCashMovement: normalized.paidAmount > 0,
+                );
                 posting = _buildFinancialPosting(
                   invoice: normalized,
                   customer: customer,
@@ -726,54 +725,53 @@ class InvoiceRepository {
     required double grandTotal,
     required double requestedPaidAmount,
   }) {
-    final total = _round(math.max(grandTotal, 0));
-    final paid = _round(requestedPaidAmount);
-    if (!hasReceivedPayment) {
-      if (paid != 0) {
-        throw const InvoiceRepositoryException(
-          InvoiceRepositoryError.invalidData,
-        );
-      }
-      return _CalculatedPayment(
-        type: PaymentType.credit,
-        paidAmount: 0,
-        remainingAmount: total,
-        status: PaymentStatus.unpaid,
+    try {
+      final impact = FinancialPostingCalculator.invoicePayment(
+        total: grandTotal,
+        hasReceivedPayment: hasReceivedPayment,
+        requestedPaidAmount: requestedPaidAmount,
       );
-    }
-    if (paid <= 0 || paid > total) {
+      return _CalculatedPayment(
+        type: switch (impact.state) {
+          FinancialPaymentState.unpaid => PaymentType.credit,
+          FinancialPaymentState.partiallyPaid => PaymentType.partial,
+          FinancialPaymentState.paid => PaymentType.cash,
+        },
+        paidAmount: impact.paidAmount,
+        remainingAmount: impact.receivableAmount,
+        status: switch (impact.state) {
+          FinancialPaymentState.unpaid => PaymentStatus.unpaid,
+          FinancialPaymentState.partiallyPaid => PaymentStatus.partiallyPaid,
+          FinancialPaymentState.paid => PaymentStatus.paid,
+        },
+      );
+    } on FormatException {
       throw const InvoiceRepositoryException(
         InvoiceRepositoryError.invalidData,
       );
     }
-    if (paid == total) {
-      return _CalculatedPayment(
-        type: PaymentType.cash,
-        paidAmount: total,
-        remainingAmount: 0,
-        status: PaymentStatus.paid,
-      );
-    }
-    return _CalculatedPayment(
-      type: PaymentType.partial,
-      paidAmount: paid,
-      remainingAmount: _round(total - paid),
-      status: PaymentStatus.partiallyPaid,
-    );
   }
 
   Future<void> _guardAgainstDuplicatePosting({
     required Transaction transaction,
     required String companyId,
     required String invoiceId,
-    required bool needsCustomerTransaction,
+    required bool needsPaymentTransaction,
     required bool needsCashMovement,
   }) async {
-    if (needsCustomerTransaction) {
-      final transactionSnapshot = await transaction.get(
-        _invoiceCustomerTransactionRef(companyId, invoiceId),
+    final debitSnapshot = await transaction.get(
+      _invoiceCustomerTransactionRef(companyId, invoiceId),
+    );
+    if (debitSnapshot.exists) {
+      throw const InvoiceRepositoryException(
+        InvoiceRepositoryError.invalidState,
       );
-      if (transactionSnapshot.exists) {
+    }
+    if (needsPaymentTransaction) {
+      final paymentSnapshot = await transaction.get(
+        _invoicePaymentTransactionRef(companyId, invoiceId),
+      );
+      if (paymentSnapshot.exists) {
         throw const InvoiceRepositoryException(
           InvoiceRepositoryError.invalidState,
         );
@@ -789,6 +787,13 @@ class InvoiceRepository {
         );
       }
     }
+  }
+
+  DocumentReference<Map<String, dynamic>> _invoicePaymentTransactionRef(
+    String companyId,
+    String invoiceId,
+  ) {
+    return _transactions(companyId).doc('${invoiceId}_payment');
   }
 
   DocumentReference<Map<String, dynamic>> _invoiceCustomerTransactionRef(
@@ -820,26 +825,66 @@ class InvoiceRepository {
       'updatedAt': FieldValue.serverTimestamp(),
     };
 
-    DocumentReference<Map<String, dynamic>>? transactionRef;
-    Map<String, dynamic>? transactionData;
-    if (invoice.remainingAmount > 0) {
-      transactionRef = _invoiceCustomerTransactionRef(
-        invoice.companyId,
-        invoice.id,
-      );
-      transactionData = {
-        'id': transactionRef.id,
+    final debitRef = _invoiceCustomerTransactionRef(
+      invoice.companyId,
+      invoice.id,
+    );
+    final debitBalance = _round(customer.currentBalance + invoice.grandTotal);
+    final transactionRefs = <DocumentReference<Map<String, dynamic>>>[debitRef];
+    final transactionData = <Map<String, dynamic>>[
+      {
+        'id': debitRef.id,
         'companyId': invoice.companyId,
         'customerId': customer.id,
         'customerName': customer.name,
         'transactionType': 'invoice',
+        'type': 'invoice',
         'referenceId': invoice.id,
+        'invoiceId': invoice.id,
+        'invoiceNumber': invoice.invoiceNumber,
         'sourceCollection': 'invoices',
         'sourceId': invoice.id,
         'sourceNumber': invoice.invoiceNumber,
         'transactionDate': Timestamp.fromDate(invoice.invoiceDate),
-        'debitAmount': invoice.remainingAmount,
+        'debitAmount': invoice.grandTotal,
         'creditAmount': 0,
+        'amount': invoice.grandTotal,
+        'signedAmount': invoice.grandTotal,
+        'balanceAfter': debitBalance,
+        'notes': invoice.notes,
+        'createdByUid': invoice.createdByUid,
+        'createdByName': invoice.createdByName,
+        'createdByRole': invoice.createdByRole,
+        'salesRepId': invoice.salesRepId,
+        'salesRepName': invoice.salesRepName,
+        'createdAt': FieldValue.serverTimestamp(),
+      },
+    ];
+
+    if (invoice.paidAmount > 0) {
+      final paymentRef = _invoicePaymentTransactionRef(
+        invoice.companyId,
+        invoice.id,
+      );
+      transactionRefs.add(paymentRef);
+      transactionData.add({
+        'id': paymentRef.id,
+        'companyId': invoice.companyId,
+        'customerId': customer.id,
+        'customerName': customer.name,
+        'transactionType': 'payment',
+        'type': 'payment',
+        'referenceId': invoice.id,
+        'invoiceId': invoice.id,
+        'invoiceNumber': invoice.invoiceNumber,
+        'sourceCollection': 'invoices',
+        'sourceId': invoice.id,
+        'sourceNumber': invoice.invoiceNumber,
+        'transactionDate': Timestamp.fromDate(invoice.invoiceDate),
+        'debitAmount': 0,
+        'creditAmount': invoice.paidAmount,
+        'amount': invoice.paidAmount,
+        'signedAmount': -invoice.paidAmount,
         'balanceAfter': newBalance,
         'notes': invoice.notes,
         'createdByUid': invoice.createdByUid,
@@ -848,7 +893,7 @@ class InvoiceRepository {
         'salesRepId': invoice.salesRepId,
         'salesRepName': invoice.salesRepName,
         'createdAt': FieldValue.serverTimestamp(),
-      };
+      });
     }
 
     DocumentReference<Map<String, dynamic>>? movementRef;
@@ -887,7 +932,7 @@ class InvoiceRepository {
     return _FinancialPosting(
       customerRef: customerRef,
       customerUpdate: customerUpdate,
-      customerTransactionRef: transactionRef,
+      customerTransactionRefs: transactionRefs,
       customerTransactionData: transactionData,
       cashMovementRef: movementRef,
       cashMovementData: movementData,
@@ -905,9 +950,9 @@ class InvoiceRepository {
       financialPostedAt: postedAt,
       financialPostedByUid: user.uid,
       financialPostedByName: user.name,
-      customerTransactionIds: posting.customerTransactionRef == null
-          ? const []
-          : [posting.customerTransactionRef!.id],
+      customerTransactionIds: posting.customerTransactionRefs
+          .map((reference) => reference.id)
+          .toList(growable: false),
       cashMovementIds: posting.cashMovementRef == null
           ? const []
           : [posting.cashMovementRef!.id],
@@ -919,10 +964,15 @@ class InvoiceRepository {
     _FinancialPosting posting,
   ) {
     transaction.update(posting.customerRef, posting.customerUpdate);
-    final customerTransactionRef = posting.customerTransactionRef;
-    final customerTransactionData = posting.customerTransactionData;
-    if (customerTransactionRef != null && customerTransactionData != null) {
-      transaction.set(customerTransactionRef, customerTransactionData);
+    for (
+      var index = 0;
+      index < posting.customerTransactionRefs.length;
+      index++
+    ) {
+      transaction.set(
+        posting.customerTransactionRefs[index],
+        posting.customerTransactionData[index],
+      );
     }
     final cashMovementRef = posting.cashMovementRef;
     final cashMovementData = posting.cashMovementData;
@@ -1212,7 +1262,7 @@ class _FinancialPosting {
   const _FinancialPosting({
     required this.customerRef,
     required this.customerUpdate,
-    required this.customerTransactionRef,
+    required this.customerTransactionRefs,
     required this.customerTransactionData,
     required this.cashMovementRef,
     required this.cashMovementData,
@@ -1220,8 +1270,8 @@ class _FinancialPosting {
 
   final DocumentReference<Map<String, dynamic>> customerRef;
   final Map<String, dynamic> customerUpdate;
-  final DocumentReference<Map<String, dynamic>>? customerTransactionRef;
-  final Map<String, dynamic>? customerTransactionData;
+  final List<DocumentReference<Map<String, dynamic>>> customerTransactionRefs;
+  final List<Map<String, dynamic>> customerTransactionData;
   final DocumentReference<Map<String, dynamic>>? cashMovementRef;
   final Map<String, dynamic>? cashMovementData;
 }

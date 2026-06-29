@@ -10,6 +10,7 @@ import 'package:fatoora/features/financial/data/models/financial_dashboard_snaps
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/receipts/data/models/receipt_model.dart';
+import 'package:fatoora/features/sales_returns/data/models/sales_return_model.dart';
 import 'package:fatoora/features/shared/business/business_user_context.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -66,6 +67,13 @@ class FinancialRepository {
         .collection('receipts');
   }
 
+  CollectionReference<Map<String, dynamic>> _salesReturns(String companyId) {
+    return _firestore
+        .collection('companies')
+        .doc(companyId)
+        .collection('sales_returns');
+  }
+
   CollectionReference<Map<String, dynamic>> _transactions(String companyId) {
     return _firestore
         .collection('companies')
@@ -89,6 +97,7 @@ class FinancialRepository {
       final customers = await _fetchCustomers(resolvedCompanyId, user);
       final invoices = await _fetchInvoices(resolvedCompanyId, user);
       final receipts = await _fetchReceipts(resolvedCompanyId, user);
+      final salesReturns = await _fetchSalesReturns(resolvedCompanyId, user);
       final cashMovements = await _fetchCashMovements(resolvedCompanyId, user);
 
       final financialInvoices = invoices
@@ -105,28 +114,59 @@ class FinancialRepository {
         ),
       );
       final cashInHand = _cashInHand(cashMovements);
+      final invoiceById = {
+        for (final invoice in financialInvoices) invoice.id: invoice,
+      };
+      double returnedFor(PaymentType type) => salesReturns
+          .where(
+            (salesReturn) =>
+                invoiceById[salesReturn.originalInvoiceId]?.paymentType == type,
+          )
+          .fold<double>(
+            0,
+            (total, salesReturn) => total + salesReturn.grandTotal,
+          );
+      final returnedTotal = salesReturns.fold<double>(
+        0,
+        (total, salesReturn) => total + salesReturn.grandTotal,
+      );
 
       return FinancialDashboardSnapshot(
         totalSales: _round(
           financialInvoices.fold<double>(
-            0,
-            (total, invoice) => total + invoice.grandTotal,
-          ),
+                0,
+                (total, invoice) => total + invoice.grandTotal,
+              ) -
+              returnedTotal,
         ),
         cashSales: _round(
           financialInvoices
-              .where((invoice) => invoice.paymentType == PaymentType.cash)
-              .fold<double>(0, (total, invoice) => total + invoice.grandTotal),
+                  .where((invoice) => invoice.paymentType == PaymentType.cash)
+                  .fold<double>(
+                    0,
+                    (total, invoice) => total + invoice.grandTotal,
+                  ) -
+              returnedFor(PaymentType.cash),
         ),
         creditSales: _round(
           financialInvoices
-              .where((invoice) => invoice.paymentType == PaymentType.credit)
-              .fold<double>(0, (total, invoice) => total + invoice.grandTotal),
+                  .where((invoice) => invoice.paymentType == PaymentType.credit)
+                  .fold<double>(
+                    0,
+                    (total, invoice) => total + invoice.grandTotal,
+                  ) -
+              returnedFor(PaymentType.credit),
         ),
         partialSales: _round(
           financialInvoices
-              .where((invoice) => invoice.paymentType == PaymentType.partial)
-              .fold<double>(0, (total, invoice) => total + invoice.grandTotal),
+                  .where(
+                    (invoice) => invoice.paymentType == PaymentType.partial,
+                  )
+                  .fold<double>(
+                    0,
+                    (total, invoice) => total + invoice.grandTotal,
+                  ) -
+              returnedFor(PaymentType.partial),
         ),
         totalReceivables: totalReceivables,
         cashInHand: cashInHand,
@@ -137,13 +177,17 @@ class FinancialRepository {
         recentReceipts: _recentReceipts(receipts),
         topCustomers: _topCustomers(receivableCustomers),
         cashBySalesRep: _amountsByRepFromMovements(cashMovements),
-        salesByRep: _amountsByRepFromInvoices(financialInvoices),
+        salesByRep: _amountsByRepFromInvoices(financialInvoices, salesReturns),
         salesByRepSummary: _salesSummaryByRep(
           invoices: financialInvoices,
           receipts: receipts,
           movements: cashMovements,
+          salesReturns: salesReturns,
         ),
-        weeklyInvoiceValues: _weeklyInvoiceValues(financialInvoices),
+        weeklyInvoiceValues: _weeklyInvoiceValues(
+          financialInvoices,
+          salesReturns,
+        ),
       );
     });
   }
@@ -316,6 +360,27 @@ class FinancialRepository {
     return receipts;
   }
 
+  Future<List<SalesReturnModel>> _fetchSalesReturns(
+    String companyId,
+    BusinessUserContext user,
+  ) async {
+    Query<Map<String, dynamic>> query = _salesReturns(companyId);
+    if (user.isSalesRep) {
+      query = query.where('salesRepId', isEqualTo: user.uid);
+    }
+    final snapshot = await query
+        .limit(700)
+        .get()
+        .timeout(const Duration(seconds: 20));
+    return snapshot.docs
+        .map(SalesReturnModel.fromFirestore)
+        .where(
+          (salesReturn) =>
+              salesReturn.isConfirmed && salesReturn.financialPosted,
+        )
+        .toList(growable: false);
+  }
+
   Future<List<CustomerTransactionModel>> _fetchTransactions(
     String companyId,
     BusinessUserContext user, {
@@ -450,6 +515,7 @@ class FinancialRepository {
 
   List<FinancialRepAmount> _amountsByRepFromInvoices(
     List<InvoiceModel> invoices,
+    List<SalesReturnModel> salesReturns,
   ) {
     final amounts = <String, double>{};
     final names = <String, String>{};
@@ -458,6 +524,12 @@ class FinancialRepository {
       amounts[invoice.salesRepId] =
           (amounts[invoice.salesRepId] ?? 0) + invoice.grandTotal;
       names[invoice.salesRepId] = invoice.salesRepName;
+    }
+    for (final salesReturn in salesReturns) {
+      if (salesReturn.salesRepId.isEmpty) continue;
+      amounts[salesReturn.salesRepId] =
+          (amounts[salesReturn.salesRepId] ?? 0) - salesReturn.grandTotal;
+      names[salesReturn.salesRepId] = salesReturn.salesRepName;
     }
     final rows = amounts.entries
         .map(
@@ -476,10 +548,31 @@ class FinancialRepository {
     required List<InvoiceModel> invoices,
     required List<ReceiptModel> receipts,
     required List<CashMovementModel> movements,
+    required List<SalesReturnModel> salesReturns,
   }) {
     final rows = <String, _MutableRepSales>{};
     _MutableRepSales rowFor(String id, String name) {
       return rows.putIfAbsent(id, () => _MutableRepSales(id, name));
+    }
+
+    final invoiceById = {for (final invoice in invoices) invoice.id: invoice};
+    for (final salesReturn in salesReturns) {
+      if (salesReturn.salesRepId.isEmpty) continue;
+      final row = rowFor(salesReturn.salesRepId, salesReturn.salesRepName);
+      row.totalSales -= salesReturn.grandTotal;
+      switch (invoiceById[salesReturn.originalInvoiceId]?.paymentType) {
+        case PaymentType.cash:
+          row.cashSales -= salesReturn.grandTotal;
+          break;
+        case PaymentType.credit:
+          row.creditSales -= salesReturn.grandTotal;
+          break;
+        case PaymentType.partial:
+          row.partialSales -= salesReturn.grandTotal;
+          break;
+        case null:
+          break;
+      }
     }
 
     for (final invoice in invoices) {
@@ -531,7 +624,10 @@ class FinancialRepository {
     return summaries;
   }
 
-  List<double> _weeklyInvoiceValues(List<InvoiceModel> invoices) {
+  List<double> _weeklyInvoiceValues(
+    List<InvoiceModel> invoices,
+    List<SalesReturnModel> salesReturns,
+  ) {
     final today = _dateOnly(DateTime.now());
     final start = today.subtract(const Duration(days: 6));
     final values = List<double>.filled(7, 0);
@@ -540,6 +636,12 @@ class FinancialRepository {
       if (date.isBefore(start) || date.isAfter(today)) continue;
       final index = date.difference(start).inDays;
       values[index] = _round(values[index] + invoice.grandTotal);
+    }
+    for (final salesReturn in salesReturns) {
+      final date = _dateOnly(salesReturn.returnDate);
+      if (date.isBefore(start) || date.isAfter(today)) continue;
+      final index = date.difference(start).inDays;
+      values[index] = _round(values[index] - salesReturn.grandTotal);
     }
     return values;
   }

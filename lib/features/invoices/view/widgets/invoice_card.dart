@@ -1,5 +1,6 @@
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
+import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_action_buttons.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_status_chip.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_type_chip.dart';
@@ -74,6 +75,9 @@ class InvoiceCard extends StatelessWidget {
                 runSpacing: 8,
                 children: [
                   InvoiceTypeChip(type: invoice.invoiceType),
+                  InvoicePaymentStatusChip(status: invoice.paymentStatus),
+                  if (invoice.returnStatus != InvoiceReturnStatus.none)
+                    InvoiceReturnStatusChip(status: invoice.returnStatus),
                   _InfoPill(
                     icon: Icons.calendar_today_outlined,
                     label: DateFormat.yMMMd().format(invoice.invoiceDate),

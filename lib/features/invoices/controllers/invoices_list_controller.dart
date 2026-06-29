@@ -31,6 +31,8 @@ class InvoicesListController extends GetxController {
   List<InvoiceModel> invoices = const [];
   InvoiceType? typeFilter;
   InvoiceStatus? statusFilter;
+  PaymentStatus? paymentStatusFilter;
+  InvoiceReturnStatus? returnStatusFilter;
   DateTime? fromDate;
   DateTime? toDate;
   String searchText = '';
@@ -47,6 +49,8 @@ class InvoicesListController extends GetxController {
   bool get hasFilters =>
       typeFilter != null ||
       statusFilter != null ||
+      paymentStatusFilter != null ||
+      returnStatusFilter != null ||
       fromDate != null ||
       toDate != null ||
       searchText.trim().isNotEmpty;
@@ -70,7 +74,7 @@ class InvoicesListController extends GetxController {
     loadErrorMessageKey = 'invoice_load_error';
     update();
     try {
-      invoices = await _repository.getInvoices(
+      final loaded = await _repository.getInvoices(
         companyId: resolvedCompanyId,
         type: typeFilter,
         status: statusFilter,
@@ -78,6 +82,14 @@ class InvoicesListController extends GetxController {
         toDate: toDate,
         searchText: searchText,
       );
+      invoices = loaded
+          .where((invoice) {
+            return (paymentStatusFilter == null ||
+                    invoice.paymentStatus == paymentStatusFilter) &&
+                (returnStatusFilter == null ||
+                    invoice.returnStatus == returnStatusFilter);
+          })
+          .toList(growable: false);
       statusRequest = StatusRequest.success;
     } catch (error) {
       statusRequest = InvoiceErrorMapper.status(error);
@@ -109,6 +121,16 @@ class InvoicesListController extends GetxController {
     loadInvoices();
   }
 
+  void setPaymentStatusFilter(PaymentStatus? value) {
+    paymentStatusFilter = value;
+    loadInvoices();
+  }
+
+  void setReturnStatusFilter(InvoiceReturnStatus? value) {
+    returnStatusFilter = value;
+    loadInvoices();
+  }
+
   void setDateRange(DateTimeRange? range) {
     fromDate = range?.start;
     toDate = range?.end;
@@ -118,6 +140,8 @@ class InvoicesListController extends GetxController {
   void clearFilters() {
     typeFilter = null;
     statusFilter = null;
+    paymentStatusFilter = null;
+    returnStatusFilter = null;
     fromDate = null;
     toDate = null;
     searchText = '';

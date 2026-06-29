@@ -51,6 +51,11 @@ class SalesReturnPdfService {
                     loc.t('return_date'),
                     loc.date(salesReturn.returnDate),
                   ),
+                  if (salesReturn.originalInvoiceDate != null)
+                    PdfInfoItem(
+                      loc.t('invoice_date'),
+                      loc.date(salesReturn.originalInvoiceDate!),
+                    ),
                   PdfInfoItem(loc.t('customer'), customer?.name ?? ''),
                   PdfInfoItem(loc.t('sales_rep'), salesReturn.salesRepName),
                   PdfInfoItem(
@@ -107,6 +112,11 @@ class SalesReturnPdfService {
                     loc.t('total_tax'),
                     loc.money(salesReturn.totalTax),
                   ),
+                  if (salesReturn.totalDiscount > 0)
+                    PdfInfoItem(
+                      loc.t('total_discount'),
+                      loc.money(salesReturn.totalDiscount),
+                    ),
                   PdfInfoItem(
                     loc.t('grand_total'),
                     loc.money(salesReturn.grandTotal),

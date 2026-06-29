@@ -443,6 +443,55 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time;
     }
 
+    function validCustomerReturnPostingUpdate(companyId) {
+      let returnPath =
+        /databases/$(database)/documents/companies/$(companyId)/sales_returns/$(request.resource.data.lastSalesReturnId);
+      let salesReturn = getAfter(returnPath);
+      return canReadOwnedBusinessDoc(companyId, resource.data)
+        && customerIdentityPreserved()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'currentBalance',
+          'totalSales',
+          'totalPaid',
+          'lastSalesReturnId',
+          'updatedAt'
+        ])
+        && request.resource.data.lastSalesReturnId is string
+        && request.resource.data.lastSalesReturnId.size() > 0
+        && existsAfter(returnPath)
+        && salesReturn.data.companyId == companyId
+        && salesReturn.data.customerId == resource.data.id
+        && salesReturn.data.status == 'confirmed'
+        && salesReturn.data.financialPosted == true
+        && request.resource.data.currentBalance
+          == resource.data.currentBalance
+            - salesReturn.data.receivableReduction
+            - salesReturn.data.customerCreditAmount
+        && (
+          (
+            resource.data.totalSales >= salesReturn.data.grandTotal
+            && request.resource.data.totalSales
+              == resource.data.totalSales - salesReturn.data.grandTotal
+          )
+          || (
+            resource.data.totalSales < salesReturn.data.grandTotal
+            && request.resource.data.totalSales == 0
+          )
+        )
+        && (
+          (
+            resource.data.totalPaid >= salesReturn.data.cashRefundAmount
+            && request.resource.data.totalPaid
+              == resource.data.totalPaid - salesReturn.data.cashRefundAmount
+          )
+          || (
+            resource.data.totalPaid < salesReturn.data.cashRefundAmount
+            && request.resource.data.totalPaid == 0
+          )
+        )
+        && request.resource.data.updatedAt == request.time;
+    }
+
     function invoiceIdentityPreserved() {
       return request.resource.data.id == resource.data.id
         && request.resource.data.companyId == resource.data.companyId
@@ -685,12 +734,54 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'returnedQuantitiesByItem',
           'lastSalesReturnId',
+          'returnStatus',
+          'returnedTotal',
+          'returnedSubtotal',
+          'returnedDiscount',
+          'returnedTax',
+          'returnedReceivableAmount',
+          'customerCreditAmount',
+          'cashRefundAmount',
+          'returnInvoiceIds',
+          'latestReturnAt',
           'updatedAt'
         ])
         && request.resource.data.returnedQuantitiesByItem is map
         && request.resource.data.lastSalesReturnId is string
         && request.resource.data.lastSalesReturnId.size() > 0
         && request.resource.data.updatedAt == request.time
+        && request.resource.data.returnStatus in [
+          'partiallyReturned',
+          'returned'
+        ]
+        && request.resource.data.returnedTotal
+          == returnSummaryNumber(resource.data, 'returnedTotal')
+            + salesReturn.data.grandTotal
+        && request.resource.data.returnedSubtotal
+          == returnSummaryNumber(resource.data, 'returnedSubtotal')
+            + salesReturn.data.subtotal
+        && request.resource.data.returnedDiscount
+          == returnSummaryNumber(resource.data, 'returnedDiscount')
+            + salesReturn.data.totalDiscount
+        && request.resource.data.returnedTax
+          == returnSummaryNumber(resource.data, 'returnedTax')
+            + salesReturn.data.totalTax
+        && request.resource.data.returnedReceivableAmount
+          == returnSummaryNumber(resource.data, 'returnedReceivableAmount')
+            + salesReturn.data.receivableReduction
+        && request.resource.data.customerCreditAmount
+          == returnSummaryNumber(resource.data, 'customerCreditAmount')
+            + salesReturn.data.customerCreditAmount
+        && request.resource.data.cashRefundAmount
+          == returnSummaryNumber(resource.data, 'cashRefundAmount')
+            + salesReturn.data.cashRefundAmount
+        && request.resource.data.returnInvoiceIds is list
+        && request.resource.data.returnInvoiceIds.size()
+          == returnInvoiceCount(resource.data) + 1
+        && request.resource.data.returnInvoiceIds[
+          request.resource.data.returnInvoiceIds.size() - 1
+        ] == request.resource.data.lastSalesReturnId
+        && request.resource.data.latestReturnAt == request.time
         && existsAfter(returnPath)
         && salesReturn.data.companyId == companyId
         && salesReturn.data.originalInvoiceId == resource.data.id
@@ -704,12 +795,89 @@ service cloud.firestore {
         );
     }
 
+    function returnedReceivableAmount(data) {
+      return data.keys().hasAny(['returnedReceivableAmount'])
+        ? data.returnedReceivableAmount
+        : 0;
+    }
+
+    function returnSummaryNumber(data, field) {
+      return data.keys().hasAny([field]) ? data[field] : 0;
+    }
+
+    function returnInvoiceCount(data) {
+      return data.keys().hasAny(['returnInvoiceIds'])
+        ? data.returnInvoiceIds.size()
+        : 0;
+    }
+
+    function receiptIdCount(data) {
+      return data.keys().hasAny(['receiptIds']) ? data.receiptIds.size() : 0;
+    }
+
+    function validInvoiceReceiptPaymentUpdate(companyId) {
+      let receiptPath =
+        /databases/$(database)/documents/companies/$(companyId)/receipts/$(request.resource.data.lastReceiptId);
+      let receipt = getAfter(receiptPath);
+      let allocation = receipt.data.invoiceAllocations[resource.data.id];
+      return canReadOwnedBusinessDoc(companyId, resource.data)
+        && invoiceIdentityPreserved()
+        && resource.data.invoiceStatus in ['confirmed', 'accepted']
+        && resource.data.financialPosted == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'paidAmount',
+          'remainingAmount',
+          'paymentStatus',
+          'hasReceivedPayment',
+          'receiptIds',
+          'lastReceiptId',
+          'updatedAt'
+        ])
+        && request.resource.data.lastReceiptId is string
+        && request.resource.data.lastReceiptId.size() > 0
+        && existsAfter(receiptPath)
+        && receipt.data.companyId == companyId
+        && receipt.data.customerId == resource.data.customerId
+        && receipt.data.invoiceAllocations is map
+        && receipt.data.invoiceAllocations.keys().hasAny([resource.data.id])
+        && allocation is number
+        && allocation > 0
+        && request.resource.data.paidAmount
+          == resource.data.paidAmount + allocation
+        && request.resource.data.remainingAmount
+          == resource.data.remainingAmount - allocation
+        && request.resource.data.remainingAmount >= 0
+        && request.resource.data.hasReceivedPayment == true
+        && request.resource.data.paymentStatus
+          == (
+            request.resource.data.remainingAmount
+              - returnedReceivableAmount(request.resource.data) <= 0
+              ? 'paid'
+              : 'partiallyPaid'
+          )
+        && request.resource.data.receiptIds is list
+        && request.resource.data.receiptIds.size()
+          == receiptIdCount(resource.data) + 1
+        && request.resource.data.receiptIds[
+          request.resource.data.receiptIds.size() - 1
+        ] == request.resource.data.lastReceiptId
+        && request.resource.data.updatedAt == request.time;
+    }
+
     function salesReturnIdentityPreserved() {
       return request.resource.data.id == resource.data.id
         && request.resource.data.companyId == resource.data.companyId
         && request.resource.data.returnNumber == resource.data.returnNumber
+        && (
+          !resource.data.keys().hasAny(['returnInvoiceId'])
+          || request.resource.data.returnInvoiceId == resource.data.returnInvoiceId
+        )
         && request.resource.data.originalInvoiceId == resource.data.originalInvoiceId
         && request.resource.data.originalInvoiceNumber == resource.data.originalInvoiceNumber
+        && (
+          !resource.data.keys().hasAny(['originalInvoiceDate'])
+          || request.resource.data.originalInvoiceDate == resource.data.originalInvoiceDate
+        )
         && request.resource.data.customerId == resource.data.customerId
         && request.resource.data.createdByUid == resource.data.createdByUid
         && request.resource.data.createdByName == resource.data.createdByName
@@ -739,14 +907,20 @@ service cloud.firestore {
           'id',
           'companyId',
           'returnNumber',
+          'returnInvoiceId',
           'originalInvoiceId',
           'originalInvoiceNumber',
+          'originalInvoiceDate',
           'customerId',
           'customerSnapshot',
           'items',
           'subtotal',
+          'totalDiscount',
           'totalTax',
           'grandTotal',
+          'receivableReduction',
+          'customerCreditAmount',
+          'cashRefundAmount',
           'refundType',
           'returnDate',
           'reason',
@@ -767,6 +941,7 @@ service cloud.firestore {
           'updatedAt'
         ])
         && data.id == returnId
+        && data.returnInvoiceId == returnId
         && data.companyId == companyId
         && data.returnNumber.matches(
           '^[A-Z0-9]{1,10}-[0-9]{4}-[0-9]{6}$'
@@ -774,6 +949,7 @@ service cloud.firestore {
         && data.originalInvoiceId is string
         && data.originalInvoiceId.size() > 0
         && data.originalInvoiceNumber is string
+        && data.originalInvoiceDate is timestamp
         && data.customerId is string
         && data.customerId.size() > 0
         && data.customerSnapshot is map
@@ -781,10 +957,42 @@ service cloud.firestore {
         && data.items.size() > 0
         && data.subtotal is number
         && data.subtotal >= 0
+        && data.totalDiscount is number
+        && data.totalDiscount >= 0
         && data.totalTax is number
         && data.totalTax >= 0
         && data.grandTotal is number
         && data.grandTotal > 0
+        && data.receivableReduction is number
+        && data.receivableReduction >= 0
+        && data.customerCreditAmount is number
+        && data.customerCreditAmount >= 0
+        && data.cashRefundAmount is number
+        && data.cashRefundAmount >= 0
+        && (
+          (
+            data.status == 'draft'
+            && data.receivableReduction == 0
+            && data.customerCreditAmount == 0
+            && data.cashRefundAmount == 0
+          )
+          || (
+            data.status == 'confirmed'
+            && data.receivableReduction
+              + data.customerCreditAmount
+              + data.cashRefundAmount == data.grandTotal
+            && (
+              (
+                data.refundType == 'credit_customer_balance'
+                && data.cashRefundAmount == 0
+              )
+              || (
+                data.refundType == 'cash_refund'
+                && data.customerCreditAmount == 0
+              )
+            )
+          )
+        )
         && data.refundType in ['credit_customer_balance', 'cash_refund']
         && data.returnDate is timestamp
         && data.reason is string
@@ -831,6 +1039,9 @@ service cloud.firestore {
             && data.stockMovementIds.size() == 0
             && data.customerTransactionIds.size() == 0
             && data.cashMovementIds.size() == 0
+            && data.receivableReduction == 0
+            && data.customerCreditAmount == 0
+            && data.cashRefundAmount == 0
           )
           || (
             data.status == 'confirmed'
@@ -860,6 +1071,9 @@ service cloud.firestore {
         && request.resource.data.stockMovementIds.size() == 0
         && request.resource.data.customerTransactionIds.size() == 0
         && request.resource.data.cashMovementIds.size() == 0
+        && request.resource.data.receivableReduction == 0
+        && request.resource.data.customerCreditAmount == 0
+        && request.resource.data.cashRefundAmount == 0
         && request.resource.data.updatedAt == request.time;
     }
 
@@ -874,6 +1088,10 @@ service cloud.firestore {
         && request.resource.data.status == 'confirmed'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'status',
+          'returnInvoiceId',
+          'originalInvoiceDate',
+          'items',
+          'totalDiscount',
           'financialPosted',
           'inventoryPosted',
           'financialPostedAt',
@@ -881,8 +1099,17 @@ service cloud.firestore {
           'stockMovementIds',
           'customerTransactionIds',
           'cashMovementIds',
+          'receivableReduction',
+          'customerCreditAmount',
+          'cashRefundAmount',
           'updatedAt'
         ])
+        && salesReturnFieldsAreValid(
+          companyId,
+          resource.data.id,
+          request.resource.data
+        )
+        && salesReturnSourceInvoiceIsAllowed(companyId, request.resource.data)
         && request.resource.data.financialPosted == true
         && request.resource.data.inventoryPosted == true
         && request.resource.data.updatedAt == request.time;
@@ -1207,7 +1434,8 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time;
 
       allow update: if validCustomerProfileUpdate(companyId)
-        || validCustomerFinancialPostingUpdate(companyId);
+        || validCustomerFinancialPostingUpdate(companyId)
+        || validCustomerReturnPostingUpdate(companyId);
 
       allow delete: if false;
     }
@@ -1237,7 +1465,8 @@ service cloud.firestore {
 
       allow update: if validInvoiceDraftUpdate(companyId)
         || validInvoicePostingUpdate(companyId)
-        || validInvoiceReturnAllocationUpdate(companyId);
+        || validInvoiceReturnAllocationUpdate(companyId)
+        || validInvoiceReceiptPaymentUpdate(companyId);
 
       allow delete: if canReadOwnedBusinessDoc(companyId, resource.data)
         && resource.data.invoiceStatus == 'draft'

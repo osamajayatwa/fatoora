@@ -13,6 +13,8 @@ enum PaymentType { cash, credit, partial }
 
 enum PaymentStatus { paid, unpaid, partiallyPaid, overdue }
 
+enum InvoiceReturnStatus { none, partiallyReturned, returned }
+
 InvoiceType invoiceTypeFromValue(Object? value) {
   final normalized = value?.toString().trim().toLowerCase();
   return switch (normalized) {
@@ -56,6 +58,16 @@ PaymentStatus paymentStatusFromValue(Object? value) {
   };
 }
 
+InvoiceReturnStatus invoiceReturnStatusFromValue(Object? value) {
+  return switch (value?.toString().trim().toLowerCase()) {
+    'partiallyreturned' ||
+    'partially_returned' ||
+    'partial' => InvoiceReturnStatus.partiallyReturned,
+    'returned' => InvoiceReturnStatus.returned,
+    _ => InvoiceReturnStatus.none,
+  };
+}
+
 extension InvoiceTypeValue on InvoiceType {
   String get value => name;
 }
@@ -69,5 +81,9 @@ extension PaymentTypeValue on PaymentType {
 }
 
 extension PaymentStatusValue on PaymentStatus {
+  String get value => name;
+}
+
+extension InvoiceReturnStatusValue on InvoiceReturnStatus {
   String get value => name;
 }

@@ -32,6 +32,18 @@ class InvoiceModel {
     required this.grandTotal,
     required this.paidAmount,
     required this.remainingAmount,
+    this.returnStatus = InvoiceReturnStatus.none,
+    this.returnedTotal = 0,
+    this.returnedSubtotal = 0,
+    this.returnedDiscount = 0,
+    this.returnedTax = 0,
+    this.returnedReceivableAmount = 0,
+    this.customerCreditAmount = 0,
+    this.cashRefundAmount = 0,
+    this.returnInvoiceIds = const [],
+    this.latestReturnAt,
+    this.receiptIds = const [],
+    this.lastReceiptId = '',
     required this.notes,
     required this.paymentMethod,
     required this.isLocked,
@@ -80,6 +92,18 @@ class InvoiceModel {
   final double grandTotal;
   final double paidAmount;
   final double remainingAmount;
+  final InvoiceReturnStatus returnStatus;
+  final double returnedTotal;
+  final double returnedSubtotal;
+  final double returnedDiscount;
+  final double returnedTax;
+  final double returnedReceivableAmount;
+  final double customerCreditAmount;
+  final double cashRefundAmount;
+  final List<String> returnInvoiceIds;
+  final DateTime? latestReturnAt;
+  final List<String> receiptIds;
+  final String lastReceiptId;
   final String notes;
   final String paymentMethod;
   final bool isLocked;
@@ -111,6 +135,10 @@ class InvoiceModel {
       !isLocked &&
       (invoiceStatus == InvoiceStatus.draft ||
           invoiceStatus == InvoiceStatus.rejected);
+  double get effectiveOutstandingAmount =>
+      (remainingAmount - returnedReceivableAmount)
+          .clamp(0, double.infinity)
+          .toDouble();
 
   factory InvoiceModel.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> document,
@@ -169,6 +197,18 @@ class InvoiceModel {
       grandTotal: grandTotal,
       paidAmount: paidAmount,
       remainingAmount: remainingAmount,
+      returnStatus: invoiceReturnStatusFromValue(data['returnStatus']),
+      returnedTotal: _readDouble(data, 'returnedTotal'),
+      returnedSubtotal: _readDouble(data, 'returnedSubtotal'),
+      returnedDiscount: _readDouble(data, 'returnedDiscount'),
+      returnedTax: _readDouble(data, 'returnedTax'),
+      returnedReceivableAmount: _readDouble(data, 'returnedReceivableAmount'),
+      customerCreditAmount: _readDouble(data, 'customerCreditAmount'),
+      cashRefundAmount: _readDouble(data, 'cashRefundAmount'),
+      returnInvoiceIds: _readStringList(data['returnInvoiceIds']),
+      latestReturnAt: _readDate(data, 'latestReturnAt'),
+      receiptIds: _readStringList(data['receiptIds']),
+      lastReceiptId: _readString(data, 'lastReceiptId'),
       notes: _readString(data, 'notes'),
       paymentMethod: _readString(data, 'paymentMethod').isEmpty
           ? paymentType.value
@@ -223,6 +263,20 @@ class InvoiceModel {
     'grandTotal': grandTotal,
     'paidAmount': paidAmount,
     'remainingAmount': remainingAmount,
+    'returnStatus': returnStatus.value,
+    'returnedTotal': returnedTotal,
+    'returnedSubtotal': returnedSubtotal,
+    'returnedDiscount': returnedDiscount,
+    'returnedTax': returnedTax,
+    'returnedReceivableAmount': returnedReceivableAmount,
+    'customerCreditAmount': customerCreditAmount,
+    'cashRefundAmount': cashRefundAmount,
+    'returnInvoiceIds': returnInvoiceIds,
+    'latestReturnAt': latestReturnAt == null
+        ? null
+        : Timestamp.fromDate(latestReturnAt!),
+    'receiptIds': receiptIds,
+    'lastReceiptId': lastReceiptId,
     'notes': notes,
     'paymentMethod': paymentMethod,
     'isLocked': isLocked,
@@ -276,6 +330,18 @@ class InvoiceModel {
     double? grandTotal,
     double? paidAmount,
     double? remainingAmount,
+    InvoiceReturnStatus? returnStatus,
+    double? returnedTotal,
+    double? returnedSubtotal,
+    double? returnedDiscount,
+    double? returnedTax,
+    double? returnedReceivableAmount,
+    double? customerCreditAmount,
+    double? cashRefundAmount,
+    List<String>? returnInvoiceIds,
+    DateTime? latestReturnAt,
+    List<String>? receiptIds,
+    String? lastReceiptId,
     String? notes,
     String? paymentMethod,
     bool? isLocked,
@@ -326,6 +392,19 @@ class InvoiceModel {
       grandTotal: grandTotal ?? this.grandTotal,
       paidAmount: paidAmount ?? this.paidAmount,
       remainingAmount: remainingAmount ?? this.remainingAmount,
+      returnStatus: returnStatus ?? this.returnStatus,
+      returnedTotal: returnedTotal ?? this.returnedTotal,
+      returnedSubtotal: returnedSubtotal ?? this.returnedSubtotal,
+      returnedDiscount: returnedDiscount ?? this.returnedDiscount,
+      returnedTax: returnedTax ?? this.returnedTax,
+      returnedReceivableAmount:
+          returnedReceivableAmount ?? this.returnedReceivableAmount,
+      customerCreditAmount: customerCreditAmount ?? this.customerCreditAmount,
+      cashRefundAmount: cashRefundAmount ?? this.cashRefundAmount,
+      returnInvoiceIds: returnInvoiceIds ?? this.returnInvoiceIds,
+      latestReturnAt: latestReturnAt ?? this.latestReturnAt,
+      receiptIds: receiptIds ?? this.receiptIds,
+      lastReceiptId: lastReceiptId ?? this.lastReceiptId,
       notes: notes ?? this.notes,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       isLocked: isLocked ?? this.isLocked,

@@ -8,14 +8,20 @@ class SalesReturnModel {
     required this.id,
     required this.companyId,
     required this.returnNumber,
+    this.returnInvoiceId = '',
     required this.originalInvoiceId,
     required this.originalInvoiceNumber,
+    this.originalInvoiceDate,
     required this.customerId,
     required this.customerSnapshot,
     required this.items,
     required this.subtotal,
+    this.totalDiscount = 0,
     required this.totalTax,
     required this.grandTotal,
+    this.receivableReduction = 0,
+    this.customerCreditAmount = 0,
+    this.cashRefundAmount = 0,
     required this.refundType,
     required this.returnDate,
     required this.reason,
@@ -39,14 +45,20 @@ class SalesReturnModel {
   final String id;
   final String companyId;
   final String returnNumber;
+  final String returnInvoiceId;
   final String originalInvoiceId;
   final String originalInvoiceNumber;
+  final DateTime? originalInvoiceDate;
   final String customerId;
   final InvoiceCustomerSnapshot? customerSnapshot;
   final List<SalesReturnItemModel> items;
   final double subtotal;
+  final double totalDiscount;
   final double totalTax;
   final double grandTotal;
+  final double receivableReduction;
+  final double customerCreditAmount;
+  final double cashRefundAmount;
   final RefundType refundType;
   final DateTime returnDate;
   final String reason;
@@ -84,8 +96,12 @@ class SalesReturnModel {
       id: id ?? _readString(data, 'id'),
       companyId: _readString(data, 'companyId'),
       returnNumber: _readString(data, 'returnNumber'),
+      returnInvoiceId: _readString(data, 'returnInvoiceId').isEmpty
+          ? (id ?? _readString(data, 'id'))
+          : _readString(data, 'returnInvoiceId'),
       originalInvoiceId: _readString(data, 'originalInvoiceId'),
       originalInvoiceNumber: _readString(data, 'originalInvoiceNumber'),
+      originalInvoiceDate: _readDate(data, 'originalInvoiceDate'),
       customerId: _readString(data, 'customerId'),
       customerSnapshot: data['customerSnapshot'] == null
           ? null
@@ -94,8 +110,12 @@ class SalesReturnModel {
         data['items'],
       ).map(SalesReturnItemModel.fromMap).toList(growable: false),
       subtotal: _readDouble(data, 'subtotal'),
+      totalDiscount: _readDouble(data, 'totalDiscount'),
       totalTax: _readDouble(data, 'totalTax'),
       grandTotal: _readDouble(data, 'grandTotal'),
+      receivableReduction: _readDouble(data, 'receivableReduction'),
+      customerCreditAmount: _readDouble(data, 'customerCreditAmount'),
+      cashRefundAmount: _readDouble(data, 'cashRefundAmount'),
       refundType: refundTypeFromValue(data['refundType']),
       returnDate: returnDate,
       reason: _readString(data, 'reason'),
@@ -121,14 +141,22 @@ class SalesReturnModel {
     'id': id,
     'companyId': companyId,
     'returnNumber': returnNumber,
+    'returnInvoiceId': returnInvoiceId.isEmpty ? id : returnInvoiceId,
     'originalInvoiceId': originalInvoiceId,
     'originalInvoiceNumber': originalInvoiceNumber,
+    'originalInvoiceDate': originalInvoiceDate == null
+        ? null
+        : Timestamp.fromDate(originalInvoiceDate!),
     'customerId': customerId,
     'customerSnapshot': customerSnapshot?.toMap(),
     'items': items.map((item) => item.toMap()).toList(growable: false),
     'subtotal': subtotal,
+    'totalDiscount': totalDiscount,
     'totalTax': totalTax,
     'grandTotal': grandTotal,
+    'receivableReduction': receivableReduction,
+    'customerCreditAmount': customerCreditAmount,
+    'cashRefundAmount': cashRefundAmount,
     'refundType': refundType.value,
     'returnDate': Timestamp.fromDate(returnDate),
     'reason': reason,
@@ -157,14 +185,20 @@ class SalesReturnModel {
     String? id,
     String? companyId,
     String? returnNumber,
+    String? returnInvoiceId,
     String? originalInvoiceId,
     String? originalInvoiceNumber,
+    DateTime? originalInvoiceDate,
     String? customerId,
     InvoiceCustomerSnapshot? customerSnapshot,
     List<SalesReturnItemModel>? items,
     double? subtotal,
+    double? totalDiscount,
     double? totalTax,
     double? grandTotal,
+    double? receivableReduction,
+    double? customerCreditAmount,
+    double? cashRefundAmount,
     RefundType? refundType,
     DateTime? returnDate,
     String? reason,
@@ -190,15 +224,21 @@ class SalesReturnModel {
       id: id ?? this.id,
       companyId: companyId ?? this.companyId,
       returnNumber: returnNumber ?? this.returnNumber,
+      returnInvoiceId: returnInvoiceId ?? this.returnInvoiceId,
       originalInvoiceId: originalInvoiceId ?? this.originalInvoiceId,
       originalInvoiceNumber:
           originalInvoiceNumber ?? this.originalInvoiceNumber,
+      originalInvoiceDate: originalInvoiceDate ?? this.originalInvoiceDate,
       customerId: customerId ?? this.customerId,
       customerSnapshot: customerSnapshot ?? this.customerSnapshot,
       items: items ?? this.items,
       subtotal: subtotal ?? this.subtotal,
+      totalDiscount: totalDiscount ?? this.totalDiscount,
       totalTax: totalTax ?? this.totalTax,
       grandTotal: grandTotal ?? this.grandTotal,
+      receivableReduction: receivableReduction ?? this.receivableReduction,
+      customerCreditAmount: customerCreditAmount ?? this.customerCreditAmount,
+      cashRefundAmount: cashRefundAmount ?? this.cashRefundAmount,
       refundType: refundType ?? this.refundType,
       returnDate: returnDate ?? this.returnDate,
       reason: reason ?? this.reason,

@@ -2,10 +2,13 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fatoora/core/finance/financial_posting_calculator.dart';
 import 'package:fatoora/core/settings/business_settings_defaults.dart';
 import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
+import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
+import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/receipts/data/models/receipt_model.dart';
 import 'package:fatoora/features/settings/data/models/app_settings_model.dart';
 import 'package:fatoora/features/settings/data/models/document_settings_model.dart';
@@ -58,6 +61,13 @@ class ReceiptRepository {
         .collection('companies')
         .doc(companyId)
         .collection('receipts');
+  }
+
+  CollectionReference<Map<String, dynamic>> _invoices(String companyId) {
+    return _firestore
+        .collection('companies')
+        .doc(companyId)
+        .collection('invoices');
   }
 
   CollectionReference<Map<String, dynamic>> _transactions(String companyId) {
@@ -168,6 +178,7 @@ class ReceiptRepository {
     required String paymentMethod,
     required DateTime receiptDate,
     String notes = '',
+    bool payFullBalance = false,
   }) {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
@@ -184,11 +195,17 @@ class ReceiptRepository {
           ReceiptRepositoryError.createDisabled,
         );
       }
-      if (!amount.isFinite || amount <= 0) {
+      if (!payFullBalance && (!amount.isFinite || amount <= 0)) {
         throw const ReceiptRepositoryException(
           ReceiptRepositoryError.invalidData,
         );
       }
+
+      final candidateInvoiceIds = await _fetchOutstandingInvoiceIds(
+        companyId: resolvedCompanyId,
+        customerId: customerId,
+        user: user,
+      );
 
       late ReceiptModel created;
       await _firestore
@@ -223,10 +240,61 @@ class ReceiptRepository {
               cashMovementRef: movementRef,
             );
             final now = DateTime.now();
-            final roundedAmount = _round(amount);
+            late final double roundedAmount;
+            try {
+              roundedAmount = FinancialPostingCalculator.receiptAmount(
+                requestedAmount: payFullBalance
+                    ? customer.currentBalance
+                    : amount,
+                customerBalance: customer.currentBalance,
+              );
+            } on FormatException {
+              throw const ReceiptRepositoryException(
+                ReceiptRepositoryError.invalidData,
+              );
+            }
             final normalizedPaymentMethod = paymentMethod.trim().isEmpty
                 ? 'cash'
                 : paymentMethod.trim().toLowerCase();
+            final invoiceAllocations = <String, double>{};
+            var amountToAllocate = roundedAmount;
+            for (final invoiceId in candidateInvoiceIds) {
+              if (amountToAllocate <= 0) break;
+              final invoiceRef = _invoices(resolvedCompanyId).doc(invoiceId);
+              final invoiceSnapshot = await transaction.get(invoiceRef);
+              if (!invoiceSnapshot.exists) continue;
+              final invoice = InvoiceModel.fromFirestore(invoiceSnapshot);
+              if (invoice.customerId != customer.id ||
+                  !invoice.financialPosted ||
+                  !invoice.isFinancial) {
+                continue;
+              }
+              final outstanding = _round(invoice.effectiveOutstandingAmount);
+              if (outstanding <= 0) continue;
+              final allocation = _round(
+                math.min(amountToAllocate, outstanding),
+              );
+              final nextPaid = _round(invoice.paidAmount + allocation);
+              final nextRemaining = _round(
+                math.max(invoice.remainingAmount - allocation, 0),
+              );
+              final effectiveRemaining = _round(
+                math.max(nextRemaining - invoice.returnedReceivableAmount, 0),
+              );
+              transaction.update(invoiceRef, {
+                'paidAmount': nextPaid,
+                'remainingAmount': nextRemaining,
+                'paymentStatus': effectiveRemaining <= 0
+                    ? PaymentStatus.paid.value
+                    : PaymentStatus.partiallyPaid.value,
+                'hasReceivedPayment': true,
+                'receiptIds': [...invoice.receiptIds, receiptRef.id],
+                'lastReceiptId': receiptRef.id,
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+              invoiceAllocations[invoice.id] = allocation;
+              amountToAllocate = _round(amountToAllocate - allocation);
+            }
             created = ReceiptModel(
               id: receiptRef.id,
               companyId: resolvedCompanyId,
@@ -246,6 +314,8 @@ class ReceiptRepository {
               cashMovementIds: normalizedPaymentMethod == 'cash'
                   ? [movementRef.id]
                   : const [],
+              invoiceAllocations: invoiceAllocations,
+              payFullBalance: payFullBalance,
               createdAt: now,
               updatedAt: now,
             );
@@ -268,13 +338,19 @@ class ReceiptRepository {
               'customerId': customer.id,
               'customerName': customer.name,
               'transactionType': 'receipt',
+              'type': 'payment',
               'referenceId': receiptRef.id,
+              'receiptId': receiptRef.id,
+              'receiptNumber': receiptNumber,
+              'invoiceAllocations': invoiceAllocations,
               'sourceCollection': 'receipts',
               'sourceId': receiptRef.id,
               'sourceNumber': receiptNumber,
               'transactionDate': Timestamp.fromDate(receiptDate),
               'debitAmount': 0,
               'creditAmount': roundedAmount,
+              'amount': roundedAmount,
+              'signedAmount': -roundedAmount,
               'balanceAfter': newBalance,
               'notes': notes.trim(),
               'createdByUid': user.uid,
@@ -317,6 +393,39 @@ class ReceiptRepository {
 
       return created;
     });
+  }
+
+  Future<List<String>> _fetchOutstandingInvoiceIds({
+    required String companyId,
+    required String customerId,
+    required BusinessUserContext user,
+  }) async {
+    Query<Map<String, dynamic>> query = _invoices(companyId);
+    if (user.isSalesRep) {
+      query = query.where('salesRepId', isEqualTo: user.uid);
+    } else {
+      query = query.where('customerId', isEqualTo: customerId);
+    }
+    final snapshot = await query
+        .limit(250)
+        .get()
+        .timeout(const Duration(seconds: 20));
+    final invoices =
+        snapshot.docs
+            .map(InvoiceModel.fromFirestore)
+            .where(
+              (invoice) =>
+                  invoice.customerId == customerId &&
+                  invoice.financialPosted &&
+                  invoice.isFinancial &&
+                  invoice.effectiveOutstandingAmount > 0,
+            )
+            .toList(growable: false)
+          ..sort((a, b) {
+            final due = a.dueDate.compareTo(b.dueDate);
+            return due != 0 ? due : a.invoiceDate.compareTo(b.invoiceDate);
+          });
+    return invoices.map((invoice) => invoice.id).toList(growable: false);
   }
 
   Future<void> _guardAgainstDuplicatePosting({

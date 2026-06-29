@@ -297,8 +297,22 @@ class _PaymentCard extends StatelessWidget {
           ),
           _PaymentRow(
             label: 'remaining_amount'.tr,
-            value: currency.format(invoice.remainingAmount),
+            value: currency.format(invoice.effectiveOutstandingAmount),
           ),
+          _PaymentRow(
+            label: 'return_status'.tr,
+            value: invoice.returnStatus.value.tr,
+          ),
+          if (invoice.returnedTotal > 0)
+            _PaymentRow(
+              label: 'returned_total'.tr,
+              value: currency.format(invoice.returnedTotal),
+            ),
+          if (invoice.returnInvoiceIds.isNotEmpty)
+            _PaymentRow(
+              label: 'linked_return_count'.tr,
+              value: invoice.returnInvoiceIds.length.toString(),
+            ),
           _PaymentRow(
             label: 'invoice_due_date'.tr,
             value: DateFormat.yMMMd().format(invoice.dueDate),

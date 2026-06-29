@@ -45,6 +45,7 @@ class ReceiptFormScreen extends StatelessWidget {
                           const SizedBox(height: 16),
                           TextField(
                             controller: controller.amountController,
+                            onChanged: controller.onAmountChanged,
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
                             ),
@@ -53,6 +54,28 @@ class ReceiptFormScreen extends StatelessWidget {
                               prefixIcon: const Icon(Icons.payments_outlined),
                               border: const OutlineInputBorder(),
                             ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'receipts_current_balance'.trParams({
+                                    'amount':
+                                        (controller.customer?.currentBalance ??
+                                                0)
+                                            .toStringAsFixed(3),
+                                  }),
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(color: AppColor.grey),
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: controller.useFullBalance,
+                                icon: const Icon(Icons.done_all_rounded),
+                                label: Text('receipts_pay_full_balance'.tr),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 16),
                           _PaymentMethodSelector(controller: controller),

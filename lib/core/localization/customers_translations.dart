@@ -44,6 +44,9 @@ const Map<String, String> customersEnglishTranslations = {
   'customers_credit': 'Credit',
   'invoice': 'Invoice',
   'receipt': 'Receipt',
+  'payment': 'Payment',
+  'return': 'Return / credit note',
+  'refund': 'Refund',
 };
 
 const Map<String, String> customersArabicTranslations = {
@@ -92,4 +95,7 @@ const Map<String, String> customersArabicTranslations = {
   'customers_credit': 'دائن',
   'invoice': 'فاتورة',
   'receipt': 'إيصال',
+  'payment': 'دفعة',
+  'return': 'مرتجع / إشعار دائن',
+  'refund': 'استرداد',
 };

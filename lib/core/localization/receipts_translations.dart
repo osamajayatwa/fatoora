@@ -24,6 +24,12 @@ const Map<String, String> receiptsEnglishTranslations = {
   'receipts_invalid_data': 'The receipt contains missing or invalid data.',
   'receipts_customer_required': 'Select a customer.',
   'receipts_amount_required': 'Enter an amount greater than zero.',
+  'receipts_current_balance': 'Current balance: @amount JOD',
+  'receipts_pay_full_balance': 'Pay full balance',
+  'receipts_amount_exceeds_balance':
+      'The payment cannot exceed the customer balance.',
+  'receipts_no_outstanding_balance':
+      'This customer has no outstanding balance.',
   'receipts_created_successfully': 'Receipt created successfully.',
   'payment_method_cash': 'Cash',
   'payment_method_bank': 'Bank',
@@ -58,6 +64,11 @@ const Map<String, String> receiptsArabicTranslations = {
   'receipts_invalid_data': 'بيانات الإيصال ناقصة أو غير صحيحة.',
   'receipts_customer_required': 'اختر العميل.',
   'receipts_amount_required': 'أدخل مبلغا أكبر من صفر.',
+  'receipts_current_balance': 'الرصيد الحالي: @amount د.أ',
+  'receipts_pay_full_balance': 'دفع كامل الرصيد',
+  'receipts_amount_exceeds_balance':
+      'لا يمكن أن تتجاوز الدفعة رصيد العميل المستحق.',
+  'receipts_no_outstanding_balance': 'لا يوجد رصيد مستحق على هذا العميل.',
   'receipts_created_successfully': 'تم إنشاء الإيصال بنجاح.',
   'payment_method_cash': 'نقدا',
   'payment_method_bank': 'بنك',

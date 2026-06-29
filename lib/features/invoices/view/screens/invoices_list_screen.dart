@@ -54,11 +54,17 @@ class InvoicesListScreen extends StatelessWidget {
                             InvoiceFilterBar(
                               type: controller.typeFilter,
                               status: controller.statusFilter,
+                              paymentStatus: controller.paymentStatusFilter,
+                              returnStatus: controller.returnStatusFilter,
                               fromDate: controller.fromDate,
                               toDate: controller.toDate,
                               hasFilters: controller.hasFilters,
                               onTypeChanged: controller.setTypeFilter,
                               onStatusChanged: controller.setStatusFilter,
+                              onPaymentStatusChanged:
+                                  controller.setPaymentStatusFilter,
+                              onReturnStatusChanged:
+                                  controller.setReturnStatusFilter,
                               onDateRangeChanged: controller.setDateRange,
                               onClear: controller.clearFilters,
                             ),
@@ -183,6 +189,8 @@ class _InvoicesTable extends StatelessWidget {
             DataColumn(label: Text('customer_name'.tr)),
             DataColumn(label: Text('invoice_type'.tr)),
             DataColumn(label: Text('invoice_status'.tr)),
+            DataColumn(label: Text('payment_status'.tr)),
+            DataColumn(label: Text('return_status'.tr)),
             DataColumn(label: Text('grand_total'.tr)),
             DataColumn(label: Text('created_by'.tr)),
             DataColumn(label: Text('actions'.tr)),
@@ -206,6 +214,12 @@ class _InvoicesTable extends StatelessWidget {
                     ),
                     DataCell(InvoiceTypeChip(type: invoice.invoiceType)),
                     DataCell(InvoiceStatusChip(status: invoice.invoiceStatus)),
+                    DataCell(
+                      InvoicePaymentStatusChip(status: invoice.paymentStatus),
+                    ),
+                    DataCell(
+                      InvoiceReturnStatusChip(status: invoice.returnStatus),
+                    ),
                     DataCell(Text(currency.format(invoice.grandTotal))),
                     DataCell(
                       SizedBox(

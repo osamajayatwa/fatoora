@@ -46,3 +46,60 @@ class InvoiceStatusChip extends StatelessWidget {
     };
   }
 }
+
+class InvoicePaymentStatusChip extends StatelessWidget {
+  const InvoicePaymentStatusChip({super.key, required this.status});
+
+  final PaymentStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (status) {
+      PaymentStatus.paid => AppColor.success,
+      PaymentStatus.partiallyPaid => const Color(0xFFFF9F2E),
+      PaymentStatus.unpaid || PaymentStatus.overdue => AppColor.error,
+    };
+    return _FinancialStatusChip(label: status.value.tr, color: color);
+  }
+}
+
+class InvoiceReturnStatusChip extends StatelessWidget {
+  const InvoiceReturnStatusChip({super.key, required this.status});
+
+  final InvoiceReturnStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (status) {
+      InvoiceReturnStatus.none => AppColor.grey,
+      InvoiceReturnStatus.partiallyReturned => const Color(0xFFFF9F2E),
+      InvoiceReturnStatus.returned => AppColor.error,
+    };
+    return _FinancialStatusChip(label: status.value.tr, color: color);
+  }
+}
+
+class _FinancialStatusChip extends StatelessWidget {
+  const _FinancialStatusChip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}

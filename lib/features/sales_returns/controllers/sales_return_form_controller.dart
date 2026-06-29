@@ -52,6 +52,9 @@ class SalesReturnFormController extends GetxController {
 
   double get subtotal =>
       _round(items.fold<double>(0, (total, item) => total + item.subtotal));
+  double get totalDiscount => _round(
+    items.fold<double>(0, (total, item) => total + item.discountAmount),
+  );
   double get totalTax =>
       _round(items.fold<double>(0, (total, item) => total + item.taxAmount));
   double get grandTotal => _round(subtotal + totalTax);
@@ -174,6 +177,7 @@ class SalesReturnFormController extends GetxController {
     final next = [...items];
     next[index] = current.copyWith(
       returnedQuantity: quantity,
+      discountAmount: _round(math.max(quantity, 0) * current.discountPerUnit),
       subtotal: subtotal,
       taxAmount: _round(subtotal * current.taxPercent / 100),
       total: _round(subtotal + (subtotal * current.taxPercent / 100)),
@@ -250,10 +254,12 @@ class SalesReturnFormController extends GetxController {
       returnNumber: '',
       originalInvoiceId: invoice.id,
       originalInvoiceNumber: invoice.invoiceNumber,
+      originalInvoiceDate: invoice.invoiceDate,
       customerId: invoice.customerId,
       customerSnapshot: invoice.customerSnapshot,
       items: items.where((item) => item.returnedQuantity > 0).toList(),
       subtotal: subtotal,
+      totalDiscount: totalDiscount,
       totalTax: totalTax,
       grandTotal: grandTotal,
       refundType: refundType,
@@ -292,6 +298,10 @@ class SalesReturnFormController extends GetxController {
       unit: invoiceItem.unit,
       returnedQuantity: 0,
       unitPrice: unitPrice,
+      discountPerUnit: invoiceItem.quantity <= 0
+          ? 0
+          : _round(invoiceItem.discount / invoiceItem.quantity),
+      discountAmount: 0,
       taxPercent: invoiceItem.taxPercent,
       subtotal: 0,
       taxAmount: 0,

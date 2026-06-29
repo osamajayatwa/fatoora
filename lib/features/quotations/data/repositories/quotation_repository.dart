@@ -225,6 +225,7 @@ class QuotationRepository {
                     transaction: transaction,
                     companyId: companyId,
                     quotationDate: quotation.quotationDate,
+                    settings: appSettings.documentSettings,
                   )
                 : null;
             final normalized = _normalizeQuotation(
@@ -532,14 +533,11 @@ class QuotationRepository {
     required Transaction transaction,
     required String companyId,
     required DateTime quotationDate,
+    required DocumentSettingsModel settings,
   }) async {
     final year = quotationDate.year;
-    final documents = await _readDocumentSettings(
-      transaction: transaction,
-      companyId: companyId,
-    );
     final prefix = BusinessSettingsDefaults.prefix(
-      documents.quotationPrefix,
+      settings.quotationPrefix,
       DocumentSettingsModel.defaults.quotationPrefix,
     );
     final counterRef = _quotationCounter(companyId, year);
@@ -597,16 +595,6 @@ class QuotationRepository {
     );
   }
 
-  Future<DocumentSettingsModel> _readDocumentSettings({
-    required Transaction transaction,
-    required String companyId,
-  }) async {
-    return (await _readAppSettings(
-      transaction: transaction,
-      companyId: companyId,
-    )).documentSettings;
-  }
-
   Future<AppSettingsModel> _readAppSettings({
     required Transaction transaction,
     required String companyId,
@@ -627,6 +615,7 @@ class QuotationRepository {
       );
     }
     if (permissions.editCatalogPrice) return;
+    final catalogPrices = <String, double>{};
     for (final item in items) {
       if (item.itemId.trim().isEmpty || item.itemId.startsWith('manual-')) {
         continue;
@@ -646,14 +635,18 @@ class QuotationRepository {
         }
         continue;
       }
-      final snapshot = await transaction.get(_items.doc(item.itemId));
-      if (!snapshot.exists) {
-        throw const QuotationRepositoryException(
-          QuotationRepositoryError.priceEditDisabled,
-        );
+      var catalogPrice = catalogPrices[item.itemId];
+      if (catalogPrice == null) {
+        final snapshot = await transaction.get(_items.doc(item.itemId));
+        if (!snapshot.exists) {
+          throw const QuotationRepositoryException(
+            QuotationRepositoryError.priceEditDisabled,
+          );
+        }
+        catalogPrice = ItemModel.fromFirestore(snapshot).price;
+        catalogPrices[item.itemId] = catalogPrice;
       }
-      final catalogItem = ItemModel.fromFirestore(snapshot);
-      if ((catalogItem.price - item.unitPrice).abs() > 0.0005) {
+      if ((catalogPrice - item.unitPrice).abs() > 0.0005) {
         throw const QuotationRepositoryException(
           QuotationRepositoryError.priceEditDisabled,
         );

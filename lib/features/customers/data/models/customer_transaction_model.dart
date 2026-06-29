@@ -7,6 +7,7 @@ class CustomerTransactionModel {
     required this.customerId,
     required this.customerName,
     required this.transactionType,
+    this.type = '',
     required this.sourceCollection,
     required this.sourceId,
     required this.sourceNumber,
@@ -14,6 +15,16 @@ class CustomerTransactionModel {
     required this.debitAmount,
     required this.creditAmount,
     required this.balanceAfter,
+    this.amount = 0,
+    this.signedAmount = 0,
+    this.invoiceId = '',
+    this.invoiceNumber = '',
+    this.returnInvoiceId = '',
+    this.returnNumber = '',
+    this.originalInvoiceId = '',
+    this.originalInvoiceNumber = '',
+    this.receiptId = '',
+    this.receiptNumber = '',
     required this.notes,
     required this.createdByUid,
     required this.createdByName,
@@ -28,6 +39,7 @@ class CustomerTransactionModel {
   final String customerId;
   final String customerName;
   final String transactionType;
+  final String type;
   final String sourceCollection;
   final String sourceId;
   final String sourceNumber;
@@ -35,6 +47,16 @@ class CustomerTransactionModel {
   final double debitAmount;
   final double creditAmount;
   final double balanceAfter;
+  final double amount;
+  final double signedAmount;
+  final String invoiceId;
+  final String invoiceNumber;
+  final String returnInvoiceId;
+  final String returnNumber;
+  final String originalInvoiceId;
+  final String originalInvoiceNumber;
+  final String receiptId;
+  final String receiptNumber;
   final String notes;
   final String createdByUid;
   final String createdByName;
@@ -53,6 +75,9 @@ class CustomerTransactionModel {
       customerId: _readString(data, 'customerId'),
       customerName: _readString(data, 'customerName'),
       transactionType: _readString(data, 'transactionType'),
+      type: _readString(data, 'type').isEmpty
+          ? _readString(data, 'transactionType')
+          : _readString(data, 'type'),
       sourceCollection: _readString(data, 'sourceCollection'),
       sourceId: _readString(data, 'sourceId'),
       sourceNumber: _readString(data, 'sourceNumber'),
@@ -60,6 +85,21 @@ class CustomerTransactionModel {
       debitAmount: _readDouble(data, 'debitAmount'),
       creditAmount: _readDouble(data, 'creditAmount'),
       balanceAfter: _readDouble(data, 'balanceAfter'),
+      amount: _readDouble(data, 'amount') == 0
+          ? _readDouble(data, 'debitAmount') + _readDouble(data, 'creditAmount')
+          : _readDouble(data, 'amount'),
+      signedAmount: data.containsKey('signedAmount')
+          ? _readDouble(data, 'signedAmount')
+          : _readDouble(data, 'debitAmount') -
+                _readDouble(data, 'creditAmount'),
+      invoiceId: _readString(data, 'invoiceId'),
+      invoiceNumber: _readString(data, 'invoiceNumber'),
+      returnInvoiceId: _readString(data, 'returnInvoiceId'),
+      returnNumber: _readString(data, 'returnNumber'),
+      originalInvoiceId: _readString(data, 'originalInvoiceId'),
+      originalInvoiceNumber: _readString(data, 'originalInvoiceNumber'),
+      receiptId: _readString(data, 'receiptId'),
+      receiptNumber: _readString(data, 'receiptNumber'),
       notes: _readString(data, 'notes'),
       createdByUid: _readString(data, 'createdByUid'),
       createdByName: _readString(data, 'createdByName'),
@@ -76,6 +116,7 @@ class CustomerTransactionModel {
     'customerId': customerId,
     'customerName': customerName,
     'transactionType': transactionType,
+    'type': type.isEmpty ? transactionType : type,
     'sourceCollection': sourceCollection,
     'sourceId': sourceId,
     'sourceNumber': sourceNumber,
@@ -83,6 +124,16 @@ class CustomerTransactionModel {
     'debitAmount': debitAmount,
     'creditAmount': creditAmount,
     'balanceAfter': balanceAfter,
+    'amount': amount,
+    'signedAmount': signedAmount,
+    'invoiceId': invoiceId,
+    'invoiceNumber': invoiceNumber,
+    'returnInvoiceId': returnInvoiceId,
+    'returnNumber': returnNumber,
+    'originalInvoiceId': originalInvoiceId,
+    'originalInvoiceNumber': originalInvoiceNumber,
+    'receiptId': receiptId,
+    'receiptNumber': receiptNumber,
     'notes': notes,
     'createdByUid': createdByUid,
     'createdByName': createdByName,
