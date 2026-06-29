@@ -1249,25 +1249,79 @@ service cloud.firestore {
 
     function validQuotationCreate(companyId, quotationId) {
       let data = request.resource.data;
-      return validBusinessCreate(companyId, data)
-        && businessPermissionAllows(
-          companyId,
-          'allowSalesRepCreateQuotations'
+      let user = userDoc().data;
+      let settingsPath =
+        /databases/$(database)/documents/companies/$(companyId)/settings/app;
+      let settings = get(settingsPath);
+      let customerPath =
+        /databases/$(database)/documents/companies/$(companyId)/customers/$(data.customerId);
+      let customer = get(customerPath);
+      let isAdmin = user.role == 'admin';
+      return isApprovedCompanyUser(companyId)
+        && data.companyId == companyId
+        && data.createdByUid == request.auth.uid
+        && data.createdByName is string
+        && data.createdByName.size() > 0
+        && data.createdByName != 'undefined'
+        && data.createdByRole == user.role
+        && (
+          isAdmin
+          || (
+            user.role == 'sales_rep'
+            && (
+              !exists(settingsPath)
+              || !settings.data.keys().hasAny(['permissionSettings'])
+              || !settings.data.permissionSettings.keys().hasAny([
+                'allowSalesRepCreateQuotations'
+              ])
+              || settings.data.permissionSettings.allowSalesRepCreateQuotations
+                == true
+            )
+          )
         )
-        && documentDiscountAllowed(companyId, data)
+        && (
+          isAdmin
+          || data.totalDiscount == 0
+          || (
+            user.role == 'sales_rep'
+            && (
+              !exists(settingsPath)
+              || !settings.data.keys().hasAny(['permissionSettings'])
+              || !settings.data.permissionSettings.keys().hasAny([
+                'allowSalesRepDiscount'
+              ])
+              || settings.data.permissionSettings.allowSalesRepDiscount == true
+            )
+          )
+        )
         && quotationFieldsAreValid(companyId, quotationId, data)
-        && configuredDocumentNumberMatches(
-          companyId,
-          data.quotationNumber,
-          'quotationPrefix',
-          'QUO'
+        && (
+          (
+            exists(settingsPath)
+            && data.quotationNumber.matches(
+              '^' + settings.data.documentSettings.quotationPrefix
+              + '-[0-9]{4}-[0-9]{6}$'
+            )
+          )
+          || (
+            !exists(settingsPath)
+            && data.quotationNumber.matches(
+              '^QUO-[0-9]{4}-[0-9]{6}$'
+            )
+          )
         )
-        && quotationCustomerIsAllowed(companyId, data)
+        && exists(customerPath)
+        && customer.data.companyId == companyId
+        && customer.data.active == true
+        && (
+          isAdmin
+          || customer.data.createdByUid == request.auth.uid
+        )
         && data.status == 'draft'
         && data.convertedInvoiceId == ''
         && data.convertedInvoiceNumber == ''
         && (
-          isActiveAdmin()
+          isAdmin
           || data.salesRepId == request.auth.uid
         )
         && data.createdAt == request.time
@@ -1572,7 +1626,13 @@ service cloud.firestore {
     }
 
     match /companies/{companyId}/sales_returns/{returnId} {
-      allow get: if canReadOwnedBusinessDoc(companyId, resource.data);
+      allow get: if isApprovedCompanyUser(companyId)
+        && (
+          !exists(
+            /databases/$(database)/documents/companies/$(companyId)/sales_returns/$(returnId)
+          )
+          || canReadOwnedBusinessDoc(companyId, resource.data)
+        );
       allow list: if isApprovedCompanyUser(companyId)
         && (
           isActiveAdmin()
@@ -1587,7 +1647,13 @@ service cloud.firestore {
     }
 
     match /companies/{companyId}/quotations/{quotationId} {
-      allow get: if canReadOwnedBusinessDoc(companyId, resource.data);
+      allow get: if isApprovedCompanyUser(companyId)
+        && (
+          !exists(
+            /databases/$(database)/documents/companies/$(companyId)/quotations/$(quotationId)
+          )
+          || canReadOwnedBusinessDoc(companyId, resource.data)
+        );
       allow list: if isApprovedCompanyUser(companyId)
         && (
           isActiveAdmin()
