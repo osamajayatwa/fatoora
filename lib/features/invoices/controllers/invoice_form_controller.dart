@@ -556,6 +556,8 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     final createdByName =
         loadedInvoice?.createdByName ??
         AuthSession.cachedDisplayName(_myServices);
+    final salesRepId = loadedInvoice?.salesRepId ?? createdByUid;
+    final salesRepName = loadedInvoice?.salesRepName ?? createdByName;
     return InvoiceModel(
       id: invoiceId,
       companyId: companyId,
@@ -572,8 +574,8 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
       createdByUid: createdByUid,
       createdByName: createdByName,
       createdByRole: _myServices.sharedPreferences.getString('role') ?? '',
-      salesRepId: createdByUid,
-      salesRepName: createdByName,
+      salesRepId: salesRepId,
+      salesRepName: salesRepName,
       customerId: customerSnapshot?.id ?? '',
       customerSnapshot: customerSnapshot,
       items: items,

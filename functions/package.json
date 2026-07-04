@@ -7,13 +7,19 @@
   },
   "scripts": {
     "build": "tsc",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:rules": "node --test test/firestore.rules.test.js",
+    "test:maintenance": "node --test test/invoice_sales_rep_maintenance.test.js",
+    "audit:invoice-sales-rep": "node scripts/audit_invoice_sales_rep.js",
+    "backfill:invoice-sales-rep": "node scripts/backfill_invoice_sales_rep.js"
   },
   "dependencies": {
     "firebase-admin": "^12.7.0",
     "firebase-functions": "^5.1.1"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
+    "firebase": "^12.15.0",
     "typescript": "^5.7.2"
   }
 }

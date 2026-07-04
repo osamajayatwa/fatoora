@@ -72,6 +72,22 @@ service cloud.firestore {
         );
     }
 
+    function canReadSalesRepOwnedDoc(companyId, data) {
+      return isApprovedCompanyUser(companyId)
+        && (
+          isActiveAdmin()
+          || data.salesRepId == request.auth.uid
+        );
+    }
+
+    function canReadCreatedByOwnedDoc(companyId, data) {
+      return isApprovedCompanyUser(companyId)
+        && (
+          isActiveAdmin()
+          || data.createdByUid == request.auth.uid
+        );
+    }
+
     function canReadCustomerTransaction(companyId, data) {
       let customerPath =
         /databases/$(database)/documents/companies/$(companyId)/customers/$(data.customerId);
@@ -515,6 +531,8 @@ service cloud.firestore {
       return request.resource.data.id == resource.data.id
         && request.resource.data.companyId == resource.data.companyId
         && request.resource.data.invoiceNumber == resource.data.invoiceNumber
+        && request.resource.data.salesRepId == resource.data.salesRepId
+        && request.resource.data.salesRepName == resource.data.salesRepName
         && request.resource.data.createdByUid == resource.data.createdByUid
         && request.resource.data.createdByName == resource.data.createdByName
         && request.resource.data.createdByRole == resource.data.createdByRole
@@ -718,7 +736,7 @@ service cloud.firestore {
     }
 
     function validInvoiceDraftUpdate(companyId) {
-      return canReadOwnedBusinessDoc(companyId, resource.data)
+      return canReadSalesRepOwnedDoc(companyId, resource.data)
         && documentDiscountAllowed(companyId, request.resource.data)
         && invoiceIdentityPreserved()
         && invoiceIsEditableDraft(resource.data)
@@ -727,7 +745,7 @@ service cloud.firestore {
     }
 
     function validInvoicePostingUpdate(companyId) {
-      return canReadOwnedBusinessDoc(companyId, resource.data)
+      return canReadSalesRepOwnedDoc(companyId, resource.data)
         && documentDiscountAllowed(companyId, request.resource.data)
         && invoiceIdentityPreserved()
         && invoiceIsEditableDraft(resource.data)
@@ -744,7 +762,7 @@ service cloud.firestore {
       let returnPath =
         /databases/$(database)/documents/companies/$(companyId)/sales_returns/$(request.resource.data.lastSalesReturnId);
       let salesReturn = getAfter(returnPath);
-      return canReadOwnedBusinessDoc(companyId, resource.data)
+      return canReadSalesRepOwnedDoc(companyId, resource.data)
         && invoiceIdentityPreserved()
         && resource.data.invoiceStatus == 'confirmed'
         && request.resource.data.invoiceStatus == 'confirmed'
@@ -845,7 +863,7 @@ service cloud.firestore {
         /databases/$(database)/documents/companies/$(companyId)/receipts/$(request.resource.data.lastReceiptId);
       let receipt = getAfter(receiptPath);
       let allocation = receipt.data.invoiceAllocations[resource.data.id];
-      return canReadOwnedBusinessDoc(companyId, resource.data)
+      return canReadSalesRepOwnedDoc(companyId, resource.data)
         && invoiceIdentityPreserved()
         && resource.data.invoiceStatus in ['confirmed', 'accepted']
         && resource.data.financialPosted == true
@@ -1538,8 +1556,8 @@ service cloud.firestore {
     }
 
     match /companies/{companyId}/invoices/{invoiceId} {
-      allow get: if canReadOwnedBusinessDoc(companyId, resource.data);
-      allow list: if isApprovedCompanyUser(companyId);
+      allow get: if canReadSalesRepOwnedDoc(companyId, resource.data);
+      allow list: if canReadSalesRepOwnedDoc(companyId, resource.data);
 
       allow create: if validBusinessCreate(companyId, request.resource.data)
         && request.resource.data.id == invoiceId
@@ -1577,7 +1595,7 @@ service cloud.firestore {
           )
         );
 
-      allow delete: if canReadOwnedBusinessDoc(companyId, resource.data)
+      allow delete: if canReadSalesRepOwnedDoc(companyId, resource.data)
         && resource.data.invoiceStatus == 'draft'
         && resource.data.isLocked == false;
     }
@@ -1603,8 +1621,8 @@ service cloud.firestore {
     }
 
     match /companies/{companyId}/receipts/{receiptId} {
-      allow get: if canReadOwnedBusinessDoc(companyId, resource.data);
-      allow list: if isApprovedCompanyUser(companyId);
+      allow get: if canReadSalesRepOwnedDoc(companyId, resource.data);
+      allow list: if canReadSalesRepOwnedDoc(companyId, resource.data);
 
       allow create: if validBusinessCreate(companyId, request.resource.data)
         && businessPermissionAllows(
@@ -1674,9 +1692,9 @@ service cloud.firestore {
           !exists(
             /databases/$(database)/documents/companies/$(companyId)/cash_movements/$(movementId)
           )
-          || canReadOwnedBusinessDoc(companyId, resource.data)
+          || canReadSalesRepOwnedDoc(companyId, resource.data)
         );
-      allow list: if isApprovedCompanyUser(companyId);
+      allow list: if canReadSalesRepOwnedDoc(companyId, resource.data);
 
       allow create: if validFinancialCreate(companyId, request.resource.data)
         && request.resource.data.id == movementId
@@ -1713,9 +1731,9 @@ service cloud.firestore {
           !exists(
             /databases/$(database)/documents/companies/$(companyId)/stock_movements/$(movementId)
           )
-          || canReadOwnedBusinessDoc(companyId, resource.data)
+          || canReadCreatedByOwnedDoc(companyId, resource.data)
         );
-      allow list: if isApprovedCompanyUser(companyId);
+      allow list: if canReadCreatedByOwnedDoc(companyId, resource.data);
 
       allow create: if (
           request.resource.data.movementType == 'sales_return'

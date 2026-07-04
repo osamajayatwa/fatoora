@@ -1094,8 +1094,7 @@ class SalesReturnRepository {
       );
     }
     if (user.isAdmin) return;
-    if (user.isSalesRep &&
-        (invoice.salesRepId == user.uid || invoice.createdByUid == user.uid)) {
+    if (user.isSalesRep && invoice.salesRepId == user.uid) {
       return;
     }
     throw const SalesReturnRepositoryException(

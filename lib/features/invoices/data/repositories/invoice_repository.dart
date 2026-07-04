@@ -139,7 +139,7 @@ class InvoiceRepository {
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
       Query<Map<String, dynamic>> query = _invoices(resolvedCompanyId);
       if (user.isSalesRep) {
-        query = query.where('createdByUid', isEqualTo: user.uid);
+        query = query.where('salesRepId', isEqualTo: user.uid);
       }
       if (type != null) {
         query = query.where('invoiceType', isEqualTo: type.value);
@@ -176,13 +176,18 @@ class InvoiceRepository {
     required String companyId,
     InvoiceType? type,
     InvoiceStatus? status,
-  }) {
-    Query<Map<String, dynamic>> query = _invoices(companyId);
+  }) async* {
+    final user = await _contextReader.requireApprovedUser();
+    final resolvedCompanyId = _resolveCompanyId(companyId, user);
+    Query<Map<String, dynamic>> query = _invoices(resolvedCompanyId);
+    if (user.isSalesRep) {
+      query = query.where('salesRepId', isEqualTo: user.uid);
+    }
     if (type != null) query = query.where('invoiceType', isEqualTo: type.value);
     if (status != null) {
       query = query.where('invoiceStatus', isEqualTo: status.value);
     }
-    return query
+    yield* query
         .orderBy('invoiceDate', descending: true)
         .limit(150)
         .snapshots()
@@ -680,6 +685,8 @@ class InvoiceRepository {
     final creatorUid = preserveCreator ? existing!.createdByUid : user.uid;
     final creatorName = preserveCreator ? existing!.createdByName : user.name;
     final creatorRole = preserveCreator ? existing!.createdByRole : user.role;
+    final salesRepId = preserveCreator ? existing!.salesRepId : user.uid;
+    final salesRepName = preserveCreator ? existing!.salesRepName : user.name;
 
     return invoice
         .copyWith(
@@ -697,8 +704,8 @@ class InvoiceRepository {
           createdByUid: creatorUid,
           createdByName: _validName(creatorName),
           createdByRole: creatorRole,
-          salesRepId: creatorUid,
-          salesRepName: _validName(creatorName),
+          salesRepId: salesRepId,
+          salesRepName: _validName(salesRepName),
           customerId: invoice.customerSnapshot!.id,
           paidAmount: payment.paidAmount,
           remainingAmount: payment.remainingAmount,
@@ -1110,8 +1117,7 @@ class InvoiceRepository {
     InvoiceModel invoice,
   ) {
     if (user.isAdmin) return;
-    if (user.isSalesRep &&
-        (invoice.createdByUid == user.uid || invoice.salesRepId == user.uid)) {
+    if (user.isSalesRep && invoice.salesRepId == user.uid) {
       return;
     }
     throw const InvoiceRepositoryException(
