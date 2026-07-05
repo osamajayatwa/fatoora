@@ -61,6 +61,8 @@ firebase-debug.log
 firestore-debug.log
 ui-debug.log
 
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
 # FlutterFire
 firebase_app_id_file.json
 
