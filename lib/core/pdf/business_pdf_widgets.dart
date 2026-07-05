@@ -323,12 +323,12 @@ class BusinessPdfWidgets {
     );
   }
 
-  static pw.Widget qrCode(String data) {
+  static pw.Widget qrCode(String data, {double size = 92}) {
     return pw.BarcodeWidget(
       barcode: pw.Barcode.qrCode(),
       data: data,
-      width: 92,
-      height: 92,
+      width: size,
+      height: size,
       drawText: false,
     );
   }

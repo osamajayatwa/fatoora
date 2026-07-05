@@ -28,6 +28,7 @@ class AppPdfLocalization {
       isArabic ? pw.Alignment.centerRight : pw.Alignment.centerLeft;
 
   String t(String key) {
+    if (key == 'page') return isArabic ? 'الصفحة' : 'Page';
     final map = isArabic ? _ar : _en;
     return map[key] ?? _en[key] ?? key;
   }
