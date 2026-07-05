@@ -1,12 +1,14 @@
-import 'dart:io';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
-checkInternet() async {
+typedef ConnectivityLookup = Future<List<ConnectivityResult>> Function();
+
+Future<bool> checkInternet({ConnectivityLookup? lookup}) async {
   try {
-    var result = await InternetAddress.lookup("google.com");
-    if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
-      return true;
-    }
-  } on SocketException catch (_) {
-    return false;
+    final results = await (lookup ?? Connectivity().checkConnectivity)();
+    return results.any((result) => result != ConnectivityResult.none);
+  } catch (_) {
+    // Connectivity is a preflight hint. If the platform service is
+    // unavailable, let Dio perform the request and classify the real error.
+    return true;
   }
 }

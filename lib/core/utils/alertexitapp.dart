@@ -1,7 +1,7 @@
-import 'dart:io';
-
 import 'package:fatoora/core/constants/color.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 Future<bool> alertExitApp() {
@@ -34,8 +34,15 @@ Future<bool> alertExitApp() {
         style: ButtonStyle(
           backgroundColor: WidgetStateProperty.all(AppColor.primaryColor),
         ),
-        onPressed: () {
-          exit(0);
+        onPressed: () async {
+          if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+            await SystemNavigator.pop();
+            return;
+          }
+
+          // Browsers and Apple platforms do not allow applications to close
+          // themselves. Close only the confirmation dialog there.
+          Get.back();
         },
         child: Text("Yes".tr, style: TextStyle(color: AppColor.background)),
       ),
