@@ -436,7 +436,10 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
       );
       statusRequest = StatusRequest.success;
       if (!stayOnPage) {
-        await leaveInvoicePage(fallbackRoute: AppRoute.invoices, result: true);
+        await showSavedInvoiceDetails(
+          companyId: companyId,
+          invoiceId: invoiceId,
+        );
       }
       return true;
     } catch (error) {
@@ -476,7 +479,7 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
         invoiceId: invoiceId,
       );
       _showSuccess('submission_success');
-      await leaveInvoicePage(fallbackRoute: AppRoute.invoices, result: true);
+      await showSavedInvoiceDetails(companyId: companyId, invoiceId: invoiceId);
     } catch (error) {
       _showError(
         InvoiceErrorMapper.messageKey(error, fallback: 'submission_failed'),

@@ -224,20 +224,22 @@ class InvoiceRepository {
       await _firestore
           .runTransaction((transaction) async {
             final now = DateTime.now();
+            final itemSnapshots =
+                <String, DocumentSnapshot<Map<String, dynamic>>>{};
             final settingsSnapshot = await transaction.get(
               _appSettings(companyId),
             );
+            final settings = AppSettingsModel.fromMap(settingsSnapshot.data());
             final permissions = EffectiveBusinessPermissions.fromUser(
               user,
-              AppSettingsModel.fromMap(
-                settingsSnapshot.data(),
-              ).permissionSettings,
+              settings.permissionSettings,
             );
             await _enforceLinePermissions(
               transaction: transaction,
               permissions: permissions,
               items: invoice.items,
               existingItems: null,
+              itemSnapshots: itemSnapshots,
             );
             final rawCustomerId = invoice.customerSnapshot?.id.trim() ?? '';
             final customer = await _readCustomerForInvoice(
@@ -264,6 +266,7 @@ class InvoiceRepository {
               transaction: transaction,
               companyId: companyId,
               invoiceDate: invoice.invoiceDate,
+              documentSettings: settings.documentSettings,
             );
             var normalized = _normalizeInvoice(
               invoice: invoice,
@@ -287,6 +290,7 @@ class InvoiceRepository {
                     transaction: transaction,
                     invoice: normalized,
                     user: user,
+                    itemSnapshots: itemSnapshots,
                   )
                 : null;
             if (posting != null) {
@@ -339,6 +343,8 @@ class InvoiceRepository {
       final document = _invoices(companyId).doc(invoice.id);
       await _firestore
           .runTransaction((transaction) async {
+            final itemSnapshots =
+                <String, DocumentSnapshot<Map<String, dynamic>>>{};
             final snapshot = await transaction.get(document);
             if (!snapshot.exists) {
               throw const InvoiceRepositoryException(
@@ -377,6 +383,7 @@ class InvoiceRepository {
               permissions: permissions,
               items: invoice.items,
               existingItems: existing.items,
+              itemSnapshots: itemSnapshots,
             );
 
             var normalized = _normalizeInvoice(
@@ -429,6 +436,7 @@ class InvoiceRepository {
                       transaction: transaction,
                       invoice: normalized,
                       user: user,
+                      itemSnapshots: itemSnapshots,
                     )
                   : null;
               if (inventoryPosting != null) {
@@ -543,14 +551,11 @@ class InvoiceRepository {
     required Transaction transaction,
     required String companyId,
     required DateTime invoiceDate,
+    required DocumentSettingsModel documentSettings,
   }) async {
     final year = invoiceDate.year;
-    final settingsSnapshot = await transaction.get(_appSettings(companyId));
-    final documents = AppSettingsModel.fromMap(
-      settingsSnapshot.data(),
-    ).documentSettings;
     final prefix = BusinessSettingsDefaults.prefix(
-      documents.invoicePrefix,
+      documentSettings.invoicePrefix,
       DocumentSettingsModel.defaults.invoicePrefix,
     );
     final counterRef = _invoiceCounter(companyId, year);
@@ -607,6 +612,7 @@ class InvoiceRepository {
     required EffectiveBusinessPermissions permissions,
     required List<InvoiceItemSnapshot> items,
     required List<InvoiceItemSnapshot>? existingItems,
+    required Map<String, DocumentSnapshot<Map<String, dynamic>>> itemSnapshots,
   }) async {
     if (!permissions.applyDiscount && items.any((item) => item.discount > 0)) {
       throw const InvoiceRepositoryException(
@@ -633,7 +639,11 @@ class InvoiceRepository {
         }
         continue;
       }
-      final snapshot = await transaction.get(_items.doc(item.itemId));
+      final snapshot = await _readItemOnce(
+        transaction: transaction,
+        itemId: item.itemId,
+        itemSnapshots: itemSnapshots,
+      );
       if (!snapshot.exists) {
         throw const InvoiceRepositoryException(
           InvoiceRepositoryError.priceEditDisabled,
@@ -992,6 +1002,7 @@ class InvoiceRepository {
     required Transaction transaction,
     required InvoiceModel invoice,
     required BusinessUserContext user,
+    required Map<String, DocumentSnapshot<Map<String, dynamic>>> itemSnapshots,
   }) async {
     final quantitiesByItem = <String, double>{};
     final snapshotByItem = <String, String>{};
@@ -1010,7 +1021,11 @@ class InvoiceRepository {
 
     for (final entry in quantitiesByItem.entries) {
       final itemRef = _items.doc(entry.key);
-      final itemSnapshot = await transaction.get(itemRef);
+      final itemSnapshot = await _readItemOnce(
+        transaction: transaction,
+        itemId: entry.key,
+        itemSnapshots: itemSnapshots,
+      );
       if (!itemSnapshot.exists) continue;
       final item = ItemModel.fromFirestore(itemSnapshot);
       if (item.deleted || !item.trackStock) continue;
@@ -1081,6 +1096,19 @@ class InvoiceRepository {
       movementRefs: movementRefs,
       movementData: movementData,
     );
+  }
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> _readItemOnce({
+    required Transaction transaction,
+    required String itemId,
+    required Map<String, DocumentSnapshot<Map<String, dynamic>>> itemSnapshots,
+  }) async {
+    final cached = itemSnapshots[itemId];
+    if (cached != null) return cached;
+
+    final snapshot = await transaction.get(_items.doc(itemId));
+    itemSnapshots[itemId] = snapshot;
+    return snapshot;
   }
 
   InvoiceModel _withInventoryPostingMetadata({

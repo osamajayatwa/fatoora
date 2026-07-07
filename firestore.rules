@@ -76,7 +76,10 @@ service cloud.firestore {
       return isApprovedCompanyUser(companyId)
         && (
           isActiveAdmin()
-          || data.salesRepId == request.auth.uid
+          || (
+            data.keys().hasAny(['salesRepId'])
+            && data.salesRepId == request.auth.uid
+          )
         );
     }
 
@@ -89,15 +92,19 @@ service cloud.firestore {
     }
 
     function canReadCustomerTransaction(companyId, data) {
-      let customerPath =
-        /databases/$(database)/documents/companies/$(companyId)/customers/$(data.customerId);
       return isApprovedCompanyUser(companyId)
-        && data.customerId is string
-        && exists(customerPath)
         && (
           isActiveAdmin()
           || data.salesRepId == request.auth.uid
-          || get(customerPath).data.createdByUid == request.auth.uid
+          || (
+            data.customerId is string
+            && exists(
+              /databases/$(database)/documents/companies/$(companyId)/customers/$(data.customerId)
+            )
+            && get(
+              /databases/$(database)/documents/companies/$(companyId)/customers/$(data.customerId)
+            ).data.createdByUid == request.auth.uid
+          )
         );
     }
 

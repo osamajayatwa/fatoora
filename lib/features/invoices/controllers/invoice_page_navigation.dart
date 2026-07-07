@@ -1,5 +1,11 @@
+import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
+
+bool keepInvoiceParentRoute(Route<dynamic> route) {
+  final name = route.settings.name;
+  return name != AppRoute.invoiceForm && name != AppRoute.invoiceDetails;
+}
 
 mixin InvoicePageNavigation on GetxController {
   bool allowPop = false;
@@ -23,5 +29,25 @@ mixin InvoicePageNavigation on GetxController {
     }
 
     Get.offNamed(fallbackRoute, arguments: fallbackArguments);
+  }
+
+  Future<void> showSavedInvoiceDetails({
+    required String companyId,
+    required String invoiceId,
+  }) async {
+    if (_isLeaving) return;
+    if (companyId.trim().isEmpty || invoiceId.trim().isEmpty) {
+      return leaveInvoicePage(fallbackRoute: AppRoute.invoices, result: true);
+    }
+
+    _isLeaving = true;
+    allowPop = true;
+    update();
+    await WidgetsBinding.instance.endOfFrame;
+    Get.offNamedUntil<void>(
+      AppRoute.invoiceDetails,
+      keepInvoiceParentRoute,
+      arguments: {'companyId': companyId, 'invoiceId': invoiceId},
+    );
   }
 }

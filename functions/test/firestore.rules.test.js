@@ -20,8 +20,11 @@ const {
 const projectId = "fatoora-rules-test";
 const companyId = "default_company";
 const adminUid = "admin";
+const legacyAdminUid = "legacy-admin";
 const repAUid = "rep-a";
 const repBUid = "rep-b";
+const pendingUid = "pending";
+const inactiveUid = "inactive";
 
 let testEnvironment;
 
@@ -44,8 +47,30 @@ beforeEach(async () => {
     const db = context.firestore();
     await Promise.all([
       setDoc(doc(db, "users", adminUid), approvedUser(adminUid, "admin")),
+      setDoc(doc(db, "users", legacyAdminUid), {
+        uid: legacyAdminUid,
+        role: "admin",
+        active: true,
+      }),
       setDoc(doc(db, "users", repAUid), approvedUser(repAUid, "sales_rep")),
       setDoc(doc(db, "users", repBUid), approvedUser(repBUid, "sales_rep")),
+      setDoc(doc(db, "users", pendingUid), {
+        ...approvedUser(pendingUid, "pending_sales_rep"),
+        active: false,
+        approvalStatus: "pending",
+      }),
+      setDoc(doc(db, "users", inactiveUid), {
+        ...approvedUser(inactiveUid, "admin"),
+        active: false,
+      }),
+      setDoc(
+        businessDoc(db, "customers", "customer-a"),
+        createdByOwned("customer-a", repAUid),
+      ),
+      setDoc(
+        businessDoc(db, "customers", "customer-b"),
+        createdByOwned("customer-b", repBUid),
+      ),
       setDoc(
         businessDoc(db, "invoices", "invoice-a"),
         salesRepOwned("invoice-a", repAUid, repAUid),
@@ -79,6 +104,42 @@ beforeEach(async () => {
         salesRepOwned("cash-b", repBUid, repBUid),
       ),
       setDoc(
+        businessDoc(db, "sales_returns", "return-a"),
+        salesRepOwned("return-a", repAUid, repAUid),
+      ),
+      setDoc(
+        businessDoc(db, "sales_returns", "return-b"),
+        salesRepOwned("return-b", repBUid, repBUid),
+      ),
+      setDoc(
+        businessDoc(db, "customer_transactions", "transaction-a"),
+        {
+          ...salesRepOwned("transaction-a", repAUid, repAUid),
+          customerId: "customer-a",
+        },
+      ),
+      setDoc(
+        businessDoc(db, "customer_transactions", "transaction-b"),
+        {
+          ...salesRepOwned("transaction-b", repBUid, repBUid),
+          customerId: "customer-b",
+        },
+      ),
+      setDoc(
+        businessDoc(db, "customer_transactions", "transaction-orphan"),
+        {
+          ...salesRepOwned("transaction-orphan", repAUid, repAUid),
+          customerId: "missing-customer",
+        },
+      ),
+      setDoc(
+        businessDoc(db, "customer_transactions", "transaction-legacy-a"),
+        {
+          ...createdByOwned("transaction-legacy-a", adminUid),
+          customerId: "customer-a",
+        },
+      ),
+      setDoc(
         businessDoc(db, "stock_movements", "stock-a"),
         createdByOwned("stock-a", repAUid),
       ),
@@ -90,11 +151,14 @@ beforeEach(async () => {
   });
 });
 
-test("admin can directly read and list every protected collection", async () => {
+test("approved active admin can read every financial repository collection", async () => {
   const db = authenticatedDb(adminUid);
   for (const [collectionName, documentId] of [
+    ["customers", "customer-b"],
     ["invoices", "invoice-b"],
     ["receipts", "receipt-b"],
+    ["sales_returns", "return-b"],
+    ["customer_transactions", "transaction-orphan"],
     ["cash_movements", "cash-b"],
     ["stock_movements", "stock-b"],
   ]) {
@@ -103,11 +167,22 @@ test("admin can directly read and list every protected collection", async () => 
   }
 });
 
+test("legacy active admin profile remains compatible with default company", async () => {
+  const db = authenticatedDb(legacyAdminUid);
+  await assertSucceeds(getDocs(businessCollection(db, "invoices")));
+  await assertSucceeds(
+    getDocs(businessCollection(db, "customer_transactions")),
+  );
+});
+
 test("rep A can directly read own documents and cannot read rep B documents", async () => {
   const db = authenticatedDb(repAUid);
   for (const [collectionName, ownId, otherId] of [
+    ["customers", "customer-a", "customer-b"],
     ["invoices", "invoice-a", "invoice-b"],
     ["receipts", "receipt-a", "receipt-b"],
+    ["sales_returns", "return-a", "return-b"],
+    ["customer_transactions", "transaction-a", "transaction-b"],
     ["cash_movements", "cash-a", "cash-b"],
     ["stock_movements", "stock-a", "stock-b"],
   ]) {
@@ -119,8 +194,11 @@ test("rep A can directly read own documents and cannot read rep B documents", as
 test("rep B has the inverse direct-read boundary", async () => {
   const db = authenticatedDb(repBUid);
   for (const [collectionName, ownId, otherId] of [
+    ["customers", "customer-b", "customer-a"],
     ["invoices", "invoice-b", "invoice-a"],
     ["receipts", "receipt-b", "receipt-a"],
+    ["sales_returns", "return-b", "return-a"],
+    ["customer_transactions", "transaction-b", "transaction-a"],
     ["cash_movements", "cash-b", "cash-a"],
     ["stock_movements", "stock-b", "stock-a"],
   ]) {
@@ -133,7 +211,13 @@ test("sales reps must use owner-constrained collection queries", async () => {
   for (const uid of [repAUid, repBUid]) {
     const db = authenticatedDb(uid);
     const otherUid = uid === repAUid ? repBUid : repAUid;
-    for (const collectionName of ["invoices", "receipts", "cash_movements"]) {
+    for (const collectionName of [
+      "invoices",
+      "receipts",
+      "sales_returns",
+      "customer_transactions",
+      "cash_movements",
+    ]) {
       await assertSucceeds(
         getDocs(
           query(
@@ -169,7 +253,64 @@ test("sales reps must use owner-constrained collection queries", async () => {
       ),
     );
     await assertFails(getDocs(businessCollection(db, "stock_movements")));
+
+    await assertSucceeds(
+      getDocs(
+        query(
+          businessCollection(db, "customers"),
+          where("createdByUid", "==", uid),
+        ),
+      ),
+    );
+    await assertFails(getDocs(businessCollection(db, "customers")));
   }
+});
+
+test("pending and inactive users cannot read financial data", async () => {
+  for (const uid of [pendingUid, inactiveUid]) {
+    const db = authenticatedDb(uid);
+    for (const [collectionName, documentId] of [
+      ["customers", "customer-a"],
+      ["invoices", "invoice-a"],
+      ["receipts", "receipt-a"],
+      ["sales_returns", "return-a"],
+      ["customer_transactions", "transaction-a"],
+      ["cash_movements", "cash-a"],
+      ["stock_movements", "stock-a"],
+    ]) {
+      await assertFails(getDoc(businessDoc(db, collectionName, documentId)));
+      await assertFails(getDocs(businessCollection(db, collectionName)));
+    }
+  }
+});
+
+test("stock movement queries are scoped only by createdByUid", async () => {
+  const db = authenticatedDb(repAUid);
+  await assertSucceeds(
+    getDocs(
+      query(
+        businessCollection(db, "stock_movements"),
+        where("createdByUid", "==", repAUid),
+      ),
+    ),
+  );
+  await assertFails(
+    getDocs(
+      query(
+        businessCollection(db, "stock_movements"),
+        where("createdByUid", "==", repBUid),
+      ),
+    ),
+  );
+});
+
+test("customer owner fallback supports legacy transactions without salesRepId", async () => {
+  const repADb = authenticatedDb(repAUid);
+  const repBDb = authenticatedDb(repBUid);
+  const transaction = ["customer_transactions", "transaction-legacy-a"];
+
+  await assertSucceeds(getDoc(businessDoc(repADb, ...transaction)));
+  await assertFails(getDoc(businessDoc(repBDb, ...transaction)));
 });
 
 test("an admin-created invoice assigned to rep A is visible only to rep A", async () => {

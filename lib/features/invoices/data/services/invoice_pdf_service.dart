@@ -138,12 +138,11 @@ class InvoicePdfService {
           ? pw.CrossAxisAlignment.start
           : pw.CrossAxisAlignment.end,
       children: [
-        _bilingualLabel(
+        _localizedLabel(
           key: invoice.isElectronic ? 'tax_invoice' : 'sales_invoice',
           loc: loc,
           color: _ink,
           fontSize: 16,
-          secondaryFontSize: 7,
           fontWeight: pw.FontWeight.bold,
           crossAxisAlignment: loc.isArabic
               ? pw.CrossAxisAlignment.start
@@ -273,12 +272,11 @@ class InvoicePdfService {
       child: pw.Column(
         crossAxisAlignment: loc.startCrossAxis,
         children: [
-          _bilingualLabel(
+          _localizedLabel(
             key: titleKey,
             loc: loc,
             color: _accent,
             fontSize: 8,
-            secondaryFontSize: 5.5,
             fontWeight: pw.FontWeight.bold,
           ),
           pw.SizedBox(height: 5),
@@ -294,12 +292,11 @@ class InvoicePdfService {
   }) {
     final label = pw.SizedBox(
       width: 67,
-      child: _bilingualLabel(
+      child: _localizedLabel(
         key: row.labelKey,
         loc: loc,
         color: _muted,
         fontSize: 6.7,
-        secondaryFontSize: 5,
       ),
     );
     final value = pw.Expanded(
@@ -340,12 +337,11 @@ class InvoicePdfService {
     ];
     final headers = headerKeys
         .map(
-          (key) => _bilingualLabel(
+          (key) => _localizedLabel(
             key: key,
             loc: loc,
             color: PdfColors.white,
             fontSize: 6.6,
-            secondaryFontSize: 4.7,
             fontWeight: pw.FontWeight.bold,
             crossAxisAlignment: pw.CrossAxisAlignment.center,
           ),
@@ -426,12 +422,11 @@ class InvoicePdfService {
       child: pw.Column(
         crossAxisAlignment: loc.startCrossAxis,
         children: [
-          _bilingualLabel(
+          _localizedLabel(
             key: 'payment',
             loc: loc,
             color: _accent,
             fontSize: 8,
-            secondaryFontSize: 5.5,
             fontWeight: pw.FontWeight.bold,
           ),
           pw.SizedBox(height: 5),
@@ -548,12 +543,11 @@ class InvoicePdfService {
     required bool highlight,
     required bool drawBorder,
   }) {
-    final label = _bilingualLabel(
+    final label = _localizedLabel(
       key: row.labelKey,
       loc: loc,
       color: highlight ? _ink : _muted,
       fontSize: 6.8,
-      secondaryFontSize: 4.8,
       fontWeight: row.strong ? pw.FontWeight.bold : pw.FontWeight.normal,
     );
     final value = _ltrText(
@@ -585,12 +579,11 @@ class InvoicePdfService {
     required String value,
     required AppPdfLocalization loc,
   }) {
-    final label = _bilingualLabel(
+    final label = _localizedLabel(
       key: labelKey,
       loc: loc,
       color: _muted,
       fontSize: 6.7,
-      secondaryFontSize: 4.8,
     );
     final valueWidget = _mixedText(
       value,
@@ -624,12 +617,11 @@ class InvoicePdfService {
         child: pw.Column(
           crossAxisAlignment: loc.startCrossAxis,
           children: [
-            _bilingualLabel(
+            _localizedLabel(
               key: 'notes',
               loc: loc,
               color: _accent,
               fontSize: 8,
-              secondaryFontSize: 5.5,
               fontWeight: pw.FontWeight.bold,
             ),
             pw.SizedBox(height: 3),
@@ -671,21 +663,19 @@ class InvoicePdfService {
                   style: pw.TextStyle(color: _muted, fontSize: 6.8),
                 ),
                 pw.SizedBox(width: 4),
-                _bilingualLabel(
+                _localizedLabel(
                   key: 'page',
                   loc: loc,
                   color: _muted,
                   fontSize: 6.4,
-                  secondaryFontSize: 4.6,
                 ),
               ]
             : [
-                _bilingualLabel(
+                _localizedLabel(
                   key: 'page',
                   loc: loc,
                   color: _muted,
                   fontSize: 6.4,
-                  secondaryFontSize: 4.6,
                 ),
                 pw.SizedBox(width: 4),
                 _ltrText(
@@ -863,18 +853,14 @@ class InvoicePdfService {
         (rune >= 0x0061 && rune <= 0x007a);
   }
 
-  static pw.Widget _bilingualLabel({
+  static pw.Widget _localizedLabel({
     required String key,
     required AppPdfLocalization loc,
     required PdfColor color,
     required double fontSize,
-    required double secondaryFontSize,
     pw.FontWeight fontWeight = pw.FontWeight.normal,
     pw.CrossAxisAlignment? crossAxisAlignment,
   }) {
-    final secondaryLoc = AppPdfLocalization.forLanguage(
-      loc.isArabic ? 'en' : 'ar',
-    );
     return pw.Column(
       mainAxisSize: pw.MainAxisSize.min,
       crossAxisAlignment:
@@ -889,15 +875,6 @@ class InvoicePdfService {
           style: pw.TextStyle(
             color: color,
             fontSize: fontSize,
-            fontWeight: fontWeight,
-          ),
-        ),
-        pw.Text(
-          secondaryLoc.t(key),
-          textDirection: secondaryLoc.textDirection,
-          style: pw.TextStyle(
-            color: color,
-            fontSize: secondaryFontSize,
             fontWeight: fontWeight,
           ),
         ),
@@ -922,13 +899,7 @@ class InvoicePdfService {
         pw.SizedBox(height: 22),
         pw.Container(height: .7, color: PdfColors.grey500),
         pw.SizedBox(height: 3),
-        _bilingualLabel(
-          key: labelKey,
-          loc: loc,
-          color: _muted,
-          fontSize: 6.5,
-          secondaryFontSize: 4.7,
-        ),
+        _localizedLabel(key: labelKey, loc: loc, color: _muted, fontSize: 6.5),
       ],
     );
   }
