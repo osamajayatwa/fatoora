@@ -171,7 +171,7 @@ class DashboardSalesRepCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               _RepMetric(
-                label: 'financial_cash_in_hand'.tr,
+                label: 'financial_rep_cash_outstanding'.tr,
                 value: currency.format(row.cashInHand),
               ),
             ],

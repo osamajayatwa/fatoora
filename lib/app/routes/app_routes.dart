@@ -54,6 +54,9 @@ class AppRoute {
 
   static const String receivables = "/receivables";
   static const String cashMovements = "/cash-movements";
+  static const String expenses = "/expenses";
+  static const String createExpense = "/expenses/create";
+  static const String expenseDetails = "/expenses/details";
 
   static const String statements = "/statements";
   static const String settings = "/settings";

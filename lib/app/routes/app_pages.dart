@@ -30,6 +30,10 @@ import 'package:fatoora/features/inventory/view/screens/stock_movements_screen.d
 import 'package:fatoora/features/admin_dashboard/binding/admin_dashboard_binding.dart';
 import 'package:fatoora/features/admin_dashboard/view/screen/admin_home_screen.dart';
 import 'package:fatoora/features/admin_dashboard/view/screen/admin_sales_rep_details_screen.dart';
+import 'package:fatoora/features/expenses/bindings/expenses_binding.dart';
+import 'package:fatoora/features/expenses/view/screens/expense_details_screen.dart';
+import 'package:fatoora/features/expenses/view/screens/expense_form_screen.dart';
+import 'package:fatoora/features/expenses/view/screens/expenses_list_screen.dart';
 import 'package:fatoora/features/financial/bindings/financial_binding.dart';
 import 'package:fatoora/features/financial/view/screens/cash_movements_screen.dart';
 import 'package:fatoora/features/financial/view/screens/receivables_screen.dart';
@@ -176,6 +180,12 @@ List<GetPage<dynamic>> routes = [
     middlewares: [ApprovedUserMiddleware()],
   ),
   GetPage(
+    name: AppRoute.expenses,
+    page: () => const ExpensesListScreen(),
+    binding: ExpensesBinding(),
+    middlewares: [ApprovedUserMiddleware()],
+  ),
+  GetPage(
     name: AppRoute.adminItems,
     page: () => const ItemsScreen(),
     binding: ItemsBinding(),
@@ -317,6 +327,18 @@ List<GetPage<dynamic>> routes = [
     name: AppRoute.receiptDetails,
     page: () => const ReceiptDetailsScreen(),
     binding: ReceiptDetailsBinding(),
+    middlewares: [ApprovedUserMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.createExpense,
+    page: () => const ExpenseFormScreen(),
+    binding: ExpenseFormBinding(),
+    middlewares: [ApprovedUserMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.expenseDetails,
+    page: () => const ExpenseDetailsScreen(),
+    binding: ExpenseDetailsBinding(),
     middlewares: [ApprovedUserMiddleware()],
   ),
   GetPage(

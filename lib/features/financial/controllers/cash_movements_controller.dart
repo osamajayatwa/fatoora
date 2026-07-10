@@ -127,6 +127,7 @@ class CashMovementsController extends GetxController {
           fromDate: fromDate,
           toDate: toDate,
           salesRepFilterLabel: filterLabel,
+          isAdminView: isAdmin,
           companyId: companyId,
         ),
       );

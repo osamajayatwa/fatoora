@@ -7,6 +7,7 @@ import 'package:fatoora/core/settings/business_settings_defaults.dart';
 import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
+import 'package:fatoora/features/financial/data/models/cash_movement_model.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/receipts/data/models/receipt_model.dart';
@@ -383,6 +384,9 @@ class ReceiptRepository {
                 'type': 'receipt_cash',
                 'direction': 'in',
                 'amount': roundedAmount,
+                'cashAccount': user.isAdmin
+                    ? CashMovementModel.companyCashAccount
+                    : CashMovementModel.repCashAccount,
                 'paymentType': created.paymentMethod,
                 'customerId': customer.id,
                 'customerName': customer.name,

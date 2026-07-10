@@ -57,8 +57,15 @@ class AdminWelcomeCard extends StatelessWidget {
                   ),
                   _WelcomeMetric(
                     icon: Icons.account_balance_wallet_outlined,
-                    label: 'financial_cash_in_hand'.tr,
-                    value: currency.format(controller.snapshot.cashInHand),
+                    label: 'financial_company_cash'.tr,
+                    value: currency.format(controller.snapshot.companyCash),
+                  ),
+                  _WelcomeMetric(
+                    icon: Icons.payments_outlined,
+                    label: 'financial_rep_cash_outstanding'.tr,
+                    value: currency.format(
+                      controller.snapshot.repCashOutstanding,
+                    ),
                   ),
                 ],
               ),

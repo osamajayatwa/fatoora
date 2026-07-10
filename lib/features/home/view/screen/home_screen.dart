@@ -114,8 +114,8 @@ class _WelcomeCard extends StatelessWidget {
             ],
           );
           final cash = _HighlightAmount(
-            labelKey: 'financial_cash_in_hand',
-            value: currency.format(controller.snapshot.cashInHand),
+            labelKey: 'financial_rep_cash_to_settle',
+            value: currency.format(controller.snapshot.repCashOutstanding),
           );
           if (compact) {
             return Column(
@@ -207,6 +207,18 @@ class _SalesRepStats extends StatelessWidget {
         AppColor.tertiaryColor,
       ),
       _StatData(
+        'expenses_total_posted',
+        currency.format(snapshot.totalExpenses),
+        Icons.receipt_long_outlined,
+        AppColor.error,
+      ),
+      _StatData(
+        'expenses_pending',
+        snapshot.pendingExpenseCount.toString(),
+        Icons.pending_actions_outlined,
+        const Color(0xFFFF9838),
+      ),
+      _StatData(
         'dashboard_invoices_count',
         snapshot.invoiceCount.toString(),
         Icons.receipt_long_outlined,
@@ -294,6 +306,16 @@ class _QuickActions extends StatelessWidget {
         'financial_cash',
         Icons.account_balance_wallet_outlined,
         controller.openCash,
+      ),
+      _ActionData(
+        'expense_new',
+        Icons.receipt_long_outlined,
+        controller.createExpense,
+      ),
+      _ActionData(
+        'my_expenses',
+        Icons.request_page_outlined,
+        controller.openExpenses,
       ),
       _ActionData('settings', Icons.settings_outlined, controller.openSettings),
     ];

@@ -41,7 +41,7 @@ class CashMovementsScreen extends StatelessWidget {
                           if (controller.isAdmin &&
                               controller
                                   .snapshot
-                                  .cashBySalesRep
+                                  .repCashOutstandingBySalesRep
                                   .isNotEmpty) ...[
                             const SizedBox(height: 16),
                             _RepCashBalances(controller: controller),
@@ -156,7 +156,10 @@ class _CashHeader extends StatelessWidget {
                   ],
                 ),
           const SizedBox(height: 18),
-          _CashSummaryGrid(snapshot: controller.snapshot),
+          _CashSummaryGrid(
+            snapshot: controller.snapshot,
+            isAdmin: controller.isAdmin,
+          ),
         ],
       ),
     );
@@ -164,12 +167,54 @@ class _CashHeader extends StatelessWidget {
 }
 
 class _CashSummaryGrid extends StatelessWidget {
-  const _CashSummaryGrid({required this.snapshot});
+  const _CashSummaryGrid({required this.snapshot, required this.isAdmin});
 
   final FinancialCashSnapshot snapshot;
+  final bool isAdmin;
 
   @override
   Widget build(BuildContext context) {
+    final tiles = isAdmin
+        ? [
+            _CashSummaryData(
+              titleKey: 'financial_company_cash',
+              value: snapshot.companyCash,
+              color: AppColor.secondaryColor,
+              icon: Icons.account_balance_wallet_outlined,
+            ),
+            _CashSummaryData(
+              titleKey: 'financial_rep_cash_outstanding',
+              value: snapshot.repCashOutstanding,
+              color: AppColor.primaryColor,
+              icon: Icons.payments_outlined,
+            ),
+            _CashSummaryData(
+              titleKey: 'financial_total_cash_position',
+              value: snapshot.companyCash + snapshot.repCashOutstanding,
+              color: AppColor.success,
+              icon: Icons.account_balance_outlined,
+            ),
+          ]
+        : [
+            _CashSummaryData(
+              titleKey: 'financial_rep_cash_to_settle',
+              value: snapshot.repCashOutstanding,
+              color: AppColor.secondaryColor,
+              icon: Icons.account_balance_wallet_outlined,
+            ),
+            _CashSummaryData(
+              titleKey: 'financial_cash_in',
+              value: snapshot.totalIn,
+              color: AppColor.success,
+              icon: Icons.south_west_rounded,
+            ),
+            _CashSummaryData(
+              titleKey: 'financial_cash_out',
+              value: snapshot.totalOut,
+              color: AppColor.error,
+              icon: Icons.north_east_rounded,
+            ),
+          ];
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns = constraints.maxWidth >= 760 ? 3 : 1;
@@ -180,32 +225,33 @@ class _CashSummaryGrid extends StatelessWidget {
           spacing: spacing,
           runSpacing: spacing,
           children: [
-            _CashSummaryTile(
-              width: width,
-              titleKey: 'financial_cash_in_hand',
-              value: snapshot.cashInHand,
-              color: AppColor.secondaryColor,
-              icon: Icons.account_balance_wallet_outlined,
-            ),
-            _CashSummaryTile(
-              width: width,
-              titleKey: 'financial_cash_in',
-              value: snapshot.totalIn,
-              color: AppColor.success,
-              icon: Icons.south_west_rounded,
-            ),
-            _CashSummaryTile(
-              width: width,
-              titleKey: 'financial_cash_out',
-              value: snapshot.totalOut,
-              color: AppColor.error,
-              icon: Icons.north_east_rounded,
-            ),
+            for (final tile in tiles)
+              _CashSummaryTile(
+                width: width,
+                titleKey: tile.titleKey,
+                value: tile.value,
+                color: tile.color,
+                icon: tile.icon,
+              ),
           ],
         );
       },
     );
   }
+}
+
+class _CashSummaryData {
+  const _CashSummaryData({
+    required this.titleKey,
+    required this.value,
+    required this.color,
+    required this.icon,
+  });
+
+  final String titleKey;
+  final double value;
+  final Color color;
+  final IconData icon;
 }
 
 class _CashSummaryTile extends StatelessWidget {
@@ -286,7 +332,8 @@ class _RepCashBalances extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          for (final rep in controller.snapshot.cashBySalesRep) ...[
+          for (final rep
+              in controller.snapshot.repCashOutstandingBySalesRep) ...[
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(

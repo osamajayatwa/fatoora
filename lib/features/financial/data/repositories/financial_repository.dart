@@ -5,8 +5,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
+import 'package:fatoora/features/expenses/data/models/expense_model.dart';
 import 'package:fatoora/features/financial/data/models/cash_movement_model.dart';
 import 'package:fatoora/features/financial/data/models/financial_dashboard_snapshot.dart';
+import 'package:fatoora/features/financial/data/services/cash_ledger_calculator.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/receipts/data/models/receipt_model.dart';
@@ -88,6 +90,13 @@ class FinancialRepository {
         .collection('cash_movements');
   }
 
+  CollectionReference<Map<String, dynamic>> _expenses(String companyId) {
+    return _firestore
+        .collection('companies')
+        .doc(companyId)
+        .collection('expenses');
+  }
+
   Future<FinancialDashboardSnapshot> fetchDashboard({
     String companyId = AuthRepository.defaultCompanyId,
   }) {
@@ -99,6 +108,23 @@ class FinancialRepository {
       final receipts = await _fetchReceipts(resolvedCompanyId, user);
       final salesReturns = await _fetchSalesReturns(resolvedCompanyId, user);
       final cashMovements = await _fetchCashMovements(resolvedCompanyId, user);
+      final expenses = await _fetchExpenses(resolvedCompanyId, user);
+      final cashLedger = CashLedgerCalculator.calculate(cashMovements);
+      final companyCash = user.isAdmin ? cashLedger.companyCash : 0.0;
+      final repCashOutstanding = cashLedger.repCashOutstanding;
+      final totalExpenses = _postedExpenseTotal(expenses);
+      final pendingExpenseCount = expenses
+          .where((expense) => expense.status == ExpenseStatus.pending)
+          .length;
+      final reimbursementsPayable = _round(
+        expenses
+            .where(
+              (expense) =>
+                  expense.reimbursementStatus ==
+                  ExpenseReimbursementStatus.payable,
+            )
+            .fold<double>(0, (total, expense) => total + expense.amount),
+      );
 
       final financialInvoices = invoices
           .where((invoice) => invoice.financialPosted && invoice.isFinancial)
@@ -113,7 +139,7 @@ class FinancialRepository {
           (total, item) => total + item.balance,
         ),
       );
-      final cashInHand = _cashInHand(cashMovements);
+      final effectiveCash = user.isAdmin ? companyCash : repCashOutstanding;
       final invoiceById = {
         for (final invoice in financialInvoices) invoice.id: invoice,
       };
@@ -169,14 +195,20 @@ class FinancialRepository {
               returnedFor(PaymentType.partial),
         ),
         totalReceivables: totalReceivables,
-        cashInHand: cashInHand,
+        cashInHand: _round(effectiveCash),
+        companyCash: _round(companyCash),
+        repCashOutstanding: _round(repCashOutstanding),
+        totalExpenses: totalExpenses,
+        pendingExpenseCount: pendingExpenseCount,
+        reimbursementsPayable: reimbursementsPayable,
         invoiceCount: financialInvoices.length,
         customerCount: customers.where((customer) => customer.active).length,
         receiptCount: receipts.length,
         recentInvoices: _recentInvoices(invoices),
         recentReceipts: _recentReceipts(receipts),
         topCustomers: _topCustomers(receivableCustomers),
-        cashBySalesRep: _amountsByRepFromMovements(cashMovements),
+        cashBySalesRep: cashLedger.repCashOutstandingBySalesRep,
+        repCashOutstandingBySalesRep: cashLedger.repCashOutstandingBySalesRep,
         salesByRep: _amountsByRepFromInvoices(financialInvoices, salesReturns),
         salesByRepSummary: _salesSummaryByRep(
           invoices: financialInvoices,
@@ -238,6 +270,9 @@ class FinancialRepository {
         fromDate: fromDate,
         toDate: toDate,
       );
+      final cashLedger = CashLedgerCalculator.calculate(movements);
+      final companyCash = user.isAdmin ? cashLedger.companyCash : 0.0;
+      final repCashOutstanding = cashLedger.repCashOutstanding;
       final totalIn = _round(
         movements
             .where((movement) => movement.isIn)
@@ -250,10 +285,13 @@ class FinancialRepository {
       );
       return FinancialCashSnapshot(
         movements: movements,
-        cashInHand: _round(totalIn - totalOut),
+        cashInHand: _round(user.isAdmin ? companyCash : repCashOutstanding),
+        companyCash: _round(companyCash),
+        repCashOutstanding: _round(repCashOutstanding),
         totalIn: totalIn,
         totalOut: totalOut,
-        cashBySalesRep: _amountsByRepFromMovements(movements),
+        cashBySalesRep: cashLedger.repCashOutstandingBySalesRep,
+        repCashOutstandingBySalesRep: cashLedger.repCashOutstandingBySalesRep,
       );
     });
   }
@@ -274,35 +312,54 @@ class FinancialRepository {
           FinancialRepositoryError.permissionDenied,
         );
       }
-      final document = _cashMovements(resolvedCompanyId).doc();
+      final settlementId = _cashMovements(resolvedCompanyId).doc().id;
+      final repOutDocument = _cashMovements(
+        resolvedCompanyId,
+      ).doc('${settlementId}_rep_out');
+      final companyInDocument = _cashMovements(
+        resolvedCompanyId,
+      ).doc('${settlementId}_company_in');
       final referenceNumber =
-          'SET-${settlementDate.year}${settlementDate.month.toString().padLeft(2, '0')}${settlementDate.day.toString().padLeft(2, '0')}-${document.id.substring(0, math.min(6, document.id.length)).toUpperCase()}';
-      await document
-          .set({
-            'id': document.id,
-            'companyId': resolvedCompanyId,
-            'salesRepId': salesRepId.trim(),
-            'salesRepName': salesRepName.trim(),
-            'type': 'settlement_to_admin',
-            'movementType': 'settlement_to_admin',
-            'direction': 'out',
-            'amount': _round(amount),
-            'referenceId': document.id,
-            'referenceNumber': referenceNumber,
-            'sourceCollection': 'cash_movements',
-            'sourceId': document.id,
-            'sourceNumber': referenceNumber,
-            'customerId': '',
-            'customerName': '',
-            'date': Timestamp.fromDate(settlementDate),
-            'movementDate': Timestamp.fromDate(settlementDate),
-            'notes': notes.trim(),
-            'createdByUid': user.uid,
-            'createdByName': user.name,
-            'createdByRole': user.role,
-            'createdAt': FieldValue.serverTimestamp(),
-          })
-          .timeout(const Duration(seconds: 20));
+          'SET-${settlementDate.year}${settlementDate.month.toString().padLeft(2, '0')}${settlementDate.day.toString().padLeft(2, '0')}-${settlementId.substring(0, math.min(6, settlementId.length)).toUpperCase()}';
+      final common = {
+        'companyId': resolvedCompanyId,
+        'type': 'settlement_to_admin',
+        'movementType': 'settlement_to_admin',
+        'amount': _round(amount),
+        'referenceId': settlementId,
+        'referenceNumber': referenceNumber,
+        'sourceCollection': 'cash_movements',
+        'sourceId': settlementId,
+        'sourceNumber': referenceNumber,
+        'settlementId': settlementId,
+        'customerId': '',
+        'customerName': '',
+        'date': Timestamp.fromDate(settlementDate),
+        'movementDate': Timestamp.fromDate(settlementDate),
+        'notes': notes.trim(),
+        'createdByUid': user.uid,
+        'createdByName': user.name,
+        'createdByRole': user.role,
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+      final batch = _firestore.batch();
+      batch.set(repOutDocument, {
+        ...common,
+        'id': repOutDocument.id,
+        'salesRepId': salesRepId.trim(),
+        'salesRepName': salesRepName.trim(),
+        'cashAccount': CashMovementModel.repCashAccount,
+        'direction': 'out',
+      });
+      batch.set(companyInDocument, {
+        ...common,
+        'id': companyInDocument.id,
+        'salesRepId': '',
+        'salesRepName': salesRepName.trim(),
+        'cashAccount': CashMovementModel.companyCashAccount,
+        'direction': 'in',
+      });
+      await batch.commit().timeout(const Duration(seconds: 20));
     });
   }
 
@@ -422,7 +479,9 @@ class FinancialRepository {
   }) async {
     Query<Map<String, dynamic>> query = _cashMovements(companyId);
     if (user.isSalesRep) {
-      query = query.where('salesRepId', isEqualTo: user.uid);
+      query = query
+          .where('salesRepId', isEqualTo: user.uid)
+          .where('cashAccount', isEqualTo: CashMovementModel.repCashAccount);
     }
     final snapshot = await query
         .limit(900)
@@ -441,6 +500,25 @@ class FinancialRepository {
         .toList(growable: false);
     movements.sort((a, b) => b.date.compareTo(a.date));
     return movements;
+  }
+
+  Future<List<ExpenseModel>> _fetchExpenses(
+    String companyId,
+    BusinessUserContext user,
+  ) async {
+    Query<Map<String, dynamic>> query = _expenses(companyId);
+    if (user.isSalesRep) {
+      query = query.where('paidByUid', isEqualTo: user.uid);
+    }
+    final snapshot = await query
+        .limit(700)
+        .get()
+        .timeout(const Duration(seconds: 20));
+    final expenses = snapshot.docs
+        .map(ExpenseModel.fromFirestore)
+        .toList(growable: false);
+    expenses.sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
+    return expenses;
   }
 
   List<FinancialCustomerBalance> _buildReceivableCustomers(
@@ -487,30 +565,6 @@ class FinancialRepository {
     List<FinancialCustomerBalance> customers,
   ) {
     return customers.take(3).toList(growable: false);
-  }
-
-  List<FinancialRepAmount> _amountsByRepFromMovements(
-    List<CashMovementModel> movements,
-  ) {
-    final amounts = <String, double>{};
-    final names = <String, String>{};
-    for (final movement in movements) {
-      if (movement.salesRepId.isEmpty) continue;
-      amounts[movement.salesRepId] =
-          (amounts[movement.salesRepId] ?? 0) + movement.signedAmount;
-      names[movement.salesRepId] = movement.salesRepName;
-    }
-    final rows = amounts.entries
-        .map(
-          (entry) => FinancialRepAmount(
-            salesRepId: entry.key,
-            salesRepName: names[entry.key] ?? '',
-            amount: _round(entry.value),
-          ),
-        )
-        .toList(growable: false);
-    rows.sort((a, b) => b.amount.compareTo(a.amount));
-    return rows;
   }
 
   List<FinancialRepAmount> _amountsByRepFromInvoices(
@@ -601,8 +655,12 @@ class FinancialRepository {
 
     for (final movement in movements) {
       if (movement.salesRepId.isEmpty) continue;
+      final repCashEffect = CashLedgerCalculator.repCashOutstandingEffect(
+        movement,
+      );
+      if (repCashEffect == 0) continue;
       rowFor(movement.salesRepId, movement.salesRepName).cashInHand +=
-          movement.signedAmount;
+          repCashEffect;
     }
 
     final summaries = rows.values
@@ -622,6 +680,14 @@ class FinancialRepository {
         .toList(growable: false);
     summaries.sort((a, b) => b.totalSales.compareTo(a.totalSales));
     return summaries;
+  }
+
+  double _postedExpenseTotal(List<ExpenseModel> expenses) {
+    return _round(
+      expenses
+          .where((expense) => expense.isPostedOrApproved)
+          .fold<double>(0, (total, expense) => total + expense.amount),
+    );
   }
 
   List<double> _weeklyInvoiceValues(
@@ -644,15 +710,6 @@ class FinancialRepository {
       values[index] = _round(values[index] - salesReturn.grandTotal);
     }
     return values;
-  }
-
-  double _cashInHand(List<CashMovementModel> movements) {
-    return _round(
-      movements.fold<double>(
-        0,
-        (total, movement) => total + movement.signedAmount,
-      ),
-    );
   }
 
   String _resolveCompanyId(String requested, BusinessUserContext user) {

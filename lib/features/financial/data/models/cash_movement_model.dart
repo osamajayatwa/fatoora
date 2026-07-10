@@ -19,6 +19,8 @@ class CashMovementModel {
     required this.customerName,
     required this.date,
     required this.notes,
+    this.cashAccount = '',
+    this.settlementId = '',
     required this.createdByUid,
     required this.createdByName,
     required this.createdByRole,
@@ -42,6 +44,8 @@ class CashMovementModel {
   final String customerName;
   final DateTime date;
   final String notes;
+  final String cashAccount;
+  final String settlementId;
   final String createdByUid;
   final String createdByName;
   final String createdByRole;
@@ -50,6 +54,12 @@ class CashMovementModel {
   bool get isIn => direction == 'in';
   bool get isOut => direction == 'out';
   double get signedAmount => isOut ? -amount : amount;
+  bool get isCompanyCashAccount => cashAccount == companyCashAccount;
+  bool get isRepCashAccount => cashAccount == repCashAccount;
+  bool get hasCashAccount => cashAccount.isNotEmpty;
+
+  static const String companyCashAccount = 'company_cash';
+  static const String repCashAccount = 'rep_cash';
 
   String get effectiveType {
     if (type.isNotEmpty) return type;
@@ -101,6 +111,8 @@ class CashMovementModel {
           _readDate(data, 'createdAt') ??
           DateTime.now(),
       notes: _readString(data, 'notes'),
+      cashAccount: _readString(data, 'cashAccount'),
+      settlementId: _readString(data, 'settlementId'),
       createdByUid: _readString(data, 'createdByUid'),
       createdByName: _readString(data, 'createdByName'),
       createdByRole: _readString(data, 'createdByRole'),
@@ -127,6 +139,8 @@ class CashMovementModel {
     'date': Timestamp.fromDate(date),
     'movementDate': Timestamp.fromDate(date),
     'notes': notes,
+    if (cashAccount.isNotEmpty) 'cashAccount': cashAccount,
+    if (settlementId.isNotEmpty) 'settlementId': settlementId,
     'createdByUid': createdByUid,
     'createdByName': createdByName,
     'createdByRole': createdByRole,

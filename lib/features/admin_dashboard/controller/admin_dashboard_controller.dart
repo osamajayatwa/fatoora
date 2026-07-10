@@ -89,12 +89,36 @@ class AdminDashboardController extends GetxController {
       color: const Color(0xFF42C98B),
     ),
     DashboardStat(
-      titleKey: 'financial_cash_in_hand',
-      value: _money.format(snapshot.cashInHand),
+      titleKey: 'financial_company_cash',
+      value: _money.format(snapshot.companyCash),
       captionKey: 'dashboard_jod',
       change: '0%',
       icon: Icons.account_balance_wallet_outlined,
       color: const Color(0xFF6657E8),
+    ),
+    DashboardStat(
+      titleKey: 'financial_rep_cash_outstanding',
+      value: _money.format(snapshot.repCashOutstanding),
+      captionKey: 'dashboard_jod',
+      change: '0%',
+      icon: Icons.payments_outlined,
+      color: const Color(0xFFFF9838),
+    ),
+    DashboardStat(
+      titleKey: 'expenses_total_posted',
+      value: _money.format(snapshot.totalExpenses),
+      captionKey: 'dashboard_jod',
+      change: '0%',
+      icon: Icons.receipt_long_outlined,
+      color: AppColor.error,
+    ),
+    DashboardStat(
+      titleKey: 'expenses_pending',
+      value: snapshot.pendingExpenseCount.toString(),
+      captionKey: 'expenses',
+      change: '0%',
+      icon: Icons.pending_actions_outlined,
+      color: const Color(0xFFFFA43A),
     ),
     DashboardStat(
       titleKey: 'admin_users_pending',
@@ -156,9 +180,19 @@ class AdminDashboardController extends GetxController {
       route: AppRoute.createReceipt,
     ),
     DashboardQuickAction(
+      labelKey: 'expense_new',
+      icon: Icons.receipt_long_outlined,
+      route: AppRoute.createExpense,
+    ),
+    DashboardQuickAction(
       labelKey: 'dashboard_view_invoices',
       icon: Icons.receipt_long_outlined,
       route: AppRoute.invoices,
+    ),
+    DashboardQuickAction(
+      labelKey: 'expenses',
+      icon: Icons.request_page_outlined,
+      route: AppRoute.expenses,
     ),
     DashboardQuickAction(
       labelKey: 'dashboard_view_returns',
@@ -273,7 +307,8 @@ class AdminDashboardController extends GetxController {
         'cashSales=${snapshot.cashSales}, '
         'creditSales=${snapshot.creditSales}, '
         'partialSales=${snapshot.partialSales}, '
-        'cashInHand=${snapshot.cashInHand}, '
+        'companyCash=${snapshot.companyCash}, '
+        'repCashOutstanding=${snapshot.repCashOutstanding}, '
         'totalReceivables=${snapshot.totalReceivables}',
       );
     } catch (error, stackTrace) {

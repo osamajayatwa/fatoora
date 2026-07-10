@@ -44,6 +44,7 @@ class AdminSidebar extends StatelessWidget {
       Icons.account_balance_wallet_outlined,
       AppRoute.cashMovements,
     ),
+    _SidebarItem('expenses', Icons.receipt_long_outlined, AppRoute.expenses),
     _SidebarItem(
       'dashboard_customers',
       Icons.people_alt_outlined,
@@ -160,6 +161,11 @@ class AdminSidebar extends StatelessWidget {
                         AppRoute.createSalesReturn,
                         AppRoute.salesReturnDetails,
                       };
+                      final expenseRoutes = {
+                        AppRoute.expenses,
+                        AppRoute.createExpense,
+                        AppRoute.expenseDetails,
+                      };
                       final userRoutes = {
                         AppRoute.adminUsers,
                         AppRoute.pendingUsers,
@@ -183,6 +189,8 @@ class AdminSidebar extends StatelessWidget {
                               receiptRoutes.contains(Get.currentRoute)) ||
                           (item.route == AppRoute.salesReturns &&
                               salesReturnRoutes.contains(Get.currentRoute)) ||
+                          (item.route == AppRoute.expenses &&
+                              expenseRoutes.contains(Get.currentRoute)) ||
                           (item.route == AppRoute.adminUsers &&
                               userRoutes.contains(Get.currentRoute)) ||
                           (item.route == AppRoute.statements &&

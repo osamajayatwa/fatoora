@@ -7,6 +7,7 @@ import 'package:fatoora/core/settings/business_settings_defaults.dart';
 import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
+import 'package:fatoora/features/financial/data/models/cash_movement_model.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_item_snapshot.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
@@ -998,6 +999,9 @@ class SalesReturnRepository {
         'type': 'sales_return_cash_refund',
         'direction': 'out',
         'amount': salesReturn.cashRefundAmount,
+        'cashAccount': user.isAdmin
+            ? CashMovementModel.companyCashAccount
+            : CashMovementModel.repCashAccount,
         'paymentType': salesReturn.refundType.value,
         'customerId': salesReturn.customerId,
         'customerName': salesReturn.customerSnapshot?.name ?? '',

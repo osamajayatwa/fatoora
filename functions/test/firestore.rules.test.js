@@ -13,7 +13,9 @@ const {
   getDoc,
   getDocs,
   query,
+  serverTimestamp,
   setDoc,
+  updateDoc,
   where,
 } = require("firebase/firestore");
 
@@ -97,11 +99,47 @@ beforeEach(async () => {
       ),
       setDoc(
         businessDoc(db, "cash_movements", "cash-a"),
-        salesRepOwned("cash-a", repAUid, repAUid),
+        {
+          ...salesRepOwned("cash-a", repAUid, repAUid),
+          cashAccount: "rep_cash",
+        },
       ),
       setDoc(
         businessDoc(db, "cash_movements", "cash-b"),
-        salesRepOwned("cash-b", repBUid, repBUid),
+        {
+          ...salesRepOwned("cash-b", repBUid, repBUid),
+          cashAccount: "rep_cash",
+        },
+      ),
+      setDoc(
+        businessDoc(db, "cash_movements", "company-cash-for-a"),
+        {
+          ...salesRepOwned("company-cash-for-a", repAUid, adminUid),
+          cashAccount: "company_cash",
+        },
+      ),
+      setDoc(
+        businessDoc(db, "expenses", "expense-a"),
+        expenseOwned("expense-a", repAUid, repAUid),
+      ),
+      setDoc(
+        businessDoc(db, "expenses", "expense-b"),
+        expenseOwned("expense-b", repBUid, repBUid),
+      ),
+      setDoc(
+        businessDoc(db, "expenses", "expense-personal-a"),
+        expenseOwned("expense-personal-a", repAUid, repAUid, {
+          fundingSource: "personal_cash",
+        }),
+      ),
+      setDoc(
+        businessDoc(db, "expenses", "expense-admin"),
+        expenseOwned("expense-admin", adminUid, adminUid, {
+          salesRepId: "",
+          fundingSource: "company_cash",
+          status: "posted",
+          cashMovementId: "expense-admin_cash_out",
+        }),
       ),
       setDoc(
         businessDoc(db, "sales_returns", "return-a"),
@@ -160,6 +198,8 @@ test("approved active admin can read every financial repository collection", asy
     ["sales_returns", "return-b"],
     ["customer_transactions", "transaction-orphan"],
     ["cash_movements", "cash-b"],
+    ["cash_movements", "company-cash-for-a"],
+    ["expenses", "expense-b"],
     ["stock_movements", "stock-b"],
   ]) {
     await assertSucceeds(getDoc(businessDoc(db, collectionName, documentId)));
@@ -184,6 +224,7 @@ test("rep A can directly read own documents and cannot read rep B documents", as
     ["sales_returns", "return-a", "return-b"],
     ["customer_transactions", "transaction-a", "transaction-b"],
     ["cash_movements", "cash-a", "cash-b"],
+    ["expenses", "expense-a", "expense-b"],
     ["stock_movements", "stock-a", "stock-b"],
   ]) {
     await assertSucceeds(getDoc(businessDoc(db, collectionName, ownId)));
@@ -200,6 +241,7 @@ test("rep B has the inverse direct-read boundary", async () => {
     ["sales_returns", "return-b", "return-a"],
     ["customer_transactions", "transaction-b", "transaction-a"],
     ["cash_movements", "cash-b", "cash-a"],
+    ["expenses", "expense-b", "expense-a"],
     ["stock_movements", "stock-b", "stock-a"],
   ]) {
     await assertSucceeds(getDoc(businessDoc(db, collectionName, ownId)));
@@ -216,7 +258,6 @@ test("sales reps must use owner-constrained collection queries", async () => {
       "receipts",
       "sales_returns",
       "customer_transactions",
-      "cash_movements",
     ]) {
       await assertSucceeds(
         getDocs(
@@ -236,6 +277,60 @@ test("sales reps must use owner-constrained collection queries", async () => {
       );
       await assertFails(getDocs(businessCollection(db, collectionName)));
     }
+    await assertSucceeds(
+      getDocs(
+        query(
+          businessCollection(db, "cash_movements"),
+          where("salesRepId", "==", uid),
+          where("cashAccount", "==", "rep_cash"),
+        ),
+      ),
+    );
+    await assertFails(
+      getDocs(
+        query(
+          businessCollection(db, "cash_movements"),
+          where("salesRepId", "==", uid),
+        ),
+      ),
+    );
+    await assertFails(
+      getDocs(
+        query(
+          businessCollection(db, "cash_movements"),
+          where("salesRepId", "==", otherUid),
+          where("cashAccount", "==", "rep_cash"),
+        ),
+      ),
+    );
+    await assertFails(
+      getDocs(
+        query(
+          businessCollection(db, "cash_movements"),
+          where("salesRepId", "==", uid),
+          where("cashAccount", "==", "company_cash"),
+        ),
+      ),
+    );
+    await assertFails(getDocs(businessCollection(db, "cash_movements")));
+
+    await assertSucceeds(
+      getDocs(
+        query(
+          businessCollection(db, "expenses"),
+          where("paidByUid", "==", uid),
+        ),
+      ),
+    );
+    await assertFails(
+      getDocs(
+        query(
+          businessCollection(db, "expenses"),
+          where("paidByUid", "==", otherUid),
+        ),
+      ),
+    );
+    await assertFails(getDocs(businessCollection(db, "expenses")));
     await assertSucceeds(
       getDocs(
         query(
@@ -276,6 +371,7 @@ test("pending and inactive users cannot read financial data", async () => {
       ["sales_returns", "return-a"],
       ["customer_transactions", "transaction-a"],
       ["cash_movements", "cash-a"],
+      ["expenses", "expense-a"],
       ["stock_movements", "stock-a"],
     ]) {
       await assertFails(getDoc(businessDoc(db, collectionName, documentId)));
@@ -344,6 +440,122 @@ test("invoice ownership follows salesRepId rather than createdByUid", async () =
   await assertSucceeds(getDoc(businessDoc(repBDb, ...documentPath)));
 });
 
+test("sales reps cannot read company cash movements even when salesRepId matches", async () => {
+  const repADb = authenticatedDb(repAUid);
+  const adminDb = authenticatedDb(adminUid);
+
+  await assertFails(
+    getDoc(businessDoc(repADb, "cash_movements", "company-cash-for-a")),
+  );
+  await assertSucceeds(
+    getDoc(businessDoc(adminDb, "cash_movements", "company-cash-for-a")),
+  );
+});
+
+test("sales reps can create only pending own expenses", async () => {
+  const db = authenticatedDb(repAUid);
+
+  await assertSucceeds(
+    setDoc(
+      businessDoc(db, "expenses", "new-rep-expense"),
+      expenseCreatePayload("new-rep-expense", repAUid, "sales_rep"),
+    ),
+  );
+  await assertFails(
+    setDoc(
+      businessDoc(db, "expenses", "bad-company-expense"),
+      expenseCreatePayload("bad-company-expense", repAUid, "sales_rep", {
+        fundingSource: "company_cash",
+        status: "posted",
+        salesRepId: "",
+        salesRepName: "",
+        cashMovementId: "bad-company-expense_cash_out",
+        approvedByUid: repAUid,
+        approvedByName: "Rep A",
+        approvedAt: serverTimestamp(),
+      }),
+    ),
+  );
+});
+
+test("admin can create posted company cash expenses", async () => {
+  const db = authenticatedDb(adminUid);
+
+  await assertSucceeds(
+    setDoc(
+      businessDoc(db, "expenses", "new-admin-expense"),
+      expenseCreatePayload("new-admin-expense", adminUid, "admin"),
+    ),
+  );
+});
+
+test("admin can approve collected-cash and personal-cash rep expenses", async () => {
+  const adminDb = authenticatedDb(adminUid);
+  const repDb = authenticatedDb(repAUid);
+
+  await assertSucceeds(
+    updateDoc(businessDoc(adminDb, "expenses", "expense-a"), {
+      status: "approved",
+      cashMovementId: "expense-a_cash_out",
+      reimbursementStatus: "none",
+      approvedByUid: adminUid,
+      approvedByName: "Admin",
+      approvedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertSucceeds(
+    updateDoc(businessDoc(adminDb, "expenses", "expense-personal-a"), {
+      status: "approved",
+      cashMovementId: "",
+      reimbursementStatus: "payable",
+      approvedByUid: adminUid,
+      approvedByName: "Admin",
+      approvedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertFails(
+    updateDoc(businessDoc(repDb, "expenses", "expense-b"), {
+      status: "approved",
+      cashMovementId: "expense-b_cash_out",
+      reimbursementStatus: "none",
+      approvedByUid: repAUid,
+      approvedByName: "Rep A",
+      approvedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test("admin can reject pending expenses without changing financial fields", async () => {
+  const adminDb = authenticatedDb(adminUid);
+
+  await assertSucceeds(
+    updateDoc(businessDoc(adminDb, "expenses", "expense-a"), {
+      status: "rejected",
+      reimbursementStatus: "none",
+      rejectedByUid: adminUid,
+      rejectedByName: "Admin",
+      rejectedAt: serverTimestamp(),
+      rejectionReason: "Missing receipt",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertFails(
+    updateDoc(businessDoc(adminDb, "expenses", "expense-b"), {
+      status: "rejected",
+      amount: 999,
+      reimbursementStatus: "none",
+      rejectedByUid: adminUid,
+      rejectedByName: "Admin",
+      rejectedAt: serverTimestamp(),
+      rejectionReason: "Bad amount",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
 function authenticatedDb(uid) {
   return testEnvironment.authenticatedContext(uid, {
     email: `${uid}@example.test`,
@@ -375,6 +587,84 @@ function createdByOwned(id, createdByUid) {
     companyId,
     createdByUid,
   };
+}
+
+function expenseOwned(id, paidByUid, createdByUid, overrides = {}) {
+  const role = createdByUid === adminUid ? "admin" : "sales_rep";
+  const name = createdByUid === adminUid ? "Admin" : `Rep ${createdByUid}`;
+  return {
+    id,
+    companyId,
+    amount: 10,
+    expenseDate: new Date("2026-07-01T10:00:00.000Z"),
+    category: "fuel",
+    categoryName: "fuel",
+    customCategoryName: "",
+    description: "Fuel",
+    notes: "Fuel",
+    paidByUid,
+    paidByName: name,
+    paidByRole: role,
+    salesRepId: role === "sales_rep" ? paidByUid : "",
+    salesRepName: role === "sales_rep" ? name : "",
+    paymentMethod: "cash",
+    fundingSource: role === "admin" ? "company_cash" : "rep_collected_cash",
+    status: role === "admin" ? "posted" : "pending",
+    cashMovementId: role === "admin" ? `${id}_cash_out` : "",
+    reimbursementStatus: "none",
+    approvedByUid: role === "admin" ? adminUid : "",
+    approvedByName: role === "admin" ? "Admin" : "",
+    rejectedByUid: "",
+    rejectedByName: "",
+    rejectionReason: "",
+    createdByUid,
+    createdByName: name,
+    createdByRole: role,
+    createdAt: new Date("2026-07-01T10:00:00.000Z"),
+    updatedAt: new Date("2026-07-01T10:00:00.000Z"),
+    ...overrides,
+  };
+}
+
+function expenseCreatePayload(id, uid, role, overrides = {}) {
+  const name = role === "admin" ? "Admin" : uid === repAUid ? "Rep A" : "Rep B";
+  const isAdmin = role === "admin";
+  const payload = {
+    id,
+    companyId,
+    amount: 12.5,
+    expenseDate: serverTimestamp(),
+    category: "fuel",
+    categoryName: "fuel",
+    customCategoryName: "",
+    description: "Fuel refill",
+    notes: "Fuel refill",
+    paidByUid: uid,
+    paidByName: name,
+    paidByRole: role,
+    salesRepId: isAdmin ? "" : uid,
+    salesRepName: isAdmin ? "" : name,
+    paymentMethod: "cash",
+    fundingSource: isAdmin ? "company_cash" : "rep_collected_cash",
+    status: isAdmin ? "posted" : "pending",
+    cashMovementId: isAdmin ? `${id}_cash_out` : "",
+    reimbursementStatus: "none",
+    approvedByUid: isAdmin ? uid : "",
+    approvedByName: isAdmin ? name : "",
+    rejectedByUid: "",
+    rejectedByName: "",
+    rejectionReason: "",
+    createdByUid: uid,
+    createdByName: name,
+    createdByRole: role,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    ...overrides,
+  };
+  if (isAdmin || overrides.approvedAt) {
+    payload.approvedAt = overrides.approvedAt ?? serverTimestamp();
+  }
+  return payload;
 }
 
 function businessCollection(db, collectionName) {

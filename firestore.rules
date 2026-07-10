@@ -83,6 +83,27 @@ service cloud.firestore {
         );
     }
 
+    function canReadCashMovement(companyId, data) {
+      return isApprovedCompanyUser(companyId)
+        && (
+          isActiveAdmin()
+          || (
+            data.keys().hasAll(['cashAccount', 'salesRepId'])
+            && data.cashAccount == 'rep_cash'
+            && data.salesRepId == request.auth.uid
+          )
+        );
+    }
+
+    function canReadExpense(companyId, data) {
+      return isApprovedCompanyUser(companyId)
+        && (
+          isActiveAdmin()
+          || data.paidByUid == request.auth.uid
+          || data.salesRepId == request.auth.uid
+        );
+    }
+
     function canReadCreatedByOwnedDoc(companyId, data) {
       return isApprovedCompanyUser(companyId)
         && (
@@ -440,6 +461,152 @@ service cloud.firestore {
         && (
           data.createdByRole == userDoc().data.role
           || isActiveAdmin()
+        );
+    }
+
+    function validCashMovementCreate(companyId, data) {
+      return validFinancialCreate(companyId, data)
+        && data.cashAccount in ['company_cash', 'rep_cash']
+        && (
+          isActiveAdmin()
+          || (
+            data.cashAccount == 'rep_cash'
+            && data.salesRepId == request.auth.uid
+          )
+        );
+    }
+
+    function validExpenseBaseCreate(companyId, expenseId, data) {
+      return validFinancialCreate(companyId, data)
+        && data.id == expenseId
+        && data.amount is number
+        && data.amount > 0
+        && data.expenseDate is timestamp
+        && data.category in [
+          'fuel',
+          'parking',
+          'maintenance',
+          'delivery',
+          'meals',
+          'office',
+          'utilities',
+          'salary',
+          'rent',
+          'other'
+        ]
+        && data.fundingSource in [
+          'company_cash',
+          'rep_collected_cash',
+          'personal_cash'
+        ]
+        && data.status in [
+          'posted',
+          'pending',
+          'approved',
+          'rejected',
+          'cancelled'
+        ]
+        && data.reimbursementStatus in ['none', 'payable', 'paid']
+        && data.paymentMethod == 'cash'
+        && data.paidByUid == request.auth.uid
+        && data.paidByName is string
+        && data.paidByName.size() > 0
+        && data.paidByRole == userDoc().data.role
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
+    function validAdminCompanyExpenseCreate(companyId, expenseId) {
+      let data = request.resource.data;
+      return isActiveAdmin()
+        && validExpenseBaseCreate(companyId, expenseId, data)
+        && data.fundingSource == 'company_cash'
+        && data.status == 'posted'
+        && data.reimbursementStatus == 'none'
+        && data.salesRepId == ''
+        && data.cashMovementId is string
+        && data.cashMovementId.size() > 0
+        && data.approvedByUid == request.auth.uid
+        && data.approvedByName is string
+        && data.approvedByName.size() > 0
+        && data.approvedAt == request.time;
+    }
+
+    function validSalesRepExpenseCreate(companyId, expenseId) {
+      let data = request.resource.data;
+      return userDoc().data.role == 'sales_rep'
+        && validExpenseBaseCreate(companyId, expenseId, data)
+        && data.fundingSource in ['rep_collected_cash', 'personal_cash']
+        && data.status == 'pending'
+        && data.reimbursementStatus == 'none'
+        && data.salesRepId == request.auth.uid
+        && data.salesRepName is string
+        && data.salesRepName.size() > 0
+        && data.cashMovementId == ''
+        && !data.keys().hasAny(['approvedAt', 'rejectedAt']);
+    }
+
+    function validAdminExpenseDecisionUpdate(companyId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return isActiveAdmin()
+        && isApprovedCompanyUser(companyId)
+        && resource.data.status == 'pending'
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.companyId == resource.data.companyId
+        && request.resource.data.amount == resource.data.amount
+        && request.resource.data.expenseDate == resource.data.expenseDate
+        && request.resource.data.category == resource.data.category
+        && request.resource.data.fundingSource == resource.data.fundingSource
+        && request.resource.data.paidByUid == resource.data.paidByUid
+        && request.resource.data.salesRepId == resource.data.salesRepId
+        && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && changed.hasOnly([
+          'status',
+          'cashMovementId',
+          'reimbursementStatus',
+          'approvedByUid',
+          'approvedByName',
+          'approvedAt',
+          'rejectedByUid',
+          'rejectedByName',
+          'rejectedAt',
+          'rejectionReason',
+          'updatedAt'
+        ])
+        && request.resource.data.updatedAt == request.time
+        && (
+          (
+            request.resource.data.status == 'approved'
+            && request.resource.data.approvedByUid == request.auth.uid
+            && request.resource.data.approvedByName is string
+            && request.resource.data.approvedByName.size() > 0
+            && request.resource.data.approvedAt == request.time
+            && (
+              (
+                resource.data.fundingSource == 'rep_collected_cash'
+                && request.resource.data.cashMovementId is string
+                && request.resource.data.cashMovementId.size() > 0
+                && request.resource.data.reimbursementStatus == 'none'
+              )
+              || (
+                resource.data.fundingSource == 'personal_cash'
+                && request.resource.data.cashMovementId == ''
+                && request.resource.data.reimbursementStatus == 'payable'
+              )
+            )
+          )
+          || (
+            request.resource.data.status == 'rejected'
+            && request.resource.data.cashMovementId == resource.data.cashMovementId
+            && request.resource.data.reimbursementStatus == 'none'
+            && request.resource.data.rejectedByUid == request.auth.uid
+            && request.resource.data.rejectedByName is string
+            && request.resource.data.rejectedByName.size() > 0
+            && request.resource.data.rejectedAt == request.time
+            && request.resource.data.rejectionReason is string
+            && request.resource.data.rejectionReason.size() > 0
+          )
         );
     }
 
@@ -1693,17 +1860,33 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /companies/{companyId}/expenses/{expenseId} {
+      allow get: if isApprovedCompanyUser(companyId)
+        && (
+          !exists(
+            /databases/$(database)/documents/companies/$(companyId)/expenses/$(expenseId)
+          )
+          || canReadExpense(companyId, resource.data)
+        );
+      allow list: if canReadExpense(companyId, resource.data);
+
+      allow create: if validAdminCompanyExpenseCreate(companyId, expenseId)
+        || validSalesRepExpenseCreate(companyId, expenseId);
+      allow update: if validAdminExpenseDecisionUpdate(companyId);
+      allow delete: if false;
+    }
+
     match /companies/{companyId}/cash_movements/{movementId} {
       allow get: if isApprovedCompanyUser(companyId)
         && (
           !exists(
             /databases/$(database)/documents/companies/$(companyId)/cash_movements/$(movementId)
           )
-          || canReadSalesRepOwnedDoc(companyId, resource.data)
+          || canReadCashMovement(companyId, resource.data)
         );
-      allow list: if canReadSalesRepOwnedDoc(companyId, resource.data);
+      allow list: if canReadCashMovement(companyId, resource.data);
 
-      allow create: if validFinancialCreate(companyId, request.resource.data)
+      allow create: if validCashMovementCreate(companyId, request.resource.data)
         && request.resource.data.id == movementId
         && request.resource.data.amount is number
         && request.resource.data.amount > 0

@@ -73,7 +73,7 @@ class _SalesRepDetails extends StatelessWidget {
         const Color(0xFF35A7FF),
       ),
       _MetricData(
-        'financial_cash_in_hand',
+        'financial_rep_cash_outstanding',
         currency.format(row.cashInHand),
         Icons.account_balance_wallet_outlined,
         const Color(0xFF6657E8),

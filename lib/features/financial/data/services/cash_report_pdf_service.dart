@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:fatoora/core/pdf/app_pdf_assets.dart';
+import 'package:fatoora/core/pdf/app_pdf_localization.dart';
 import 'package:fatoora/core/pdf/business_pdf_configuration.dart';
 import 'package:fatoora/core/pdf/business_pdf_settings_resolver.dart';
 import 'package:fatoora/core/pdf/business_pdf_widgets.dart';
@@ -15,6 +16,7 @@ class CashReportPdfService {
     required DateTime? fromDate,
     required DateTime? toDate,
     required String salesRepFilterLabel,
+    bool isAdminView = true,
     String companyId = 'default_company',
     BusinessPdfConfiguration? configuration,
   }) async {
@@ -37,25 +39,14 @@ class CashReportPdfService {
             children: [
               BusinessPdfWidgets.infoGrid(
                 loc: loc,
-                items: [
-                  PdfInfoItem(
-                    loc.t('date_range'),
-                    loc.dateRange(fromDate, toDate),
-                  ),
-                  PdfInfoItem(loc.t('sales_rep'), salesRepFilterLabel),
-                  PdfInfoItem(
-                    loc.t('cash_in_hand'),
-                    loc.money(snapshot.cashInHand),
-                    bold: true,
-                  ),
-                  PdfInfoItem(loc.t('total_in'), loc.money(snapshot.totalIn)),
-                  PdfInfoItem(loc.t('total_out'), loc.money(snapshot.totalOut)),
-                  PdfInfoItem(
-                    loc.t('final_balance'),
-                    loc.money(snapshot.cashInHand),
-                    bold: true,
-                  ),
-                ],
+                items: _summaryItems(
+                  loc: loc,
+                  snapshot: snapshot,
+                  fromDate: fromDate,
+                  toDate: toDate,
+                  salesRepFilterLabel: salesRepFilterLabel,
+                  isAdminView: isAdminView,
+                ),
               ),
               pw.SizedBox(height: 16),
               BusinessPdfWidgets.table(
@@ -86,15 +77,39 @@ class CashReportPdfService {
               pw.SizedBox(height: 14),
               BusinessPdfWidgets.totals(
                 loc: loc,
-                rows: [
-                  PdfInfoItem(loc.t('total_in'), loc.money(snapshot.totalIn)),
-                  PdfInfoItem(loc.t('total_out'), loc.money(snapshot.totalOut)),
-                  PdfInfoItem(
-                    loc.t('final_balance'),
-                    loc.money(snapshot.cashInHand),
-                    bold: true,
-                  ),
-                ],
+                rows: isAdminView
+                    ? [
+                        PdfInfoItem(
+                          loc.t('company_cash'),
+                          loc.money(snapshot.companyCash),
+                        ),
+                        PdfInfoItem(
+                          loc.t('rep_cash_outstanding'),
+                          loc.money(snapshot.repCashOutstanding),
+                        ),
+                        PdfInfoItem(
+                          loc.t('total_cash_position'),
+                          loc.money(
+                            snapshot.companyCash + snapshot.repCashOutstanding,
+                          ),
+                          bold: true,
+                        ),
+                      ]
+                    : [
+                        PdfInfoItem(
+                          loc.t('rep_cash_to_settle'),
+                          loc.money(snapshot.repCashOutstanding),
+                          bold: true,
+                        ),
+                        PdfInfoItem(
+                          loc.t('total_in'),
+                          loc.money(snapshot.totalIn),
+                        ),
+                        PdfInfoItem(
+                          loc.t('total_out'),
+                          loc.money(snapshot.totalOut),
+                        ),
+                      ],
               ),
               BusinessPdfWidgets.notes(
                 loc: loc,
@@ -111,5 +126,46 @@ class CashReportPdfService {
       ),
     );
     return document.save();
+  }
+
+  static List<PdfInfoItem> _summaryItems({
+    required AppPdfLocalization loc,
+    required FinancialCashSnapshot snapshot,
+    required DateTime? fromDate,
+    required DateTime? toDate,
+    required String salesRepFilterLabel,
+    required bool isAdminView,
+  }) {
+    if (isAdminView) {
+      return [
+        PdfInfoItem(loc.t('date_range'), loc.dateRange(fromDate, toDate)),
+        PdfInfoItem(loc.t('sales_rep'), salesRepFilterLabel),
+        PdfInfoItem(
+          loc.t('company_cash'),
+          loc.money(snapshot.companyCash),
+          bold: true,
+        ),
+        PdfInfoItem(
+          loc.t('rep_cash_outstanding'),
+          loc.money(snapshot.repCashOutstanding),
+        ),
+        PdfInfoItem(
+          loc.t('total_cash_position'),
+          loc.money(snapshot.companyCash + snapshot.repCashOutstanding),
+          bold: true,
+        ),
+      ];
+    }
+    return [
+      PdfInfoItem(loc.t('date_range'), loc.dateRange(fromDate, toDate)),
+      PdfInfoItem(loc.t('sales_rep'), salesRepFilterLabel),
+      PdfInfoItem(
+        loc.t('rep_cash_to_settle'),
+        loc.money(snapshot.repCashOutstanding),
+        bold: true,
+      ),
+      PdfInfoItem(loc.t('total_in'), loc.money(snapshot.totalIn)),
+      PdfInfoItem(loc.t('total_out'), loc.money(snapshot.totalOut)),
+    ];
   }
 }

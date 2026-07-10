@@ -11,6 +11,11 @@ class FinancialDashboardSnapshot {
     required this.partialSales,
     required this.totalReceivables,
     required this.cashInHand,
+    this.companyCash = 0,
+    this.repCashOutstanding = 0,
+    this.totalExpenses = 0,
+    this.pendingExpenseCount = 0,
+    this.reimbursementsPayable = 0,
     required this.invoiceCount,
     required this.customerCount,
     required this.receiptCount,
@@ -18,6 +23,7 @@ class FinancialDashboardSnapshot {
     required this.recentReceipts,
     required this.topCustomers,
     required this.cashBySalesRep,
+    this.repCashOutstandingBySalesRep = const [],
     required this.salesByRep,
     required this.salesByRepSummary,
     required this.weeklyInvoiceValues,
@@ -30,6 +36,11 @@ class FinancialDashboardSnapshot {
       partialSales = 0,
       totalReceivables = 0,
       cashInHand = 0,
+      companyCash = 0,
+      repCashOutstanding = 0,
+      totalExpenses = 0,
+      pendingExpenseCount = 0,
+      reimbursementsPayable = 0,
       invoiceCount = 0,
       customerCount = 0,
       receiptCount = 0,
@@ -37,6 +48,7 @@ class FinancialDashboardSnapshot {
       recentReceipts = const [],
       topCustomers = const [],
       cashBySalesRep = const [],
+      repCashOutstandingBySalesRep = const [],
       salesByRep = const [],
       salesByRepSummary = const [],
       weeklyInvoiceValues = const [0, 0, 0, 0, 0, 0, 0];
@@ -46,14 +58,27 @@ class FinancialDashboardSnapshot {
   final double creditSales;
   final double partialSales;
   final double totalReceivables;
+
+  /// Backward-compatible effective cash value.
+  ///
+  /// New UI should prefer [companyCash] for admin/company cash and
+  /// [repCashOutstanding] for sales-rep-held unsettled cash.
   final double cashInHand;
+  final double companyCash;
+  final double repCashOutstanding;
+  final double totalExpenses;
+  final int pendingExpenseCount;
+  final double reimbursementsPayable;
   final int invoiceCount;
   final int customerCount;
   final int receiptCount;
   final List<InvoiceModel> recentInvoices;
   final List<ReceiptModel> recentReceipts;
   final List<FinancialCustomerBalance> topCustomers;
+
+  /// Backward-compatible alias for [repCashOutstandingBySalesRep].
   final List<FinancialRepAmount> cashBySalesRep;
+  final List<FinancialRepAmount> repCashOutstandingBySalesRep;
   final List<FinancialRepAmount> salesByRep;
   final List<FinancialRepSalesSummary> salesByRepSummary;
   final List<double> weeklyInvoiceValues;
@@ -121,14 +146,27 @@ class FinancialCashSnapshot {
   const FinancialCashSnapshot({
     required this.movements,
     required this.cashInHand,
+    this.companyCash = 0,
+    this.repCashOutstanding = 0,
     required this.totalIn,
     required this.totalOut,
     required this.cashBySalesRep,
+    this.repCashOutstandingBySalesRep = const [],
   });
 
   final List<CashMovementModel> movements;
+
+  /// Backward-compatible effective cash value.
+  ///
+  /// Admin views should use [companyCash]. Sales-rep views should use
+  /// [repCashOutstanding].
   final double cashInHand;
+  final double companyCash;
+  final double repCashOutstanding;
   final double totalIn;
   final double totalOut;
+
+  /// Backward-compatible alias for [repCashOutstandingBySalesRep].
   final List<FinancialRepAmount> cashBySalesRep;
+  final List<FinancialRepAmount> repCashOutstandingBySalesRep;
 }
