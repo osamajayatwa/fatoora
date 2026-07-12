@@ -1,11 +1,11 @@
 {
-    "name": "fatoora",
-    "short_name": "fatoora",
+    "name": "Fatoora",
+    "short_name": "Fatoora",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#B7212E",
+    "theme_color": "#B7212E",
+    "description": "Fatoora invoicing and sales management app.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
