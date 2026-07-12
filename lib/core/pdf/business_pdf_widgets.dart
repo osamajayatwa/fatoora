@@ -1,4 +1,5 @@
 import 'package:fatoora/core/pdf/app_pdf_assets.dart';
+import 'package:fatoora/core/pdf/app_pdf_direction.dart';
 import 'package:fatoora/core/pdf/app_pdf_localization.dart';
 import 'package:fatoora/core/pdf/business_pdf_configuration.dart';
 import 'package:pdf/pdf.dart';
@@ -54,7 +55,7 @@ class BusinessPdfWidgets {
               crossAxisAlignment: loc.startCrossAxis,
               children: [
                 if (companySettings.name.trim().isNotEmpty)
-                  pw.Text(
+                  AppPdfDirection.text(
                     companySettings.name.trim(),
                     style: pw.TextStyle(
                       fontSize: 15,
@@ -68,7 +69,8 @@ class BusinessPdfWidgets {
                   companySettings.phone,
                   companySettings.address,
                 ])
-                  if (value.trim().isNotEmpty) pw.Text(value.trim()),
+                  if (value.trim().isNotEmpty)
+                    AppPdfDirection.text(value.trim()),
               ],
             ),
           )
@@ -83,7 +85,10 @@ class BusinessPdfWidgets {
           style: pw.TextStyle(fontSize: 19, fontWeight: pw.FontWeight.bold),
         ),
         if (subtitle != null && subtitle.trim().isNotEmpty)
-          pw.Text(subtitle.trim(), style: const pw.TextStyle(fontSize: 10)),
+          AppPdfDirection.text(
+            subtitle.trim(),
+            style: const pw.TextStyle(fontSize: 10),
+          ),
       ],
     );
     final logo = configuration.showLogo && assets.logo != null
@@ -157,7 +162,7 @@ class BusinessPdfWidgets {
                   ),
                 ),
                 pw.SizedBox(height: 2),
-                pw.Text(
+                AppPdfDirection.text(
                   item.value.trim().isEmpty ? '-' : item.value.trim(),
                   style: pw.TextStyle(
                     fontSize: 10,
@@ -187,23 +192,50 @@ class BusinessPdfWidgets {
               .map((row) => row.reversed.toList(growable: false))
               .toList(growable: false)
         : data;
-    final alignment = loc.isArabic
-        ? pw.Alignment.centerRight
-        : pw.Alignment.centerLeft;
-
-    return pw.TableHelper.fromTextArray(
-      headers: displayHeaders,
-      data: displayData,
+    return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.35),
-      headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
-      headerStyle: pw.TextStyle(
-        fontSize: fontSize,
-        fontWeight: pw.FontWeight.bold,
+      children: [
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+          children: [
+            for (final header in displayHeaders)
+              _tableCell(
+                header,
+                style: pw.TextStyle(
+                  fontSize: fontSize,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+                fallbackDirection: loc.textDirection,
+              ),
+          ],
+        ),
+        for (final row in displayData)
+          pw.TableRow(
+            children: [
+              for (final cell in row)
+                _tableCell(
+                  cell,
+                  style: pw.TextStyle(fontSize: fontSize),
+                  fallbackDirection: loc.textDirection,
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  static pw.Widget _tableCell(
+    String value, {
+    required pw.TextStyle style,
+    required pw.TextDirection fallbackDirection,
+  }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+      child: AppPdfDirection.text(
+        value,
+        style: style,
+        fallbackDirection: fallbackDirection,
       ),
-      cellStyle: pw.TextStyle(fontSize: fontSize),
-      headerAlignment: alignment,
-      cellAlignment: alignment,
-      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4),
     );
   }
 
@@ -231,7 +263,7 @@ class BusinessPdfWidgets {
                 child: pw.Row(
                   children: loc.isArabic
                       ? [
-                          pw.Text(
+                          AppPdfDirection.text(
                             row.value,
                             style: pw.TextStyle(
                               fontWeight: row.bold
@@ -245,7 +277,7 @@ class BusinessPdfWidgets {
                       : [
                           pw.Text(row.label),
                           pw.Spacer(),
-                          pw.Text(
+                          AppPdfDirection.text(
                             row.value,
                             style: pw.TextStyle(
                               fontWeight: row.bold
@@ -279,9 +311,13 @@ class BusinessPdfWidgets {
             border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
             borderRadius: pw.BorderRadius.circular(6),
           ),
-          child: pw.Text(
+          child: AppPdfDirection.text(
             text.trim(),
-            textAlign: loc.isArabic ? pw.TextAlign.right : pw.TextAlign.left,
+            textAlign: AppPdfDirection.alignOf(
+              text,
+              fallback: loc.textDirection,
+            ),
+            fallbackDirection: loc.textDirection,
           ),
         ),
       ],
@@ -312,9 +348,13 @@ class BusinessPdfWidgets {
               style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
             ),
             pw.SizedBox(height: 3),
-            pw.Text(
+            AppPdfDirection.text(
               text.trim(),
-              textAlign: loc.isArabic ? pw.TextAlign.right : pw.TextAlign.left,
+              textAlign: AppPdfDirection.alignOf(
+                text,
+                fallback: loc.textDirection,
+              ),
+              fallbackDirection: loc.textDirection,
               style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
             ),
           ],

@@ -65,9 +65,10 @@ class _ReceiptDetails extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    children: [
-                      IconButton.filledTonal(
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final compact = constraints.maxWidth < 520;
+                      final leading = IconButton.filledTonal(
                         tooltip: MaterialLocalizations.of(
                           context,
                         ).backButtonTooltip,
@@ -77,30 +78,27 @@ class _ReceiptDetails extends StatelessWidget {
                               ? Icons.arrow_forward_rounded
                               : Icons.arrow_back_rounded,
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              receipt.receiptNumber,
-                              style: Theme.of(context).textTheme.headlineSmall
-                                  ?.copyWith(
-                                    color: AppColor.secondaryColor,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                            ),
-                            Text(
-                              'receipt_details'.tr,
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: AppColor.grey),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      OutlinedButton.icon(
+                      );
+                      final title = Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            receipt.receiptNumber,
+                            softWrap: true,
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
+                                  color: AppColor.secondaryColor,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                          ),
+                          Text(
+                            'receipt_details'.tr,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: AppColor.grey),
+                          ),
+                        ],
+                      );
+                      final pdfButton = OutlinedButton.icon(
                         onPressed: controller.isPrinting
                             ? null
                             : controller.printReceipt,
@@ -114,8 +112,34 @@ class _ReceiptDetails extends StatelessWidget {
                               )
                             : const Icon(Icons.picture_as_pdf_outlined),
                         label: Text('export_pdf'.tr),
-                      ),
-                    ],
+                      );
+                      if (compact) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                leading,
+                                const SizedBox(width: 12),
+                                Expanded(child: title),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            pdfButton,
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          leading,
+                          const SizedBox(width: 12),
+                          Expanded(child: title),
+                          const SizedBox(width: 12),
+                          pdfButton,
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 22),
                   Wrap(
@@ -215,7 +239,7 @@ class _InfoTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     value.isEmpty ? '-' : value,
-                    overflow: TextOverflow.ellipsis,
+                    softWrap: true,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColor.secondaryColor,
                       fontWeight: FontWeight.w800,

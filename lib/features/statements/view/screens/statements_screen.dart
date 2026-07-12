@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/widgets/responsive_data_table_card.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
@@ -44,7 +45,7 @@ class StatementsScreen extends StatelessWidget {
                           const SizedBox(height: 16),
                           if (controller.customers.isEmpty)
                             _EmptyState(searching: controller.hasSearch)
-                          else if (constraints.maxWidth < 760)
+                          else if (constraints.maxWidth < 900)
                             _CustomerCards(controller: controller)
                           else
                             _CustomerTable(controller: controller),
@@ -69,48 +70,58 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DashboardCard(
-      child: Wrap(
-        spacing: 18,
-        runSpacing: 12,
-        alignment: WrapAlignment.spaceBetween,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          SizedBox(
-            width: 680,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'dashboard_account_statement'.tr,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: context.appText,
-                    fontWeight: FontWeight.w900,
-                  ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final titleWidth = constraints.maxWidth < 760
+            ? constraints.maxWidth
+            : constraints.maxWidth - 190;
+        return DashboardCard(
+          child: Wrap(
+            spacing: 18,
+            runSpacing: 12,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SizedBox(
+                width: titleWidth.clamp(240.0, 680.0).toDouble(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'dashboard_account_statement'.tr,
+                      softWrap: true,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            color: context.appText,
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      (controller.isAdmin
+                              ? 'statements_admin_scope'
+                              : 'statements_user_scope')
+                          .tr,
+                      softWrap: true,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: context.appMutedText,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  (controller.isAdmin
-                          ? 'statements_admin_scope'
-                          : 'statements_user_scope')
-                      .tr,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: context.appMutedText),
+              ),
+              Chip(
+                avatar: const Icon(Icons.people_alt_outlined, size: 18),
+                label: Text(
+                  'statements_customer_count'.trParams({
+                    'count': controller.customers.length.toString(),
+                  }),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          Chip(
-            avatar: const Icon(Icons.people_alt_outlined, size: 18),
-            label: Text(
-              'statements_customer_count'.trParams({
-                'count': controller.customers.length.toString(),
-              }),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -241,48 +252,79 @@ class _CustomerTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
+    return ResponsiveDataTableCard(
+      minWidth: controller.isAdmin ? 820 : 680,
       color: context.appSurface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: BorderSide(color: context.appBorder),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: [
-            DataColumn(label: Text('customer_name'.tr)),
-            DataColumn(label: Text('Phone'.tr)),
-            if (controller.isAdmin)
-              DataColumn(label: Text('statements_created_by'.tr)),
-            DataColumn(label: Text('customers_balance'.tr)),
-            DataColumn(label: Text('invoice_status'.tr)),
-            DataColumn(label: Text('actions'.tr)),
-          ],
-          rows: controller.customers
-              .map((customer) {
-                return DataRow(
-                  cells: [
-                    DataCell(Text(customer.name)),
-                    DataCell(Text(customer.phone)),
-                    if (controller.isAdmin)
-                      DataCell(Text(customer.createdByName)),
-                    DataCell(Text(currency.format(customer.currentBalance))),
-                    DataCell(_StatusBadge(active: customer.active)),
+      borderColor: context.appBorder,
+      child: DataTable(
+        columnSpacing: 14,
+        horizontalMargin: 14,
+        columns: [
+          _column('customer_name', width: 220),
+          _column('Phone', width: 128),
+          if (controller.isAdmin) _column('statements_created_by', width: 150),
+          _column('customers_balance', width: 126, numeric: true),
+          _column('invoice_status', width: 92),
+          _column('actions', width: 64),
+        ],
+        rows: controller.customers
+            .map((customer) {
+              return DataRow(
+                cells: [
+                  DataCell(BoundedTableText(customer.name, width: 220)),
+                  DataCell(
+                    BoundedTableText(
+                      customer.phone,
+                      width: 128,
+                      forceLtr: true,
+                    ),
+                  ),
+                  if (controller.isAdmin)
                     DataCell(
-                      IconButton(
+                      BoundedTableText(customer.createdByName, width: 150),
+                    ),
+                  DataCell(
+                    BoundedTableText(
+                      currency.format(customer.currentBalance),
+                      width: 126,
+                      textAlign: TextAlign.end,
+                      forceLtr: true,
+                    ),
+                  ),
+                  DataCell(
+                    BoundedTableWidget(
+                      width: 92,
+                      child: _StatusBadge(active: customer.active),
+                    ),
+                  ),
+                  DataCell(
+                    SizedBox(
+                      width: 64,
+                      child: IconButton(
                         tooltip: 'statements_open'.tr,
                         onPressed: () => controller.openStatement(customer),
                         icon: const Icon(Icons.article_outlined),
                       ),
                     ),
-                  ],
-                );
-              })
-              .toList(growable: false),
-        ),
+                  ),
+                ],
+              );
+            })
+            .toList(growable: false),
+      ),
+    );
+  }
+
+  DataColumn _column(
+    String labelKey, {
+    required double width,
+    bool numeric = false,
+  }) {
+    return DataColumn(
+      numeric: numeric,
+      label: SizedBox(
+        width: width,
+        child: Text(labelKey.tr, maxLines: 2, overflow: TextOverflow.ellipsis),
       ),
     );
   }

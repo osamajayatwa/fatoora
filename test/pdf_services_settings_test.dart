@@ -76,6 +76,62 @@ void main() {
       expect(String.fromCharCodes(bytes.take(4)), '%PDF');
     }
   });
+
+  test('receipt PDF supports mixed Arabic and English dynamic content', () async {
+    await initializeDateFormatting('en');
+    await initializeDateFormatting('ar');
+    final now = DateTime(2026, 7, 12);
+    final customer = const InvoiceCustomerSnapshot(
+      id: 'customer-mixed',
+      name: 'شركة حلول المياه Advanced Water Solutions',
+      phone: '+962 79 123 4567',
+      address: 'Amman Industrial Area - المنطقة الصناعية',
+      taxNumber: 'TAX-FDSS-100',
+      nationalNumber: 'NAT-50FCL16-75',
+      city: 'Amman - عمان',
+    );
+    final receipt = ReceiptModel(
+      id: 'receipt-mixed',
+      companyId: _PdfFixture.companyId,
+      receiptNumber: 'REC-2026-FDSS-001',
+      receiptDate: now,
+      customerId: customer.id,
+      customerSnapshot: customer,
+      amount: 40,
+      paymentMethod: 'cash',
+      notes:
+          'Payment for مضخة غاطسة FDSS 4SP-10 and model 50FCL16-75 - دفعة نقدية.',
+      salesRepId: 'rep-1',
+      salesRepName: 'Ahmad Sales - أحمد المبيعات',
+      createdByUid: 'rep-1',
+      createdByName: 'Ahmad Sales - أحمد المبيعات',
+      createdByRole: 'sales_rep',
+      customerTransactionIds: const [],
+      cashMovementIds: const [],
+      createdAt: now,
+      updatedAt: now,
+    );
+    final configuration = BusinessPdfConfiguration(
+      companySettings: CompanySettingsModel.defaults.copyWith(
+        name: 'مؤسسة الجياطوة التجارية | Jayatwa Trading Establishment',
+        phone: '+962 6 000 0000',
+        address: 'Amman - عمان',
+      ),
+      pdfSettings: PdfSettingsModel.defaults.copyWith(
+        receiptFooterText: 'Thank you | شكرا لتعاملكم معنا',
+      ),
+      userPreferences: UserPreferencesModel.defaults,
+      localization: AppPdfLocalization.forLanguage('ar'),
+    );
+
+    final bytes = await ReceiptPdfService.build(
+      receipt,
+      configuration: configuration,
+    );
+
+    expect(bytes.length, greaterThan(1000));
+    expect(String.fromCharCodes(bytes.take(4)), '%PDF');
+  });
 }
 
 class _PdfFixture {

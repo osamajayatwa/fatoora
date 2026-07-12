@@ -112,50 +112,57 @@ class _Filters extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        SizedBox(
-          width: 330,
-          child: TextField(
-            controller: controller.searchController,
-            onChanged: controller.onSearchChanged,
-            decoration: InputDecoration(
-              hintText: 'search_quotations'.tr,
-              prefixIcon: const Icon(Icons.search_rounded),
-              filled: true,
-              fillColor: AppColor.surface,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final searchWidth = constraints.maxWidth < 360
+            ? constraints.maxWidth
+            : 330.0;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            SizedBox(
+              width: searchWidth,
+              child: TextField(
+                controller: controller.searchController,
+                onChanged: controller.onSearchChanged,
+                decoration: InputDecoration(
+                  hintText: 'search_quotations'.tr,
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  filled: true,
+                  fillColor: AppColor.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-        DropdownButton<QuotationStatus?>(
-          value: controller.statusFilter,
-          hint: Text('quotation_status'.tr),
-          items: [
-            DropdownMenuItem<QuotationStatus?>(
-              value: null,
-              child: Text('all_quotation_statuses'.tr),
+            DropdownButton<QuotationStatus?>(
+              value: controller.statusFilter,
+              hint: Text('quotation_status'.tr),
+              items: [
+                DropdownMenuItem<QuotationStatus?>(
+                  value: null,
+                  child: Text('all_quotation_statuses'.tr),
+                ),
+                for (final status in QuotationStatus.values)
+                  DropdownMenuItem<QuotationStatus?>(
+                    value: status,
+                    child: Text(status.value.tr),
+                  ),
+              ],
+              onChanged: controller.setStatusFilter,
             ),
-            for (final status in QuotationStatus.values)
-              DropdownMenuItem<QuotationStatus?>(
-                value: status,
-                child: Text(status.value.tr),
+            if (controller.hasFilters)
+              TextButton.icon(
+                onPressed: controller.clearFilters,
+                icon: const Icon(Icons.close_rounded),
+                label: Text('clear_filters'.tr),
               ),
           ],
-          onChanged: controller.setStatusFilter,
-        ),
-        if (controller.hasFilters)
-          TextButton.icon(
-            onPressed: controller.clearFilters,
-            icon: const Icon(Icons.close_rounded),
-            label: Text('clear_filters'.tr),
-          ),
-      ],
+        );
+      },
     );
   }
 }

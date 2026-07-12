@@ -5,9 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class AdminDashboardHeader extends StatelessWidget {
-  const AdminDashboardHeader({super.key, required this.compact});
+  const AdminDashboardHeader({
+    super.key,
+    required this.compact,
+    this.sidebarVisible = false,
+    this.onMenuPressed,
+  });
 
   final bool compact;
+  final bool sidebarVisible;
+  final VoidCallback? onMenuPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -23,16 +30,18 @@ class AdminDashboardHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          if (compact)
+          if (compact || !sidebarVisible)
             Builder(
               builder: (context) => IconButton(
                 tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
-                onPressed: () => Scaffold.of(context).openDrawer(),
+                onPressed: compact
+                    ? () => Scaffold.of(context).openDrawer()
+                    : onMenuPressed,
                 icon: const Icon(Icons.menu_rounded),
                 color: context.appText,
               ),
             ),
-          if (compact) const SizedBox(width: 4),
+          if (compact || !sidebarVisible) const SizedBox(width: 4),
           if (compact)
             Expanded(
               child: Text(

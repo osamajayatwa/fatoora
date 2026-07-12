@@ -1,6 +1,7 @@
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/controllers/customer_error_mapper.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
@@ -133,7 +134,7 @@ class CustomerFormController extends GetxController {
             ? 'customers_updated_successfully'
             : 'customers_created_successfully',
       );
-      Get.back(result: returningCustomer ? customer : true);
+      await _navigateAfterSave(customer);
     } catch (error) {
       _showError(CustomerErrorMapper.messageKey(error));
     } finally {
@@ -144,6 +145,21 @@ class CustomerFormController extends GetxController {
 
   Future<void> requestBack() async {
     Get.back<void>();
+  }
+
+  Future<void> _navigateAfterSave(CustomerModel customer) async {
+    if (returningCustomer) {
+      Get.back(result: customer);
+      return;
+    }
+    if (isEditMode) {
+      Get.back(result: true);
+      return;
+    }
+    await Get.offNamed(
+      AppRoute.customerDetails,
+      arguments: {'companyId': customer.companyId, 'customerId': customer.id},
+    );
   }
 
   String? validateName(String? value) {

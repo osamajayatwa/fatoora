@@ -113,53 +113,60 @@ class _ReceiptFilters extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        SizedBox(
-          width: 320,
-          child: TextField(
-            controller: controller.searchController,
-            onChanged: controller.onSearchChanged,
-            decoration: InputDecoration(
-              hintText: 'receipts_search_hint'.tr,
-              prefixIcon: const Icon(Icons.search_rounded),
-              filled: true,
-              fillColor: AppColor.surface,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final searchWidth = constraints.maxWidth < 350
+            ? constraints.maxWidth
+            : 320.0;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            SizedBox(
+              width: searchWidth,
+              child: TextField(
+                controller: controller.searchController,
+                onChanged: controller.onSearchChanged,
+                decoration: InputDecoration(
+                  hintText: 'receipts_search_hint'.tr,
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  filled: true,
+                  fillColor: AppColor.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-        OutlinedButton.icon(
-          onPressed: () async {
-            final range = await showDateRangePicker(
-              context: context,
-              firstDate: DateTime(2020),
-              lastDate: DateTime.now().add(const Duration(days: 365)),
-              initialDateRange:
-                  controller.fromDate != null && controller.toDate != null
-                  ? DateTimeRange(
-                      start: controller.fromDate!,
-                      end: controller.toDate!,
-                    )
-                  : null,
-            );
-            controller.setDateRange(range);
-          },
-          icon: const Icon(Icons.date_range_outlined),
-          label: Text('financial_filter_dates'.tr),
-        ),
-        if (controller.hasFilters)
-          TextButton.icon(
-            onPressed: controller.clearFilters,
-            icon: const Icon(Icons.close_rounded),
-            label: Text('financial_clear_dates'.tr),
-          ),
-      ],
+            OutlinedButton.icon(
+              onPressed: () async {
+                final range = await showDateRangePicker(
+                  context: context,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                  initialDateRange:
+                      controller.fromDate != null && controller.toDate != null
+                      ? DateTimeRange(
+                          start: controller.fromDate!,
+                          end: controller.toDate!,
+                        )
+                      : null,
+                );
+                controller.setDateRange(range);
+              },
+              icon: const Icon(Icons.date_range_outlined),
+              label: Text('financial_filter_dates'.tr),
+            ),
+            if (controller.hasFilters)
+              TextButton.icon(
+                onPressed: controller.clearFilters,
+                icon: const Icon(Icons.close_rounded),
+                label: Text('financial_clear_dates'.tr),
+              ),
+          ],
+        );
+      },
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/widgets/responsive_data_table_card.dart';
 import 'package:fatoora/features/customers/controllers/customers_controller.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
@@ -26,7 +27,7 @@ class CustomersListScreen extends StatelessWidget {
             color: AppColor.primaryColor,
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final compact = constraints.maxWidth < 760;
+                final compact = constraints.maxWidth < 900;
                 final padding = constraints.maxWidth < 600 ? 14.0 : 24.0;
                 return SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -233,49 +234,77 @@ class _CustomerTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      color: AppColor.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFE4E8EF)),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: [
-            DataColumn(label: Text('customer_name'.tr)),
-            DataColumn(label: Text('Phone'.tr)),
-            DataColumn(label: Text('city'.tr)),
-            DataColumn(label: Text('customers_area'.tr)),
-            DataColumn(label: Text('customers_balance'.tr)),
-            DataColumn(label: Text('invoice_status'.tr)),
-            DataColumn(label: Text('actions'.tr)),
-          ],
-          rows: controller.customers
-              .map(
-                (customer) => DataRow(
-                  cells: [
-                    DataCell(Text(customer.name)),
-                    DataCell(Text(customer.phone)),
-                    DataCell(Text(customer.city)),
-                    DataCell(Text(customer.area)),
-                    DataCell(Text(currency.format(customer.currentBalance))),
-                    DataCell(_StatusPill(active: customer.active)),
-                    DataCell(
-                      IconButton(
+    return ResponsiveDataTableCard(
+      minWidth: 860,
+      child: DataTable(
+        columnSpacing: 14,
+        horizontalMargin: 14,
+        columns: [
+          _column('customer_name', width: 220),
+          _column('Phone', width: 128),
+          _column('city', width: 120),
+          _column('customers_area', width: 120),
+          _column('customers_balance', width: 126, numeric: true),
+          _column('invoice_status', width: 92),
+          _column('actions', width: 64),
+        ],
+        rows: controller.customers
+            .map(
+              (customer) => DataRow(
+                cells: [
+                  DataCell(BoundedTableText(customer.name, width: 220)),
+                  DataCell(
+                    BoundedTableText(
+                      customer.phone,
+                      width: 128,
+                      forceLtr: true,
+                    ),
+                  ),
+                  DataCell(BoundedTableText(customer.city, width: 120)),
+                  DataCell(BoundedTableText(customer.area, width: 120)),
+                  DataCell(
+                    BoundedTableText(
+                      currency.format(customer.currentBalance),
+                      width: 126,
+                      textAlign: TextAlign.end,
+                      forceLtr: true,
+                    ),
+                  ),
+                  DataCell(
+                    BoundedTableWidget(
+                      width: 92,
+                      child: _StatusPill(active: customer.active),
+                    ),
+                  ),
+                  DataCell(
+                    SizedBox(
+                      width: 64,
+                      child: IconButton(
                         tooltip: 'invoice_details'.tr,
                         onPressed: () =>
                             controller.openCustomerDetails(customer),
                         icon: const Icon(Icons.chevron_right_rounded),
                       ),
                     ),
-                  ],
-                ),
-              )
-              .toList(),
-        ),
+                  ),
+                ],
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  DataColumn _column(
+    String labelKey, {
+    required double width,
+    bool numeric = false,
+  }) {
+    return DataColumn(
+      numeric: numeric,
+      label: SizedBox(
+        width: width,
+        child: Text(labelKey.tr, maxLines: 2, overflow: TextOverflow.ellipsis),
       ),
     );
   }

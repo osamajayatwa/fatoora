@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/widgets/responsive_data_table_card.dart';
 import 'package:fatoora/features/customers/controllers/customer_statement_controller.dart';
 import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
@@ -49,83 +50,90 @@ class _StatementBody extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               DashboardCard(
-                child: Wrap(
-                  spacing: 14,
-                  runSpacing: 14,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 420,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            customer.name,
-                            style: Theme.of(context).textTheme.headlineSmall
-                                ?.copyWith(
-                                  color: AppColor.secondaryColor,
-                                  fontWeight: FontWeight.w900,
-                                ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final headerWidth = constraints.maxWidth < 560
+                        ? constraints.maxWidth
+                        : 420.0;
+                    return Wrap(
+                      spacing: 14,
+                      runSpacing: 14,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: headerWidth,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                customer.name,
+                                style: Theme.of(context).textTheme.headlineSmall
+                                    ?.copyWith(
+                                      color: AppColor.secondaryColor,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                '${'customers_balance'.tr}: ${currency.format(controller.finalBalance)}',
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(
+                                      color: AppColor.primaryColor,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '${'customers_balance'.tr}: ${currency.format(controller.finalBalance)}',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(
-                                  color: AppColor.primaryColor,
-                                  fontWeight: FontWeight.w800,
-                                ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final range = await showDateRangePicker(
+                              context: context,
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(DateTime.now().year + 2),
+                              initialDateRange:
+                                  controller.fromDate != null &&
+                                      controller.toDate != null
+                                  ? DateTimeRange(
+                                      start: controller.fromDate!,
+                                      end: controller.toDate!,
+                                    )
+                                  : null,
+                            );
+                            if (range != null) {
+                              controller.setDateRange(range.start, range.end);
+                            }
+                          },
+                          icon: const Icon(Icons.date_range_outlined),
+                          label: Text('date_range'.tr),
+                        ),
+                        if (controller.fromDate != null ||
+                            controller.toDate != null)
+                          TextButton.icon(
+                            onPressed: controller.clearDateRange,
+                            icon: const Icon(Icons.close_rounded),
+                            label: Text('clear_filters'.tr),
                           ),
-                        ],
-                      ),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () async {
-                        final range = await showDateRangePicker(
-                          context: context,
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime(DateTime.now().year + 2),
-                          initialDateRange:
-                              controller.fromDate != null &&
-                                  controller.toDate != null
-                              ? DateTimeRange(
-                                  start: controller.fromDate!,
-                                  end: controller.toDate!,
-                                )
-                              : null,
-                        );
-                        if (range != null) {
-                          controller.setDateRange(range.start, range.end);
-                        }
-                      },
-                      icon: const Icon(Icons.date_range_outlined),
-                      label: Text('date_range'.tr),
-                    ),
-                    if (controller.fromDate != null ||
-                        controller.toDate != null)
-                      TextButton.icon(
-                        onPressed: controller.clearDateRange,
-                        icon: const Icon(Icons.close_rounded),
-                        label: Text('clear_filters'.tr),
-                      ),
-                    OutlinedButton.icon(
-                      onPressed: controller.isPrinting
-                          ? null
-                          : controller.printStatement,
-                      icon: const Icon(Icons.print_outlined),
-                      label: Text('print'.tr),
-                    ),
-                    FilledButton.icon(
-                      onPressed: controller.isPrinting
-                          ? null
-                          : controller.exportStatementPdf,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColor.primaryColor,
-                      ),
-                      icon: const Icon(Icons.picture_as_pdf_outlined),
-                      label: Text('export_pdf'.tr),
-                    ),
-                  ],
+                        OutlinedButton.icon(
+                          onPressed: controller.isPrinting
+                              ? null
+                              : controller.printStatement,
+                          icon: const Icon(Icons.print_outlined),
+                          label: Text('print'.tr),
+                        ),
+                        FilledButton.icon(
+                          onPressed: controller.isPrinting
+                              ? null
+                              : controller.exportStatementPdf,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColor.primaryColor,
+                          ),
+                          icon: const Icon(Icons.picture_as_pdf_outlined),
+                          label: Text('export_pdf'.tr),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 16),
@@ -229,42 +237,87 @@ class _TransactionsTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
     final date = DateFormat.yMd();
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      color: AppColor.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFE4E8EF)),
+    return ResponsiveDataTableCard(
+      minWidth: 980,
+      child: DataTable(
+        columnSpacing: 14,
+        horizontalMargin: 14,
+        columns: [
+          _column('invoice_date', width: 94),
+          _column('customers_transaction_type', width: 130),
+          _column('invoice_number', width: 132),
+          _column('description', width: 250),
+          _column('customers_debit', width: 112, numeric: true),
+          _column('customers_credit', width: 112, numeric: true),
+          _column('customers_balance', width: 122, numeric: true),
+        ],
+        rows: transactions
+            .map(
+              (transaction) => DataRow(
+                cells: [
+                  DataCell(
+                    BoundedTableText(
+                      date.format(transaction.transactionDate),
+                      width: 94,
+                      forceLtr: true,
+                    ),
+                  ),
+                  DataCell(
+                    BoundedTableText(
+                      transaction.transactionType.tr,
+                      width: 130,
+                    ),
+                  ),
+                  DataCell(
+                    BoundedTableText(
+                      transaction.sourceNumber,
+                      width: 132,
+                      forceLtr: true,
+                    ),
+                  ),
+                  DataCell(BoundedTableText(transaction.notes, width: 250)),
+                  DataCell(
+                    BoundedTableText(
+                      currency.format(transaction.debitAmount),
+                      width: 112,
+                      textAlign: TextAlign.end,
+                      forceLtr: true,
+                    ),
+                  ),
+                  DataCell(
+                    BoundedTableText(
+                      currency.format(transaction.creditAmount),
+                      width: 112,
+                      textAlign: TextAlign.end,
+                      forceLtr: true,
+                    ),
+                  ),
+                  DataCell(
+                    BoundedTableText(
+                      currency.format(transaction.balanceAfter),
+                      width: 122,
+                      textAlign: TextAlign.end,
+                      forceLtr: true,
+                    ),
+                  ),
+                ],
+              ),
+            )
+            .toList(),
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: [
-            DataColumn(label: Text('invoice_date'.tr)),
-            DataColumn(label: Text('customers_transaction_type'.tr)),
-            DataColumn(label: Text('invoice_number'.tr)),
-            DataColumn(label: Text('description'.tr)),
-            DataColumn(label: Text('customers_debit'.tr)),
-            DataColumn(label: Text('customers_credit'.tr)),
-            DataColumn(label: Text('customers_balance'.tr)),
-          ],
-          rows: transactions
-              .map(
-                (transaction) => DataRow(
-                  cells: [
-                    DataCell(Text(date.format(transaction.transactionDate))),
-                    DataCell(Text(transaction.transactionType.tr)),
-                    DataCell(Text(transaction.sourceNumber)),
-                    DataCell(Text(transaction.notes)),
-                    DataCell(Text(currency.format(transaction.debitAmount))),
-                    DataCell(Text(currency.format(transaction.creditAmount))),
-                    DataCell(Text(currency.format(transaction.balanceAfter))),
-                  ],
-                ),
-              )
-              .toList(),
-        ),
+    );
+  }
+
+  DataColumn _column(
+    String labelKey, {
+    required double width,
+    bool numeric = false,
+  }) {
+    return DataColumn(
+      numeric: numeric,
+      label: SizedBox(
+        width: width,
+        child: Text(labelKey.tr, maxLines: 2, overflow: TextOverflow.ellipsis),
       ),
     );
   }

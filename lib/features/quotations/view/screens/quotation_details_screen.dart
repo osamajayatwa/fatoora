@@ -72,24 +72,32 @@ class _Details extends StatelessWidget {
                           : Icons.arrow_back_rounded,
                     ),
                   ),
-                  SizedBox(
-                    width: 330,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          quotation.quotationNumber,
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(
-                                color: AppColor.secondaryColor,
-                                fontWeight: FontWeight.w900,
-                              ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          DateFormat.yMMMd().format(quotation.quotationDate),
-                        ),
-                      ],
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.sizeOf(context).width < 520
+                          ? MediaQuery.sizeOf(context).width - 78
+                          : 330,
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            quotation.quotationNumber,
+                            softWrap: true,
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
+                                  color: AppColor.secondaryColor,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            DateFormat.yMMMd().format(quotation.quotationDate),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   QuotationStatusChip(status: quotation.status),
@@ -369,23 +377,34 @@ class _Field extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 160,
-            child: Text(label, style: Theme.of(context).textTheme.labelMedium),
-          ),
-          Expanded(
-            child: Text(
-              value.isEmpty ? '-' : value,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColor.secondaryColor,
-                fontWeight: bold ? FontWeight.w900 : FontWeight.w700,
-              ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final labelWidget = Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium,
+          );
+          final valueWidget = Text(
+            value.isEmpty ? '-' : value,
+            softWrap: true,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppColor.secondaryColor,
+              fontWeight: bold ? FontWeight.w900 : FontWeight.w700,
             ),
-          ),
-        ],
+          );
+          if (constraints.maxWidth < 420) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [labelWidget, const SizedBox(height: 4), valueWidget],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: 160, child: labelWidget),
+              Expanded(child: valueWidget),
+            ],
+          );
+        },
       ),
     );
   }

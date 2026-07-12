@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/widgets/responsive_data_table_card.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/financial/controllers/receivables_controller.dart';
 import 'package:fatoora/features/financial/data/models/financial_dashboard_snapshot.dart';
@@ -26,7 +29,7 @@ class ReceivablesScreen extends StatelessWidget {
             color: AppColor.primaryColor,
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final compact = constraints.maxWidth < 760;
+                final compact = constraints.maxWidth < 900;
                 final padding = constraints.maxWidth < 600 ? 14.0 : 24.0;
                 return SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -220,8 +223,7 @@ class _ReceivableCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   item.customer.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  softWrap: true,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: AppColor.secondaryColor,
                     fontWeight: FontWeight.w800,
@@ -230,6 +232,7 @@ class _ReceivableCard extends StatelessWidget {
               ),
               Text(
                 currency.format(item.balance),
+                textAlign: TextAlign.end,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: AppColor.error,
                   fontWeight: FontWeight.w900,
@@ -283,52 +286,79 @@ class _ReceivablesTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
     final date = DateFormat.yMd();
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      color: AppColor.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFE4E8EF)),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: [
-            DataColumn(label: Text('customer_name'.tr)),
-            DataColumn(label: Text('Phone'.tr)),
-            DataColumn(label: Text('sales_rep'.tr)),
-            DataColumn(label: Text('financial_last_transaction'.tr)),
-            DataColumn(label: Text('customers_balance'.tr)),
-            DataColumn(label: Text('actions'.tr)),
-          ],
-          rows: controller.snapshot.customers
-              .map(
-                (item) => DataRow(
-                  cells: [
-                    DataCell(Text(item.customer.name)),
-                    DataCell(Text(item.customer.phone)),
-                    DataCell(Text(item.customer.createdByName)),
-                    DataCell(
-                      Text(
-                        item.lastTransactionDate == null
-                            ? '-'
-                            : date.format(item.lastTransactionDate!),
-                      ),
+    return ResponsiveDataTableCard(
+      minWidth: 840,
+      child: DataTable(
+        columnSpacing: 14,
+        horizontalMargin: 14,
+        columns: [
+          _column('customer_name', width: 220),
+          _column('Phone', width: 128),
+          _column('sales_rep', width: 150),
+          _column('financial_last_transaction', width: 112),
+          _column('customers_balance', width: 126, numeric: true),
+          _column('actions', width: 64),
+        ],
+        rows: controller.snapshot.customers
+            .map(
+              (item) => DataRow(
+                cells: [
+                  DataCell(BoundedTableText(item.customer.name, width: 220)),
+                  DataCell(
+                    BoundedTableText(
+                      item.customer.phone,
+                      width: 128,
+                      forceLtr: true,
                     ),
-                    DataCell(Text(currency.format(item.balance))),
-                    DataCell(
-                      IconButton(
+                  ),
+                  DataCell(
+                    BoundedTableText(item.customer.createdByName, width: 150),
+                  ),
+                  DataCell(
+                    BoundedTableText(
+                      item.lastTransactionDate == null
+                          ? '-'
+                          : date.format(item.lastTransactionDate!),
+                      width: 112,
+                      forceLtr: true,
+                    ),
+                  ),
+                  DataCell(
+                    BoundedTableText(
+                      currency.format(item.balance),
+                      width: 126,
+                      textAlign: TextAlign.end,
+                      forceLtr: true,
+                    ),
+                  ),
+                  DataCell(
+                    SizedBox(
+                      width: 64,
+                      child: IconButton(
                         tooltip: 'customers_statement'.tr,
                         onPressed: () => controller.openStatement(item),
                         icon: const Icon(Icons.article_outlined),
                       ),
                     ),
-                  ],
-                ),
-              )
-              .toList(),
-        ),
+                  ),
+                ],
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  DataColumn _column(
+    String labelKey, {
+    required double width,
+    bool numeric = false,
+  }) {
+    return DataColumn(
+      numeric: numeric,
+      label: SizedBox(
+        width: width,
+        child: Text(labelKey.tr, maxLines: 2, overflow: TextOverflow.ellipsis),
       ),
     );
   }
@@ -374,6 +404,9 @@ class _InfoPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      constraints: BoxConstraints(
+        maxWidth: math.max(180.0, MediaQuery.sizeOf(context).width - 72),
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xFFF4F6FA),
@@ -384,7 +417,13 @@ class _InfoPill extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: AppColor.grey),
           const SizedBox(width: 6),
-          Text(label, style: Theme.of(context).textTheme.labelSmall),
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          ),
         ],
       ),
     );

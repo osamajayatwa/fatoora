@@ -40,6 +40,7 @@ class AdminDashboardController extends GetxController {
   String loadErrorMessageKey = 'financial_load_error';
   bool isRefreshing = false;
   bool isLoggingOut = false;
+  bool sidebarVisible = true;
   String searchQuery = '';
   FinancialDashboardSnapshot snapshot =
       const FinancialDashboardSnapshot.empty();
@@ -324,6 +325,23 @@ class AdminDashboardController extends GetxController {
   void navigateTo(String route) {
     if (Get.currentRoute == route) return;
     Get.toNamed(route);
+  }
+
+  void showSidebar() {
+    if (sidebarVisible) return;
+    sidebarVisible = true;
+    update(['admin_shell']);
+  }
+
+  void hideSidebar() {
+    if (!sidebarVisible) return;
+    sidebarVisible = false;
+    update(['admin_shell']);
+  }
+
+  void toggleSidebar() {
+    sidebarVisible = !sidebarVisible;
+    update(['admin_shell']);
   }
 
   void openSalesRepDetails(FinancialRepSalesSummary row) {

@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class AdminSidebar extends StatelessWidget {
-  const AdminSidebar({super.key});
+  const AdminSidebar({super.key, this.showCollapseButton = false});
+
+  final bool showCollapseButton;
 
   static const _items = [
     _SidebarItem('dashboard_home', Icons.home_rounded, AppRoute.adminHome),
@@ -78,7 +80,12 @@ class AdminSidebar extends StatelessWidget {
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
+                  padding: EdgeInsets.fromLTRB(
+                    24,
+                    22,
+                    showCollapseButton ? 10 : 24,
+                    20,
+                  ),
                   child: Row(
                     children: [
                       Container(
@@ -115,6 +122,13 @@ class AdminSidebar extends StatelessWidget {
                           ],
                         ),
                       ),
+                      if (showCollapseButton)
+                        IconButton(
+                          tooltip: 'Close navigation',
+                          onPressed: controller.hideSidebar,
+                          icon: const Icon(Icons.menu_open_rounded),
+                          color: context.appMutedText,
+                        ),
                     ],
                   ),
                 ),
@@ -198,7 +212,13 @@ class AdminSidebar extends StatelessWidget {
                       return _SidebarTile(
                         item: item,
                         selected: selected,
-                        onTap: () => controller.navigateTo(item.route),
+                        onTap: () {
+                          final scaffold = Scaffold.maybeOf(context);
+                          if (scaffold?.isDrawerOpen ?? false) {
+                            Navigator.of(context).pop();
+                          }
+                          controller.navigateTo(item.route);
+                        },
                       );
                     },
                   ),

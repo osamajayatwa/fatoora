@@ -110,9 +110,10 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        IconButton(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 620;
+        final leading = IconButton(
           onPressed: controller.requestBack,
           icon: Icon(
             Directionality.of(context) == TextDirection.rtl
@@ -120,37 +121,75 @@ class _Header extends StatelessWidget {
                 : Icons.arrow_back_rounded,
           ),
           color: AppColor.secondaryColor,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                invoice.invoiceNumber,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: AppColor.secondaryColor,
-                  fontWeight: FontWeight.w900,
-                ),
+        );
+        final title = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              invoice.invoiceNumber,
+              softWrap: true,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: AppColor.secondaryColor,
+                fontWeight: FontWeight.w900,
               ),
-              const SizedBox(height: 4),
-              Text(
-                DateFormat.yMMMd().format(invoice.invoiceDate),
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppColor.grey),
-              ),
-            ],
-          ),
-        ),
-        Wrap(
+            ),
+            const SizedBox(height: 4),
+            Text(
+              DateFormat.yMMMd().format(invoice.invoiceDate),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColor.grey),
+            ),
+          ],
+        );
+        final actions = Wrap(
           spacing: 8,
+          runSpacing: 8,
           children: [
             InvoiceTypeChip(type: invoice.invoiceType),
             InvoiceStatusChip(status: invoice.invoiceStatus),
+            OutlinedButton.icon(
+              onPressed: controller.isPrinting
+                  ? null
+                  : controller.printInvoicePdf,
+              icon: controller.isPrinting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.picture_as_pdf_outlined),
+              label: Text('print_export'.tr),
+            ),
           ],
-        ),
-      ],
+        );
+        if (compact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  leading,
+                  const SizedBox(width: 8),
+                  Expanded(child: title),
+                ],
+              ),
+              const SizedBox(height: 12),
+              actions,
+            ],
+          );
+        }
+        return Row(
+          children: [
+            leading,
+            const SizedBox(width: 8),
+            Expanded(child: title),
+            const SizedBox(width: 12),
+            actions,
+          ],
+        );
+      },
     );
   }
 }
@@ -350,7 +389,7 @@ class _PaymentRow extends StatelessWidget {
             child: Text(
               value,
               textAlign: TextAlign.end,
-              overflow: TextOverflow.ellipsis,
+              softWrap: true,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: AppColor.secondaryColor,
                 fontWeight: FontWeight.w700,
@@ -461,6 +500,7 @@ class _Line extends StatelessWidget {
           Expanded(
             child: Text(
               value,
+              softWrap: true,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: AppColor.secondaryColor,
                 fontWeight: FontWeight.w600,

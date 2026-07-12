@@ -61,54 +61,66 @@ class QuickActionsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(18, 4, 18, 18 + bottomInset),
-      child: Center(
-        heightFactor: 1,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 680),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'dashboard_quick_actions'.tr,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                'dashboard_choose_action'.tr,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: context.appMutedText),
-              ),
-              const SizedBox(height: 18),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final columns = constraints.maxWidth >= 560 ? 4 : 2;
-                  return GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: actions.length,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: columns,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: columns == 4 ? 1.08 : 1.35,
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.9;
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(18, 4, 18, 18 + bottomInset),
+        child: Center(
+          heightFactor: 1,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: 680, maxHeight: maxHeight),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'dashboard_quick_actions'.tr,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
                     ),
-                    itemBuilder: (context, index) => QuickActionTile(
-                      action: actions[index],
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        onSelected(actions[index].route);
-                      },
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'dashboard_choose_action'.tr,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: context.appMutedText,
                     ),
-                  );
-                },
+                  ),
+                  const SizedBox(height: 18),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final columns = constraints.maxWidth >= 560
+                          ? 4
+                          : constraints.maxWidth >= 360
+                          ? 2
+                          : 1;
+                      const spacing = 12.0;
+                      final tileWidth =
+                          (constraints.maxWidth - (columns - 1) * spacing) /
+                          columns;
+                      return Wrap(
+                        spacing: spacing,
+                        runSpacing: spacing,
+                        children: [
+                          for (final action in actions)
+                            SizedBox(
+                              width: tileWidth,
+                              child: QuickActionTile(
+                                action: action,
+                                onTap: () {
+                                  Navigator.of(context).pop();
+                                  onSelected(action.route);
+                                },
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -137,7 +149,7 @@ class QuickActionTile extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 width: 42,
@@ -151,8 +163,7 @@ class QuickActionTile extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 action.labelKey.tr,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                softWrap: true,
                 textAlign: TextAlign.center,
                 style: Theme.of(
                   context,

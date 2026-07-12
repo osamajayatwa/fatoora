@@ -68,66 +68,118 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DashboardCard(
-      child: Wrap(
-        spacing: 14,
-        runSpacing: 14,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          SizedBox(
-            width: 420,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  customer.name,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: AppColor.secondaryColor,
-                    fontWeight: FontWeight.w900,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 520;
+        return DashboardCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Wrap(
+                spacing: 14,
+                runSpacing: 14,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: narrow
+                          ? constraints.maxWidth
+                          : (constraints.maxWidth - 16)
+                                .clamp(260.0, 520.0)
+                                .toDouble(),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          customer.name,
+                          softWrap: true,
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
+                                color: AppColor.secondaryColor,
+                                fontWeight: FontWeight.w900,
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          customer.active
+                              ? 'items_active'.tr
+                              : 'items_inactive'.tr,
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(
+                                color: customer.active
+                                    ? AppColor.success
+                                    : AppColor.error,
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  customer.active ? 'items_active'.tr : 'items_inactive'.tr,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: customer.active ? AppColor.success : AppColor.error,
-                    fontWeight: FontWeight.w800,
+                ],
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _ResponsiveActionButton(
+                    narrow: narrow,
+                    child: OutlinedButton.icon(
+                      onPressed: controller.editCustomer,
+                      icon: const Icon(Icons.edit_outlined),
+                      label: Text('customers_edit'.tr),
+                    ),
                   ),
-                ),
-              ],
-            ),
+                  _ResponsiveActionButton(
+                    narrow: narrow,
+                    child: FilledButton.icon(
+                      onPressed: controller.openStatement,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColor.primaryColor,
+                      ),
+                      icon: const Icon(Icons.article_outlined),
+                      label: Text('customers_statement'.tr),
+                    ),
+                  ),
+                  _ResponsiveActionButton(
+                    narrow: narrow,
+                    child: TextButton.icon(
+                      onPressed: controller.isUpdating
+                          ? null
+                          : () => controller.setActive(!customer.active),
+                      icon: Icon(
+                        customer.active
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                      ),
+                      label: Text(
+                        customer.active
+                            ? 'customers_deactivate'.tr
+                            : 'customers_activate'.tr,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          OutlinedButton.icon(
-            onPressed: controller.editCustomer,
-            icon: const Icon(Icons.edit_outlined),
-            label: Text('customers_edit'.tr),
-          ),
-          FilledButton.icon(
-            onPressed: controller.openStatement,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColor.primaryColor,
-            ),
-            icon: const Icon(Icons.article_outlined),
-            label: Text('customers_statement'.tr),
-          ),
-          TextButton.icon(
-            onPressed: controller.isUpdating
-                ? null
-                : () => controller.setActive(!customer.active),
-            icon: Icon(
-              customer.active
-                  ? Icons.visibility_off_outlined
-                  : Icons.visibility_outlined,
-            ),
-            label: Text(
-              customer.active
-                  ? 'customers_deactivate'.tr
-                  : 'customers_activate'.tr,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
+  }
+}
+
+class _ResponsiveActionButton extends StatelessWidget {
+  const _ResponsiveActionButton({required this.narrow, required this.child});
+
+  final bool narrow;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!narrow) return child;
+    return SizedBox(width: double.infinity, child: child);
   }
 }
 
@@ -141,29 +193,36 @@ class _BalanceCards extends StatelessWidget {
     final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth < 760 ? 1 : 3;
-        return GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: columns,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: columns == 1 ? 4.5 : 2.1,
+        final cardWidth = constraints.maxWidth < 620
+            ? constraints.maxWidth
+            : (constraints.maxWidth - 24) / 3;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
           children: [
-            _MetricCard(
-              label: 'customers_balance'.tr,
-              value: currency.format(customer.currentBalance),
-              icon: Icons.account_balance_wallet_outlined,
+            SizedBox(
+              width: cardWidth,
+              child: _MetricCard(
+                label: 'customers_balance'.tr,
+                value: currency.format(customer.currentBalance),
+                icon: Icons.account_balance_wallet_outlined,
+              ),
             ),
-            _MetricCard(
-              label: 'customers_total_sales'.tr,
-              value: currency.format(customer.totalSales),
-              icon: Icons.trending_up_rounded,
+            SizedBox(
+              width: cardWidth,
+              child: _MetricCard(
+                label: 'customers_total_sales'.tr,
+                value: currency.format(customer.totalSales),
+                icon: Icons.trending_up_rounded,
+              ),
             ),
-            _MetricCard(
-              label: 'customers_total_paid'.tr,
-              value: currency.format(customer.totalPaid),
-              icon: Icons.payments_outlined,
+            SizedBox(
+              width: cardWidth,
+              child: _MetricCard(
+                label: 'customers_total_paid'.tr,
+                value: currency.format(customer.totalPaid),
+                icon: Icons.payments_outlined,
+              ),
             ),
           ],
         );
@@ -199,7 +258,7 @@ class _MetricCard extends StatelessWidget {
                 const SizedBox(height: 5),
                 Text(
                   value,
-                  overflow: TextOverflow.ellipsis,
+                  softWrap: true,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: AppColor.secondaryColor,
                     fontWeight: FontWeight.w900,
@@ -256,28 +315,37 @@ class _InfoRow extends StatelessWidget {
     if (value.trim().isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 130,
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: AppColor.grey,
-                fontWeight: FontWeight.w800,
-              ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 420;
+          final labelWidget = Text(
+            label,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: AppColor.grey,
+              fontWeight: FontWeight.w800,
             ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: AppColor.secondaryColor),
-            ),
-          ),
-        ],
+          );
+          final valueWidget = Text(
+            value,
+            softWrap: true,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColor.secondaryColor),
+          );
+          if (narrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [labelWidget, const SizedBox(height: 4), valueWidget],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: 130, child: labelWidget),
+              Expanded(child: valueWidget),
+            ],
+          );
+        },
       ),
     );
   }

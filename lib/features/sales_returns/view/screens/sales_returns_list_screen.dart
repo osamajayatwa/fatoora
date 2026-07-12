@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/widgets/responsive_data_table_card.dart';
 import 'package:fatoora/features/sales_returns/controllers/sales_returns_list_controller.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_enums.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_model.dart';
@@ -29,7 +30,7 @@ class SalesReturnsListScreen extends StatelessWidget {
             onRefresh: controller.refreshSalesReturns,
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final compact = constraints.maxWidth < 760;
+                final compact = constraints.maxWidth < 900;
                 final padding = constraints.maxWidth < 600 ? 14.0 : 24.0;
                 return SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -236,64 +237,117 @@ class _ReturnTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final money = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      color: AppColor.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFE4E8EF)),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: [
-            DataColumn(label: Text('return_number'.tr)),
-            DataColumn(label: Text('original_invoice_number'.tr)),
-            DataColumn(label: Text('customer_name'.tr)),
-            DataColumn(label: Text('return_date'.tr)),
-            DataColumn(label: Text('status'.tr)),
-            DataColumn(label: Text('refund_type'.tr)),
-            DataColumn(label: Text('grand_total'.tr)),
-            DataColumn(label: Text('sales_rep'.tr)),
-            DataColumn(label: Text('actions'.tr)),
-          ],
-          rows: controller.salesReturns
-              .map(
-                (salesReturn) => DataRow(
-                  cells: [
-                    DataCell(Text(salesReturn.returnNumber)),
-                    DataCell(Text(salesReturn.originalInvoiceNumber)),
-                    DataCell(
-                      SizedBox(
-                        width: 170,
-                        child: Text(
-                          salesReturn.customerSnapshot?.name ?? '-',
-                          overflow: TextOverflow.ellipsis,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final full = constraints.maxWidth >= 1120;
+        return ResponsiveDataTableCard(
+          minWidth: full ? 1070 : 860,
+          child: DataTable(
+            columnSpacing: 14,
+            horizontalMargin: 14,
+            columns: [
+              _column('return_number', width: 120),
+              _column('original_invoice_number', width: 132),
+              _column('customer_name', width: full ? 190 : 220),
+              _column('return_date', width: 92),
+              _column('status', width: 92),
+              if (full) _column('refund_type', width: 132),
+              _column('grand_total', width: 116, numeric: true),
+              if (full) _column('sales_rep', width: 130),
+              _column('actions', width: 68),
+            ],
+            rows: controller.salesReturns
+                .map(
+                  (salesReturn) => DataRow(
+                    cells: [
+                      DataCell(
+                        BoundedTableText(
+                          salesReturn.returnNumber,
+                          width: 120,
+                          forceLtr: true,
                         ),
                       ),
-                    ),
-                    DataCell(
-                      Text(DateFormat.yMd().format(salesReturn.returnDate)),
-                    ),
-                    DataCell(SalesReturnStatusChip(status: salesReturn.status)),
-                    DataCell(
-                      Text('refund_type_${salesReturn.refundType.value}'.tr),
-                    ),
-                    DataCell(Text(money.format(salesReturn.grandTotal))),
-                    DataCell(Text(salesReturn.salesRepName)),
-                    DataCell(
-                      IconButton.filledTonal(
-                        tooltip: 'sales_return_details'.tr,
-                        onPressed: () => controller.openDetails(salesReturn),
-                        icon: const Icon(Icons.visibility_outlined),
+                      DataCell(
+                        BoundedTableText(
+                          salesReturn.originalInvoiceNumber,
+                          width: 132,
+                          forceLtr: true,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              )
-              .toList(growable: false),
-        ),
+                      DataCell(
+                        BoundedTableText(
+                          salesReturn.customerSnapshot?.name ?? '-',
+                          width: full ? 190 : 220,
+                        ),
+                      ),
+                      DataCell(
+                        BoundedTableText(
+                          DateFormat.yMd().format(salesReturn.returnDate),
+                          width: 92,
+                          forceLtr: true,
+                        ),
+                      ),
+                      DataCell(
+                        BoundedTableWidget(
+                          width: 92,
+                          child: SalesReturnStatusChip(
+                            status: salesReturn.status,
+                          ),
+                        ),
+                      ),
+                      if (full)
+                        DataCell(
+                          BoundedTableText(
+                            'refund_type_${salesReturn.refundType.value}'.tr,
+                            width: 132,
+                          ),
+                        ),
+                      DataCell(
+                        BoundedTableText(
+                          money.format(salesReturn.grandTotal),
+                          width: 116,
+                          textAlign: TextAlign.end,
+                          forceLtr: true,
+                        ),
+                      ),
+                      if (full)
+                        DataCell(
+                          BoundedTableText(
+                            salesReturn.salesRepName,
+                            width: 130,
+                          ),
+                        ),
+                      DataCell(
+                        SizedBox(
+                          width: 68,
+                          child: IconButton.filledTonal(
+                            tooltip: 'sales_return_details'.tr,
+                            onPressed: () =>
+                                controller.openDetails(salesReturn),
+                            icon: const Icon(Icons.visibility_outlined),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+                .toList(growable: false),
+          ),
+        );
+      },
+    );
+  }
+
+  DataColumn _column(
+    String labelKey, {
+    required double width,
+    bool numeric = false,
+  }) {
+    return DataColumn(
+      numeric: numeric,
+      label: SizedBox(
+        width: width,
+        child: Text(labelKey.tr, maxLines: 2, overflow: TextOverflow.ellipsis),
       ),
     );
   }
