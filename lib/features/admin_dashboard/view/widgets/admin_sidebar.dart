@@ -1,5 +1,6 @@
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/app/routes/app_routes.dart';
+import 'package:fatoora/core/localization/changelocal.dart';
 import 'package:fatoora/features/admin_dashboard/controller/admin_dashboard_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -74,175 +75,215 @@ class AdminSidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetBuilder<AdminDashboardController>(
       builder: (controller) {
-        return ColoredBox(
-          color: context.appSurface,
-          child: SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    24,
-                    22,
-                    showCollapseButton ? 10 : 24,
-                    20,
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          gradient: AppColor.mainGradient,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(
-                          Icons.receipt_long_rounded,
-                          color: Colors.white,
-                          size: 25,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'fatoora'.tr,
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(
-                                    color: context.appText,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                            ),
-                            Text(
-                              'dashboard_management_system'.tr,
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(color: context.appMutedText),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (showCollapseButton)
-                        IconButton(
-                          tooltip: 'Close navigation',
-                          onPressed: controller.hideSidebar,
-                          icon: const Icon(Icons.menu_open_rounded),
-                          color: context.appMutedText,
-                        ),
-                    ],
-                  ),
-                ),
-                Divider(height: 1, color: context.appBorder),
-                Expanded(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 18,
-                    ),
-                    itemCount: _items.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 6),
-                    itemBuilder: (context, index) {
-                      final item = _items[index];
-                      final itemRoutes = {
-                        AppRoute.adminItems,
-                        AppRoute.adminAddItem,
-                        AppRoute.adminEditItem,
-                        AppRoute.adminItemDetails,
-                      };
-                      final inventoryRoutes = {
-                        AppRoute.inventory,
-                        AppRoute.stockMovements,
-                        AppRoute.inventoryAdjustment,
-                        AppRoute.itemStockDetails,
-                      };
-                      final invoiceRoutes = {
-                        AppRoute.invoices,
-                        AppRoute.invoiceForm,
-                        AppRoute.invoiceDetails,
-                      };
-                      final quotationRoutes = {
-                        AppRoute.quotations,
-                        AppRoute.createQuotation,
-                        AppRoute.quotationDetails,
-                      };
-                      final receiptRoutes = {
-                        AppRoute.receipts,
-                        AppRoute.createReceipt,
-                        AppRoute.receiptDetails,
-                      };
-                      final salesReturnRoutes = {
-                        AppRoute.salesReturns,
-                        AppRoute.createSalesReturn,
-                        AppRoute.salesReturnDetails,
-                      };
-                      final expenseRoutes = {
-                        AppRoute.expenses,
-                        AppRoute.createExpense,
-                        AppRoute.expenseDetails,
-                      };
-                      final userRoutes = {
-                        AppRoute.adminUsers,
-                        AppRoute.pendingUsers,
-                        AppRoute.salesReps,
-                      };
-                      final statementRoutes = {
-                        AppRoute.statements,
-                        AppRoute.customerStatement,
-                      };
-                      final selected =
-                          Get.currentRoute == item.route ||
-                          (item.route == AppRoute.adminItems &&
-                              itemRoutes.contains(Get.currentRoute)) ||
-                          (item.route == AppRoute.inventory &&
-                              inventoryRoutes.contains(Get.currentRoute)) ||
-                          (item.route == AppRoute.invoices &&
-                              invoiceRoutes.contains(Get.currentRoute)) ||
-                          (item.route == AppRoute.quotations &&
-                              quotationRoutes.contains(Get.currentRoute)) ||
-                          (item.route == AppRoute.receipts &&
-                              receiptRoutes.contains(Get.currentRoute)) ||
-                          (item.route == AppRoute.salesReturns &&
-                              salesReturnRoutes.contains(Get.currentRoute)) ||
-                          (item.route == AppRoute.expenses &&
-                              expenseRoutes.contains(Get.currentRoute)) ||
-                          (item.route == AppRoute.adminUsers &&
-                              userRoutes.contains(Get.currentRoute)) ||
-                          (item.route == AppRoute.statements &&
-                              statementRoutes.contains(Get.currentRoute));
-                      return _SidebarTile(
-                        item: item,
-                        selected: selected,
-                        onTap: () {
-                          final scaffold = Scaffold.maybeOf(context);
-                          if (scaffold?.isDrawerOpen ?? false) {
-                            Navigator.of(context).pop();
-                          }
-                          controller.navigateTo(item.route);
-                        },
-                      );
-                    },
-                  ),
-                ),
-                Divider(height: 1, color: context.appBorder),
-                Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: _SidebarTile(
-                    item: const _SidebarItem(
-                      'dashboard_logout',
-                      Icons.logout_rounded,
-                      '',
-                    ),
-                    selected: false,
-                    danger: true,
-                    loading: controller.isLoggingOut,
-                    onTap: controller.confirmLogout,
-                  ),
-                ),
-              ],
-            ),
-          ),
+        final localeController = Get.isRegistered<LocaleController>()
+            ? Get.find<LocaleController>()
+            : null;
+        Widget sidebar(bool isRtl) => _SidebarContent(
+          controller: controller,
+          isRtl: isRtl,
+          showCollapseButton: showCollapseButton,
         );
+
+        if (localeController == null) {
+          return sidebar(Directionality.of(context) == TextDirection.rtl);
+        }
+
+        return Obx(() => sidebar(localeController.isRtl));
       },
+    );
+  }
+}
+
+class _SidebarContent extends StatelessWidget {
+  const _SidebarContent({
+    required this.controller,
+    required this.isRtl,
+    required this.showCollapseButton,
+  });
+
+  final AdminDashboardController controller;
+  final bool isRtl;
+  final bool showCollapseButton;
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+      child: ColoredBox(
+        color: context.appSurface,
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: EdgeInsetsDirectional.fromSTEB(
+                  24,
+                  22,
+                  showCollapseButton ? 10 : 24,
+                  20,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        gradient: AppColor.mainGradient,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.receipt_long_rounded,
+                        color: Colors.white,
+                        size: 25,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'fatoora'.tr,
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  color: context.appText,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                          ),
+                          Text(
+                            'dashboard_management_system'.tr,
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(color: context.appMutedText),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (showCollapseButton)
+                      IconButton(
+                        tooltip: 'close'.tr,
+                        onPressed: controller.hideSidebar,
+                        icon: Transform(
+                          alignment: Alignment.center,
+                          transform: Matrix4.identity()
+                            ..scale(isRtl ? -1.0 : 1.0, 1.0),
+                          child: const Icon(Icons.menu_open_rounded),
+                        ),
+                        color: context.appMutedText,
+                      ),
+                  ],
+                ),
+              ),
+              Divider(height: 1, color: context.appBorder),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 18,
+                  ),
+                  itemCount: AdminSidebar._items.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 6),
+                  itemBuilder: (context, index) {
+                    final item = AdminSidebar._items[index];
+                    final itemRoutes = {
+                      AppRoute.adminItems,
+                      AppRoute.adminAddItem,
+                      AppRoute.adminEditItem,
+                      AppRoute.adminItemDetails,
+                    };
+                    final inventoryRoutes = {
+                      AppRoute.inventory,
+                      AppRoute.stockMovements,
+                      AppRoute.inventoryAdjustment,
+                      AppRoute.itemStockDetails,
+                    };
+                    final invoiceRoutes = {
+                      AppRoute.invoices,
+                      AppRoute.invoiceForm,
+                      AppRoute.invoiceDetails,
+                    };
+                    final quotationRoutes = {
+                      AppRoute.quotations,
+                      AppRoute.createQuotation,
+                      AppRoute.quotationDetails,
+                    };
+                    final receiptRoutes = {
+                      AppRoute.receipts,
+                      AppRoute.createReceipt,
+                      AppRoute.receiptDetails,
+                    };
+                    final salesReturnRoutes = {
+                      AppRoute.salesReturns,
+                      AppRoute.createSalesReturn,
+                      AppRoute.salesReturnDetails,
+                    };
+                    final expenseRoutes = {
+                      AppRoute.expenses,
+                      AppRoute.createExpense,
+                      AppRoute.expenseDetails,
+                    };
+                    final userRoutes = {
+                      AppRoute.adminUsers,
+                      AppRoute.pendingUsers,
+                      AppRoute.salesReps,
+                    };
+                    final statementRoutes = {
+                      AppRoute.statements,
+                      AppRoute.customerStatement,
+                    };
+                    final selected =
+                        Get.currentRoute == item.route ||
+                        (item.route == AppRoute.adminItems &&
+                            itemRoutes.contains(Get.currentRoute)) ||
+                        (item.route == AppRoute.inventory &&
+                            inventoryRoutes.contains(Get.currentRoute)) ||
+                        (item.route == AppRoute.invoices &&
+                            invoiceRoutes.contains(Get.currentRoute)) ||
+                        (item.route == AppRoute.quotations &&
+                            quotationRoutes.contains(Get.currentRoute)) ||
+                        (item.route == AppRoute.receipts &&
+                            receiptRoutes.contains(Get.currentRoute)) ||
+                        (item.route == AppRoute.salesReturns &&
+                            salesReturnRoutes.contains(Get.currentRoute)) ||
+                        (item.route == AppRoute.expenses &&
+                            expenseRoutes.contains(Get.currentRoute)) ||
+                        (item.route == AppRoute.adminUsers &&
+                            userRoutes.contains(Get.currentRoute)) ||
+                        (item.route == AppRoute.statements &&
+                            statementRoutes.contains(Get.currentRoute));
+                    return _SidebarTile(
+                      item: item,
+                      selected: selected,
+                      isRtl: isRtl,
+                      onTap: () {
+                        final scaffold = Scaffold.maybeOf(context);
+                        if (scaffold?.isDrawerOpen ?? false) {
+                          Navigator.of(context).pop();
+                        }
+                        controller.navigateTo(item.route);
+                      },
+                    );
+                  },
+                ),
+              ),
+              Divider(height: 1, color: context.appBorder),
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: _SidebarTile(
+                  item: const _SidebarItem(
+                    'dashboard_logout',
+                    Icons.logout_rounded,
+                    '',
+                  ),
+                  selected: false,
+                  isRtl: isRtl,
+                  danger: true,
+                  loading: controller.isLoggingOut,
+                  onTap: controller.confirmLogout,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -251,6 +292,7 @@ class _SidebarTile extends StatelessWidget {
   const _SidebarTile({
     required this.item,
     required this.selected,
+    required this.isRtl,
     required this.onTap,
     this.danger = false,
     this.loading = false,
@@ -258,6 +300,7 @@ class _SidebarTile extends StatelessWidget {
 
   final _SidebarItem item;
   final bool selected;
+  final bool isRtl;
   final VoidCallback onTap;
   final bool danger;
   final bool loading;
@@ -278,6 +321,7 @@ class _SidebarTile extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           child: Row(
+            textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
             children: [
               if (loading)
                 SizedBox(
@@ -294,6 +338,7 @@ class _SidebarTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   item.labelKey.tr,
+                  textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: foreground,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
@@ -301,13 +346,7 @@ class _SidebarTile extends StatelessWidget {
                 ),
               ),
               if (selected)
-                Icon(
-                  Directionality.of(context) == TextDirection.rtl
-                      ? Icons.chevron_left_rounded
-                      : Icons.chevron_right_rounded,
-                  size: 20,
-                  color: foreground,
-                ),
+                Icon(Icons.chevron_right_rounded, size: 20, color: foreground),
             ],
           ),
         ),
