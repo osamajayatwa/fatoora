@@ -1,5 +1,6 @@
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
+import 'package:fatoora/features/rep_inventory/data/models/rep_inventory_enums.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -18,6 +19,22 @@ void main() {
     expect(invoice.returnInvoiceIds, isEmpty);
     expect(invoice.receiptIds, isEmpty);
     expect(invoice.effectiveOutstandingAmount, 300);
+    expect(invoice.stockSourceType, InventorySourceType.companyWarehouse);
+    expect(invoice.stockSourceId, 'default_warehouse');
+    expect(invoice.stockSourceSalesRepId, isEmpty);
+  });
+
+  test('new invoice stock-source fields survive serialization', () {
+    final legacy = InvoiceModel.fromMap({
+      'id': 'invoice-2',
+      'stockSourceType': 'salesRep',
+      'stockSourceId': 'rep-a',
+      'stockSourceSalesRepId': 'rep-a',
+    });
+
+    expect(legacy.stockSourceType, InventorySourceType.salesRep);
+    expect(legacy.stockSourceId, 'rep-a');
+    expect(legacy.toMap()['stockSourceSalesRepId'], 'rep-a');
   });
 
   test('legacy returns keep their document id as return invoice id', () {

@@ -138,6 +138,7 @@ class CustomerRepository {
       await _ensurePhoneIsUnique(
         companyId: resolvedCompanyId,
         phoneNormalized: normalizedPhone,
+        user: user,
       );
 
       final document = _customers(resolvedCompanyId).doc();
@@ -210,6 +211,7 @@ class CustomerRepository {
           companyId: resolvedCompanyId,
           phoneNormalized: normalizedPhone,
           exceptCustomerId: customerId,
+          user: user,
         );
       }
 
@@ -353,12 +355,17 @@ class CustomerRepository {
   Future<void> _ensurePhoneIsUnique({
     required String companyId,
     required String phoneNormalized,
+    required BusinessUserContext user,
     String? exceptCustomerId,
   }) async {
     if (phoneNormalized.isEmpty) return;
-    final snapshot = await _customers(companyId)
+    Query<Map<String, dynamic>> query = _customers(companyId)
         .where('active', isEqualTo: true)
-        .where('phoneNormalized', isEqualTo: phoneNormalized)
+        .where('phoneNormalized', isEqualTo: phoneNormalized);
+    if (user.isSalesRep) {
+      query = query.where('createdByUid', isEqualTo: user.uid);
+    }
+    final snapshot = await query
         .limit(2)
         .get()
         .timeout(const Duration(seconds: 20));

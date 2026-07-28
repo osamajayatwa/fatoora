@@ -10,6 +10,7 @@ import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/auth/data/repositories/admin_auth_repository.dart';
 import 'package:fatoora/features/auth/utils/auth_session.dart';
 import 'package:fatoora/features/financial/controllers/financial_error_mapper.dart';
+import 'package:fatoora/features/financial/data/models/dashboard_month_period.dart';
 import 'package:fatoora/features/financial/data/models/financial_dashboard_snapshot.dart';
 import 'package:fatoora/features/financial/data/repositories/financial_repository.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
@@ -44,6 +45,8 @@ class AdminDashboardController extends GetxController {
   String searchQuery = '';
   FinancialDashboardSnapshot snapshot =
       const FinancialDashboardSnapshot.empty();
+  DashboardMonthPeriod selectedPeriod = DashboardMonthPeriod.current();
+  bool _followCurrentMonth = true;
   int pendingApprovalsCount = 0;
 
   String get adminName => AuthSession.cachedDisplayName(_myServices) == 'User'
@@ -201,6 +204,11 @@ class AdminDashboardController extends GetxController {
       route: AppRoute.salesReturns,
     ),
     DashboardQuickAction(
+      labelKey: 'rep_inventory_new_transfer',
+      icon: Icons.swap_horiz_rounded,
+      route: AppRoute.repInventoryTransferForm,
+    ),
+    DashboardQuickAction(
       labelKey: 'dashboard_view_quotations',
       icon: Icons.format_quote_outlined,
       route: AppRoute.quotations,
@@ -278,6 +286,7 @@ class AdminDashboardController extends GetxController {
 
   Future<void> refreshDashboard() async {
     if (isRefreshing) return;
+    _syncCurrentMonth();
     isRefreshing = true;
     statusRequest = StatusRequest.loading;
     loadErrorMessageKey = 'financial_load_error';
@@ -290,6 +299,8 @@ class AdminDashboardController extends GetxController {
 
       final loadedSnapshot = await _financialRepository.fetchDashboard(
         companyId: resolvedCompanyId,
+        fromDate: selectedPeriod.start,
+        toDate: selectedPeriod.end,
       );
       var loadedPendingCount = pendingApprovalsCount;
       try {
@@ -325,6 +336,35 @@ class AdminDashboardController extends GetxController {
   void navigateTo(String route) {
     if (Get.currentRoute == route) return;
     Get.toNamed(route);
+  }
+
+  String selectedMonthLabel(BuildContext context) {
+    return MaterialLocalizations.of(
+      context,
+    ).formatMonthYear(selectedPeriod.month);
+  }
+
+  Future<void> selectMonth(BuildContext context) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: selectedPeriod.month.isAfter(now)
+          ? DateTime(now.year, now.month)
+          : selectedPeriod.month,
+      firstDate: DateTime(2020),
+      lastDate: now,
+      initialDatePickerMode: DatePickerMode.year,
+      helpText: 'financial_select_month'.tr,
+    );
+    if (picked == null) return;
+    selectedPeriod = DashboardMonthPeriod.fromMonth(picked);
+    _followCurrentMonth = selectedPeriod.isSameMonth(now);
+    await refreshDashboard();
+  }
+
+  void _syncCurrentMonth() {
+    if (!_followCurrentMonth) return;
+    selectedPeriod = DashboardMonthPeriod.current();
   }
 
   void showSidebar() {

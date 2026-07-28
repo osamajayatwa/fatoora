@@ -16,6 +16,7 @@ import 'package:fatoora/core/localization/quotations_translations.dart';
 import 'package:fatoora/core/localization/common_translations.dart';
 import 'package:fatoora/core/localization/settings_translations.dart';
 import 'package:fatoora/core/localization/permissions_translations.dart';
+import 'package:fatoora/core/localization/rep_inventory_translations.dart';
 
 class MyTranslation extends Translations {
   @override
@@ -38,6 +39,7 @@ class MyTranslation extends Translations {
       ...inventoryArabicTranslations,
       ...settingsArabicTranslations,
       ...permissionsArabicTranslations,
+      ...repInventoryArabicTranslations,
       "Choose Language": "اختر اللغة",
       "Continue": "متابعه",
       "LogIn": "تسجيل الدخول",
@@ -342,6 +344,7 @@ class MyTranslation extends Translations {
       ...inventoryEnglishTranslations,
       ...settingsEnglishTranslations,
       ...permissionsEnglishTranslations,
+      ...repInventoryEnglishTranslations,
     },
   };
 }

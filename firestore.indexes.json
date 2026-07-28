@@ -75,6 +75,46 @@
         { "fieldPath": "invoiceStatus", "order": "ASCENDING" },
         { "fieldPath": "invoiceDate", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "receipts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "salesRepId", "order": "ASCENDING" },
+        { "fieldPath": "receiptDate", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "sales_returns",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "salesRepId", "order": "ASCENDING" },
+        { "fieldPath": "returnDate", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "inventory_transfers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "salesRepId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "rep_inventory_balances",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "salesRepId", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "rep_inventory_movements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "salesRepId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

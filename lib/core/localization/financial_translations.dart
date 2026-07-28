@@ -8,6 +8,9 @@ const Map<String, String> financialEnglishTranslations = {
   'financial_timeout_error':
       'Firebase took too long to respond. Please try again.',
   'financial_invalid_data': 'The financial data is missing or invalid.',
+  'financial_select_month': 'Select dashboard month',
+  'financial_monthly_dashboard_summary':
+      'Sales activity for the selected calendar month.',
   'financial_receivables': 'Receivables',
   'financial_receivables_subtitle':
       'Customers with outstanding balances from confirmed invoices.',
@@ -62,6 +65,8 @@ const Map<String, String> financialArabicTranslations = {
   'financial_timeout_error':
       'استغرق رد Firebase وقتا طويلا. يرجى المحاولة مرة أخرى.',
   'financial_invalid_data': 'البيانات المالية مفقودة أو غير صالحة.',
+  'financial_select_month': 'اختر شهر لوحة التحكم',
+  'financial_monthly_dashboard_summary': 'نشاط المبيعات للشهر الميلادي المحدد.',
   'financial_receivables': 'الذمم المدينة',
   'financial_receivables_subtitle':
       'العملاء الذين لديهم أرصدة مستحقة من فواتير مؤكدة.',

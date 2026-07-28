@@ -54,6 +54,8 @@ import 'package:fatoora/features/receipts/bindings/receipts_binding.dart';
 import 'package:fatoora/features/receipts/view/screens/receipt_details_screen.dart';
 import 'package:fatoora/features/receipts/view/screens/receipt_form_screen.dart';
 import 'package:fatoora/features/receipts/view/screens/receipts_list_screen.dart';
+import 'package:fatoora/features/rep_inventory/bindings/rep_inventory_binding.dart';
+import 'package:fatoora/features/rep_inventory/view/screens/rep_inventory_screens.dart';
 import 'package:fatoora/features/sales_returns/bindings/sales_returns_binding.dart';
 import 'package:fatoora/features/sales_returns/view/screens/sales_return_details_screen.dart';
 import 'package:fatoora/features/sales_returns/view/screens/sales_return_form_screen.dart';
@@ -214,6 +216,30 @@ List<GetPage<dynamic>> routes = [
     page: () => const ItemStockDetailsScreen(),
     binding: ItemStockDetailsBinding(),
     middlewares: [AdminMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.repInventory,
+    page: () => const RepInventoryScreen(),
+    binding: RepInventoryBinding(),
+    middlewares: [ApprovedUserMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.repInventoryTransfers,
+    page: () => const InventoryTransfersScreen(),
+    binding: InventoryTransfersBinding(),
+    middlewares: [AdminMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.repInventoryTransferForm,
+    page: () => const InventoryTransferFormScreen(),
+    binding: InventoryTransferFormBinding(),
+    middlewares: [AdminMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.repInventoryTransferDetails,
+    page: () => const InventoryTransferDetailsScreen(),
+    binding: InventoryTransferDetailsBinding(),
+    middlewares: [ApprovedUserMiddleware()],
   ),
   GetPage(
     name: AppRoute.statements,

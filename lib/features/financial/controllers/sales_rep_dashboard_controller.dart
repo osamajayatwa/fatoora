@@ -5,9 +5,11 @@ import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/financial/controllers/financial_error_mapper.dart';
+import 'package:fatoora/features/financial/data/models/dashboard_month_period.dart';
 import 'package:fatoora/features/financial/data/models/financial_dashboard_snapshot.dart';
 import 'package:fatoora/features/financial/data/repositories/financial_repository.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class SalesRepDashboardController extends GetxController {
@@ -29,7 +31,10 @@ class SalesRepDashboardController extends GetxController {
       const FinancialDashboardSnapshot.empty();
   EffectiveBusinessPermissions permissions =
       EffectiveBusinessPermissions.denied;
+  DashboardMonthPeriod selectedPeriod = DashboardMonthPeriod.current();
+  bool _followCurrentMonth = true;
   bool get canCreateQuotation => permissions.createQuotations;
+  bool get canCreateReceipt => permissions.createReceipts;
 
   String get companyId =>
       _myServices.sharedPreferences.getString('companyId') ??
@@ -42,11 +47,16 @@ class SalesRepDashboardController extends GetxController {
   }
 
   Future<void> loadDashboard() async {
+    _syncCurrentMonth();
     statusRequest = StatusRequest.loading;
     update();
     try {
       permissions = await _permissionResolver.resolve(companyId);
-      snapshot = await _repository.fetchDashboard(companyId: companyId);
+      snapshot = await _repository.fetchDashboard(
+        companyId: companyId,
+        fromDate: selectedPeriod.start,
+        toDate: selectedPeriod.end,
+      );
       statusRequest = StatusRequest.success;
     } catch (error) {
       statusRequest = FinancialErrorMapper.status(error);
@@ -57,6 +67,35 @@ class SalesRepDashboardController extends GetxController {
 
   Future<void> refreshDashboard() => loadDashboard();
 
+  String selectedMonthLabel(BuildContext context) {
+    return MaterialLocalizations.of(
+      context,
+    ).formatMonthYear(selectedPeriod.month);
+  }
+
+  Future<void> selectMonth(BuildContext context) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: selectedPeriod.month.isAfter(now)
+          ? DateTime(now.year, now.month)
+          : selectedPeriod.month,
+      firstDate: DateTime(2020),
+      lastDate: now,
+      initialDatePickerMode: DatePickerMode.year,
+      helpText: 'financial_select_month'.tr,
+    );
+    if (picked == null) return;
+    selectedPeriod = DashboardMonthPeriod.fromMonth(picked);
+    _followCurrentMonth = selectedPeriod.isSameMonth(now);
+    await loadDashboard();
+  }
+
+  void _syncCurrentMonth() {
+    if (!_followCurrentMonth) return;
+    selectedPeriod = DashboardMonthPeriod.current();
+  }
+
   void createInvoice() {
     Get.toNamed(
       AppRoute.invoiceForm,
@@ -65,6 +104,21 @@ class SalesRepDashboardController extends GetxController {
   }
 
   void openInvoices() => Get.toNamed(AppRoute.invoices);
+  void openReceipts() => Get.toNamed(AppRoute.receipts);
+  void createReceipt() {
+    if (!canCreateReceipt) {
+      Get.snackbar(
+        'permission_denied'.tr,
+        'sales_rep_receipt_create_disabled'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColor.error,
+        colorText: AppColor.surface,
+      );
+      return;
+    }
+    Get.toNamed(AppRoute.createReceipt);
+  }
+
   void openQuotations() => Get.toNamed(AppRoute.quotations);
   void createQuotation() {
     if (!canCreateQuotation) {
@@ -87,5 +141,6 @@ class SalesRepDashboardController extends GetxController {
   void openExpenses() => Get.toNamed(AppRoute.expenses);
   void createExpense() => Get.toNamed(AppRoute.createExpense);
   void openSalesReturns() => Get.toNamed(AppRoute.salesReturns);
+  void openMyInventory() => Get.toNamed(AppRoute.repInventory);
   void openSettings() => Get.toNamed(AppRoute.settings);
 }

@@ -40,7 +40,7 @@ class AdminWelcomeCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                'dashboard_daily_summary'.tr,
+                'financial_monthly_dashboard_summary'.tr,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Colors.white.withValues(alpha: .82),
                 ),
@@ -76,37 +76,21 @@ class AdminWelcomeCard extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: .13),
-                  borderRadius: BorderRadius.circular(13),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: .22),
+              OutlinedButton.icon(
+                onPressed: () => controller.selectMonth(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.white.withValues(alpha: .13),
+                  side: BorderSide(color: Colors.white.withValues(alpha: .22)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
                   ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.calendar_today_outlined,
-                      size: 17,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      MaterialLocalizations.of(
-                        context,
-                      ).formatMediumDate(DateTime.now()),
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
+                icon: const Icon(Icons.calendar_month_outlined, size: 17),
+                label: Text(
+                  controller.selectedMonthLabel(context),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
               QuickActionsButton(

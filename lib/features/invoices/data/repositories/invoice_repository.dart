@@ -13,6 +13,9 @@ import 'package:fatoora/features/invoices/data/models/invoice_item_snapshot.dart
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/invoices/data/services/jofotara_placeholder_service.dart';
 import 'package:fatoora/features/items/data/models/item_model.dart';
+import 'package:fatoora/features/rep_inventory/data/models/rep_inventory_balance_model.dart';
+import 'package:fatoora/features/rep_inventory/data/models/rep_inventory_enums.dart';
+import 'package:fatoora/features/rep_inventory/data/services/rep_inventory_effect_calculator.dart';
 import 'package:fatoora/features/settings/data/models/app_settings_model.dart';
 import 'package:fatoora/features/settings/data/models/document_settings_model.dart';
 import 'package:fatoora/features/shared/business/business_user_context.dart';
@@ -106,6 +109,20 @@ class InvoiceRepository {
         .collection('companies')
         .doc(companyId)
         .collection('stock_movements');
+  }
+
+  CollectionReference<Map<String, dynamic>> _repBalances(String companyId) {
+    return _firestore
+        .collection('companies')
+        .doc(companyId)
+        .collection('rep_inventory_balances');
+  }
+
+  CollectionReference<Map<String, dynamic>> _repMovements(String companyId) {
+    return _firestore
+        .collection('companies')
+        .doc(companyId)
+        .collection('rep_inventory_movements');
   }
 
   DocumentReference<Map<String, dynamic>> _invoiceCounter(
@@ -698,6 +715,17 @@ class InvoiceRepository {
     final creatorRole = preserveCreator ? existing!.createdByRole : user.role;
     final salesRepId = preserveCreator ? existing!.salesRepId : user.uid;
     final salesRepName = preserveCreator ? existing!.salesRepName : user.name;
+    final sourceType = preserveCreator
+        ? existing!.stockSourceType
+        : user.isSalesRep
+        ? InventorySourceType.salesRep
+        : InventorySourceType.companyWarehouse;
+    final sourceRepId = sourceType == InventorySourceType.salesRep
+        ? (preserveCreator ? existing!.stockSourceSalesRepId : user.uid)
+        : '';
+    final sourceId = sourceType == InventorySourceType.salesRep
+        ? sourceRepId
+        : ItemModel.defaultWarehouseId;
 
     return invoice
         .copyWith(
@@ -733,6 +761,9 @@ class InvoiceRepository {
           inventoryPostedByUid: existing?.inventoryPostedByUid ?? '',
           inventoryPostedByName: existing?.inventoryPostedByName ?? '',
           inventoryMovementIds: existing?.inventoryMovementIds ?? const [],
+          stockSourceType: sourceType,
+          stockSourceId: sourceId,
+          stockSourceSalesRepId: sourceRepId,
           government: existing?.government ?? invoice.government,
         )
         .withSearchFields();
@@ -1020,6 +1051,7 @@ class InvoiceRepository {
     }
 
     final itemUpdates = <_InventoryItemUpdate>[];
+    final balanceWrites = <_InventoryDocumentWrite>[];
     final movementRefs = <DocumentReference<Map<String, dynamic>>>[];
     final movementData = <Map<String, dynamic>>[];
 
@@ -1035,6 +1067,97 @@ class InvoiceRepository {
       if (item.deleted || !item.trackStock) continue;
       final requestedQuantity = _round(entry.value);
       if (requestedQuantity <= 0) continue;
+      if (invoice.stockSourceType == InventorySourceType.salesRep) {
+        final sourceRepId = invoice.stockSourceSalesRepId.trim();
+        if (sourceRepId.isEmpty ||
+            sourceRepId != invoice.salesRepId ||
+            (user.isSalesRep && sourceRepId != user.uid)) {
+          throw const InvoiceRepositoryException(
+            InvoiceRepositoryError.permissionDenied,
+          );
+        }
+        final balanceRef = _repBalances(
+          invoice.companyId,
+        ).doc(RepInventoryBalanceModel.documentId(sourceRepId, item.id));
+        final balanceSnapshot = await transaction.get(balanceRef);
+        final quantityBefore = balanceSnapshot.exists
+            ? RepInventoryBalanceModel.fromFirestore(balanceSnapshot).quantity
+            : 0.0;
+        late final double quantityAfter;
+        try {
+          quantityAfter = RepInventoryEffectCalculator.invoiceSale(
+            repBefore: quantityBefore,
+            quantity: requestedQuantity,
+          );
+        } on RepInventoryInsufficientRepStock {
+          throw InvoiceRepositoryException(
+            InvoiceRepositoryError.invalidState,
+            InsufficientStockFailure(
+              itemName: item.name.isEmpty
+                  ? (snapshotByItem[entry.key] ?? entry.key)
+                  : item.name,
+              requestedQuantity: requestedQuantity,
+              availableQuantity: quantityBefore,
+            ),
+          );
+        }
+        final movementRef = _repMovements(
+          invoice.companyId,
+        ).doc('${invoice.id}_${sourceRepId}_${item.id}_invoice_sale');
+        final existingMovement = await transaction.get(movementRef);
+        if (existingMovement.exists) {
+          throw const InvoiceRepositoryException(
+            InvoiceRepositoryError.invalidState,
+          );
+        }
+        balanceWrites.add(
+          _InventoryDocumentWrite(
+            ref: balanceRef,
+            data: {
+              'id': balanceRef.id,
+              'companyId': invoice.companyId,
+              'salesRepId': sourceRepId,
+              'itemId': item.id,
+              'quantity': quantityAfter,
+              'modelSnapshot': item.code,
+              'itemNameSnapshot': item.name,
+              'unitSnapshot': item.unit,
+              'createdAt': balanceSnapshot.exists
+                  ? (balanceSnapshot.data()?['createdAt'] ??
+                        FieldValue.serverTimestamp())
+                  : FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+              'lastMovementId': movementRef.id,
+              'lastReferenceType': RepInventoryReferenceType.invoice.value,
+              'lastReferenceId': invoice.id,
+            },
+          ),
+        );
+        movementRefs.add(movementRef);
+        movementData.add({
+          'id': movementRef.id,
+          'companyId': invoice.companyId,
+          'salesRepId': sourceRepId,
+          'salesRepNameSnapshot': invoice.salesRepName,
+          'itemId': item.id,
+          'modelSnapshot': item.code,
+          'itemNameSnapshot': item.name,
+          'unitSnapshot': item.unit,
+          'direction': RepInventoryDirection.outbound.value,
+          'quantity': requestedQuantity,
+          'quantityBefore': quantityBefore,
+          'quantityAfter': quantityAfter,
+          'reason': RepInventoryReason.invoiceSale.value,
+          'referenceType': RepInventoryReferenceType.invoice.value,
+          'referenceId': invoice.id,
+          'referenceNumber': invoice.invoiceNumber,
+          'transferType': '',
+          'createdByUid': invoice.createdByUid,
+          'createdByName': invoice.createdByName,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        continue;
+      }
       final quantityBefore = item.currentStock;
       if (quantityBefore < requestedQuantity) {
         throw InvoiceRepositoryException(
@@ -1097,6 +1220,7 @@ class InvoiceRepository {
 
     return _InventoryPosting(
       itemUpdates: itemUpdates,
+      balanceWrites: balanceWrites,
       movementRefs: movementRefs,
       movementData: movementData,
     );
@@ -1138,6 +1262,9 @@ class InvoiceRepository {
   ) {
     for (final update in posting.itemUpdates) {
       transaction.update(update.itemRef, update.data);
+    }
+    for (final write in posting.balanceWrites) {
+      transaction.set(write.ref, write.data);
     }
     for (var index = 0; index < posting.movementRefs.length; index++) {
       transaction.set(posting.movementRefs[index], posting.movementData[index]);
@@ -1317,13 +1444,22 @@ class _FinancialPosting {
 class _InventoryPosting {
   const _InventoryPosting({
     required this.itemUpdates,
+    required this.balanceWrites,
     required this.movementRefs,
     required this.movementData,
   });
 
   final List<_InventoryItemUpdate> itemUpdates;
+  final List<_InventoryDocumentWrite> balanceWrites;
   final List<DocumentReference<Map<String, dynamic>>> movementRefs;
   final List<Map<String, dynamic>> movementData;
+}
+
+class _InventoryDocumentWrite {
+  const _InventoryDocumentWrite({required this.ref, required this.data});
+
+  final DocumentReference<Map<String, dynamic>> ref;
+  final Map<String, dynamic> data;
 }
 
 class _InventoryItemUpdate {

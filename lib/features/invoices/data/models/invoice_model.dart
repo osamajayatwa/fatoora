@@ -3,6 +3,8 @@ import 'package:fatoora/features/invoices/data/models/invoice_customer_snapshot.
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_government_model.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_item_snapshot.dart';
+import 'package:fatoora/features/items/data/models/item_model.dart';
+import 'package:fatoora/features/rep_inventory/data/models/rep_inventory_enums.dart';
 
 class InvoiceModel {
   const InvoiceModel({
@@ -58,6 +60,9 @@ class InvoiceModel {
     required this.inventoryPostedByUid,
     required this.inventoryPostedByName,
     required this.inventoryMovementIds,
+    this.stockSourceType = InventorySourceType.companyWarehouse,
+    this.stockSourceId = ItemModel.defaultWarehouseId,
+    this.stockSourceSalesRepId = '',
     required this.searchKeywords,
     required this.customerNameLower,
     required this.itemNamesLower,
@@ -118,6 +123,9 @@ class InvoiceModel {
   final String inventoryPostedByUid;
   final String inventoryPostedByName;
   final List<String> inventoryMovementIds;
+  final InventorySourceType stockSourceType;
+  final String stockSourceId;
+  final String stockSourceSalesRepId;
   final List<String> searchKeywords;
   final String customerNameLower;
   final List<String> itemNamesLower;
@@ -225,6 +233,11 @@ class InvoiceModel {
       inventoryPostedByUid: _readString(data, 'inventoryPostedByUid'),
       inventoryPostedByName: _readString(data, 'inventoryPostedByName'),
       inventoryMovementIds: _readStringList(data['inventoryMovementIds']),
+      stockSourceType: inventorySourceTypeFromValue(data['stockSourceType']),
+      stockSourceId: _readString(data, 'stockSourceId').isEmpty
+          ? ItemModel.defaultWarehouseId
+          : _readString(data, 'stockSourceId'),
+      stockSourceSalesRepId: _readString(data, 'stockSourceSalesRepId'),
       searchKeywords: _readStringList(data['searchKeywords']),
       customerNameLower: _readString(data, 'customerNameLower'),
       itemNamesLower: _readStringList(data['itemNamesLower']),
@@ -295,6 +308,9 @@ class InvoiceModel {
     'inventoryPostedByUid': inventoryPostedByUid,
     'inventoryPostedByName': inventoryPostedByName,
     'inventoryMovementIds': inventoryMovementIds,
+    'stockSourceType': stockSourceType.value,
+    'stockSourceId': stockSourceId,
+    'stockSourceSalesRepId': stockSourceSalesRepId,
     'searchKeywords': searchKeywords,
     'customerNameLower': customerNameLower,
     'itemNamesLower': itemNamesLower,
@@ -358,6 +374,9 @@ class InvoiceModel {
     String? inventoryPostedByUid,
     String? inventoryPostedByName,
     List<String>? inventoryMovementIds,
+    InventorySourceType? stockSourceType,
+    String? stockSourceId,
+    String? stockSourceSalesRepId,
     List<String>? searchKeywords,
     String? customerNameLower,
     List<String>? itemNamesLower,
@@ -426,6 +445,10 @@ class InvoiceModel {
       inventoryPostedByName:
           inventoryPostedByName ?? this.inventoryPostedByName,
       inventoryMovementIds: inventoryMovementIds ?? this.inventoryMovementIds,
+      stockSourceType: stockSourceType ?? this.stockSourceType,
+      stockSourceId: stockSourceId ?? this.stockSourceId,
+      stockSourceSalesRepId:
+          stockSourceSalesRepId ?? this.stockSourceSalesRepId,
       searchKeywords: searchKeywords ?? this.searchKeywords,
       customerNameLower: customerNameLower ?? this.customerNameLower,
       itemNamesLower: itemNamesLower ?? this.itemNamesLower,

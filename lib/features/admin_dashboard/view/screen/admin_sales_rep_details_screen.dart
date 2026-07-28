@@ -179,6 +179,17 @@ class _SalesRepDetails extends StatelessWidget {
                 icon: const Icon(Icons.manage_accounts_outlined),
                 label: Text('admin_users'.tr),
               ),
+              OutlinedButton.icon(
+                onPressed: () => Get.toNamed(
+                  AppRoute.repInventory,
+                  arguments: {
+                    'salesRepId': row.salesRepId,
+                    'salesRepName': row.salesRepName,
+                  },
+                ),
+                icon: const Icon(Icons.inventory_2_outlined),
+                label: Text('rep_inventory_title'.tr),
+              ),
             ],
           ),
         ),

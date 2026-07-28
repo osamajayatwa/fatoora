@@ -29,6 +29,12 @@ class AppRoute {
   static const String stockMovements = "/inventory/stock-movements";
   static const String inventoryAdjustment = "/inventory/adjustment";
   static const String itemStockDetails = "/inventory/item-stock-details";
+  static const String repInventory = "/rep-inventory";
+  static const String repInventoryTransfers = "/inventory/rep-transfers";
+  static const String repInventoryTransferForm =
+      "/inventory/rep-transfers/form";
+  static const String repInventoryTransferDetails =
+      "/inventory/rep-transfers/details";
 
   // Backward-compatible aliases used by the existing dashboard navigation.
   static const String items = adminItems;

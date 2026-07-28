@@ -99,20 +99,47 @@ class FinancialRepository {
 
   Future<FinancialDashboardSnapshot> fetchDashboard({
     String companyId = AuthRepository.defaultCompanyId,
+    DateTime? fromDate,
+    DateTime? toDate,
   }) {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
       final customers = await _fetchCustomers(resolvedCompanyId, user);
-      final invoices = await _fetchInvoices(resolvedCompanyId, user);
-      final receipts = await _fetchReceipts(resolvedCompanyId, user);
-      final salesReturns = await _fetchSalesReturns(resolvedCompanyId, user);
+      final invoices = await _fetchInvoices(
+        resolvedCompanyId,
+        user,
+        fromDate: fromDate,
+        toDate: toDate,
+      );
+      final receipts = await _fetchReceipts(
+        resolvedCompanyId,
+        user,
+        fromDate: fromDate,
+        toDate: toDate,
+      );
+      final salesReturns = await _fetchSalesReturns(
+        resolvedCompanyId,
+        user,
+        fromDate: fromDate,
+        toDate: toDate,
+      );
+      final originalInvoicePaymentTypes =
+          await _fetchOriginalInvoicePaymentTypes(
+            resolvedCompanyId,
+            invoices,
+            salesReturns,
+          );
       final cashMovements = await _fetchCashMovements(resolvedCompanyId, user);
       final expenses = await _fetchExpenses(resolvedCompanyId, user);
       final cashLedger = CashLedgerCalculator.calculate(cashMovements);
       final companyCash = user.isAdmin ? cashLedger.companyCash : 0.0;
       final repCashOutstanding = cashLedger.repCashOutstanding;
-      final totalExpenses = _postedExpenseTotal(expenses);
+      final totalExpenses = _postedExpenseTotal(
+        expenses,
+        fromDate: fromDate,
+        toDate: toDate,
+      );
       final pendingExpenseCount = expenses
           .where((expense) => expense.status == ExpenseStatus.pending)
           .length;
@@ -140,13 +167,11 @@ class FinancialRepository {
         ),
       );
       final effectiveCash = user.isAdmin ? companyCash : repCashOutstanding;
-      final invoiceById = {
-        for (final invoice in financialInvoices) invoice.id: invoice,
-      };
       double returnedFor(PaymentType type) => salesReturns
           .where(
             (salesReturn) =>
-                invoiceById[salesReturn.originalInvoiceId]?.paymentType == type,
+                originalInvoicePaymentTypes[salesReturn.originalInvoiceId] ==
+                type,
           )
           .fold<double>(
             0,
@@ -215,10 +240,12 @@ class FinancialRepository {
           receipts: receipts,
           movements: cashMovements,
           salesReturns: salesReturns,
+          originalInvoicePaymentTypes: originalInvoicePaymentTypes,
         ),
         weeklyInvoiceValues: _weeklyInvoiceValues(
           financialInvoices,
           salesReturns,
+          throughDate: toDate,
         ),
       );
     });
@@ -383,13 +410,28 @@ class FinancialRepository {
 
   Future<List<InvoiceModel>> _fetchInvoices(
     String companyId,
-    BusinessUserContext user,
-  ) async {
+    BusinessUserContext user, {
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     Query<Map<String, dynamic>> query = _invoices(companyId);
     if (user.isSalesRep) {
       query = query.where('salesRepId', isEqualTo: user.uid);
     }
+    if (fromDate != null) {
+      query = query.where(
+        'invoiceDate',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfDay(fromDate)),
+      );
+    }
+    if (toDate != null) {
+      query = query.where(
+        'invoiceDate',
+        isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(toDate)),
+      );
+    }
     final snapshot = await query
+        .orderBy('invoiceDate', descending: true)
         .limit(700)
         .get()
         .timeout(const Duration(seconds: 20));
@@ -401,13 +443,28 @@ class FinancialRepository {
 
   Future<List<ReceiptModel>> _fetchReceipts(
     String companyId,
-    BusinessUserContext user,
-  ) async {
+    BusinessUserContext user, {
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     Query<Map<String, dynamic>> query = _receipts(companyId);
     if (user.isSalesRep) {
       query = query.where('salesRepId', isEqualTo: user.uid);
     }
+    if (fromDate != null) {
+      query = query.where(
+        'receiptDate',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfDay(fromDate)),
+      );
+    }
+    if (toDate != null) {
+      query = query.where(
+        'receiptDate',
+        isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(toDate)),
+      );
+    }
     final snapshot = await query
+        .orderBy('receiptDate', descending: true)
         .limit(700)
         .get()
         .timeout(const Duration(seconds: 20));
@@ -419,13 +476,28 @@ class FinancialRepository {
 
   Future<List<SalesReturnModel>> _fetchSalesReturns(
     String companyId,
-    BusinessUserContext user,
-  ) async {
+    BusinessUserContext user, {
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     Query<Map<String, dynamic>> query = _salesReturns(companyId);
     if (user.isSalesRep) {
       query = query.where('salesRepId', isEqualTo: user.uid);
     }
+    if (fromDate != null) {
+      query = query.where(
+        'returnDate',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfDay(fromDate)),
+      );
+    }
+    if (toDate != null) {
+      query = query.where(
+        'returnDate',
+        isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(toDate)),
+      );
+    }
     final snapshot = await query
+        .orderBy('returnDate', descending: true)
         .limit(700)
         .get()
         .timeout(const Duration(seconds: 20));
@@ -436,6 +508,29 @@ class FinancialRepository {
               salesReturn.isConfirmed && salesReturn.financialPosted,
         )
         .toList(growable: false);
+  }
+
+  Future<Map<String, PaymentType>> _fetchOriginalInvoicePaymentTypes(
+    String companyId,
+    List<InvoiceModel> periodInvoices,
+    List<SalesReturnModel> salesReturns,
+  ) async {
+    final paymentTypes = {
+      for (final invoice in periodInvoices) invoice.id: invoice.paymentType,
+    };
+    final missingIds = salesReturns
+        .map((salesReturn) => salesReturn.originalInvoiceId)
+        .where((id) => id.isNotEmpty && !paymentTypes.containsKey(id))
+        .toSet();
+    for (final invoiceId in missingIds) {
+      final snapshot = await _invoices(
+        companyId,
+      ).doc(invoiceId).get().timeout(const Duration(seconds: 20));
+      if (!snapshot.exists) continue;
+      final invoice = InvoiceModel.fromFirestore(snapshot);
+      paymentTypes[invoice.id] = invoice.paymentType;
+    }
+    return paymentTypes;
   }
 
   Future<List<CustomerTransactionModel>> _fetchTransactions(
@@ -603,18 +698,18 @@ class FinancialRepository {
     required List<ReceiptModel> receipts,
     required List<CashMovementModel> movements,
     required List<SalesReturnModel> salesReturns,
+    required Map<String, PaymentType> originalInvoicePaymentTypes,
   }) {
     final rows = <String, _MutableRepSales>{};
     _MutableRepSales rowFor(String id, String name) {
       return rows.putIfAbsent(id, () => _MutableRepSales(id, name));
     }
 
-    final invoiceById = {for (final invoice in invoices) invoice.id: invoice};
     for (final salesReturn in salesReturns) {
       if (salesReturn.salesRepId.isEmpty) continue;
       final row = rowFor(salesReturn.salesRepId, salesReturn.salesRepName);
       row.totalSales -= salesReturn.grandTotal;
-      switch (invoiceById[salesReturn.originalInvoiceId]?.paymentType) {
+      switch (originalInvoicePaymentTypes[salesReturn.originalInvoiceId]) {
         case PaymentType.cash:
           row.cashSales -= salesReturn.grandTotal;
           break;
@@ -682,30 +777,44 @@ class FinancialRepository {
     return summaries;
   }
 
-  double _postedExpenseTotal(List<ExpenseModel> expenses) {
+  double _postedExpenseTotal(
+    List<ExpenseModel> expenses, {
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) {
     return _round(
       expenses
-          .where((expense) => expense.isPostedOrApproved)
+          .where(
+            (expense) =>
+                expense.isPostedOrApproved &&
+                (fromDate == null ||
+                    !expense.expenseDate.isBefore(_startOfDay(fromDate))) &&
+                (toDate == null ||
+                    !expense.expenseDate.isAfter(_endOfDay(toDate))),
+          )
           .fold<double>(0, (total, expense) => total + expense.amount),
     );
   }
 
   List<double> _weeklyInvoiceValues(
     List<InvoiceModel> invoices,
-    List<SalesReturnModel> salesReturns,
-  ) {
+    List<SalesReturnModel> salesReturns, {
+    DateTime? throughDate,
+  }) {
     final today = _dateOnly(DateTime.now());
-    final start = today.subtract(const Duration(days: 6));
+    final requestedEnd = throughDate == null ? today : _dateOnly(throughDate);
+    final chartEnd = requestedEnd.isAfter(today) ? today : requestedEnd;
+    final start = chartEnd.subtract(const Duration(days: 6));
     final values = List<double>.filled(7, 0);
     for (final invoice in invoices) {
       final date = _dateOnly(invoice.invoiceDate);
-      if (date.isBefore(start) || date.isAfter(today)) continue;
+      if (date.isBefore(start) || date.isAfter(chartEnd)) continue;
       final index = date.difference(start).inDays;
       values[index] = _round(values[index] + invoice.grandTotal);
     }
     for (final salesReturn in salesReturns) {
       final date = _dateOnly(salesReturn.returnDate);
-      if (date.isBefore(start) || date.isAfter(today)) continue;
+      if (date.isBefore(start) || date.isAfter(chartEnd)) continue;
       final index = date.difference(start).inDays;
       values[index] = _round(values[index] - salesReturn.grandTotal);
     }

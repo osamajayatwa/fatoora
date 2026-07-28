@@ -710,7 +710,37 @@ service cloud.firestore {
         && request.resource.data.createdByUid == resource.data.createdByUid
         && request.resource.data.createdByName == resource.data.createdByName
         && request.resource.data.createdByRole == resource.data.createdByRole
+        && invoiceStockSourceType(request.resource.data)
+          == invoiceStockSourceType(resource.data)
+        && invoiceStockSourceRep(request.resource.data)
+          == invoiceStockSourceRep(resource.data)
         && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function invoiceStockSourceType(data) {
+      return data.keys().hasAny(['stockSourceType'])
+        ? data.stockSourceType
+        : 'companyWarehouse';
+    }
+
+    function invoiceStockSourceRep(data) {
+      return data.keys().hasAny(['stockSourceSalesRepId'])
+        ? data.stockSourceSalesRepId
+        : '';
+    }
+
+    function validInvoiceStockSource(data) {
+      return (
+          isActiveAdmin()
+          && invoiceStockSourceType(data) == 'companyWarehouse'
+          && invoiceStockSourceRep(data) == ''
+        )
+        || (
+          userDoc().data.role == 'sales_rep'
+          && data.salesRepId == request.auth.uid
+          && invoiceStockSourceType(data) == 'salesRep'
+          && invoiceStockSourceRep(data) == request.auth.uid
+        );
     }
 
     function itemIdentityPreserved() {
@@ -756,6 +786,42 @@ service cloud.firestore {
         && request.resource.data.currentStock > resource.data.currentStock
         && request.resource.data.inventoryUpdatedAt == request.time
         && request.resource.data.updatedAt == request.time;
+    }
+
+    function validInventoryTransferItemStockUpdate(itemId) {
+      let transferPath =
+        /databases/$(database)/documents/companies/default_company/inventory_transfers/$(request.resource.data.lastInventoryReferenceId);
+      let movementPath =
+        /databases/$(database)/documents/companies/default_company/stock_movements/$(request.resource.data.lastStockMovementId);
+      let transfer = getAfter(transferPath);
+      let movement = getAfter(movementPath);
+      return isActiveAdmin()
+        && itemIdentityPreserved()
+        && resource.data.trackStock == true
+        && resource.data.deleted == false
+        && resource.data.currentStock is number
+        && request.resource.data.currentStock is number
+        && request.resource.data.currentStock >= 0
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'currentStock',
+          'inventoryUpdatedAt',
+          'updatedAt',
+          'lastInventoryReferenceType',
+          'lastInventoryReferenceId',
+          'lastStockMovementId'
+        ])
+        && request.resource.data.lastInventoryReferenceType
+          == 'inventoryTransfer'
+        && request.resource.data.inventoryUpdatedAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && existsAfter(transferPath)
+        && transfer.data.status == 'confirmed'
+        && existsAfter(movementPath)
+        && movement.data.itemId == itemId
+        && movement.data.referenceType == 'inventory_transfer'
+        && movement.data.referenceId == transfer.data.id
+        && movement.data.quantityBefore == resource.data.currentStock
+        && movement.data.quantityAfter == request.resource.data.currentStock;
     }
 
     function stockMovementBaseValid(companyId, movementId, data) {
@@ -901,6 +967,239 @@ service cloud.firestore {
         && salesReturn.data.companyId == companyId
         && salesReturn.data.status == 'confirmed'
         && salesReturn.data.inventoryPosted == true;
+    }
+
+    function validInventoryTransferStockMovementCreate(companyId, movementId) {
+      let transferPath =
+        /databases/$(database)/documents/companies/$(companyId)/inventory_transfers/$(request.resource.data.referenceId);
+      let transfer = getAfter(transferPath);
+      return isActiveAdmin()
+        && stockMovementBaseValid(
+          companyId,
+          movementId,
+          request.resource.data
+        )
+        && request.resource.data.movementType == 'inventory_transfer'
+        && request.resource.data.referenceType == 'inventory_transfer'
+        && existsAfter(transferPath)
+        && transfer.data.status == 'confirmed'
+        && transfer.data.companyId == companyId
+        && request.resource.data.referenceNumber
+          == transfer.data.transferNumber;
+    }
+
+    function repInventoryBalanceFieldsValid(companyId, balanceId, data) {
+      return data.keys().hasOnly([
+          'id',
+          'companyId',
+          'salesRepId',
+          'itemId',
+          'quantity',
+          'modelSnapshot',
+          'itemNameSnapshot',
+          'unitSnapshot',
+          'createdAt',
+          'updatedAt',
+          'lastMovementId',
+          'lastReferenceType',
+          'lastReferenceId'
+        ])
+        && data.id == balanceId
+        && data.companyId == companyId
+        && data.salesRepId is string
+        && data.salesRepId.size() > 0
+        && data.itemId is string
+        && data.itemId.size() > 0
+        && balanceId == data.salesRepId + '_' + data.itemId
+        && data.quantity is number
+        && data.quantity >= 0
+        && data.modelSnapshot is string
+        && data.itemNameSnapshot is string
+        && data.itemNameSnapshot.size() > 0
+        && data.unitSnapshot is string
+        && data.updatedAt == request.time
+        && data.lastMovementId is string
+        && data.lastMovementId.size() > 0
+        && data.lastReferenceType in [
+          'inventoryTransfer',
+          'invoice',
+          'salesReturn'
+        ]
+        && data.lastReferenceId is string
+        && data.lastReferenceId.size() > 0;
+    }
+
+    function validRepInventoryBalanceWrite(companyId, balanceId) {
+      let movementPath =
+        /databases/$(database)/documents/companies/$(companyId)/rep_inventory_movements/$(request.resource.data.lastMovementId);
+      let movement = getAfter(movementPath);
+      return repInventoryBalanceFieldsValid(
+          companyId,
+          balanceId,
+          request.resource.data
+        )
+        && (
+          !exists(
+            /databases/$(database)/documents/companies/$(companyId)/rep_inventory_balances/$(balanceId)
+          )
+          || (
+            request.resource.data.id == resource.data.id
+            && request.resource.data.companyId == resource.data.companyId
+            && request.resource.data.salesRepId == resource.data.salesRepId
+            && request.resource.data.itemId == resource.data.itemId
+            && request.resource.data.createdAt == resource.data.createdAt
+          )
+        )
+        && existsAfter(movementPath)
+        && movement.data.companyId == companyId
+        && movement.data.salesRepId == request.resource.data.salesRepId
+        && movement.data.itemId == request.resource.data.itemId
+        && movement.data.quantityAfter == request.resource.data.quantity
+        && movement.data.referenceType
+          == request.resource.data.lastReferenceType
+        && movement.data.referenceId == request.resource.data.lastReferenceId;
+    }
+
+    function repInventoryMovementBaseValid(companyId, movementId, data) {
+      return isApprovedCompanyUser(companyId)
+        && data.keys().hasOnly([
+          'id',
+          'companyId',
+          'salesRepId',
+          'salesRepNameSnapshot',
+          'itemId',
+          'modelSnapshot',
+          'itemNameSnapshot',
+          'unitSnapshot',
+          'direction',
+          'quantity',
+          'quantityBefore',
+          'quantityAfter',
+          'reason',
+          'referenceType',
+          'referenceId',
+          'referenceNumber',
+          'transferType',
+          'createdByUid',
+          'createdByName',
+          'createdAt'
+        ])
+        && data.id == movementId
+        && data.companyId == companyId
+        && data.salesRepId is string
+        && data.salesRepId.size() > 0
+        && data.salesRepNameSnapshot is string
+        && data.salesRepNameSnapshot.size() > 0
+        && data.itemId is string
+        && data.itemId.size() > 0
+        && data.itemNameSnapshot is string
+        && data.itemNameSnapshot.size() > 0
+        && data.direction in ['in', 'out']
+        && data.quantity is number
+        && data.quantity > 0
+        && data.quantityBefore is number
+        && data.quantityBefore >= 0
+        && data.quantityAfter is number
+        && data.quantityAfter >= 0
+        && (
+          (
+            data.direction == 'in'
+            && data.quantityAfter
+              >= data.quantityBefore + data.quantity - 0.001
+            && data.quantityAfter
+              <= data.quantityBefore + data.quantity + 0.001
+          )
+          || (
+            data.direction == 'out'
+            && data.quantityAfter
+              >= data.quantityBefore - data.quantity - 0.001
+            && data.quantityAfter
+              <= data.quantityBefore - data.quantity + 0.001
+          )
+        )
+        && data.referenceType in [
+          'inventoryTransfer',
+          'invoice',
+          'salesReturn'
+        ]
+        && data.referenceId is string
+        && data.referenceId.size() > 0
+        && data.referenceNumber is string
+        && (
+          data.createdByUid == request.auth.uid
+          || isActiveAdmin()
+        )
+        && data.createdByName is string
+        && data.createdByName.size() > 0
+        && data.createdByName != 'undefined'
+        && data.createdAt == request.time;
+    }
+
+    function validTransferRepInventoryMovement(companyId, movementId) {
+      let data = request.resource.data;
+      let transferPath =
+        /databases/$(database)/documents/companies/$(companyId)/inventory_transfers/$(data.referenceId);
+      let transfer = getAfter(transferPath);
+      return isActiveAdmin()
+        && repInventoryMovementBaseValid(companyId, movementId, data)
+        && data.referenceType == 'inventoryTransfer'
+        && data.reason in ['warehouseDelivery', 'warehouseReturn']
+        && existsAfter(transferPath)
+        && transfer.data.status == 'confirmed'
+        && transfer.data.salesRepId == data.salesRepId
+        && transfer.data.transferNumber == data.referenceNumber
+        && transfer.data.type == data.transferType
+        && (
+          (
+            transfer.data.type == 'warehouseToRep'
+            && data.direction == 'in'
+            && data.reason == 'warehouseDelivery'
+          )
+          || (
+            transfer.data.type == 'repToWarehouse'
+            && data.direction == 'out'
+            && data.reason == 'warehouseReturn'
+          )
+        );
+    }
+
+    function validInvoiceRepInventoryMovement(companyId, movementId) {
+      let data = request.resource.data;
+      let invoicePath =
+        /databases/$(database)/documents/companies/$(companyId)/invoices/$(data.referenceId);
+      let invoice = getAfter(invoicePath);
+      return repInventoryMovementBaseValid(companyId, movementId, data)
+        && data.referenceType == 'invoice'
+        && data.reason == 'invoiceSale'
+        && data.direction == 'out'
+        && existsAfter(invoicePath)
+        && invoice.data.invoiceStatus == 'confirmed'
+        && invoice.data.inventoryPosted == true
+        && invoiceStockSourceType(invoice.data) == 'salesRep'
+        && invoiceStockSourceRep(invoice.data) == data.salesRepId
+        && invoice.data.salesRepId == data.salesRepId
+        && data.referenceNumber == invoice.data.invoiceNumber;
+    }
+
+    function validSalesReturnRepInventoryMovement(companyId, movementId) {
+      let data = request.resource.data;
+      let returnPath =
+        /databases/$(database)/documents/companies/$(companyId)/sales_returns/$(data.referenceId);
+      let salesReturn = getAfter(returnPath);
+      let invoicePath =
+        /databases/$(database)/documents/companies/$(companyId)/invoices/$(salesReturn.data.originalInvoiceId);
+      let invoice = getAfter(invoicePath);
+      return repInventoryMovementBaseValid(companyId, movementId, data)
+        && data.referenceType == 'salesReturn'
+        && data.reason == 'salesReturn'
+        && data.direction == 'in'
+        && existsAfter(returnPath)
+        && salesReturn.data.status == 'confirmed'
+        && salesReturn.data.inventoryPosted == true
+        && existsAfter(invoicePath)
+        && invoiceStockSourceType(invoice.data) == 'salesRep'
+        && invoiceStockSourceRep(invoice.data) == data.salesRepId
+        && data.referenceNumber == salesReturn.data.returnNumber;
     }
 
     function invoiceIsEditableDraft(data) {
@@ -1592,7 +1891,7 @@ service cloud.firestore {
     function validCounterWrite(companyId, counterId) {
       // TODO: OSAMA - Generate official numbers in Cloud Functions when possible.
       return isApprovedCompanyUser(companyId)
-        && counterId.matches('^(invoices|receipts|sales_returns|quotations)_[0-9]{4}$')
+        && counterId.matches('^(invoices|receipts|sales_returns|quotations|inventory_transfers)_[0-9]{4}$')
         && request.resource.data.keys().hasOnly([
           'id',
           'companyId',
@@ -1646,6 +1945,122 @@ service cloud.firestore {
               'QUO'
             )
           )
+          || (
+            counterId.matches('^inventory_transfers_[0-9]{4}$')
+            && isActiveAdmin()
+            && request.resource.data.prefix == 'TRN'
+          )
+        );
+    }
+
+    function inventoryTransferFieldsValid(companyId, transferId, data) {
+      return isActiveAdmin()
+        && data.keys().hasOnly([
+          'id',
+          'companyId',
+          'transferNumber',
+          'year',
+          'type',
+          'status',
+          'salesRepId',
+          'salesRepNameSnapshot',
+          'lines',
+          'totalQuantity',
+          'notes',
+          'createdByUid',
+          'createdByName',
+          'createdAt',
+          'updatedAt',
+          'confirmedByUid',
+          'confirmedByName',
+          'confirmedAt',
+          'cancelledByUid',
+          'cancelledAt',
+          'effectsVersion'
+        ])
+        && data.id == transferId
+        && data.companyId == companyId
+        && data.transferNumber.matches('^TRN-[0-9]{4}-[0-9]{6}$')
+        && data.year is number
+        && data.type in ['warehouseToRep', 'repToWarehouse']
+        && data.status in ['draft', 'confirmed', 'cancelled']
+        && data.salesRepId is string
+        && data.salesRepId.size() > 0
+        && data.salesRepNameSnapshot is string
+        && data.salesRepNameSnapshot.size() > 0
+        && data.lines is list
+        && data.lines.size() > 0
+        && data.lines.size() <= 100
+        && data.totalQuantity is number
+        && data.totalQuantity > 0
+        && data.notes is string
+        && data.createdByUid is string
+        && data.createdByName is string
+        && data.createdByName.size() > 0
+        && data.updatedAt == request.time
+        && data.effectsVersion == 1;
+    }
+
+    function inventoryTransferIdentityPreserved() {
+      return request.resource.data.id == resource.data.id
+        && request.resource.data.companyId == resource.data.companyId
+        && request.resource.data.transferNumber == resource.data.transferNumber
+        && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.createdByName == resource.data.createdByName
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function validInventoryTransferCreate(companyId, transferId) {
+      let data = request.resource.data;
+      return inventoryTransferFieldsValid(companyId, transferId, data)
+        && data.status == 'draft'
+        && data.createdByUid == request.auth.uid
+        && data.createdAt == request.time
+        && data.confirmedByUid == ''
+        && data.confirmedByName == ''
+        && data.confirmedAt == null
+        && data.cancelledByUid == ''
+        && data.cancelledAt == null;
+    }
+
+    function validInventoryTransferUpdate(companyId, transferId) {
+      let data = request.resource.data;
+      return inventoryTransferFieldsValid(companyId, transferId, data)
+        && inventoryTransferIdentityPreserved()
+        && resource.data.status == 'draft'
+        && (
+          (
+            data.status == 'draft'
+            && data.confirmedByUid == ''
+            && data.confirmedAt == null
+          )
+          || (
+            data.status == 'confirmed'
+            && data.diff(resource.data).affectedKeys().hasOnly([
+              'status',
+              'lines',
+              'confirmedByUid',
+              'confirmedByName',
+              'confirmedAt',
+              'updatedAt',
+              'effectsVersion'
+            ])
+            && data.confirmedByUid == request.auth.uid
+            && data.confirmedByName is string
+            && data.confirmedByName.size() > 0
+            && data.confirmedAt == request.time
+          )
+          || (
+            data.status == 'cancelled'
+            && data.diff(resource.data).affectedKeys().hasOnly([
+              'status',
+              'cancelledByUid',
+              'cancelledAt',
+              'updatedAt'
+            ])
+            && data.cancelledByUid == request.auth.uid
+            && data.cancelledAt == request.time
+          )
         );
     }
 
@@ -1691,7 +2106,8 @@ service cloud.firestore {
           && request.resource.data.updatedAt == request.time
         )
         || validInvoiceSaleItemStockUpdate()
-        || validSalesReturnItemStockUpdate();
+        || validSalesReturnItemStockUpdate()
+        || validInventoryTransferItemStockUpdate(itemId);
 
       allow delete: if false;
     }
@@ -1749,6 +2165,7 @@ service cloud.firestore {
         && request.resource.data.salesRepName is string
         && request.resource.data.salesRepName.size() > 0
         && request.resource.data.salesRepName != 'undefined'
+        && validInvoiceStockSource(request.resource.data)
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
 
@@ -1930,6 +2347,10 @@ service cloud.firestore {
           && validSalesReturnStockMovementCreate(companyId, movementId)
         )
         || (
+          request.resource.data.movementType == 'inventory_transfer'
+          && validInventoryTransferStockMovementCreate(companyId, movementId)
+        )
+        || (
           request.resource.data.movementType == 'invoice_sale'
           && validInvoiceStockMovementCreate(companyId, movementId)
         )
@@ -1944,6 +2365,44 @@ service cloud.firestore {
           && validAdminStockMovementCreate(companyId, movementId)
         );
 
+      allow update, delete: if false;
+    }
+
+    match /companies/{companyId}/inventory_transfers/{transferId} {
+      allow get, list: if canReadSalesRepOwnedDoc(
+        companyId,
+        resource.data
+      );
+      allow create: if validInventoryTransferCreate(companyId, transferId);
+      allow update: if validInventoryTransferUpdate(companyId, transferId);
+      allow delete: if isActiveAdmin()
+        && isApprovedCompanyUser(companyId)
+        && resource.data.status == 'draft';
+    }
+
+    match /companies/{companyId}/rep_inventory_balances/{balanceId} {
+      allow get, list: if canReadSalesRepOwnedDoc(
+        companyId,
+        resource.data
+      );
+      allow create, update: if validRepInventoryBalanceWrite(
+        companyId,
+        balanceId
+      );
+      allow delete: if false;
+    }
+
+    match /companies/{companyId}/rep_inventory_movements/{movementId} {
+      allow get, list: if canReadSalesRepOwnedDoc(
+        companyId,
+        resource.data
+      );
+      allow create: if validTransferRepInventoryMovement(
+          companyId,
+          movementId
+        )
+        || validInvoiceRepInventoryMovement(companyId, movementId)
+        || validSalesReturnRepInventoryMovement(companyId, movementId);
       allow update, delete: if false;
     }
 

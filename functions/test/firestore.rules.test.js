@@ -9,6 +9,7 @@ const {
 } = require("@firebase/rules-unit-testing");
 const {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -17,6 +18,7 @@ const {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } = require("firebase/firestore");
 
 const projectId = "fatoora-rules-test";
@@ -184,6 +186,56 @@ beforeEach(async () => {
       setDoc(
         businessDoc(db, "stock_movements", "stock-b"),
         createdByOwned("stock-b", repBUid),
+      ),
+      setDoc(doc(db, "items", "item-a"), {
+        id: "item-a",
+        createdBy: adminUid,
+        createdAt: new Date("2026-07-01T10:00:00.000Z"),
+        updatedAt: new Date("2026-07-01T10:00:00.000Z"),
+        currentStock: 10,
+        trackStock: true,
+        deleted: false,
+      }),
+      setDoc(doc(db, "items", "item-confirm"), {
+        id: "item-confirm",
+        createdBy: adminUid,
+        createdAt: new Date("2026-07-01T10:00:00.000Z"),
+        updatedAt: new Date("2026-07-01T10:00:00.000Z"),
+        currentStock: 10,
+        trackStock: true,
+        deleted: false,
+      }),
+      setDoc(
+        businessDoc(db, "inventory_transfers", "transfer-a"),
+        salesRepOwned("transfer-a", repAUid, adminUid),
+      ),
+      setDoc(
+        businessDoc(db, "inventory_transfers", "transfer-b"),
+        salesRepOwned("transfer-b", repBUid, adminUid),
+      ),
+      setDoc(
+        businessDoc(db, "rep_inventory_balances", `${repAUid}_item-a`),
+        {
+          ...salesRepOwned(`${repAUid}_item-a`, repAUid, adminUid),
+          itemId: "item-a",
+          quantity: 5,
+        },
+      ),
+      setDoc(
+        businessDoc(db, "rep_inventory_balances", `${repBUid}_item-a`),
+        {
+          ...salesRepOwned(`${repBUid}_item-a`, repBUid, adminUid),
+          itemId: "item-a",
+          quantity: 7,
+        },
+      ),
+      setDoc(
+        businessDoc(db, "rep_inventory_movements", "rep-movement-a"),
+        salesRepOwned("rep-movement-a", repAUid, adminUid),
+      ),
+      setDoc(
+        businessDoc(db, "rep_inventory_movements", "rep-movement-b"),
+        salesRepOwned("rep-movement-b", repBUid, adminUid),
       ),
     ]);
   });
@@ -357,6 +409,16 @@ test("sales reps must use owner-constrained collection queries", async () => {
         ),
       ),
     );
+    await assertSucceeds(
+      getDocs(
+        query(
+          businessCollection(db, "customers"),
+          where("active", "==", true),
+          where("phoneNormalized", "==", "0790000000"),
+          where("createdByUid", "==", uid),
+        ),
+      ),
+    );
     await assertFails(getDocs(businessCollection(db, "customers")));
   }
 });
@@ -378,6 +440,241 @@ test("pending and inactive users cannot read financial data", async () => {
       await assertFails(getDocs(businessCollection(db, collectionName)));
     }
   }
+});
+
+test("sales representatives read only their own custody documents", async () => {
+  const db = authenticatedDb(repAUid);
+
+  for (const [collectionName, ownId, otherId] of [
+    ["inventory_transfers", "transfer-a", "transfer-b"],
+    [
+      "rep_inventory_balances",
+      `${repAUid}_item-a`,
+      `${repBUid}_item-a`,
+    ],
+    ["rep_inventory_movements", "rep-movement-a", "rep-movement-b"],
+  ]) {
+    await assertSucceeds(getDoc(businessDoc(db, collectionName, ownId)));
+    await assertFails(getDoc(businessDoc(db, collectionName, otherId)));
+  }
+});
+
+test("admin reads all representative custody documents", async () => {
+  const db = authenticatedDb(adminUid);
+
+  await assertSucceeds(
+    getDoc(businessDoc(db, "inventory_transfers", "transfer-b")),
+  );
+  await assertSucceeds(
+    getDoc(
+      businessDoc(
+        db,
+        "rep_inventory_balances",
+        `${repBUid}_item-a`,
+      ),
+    ),
+  );
+  await assertSucceeds(
+    getDoc(businessDoc(db, "rep_inventory_movements", "rep-movement-b")),
+  );
+});
+
+test("pending and inactive users cannot read representative custody", async () => {
+  for (const uid of [pendingUid, inactiveUid]) {
+    const db = authenticatedDb(uid);
+    await assertFails(
+      getDoc(businessDoc(db, "inventory_transfers", "transfer-a")),
+    );
+    await assertFails(
+      getDoc(
+        businessDoc(db, "rep_inventory_balances", `${repAUid}_item-a`),
+      ),
+    );
+  }
+});
+
+test("approved admin can create, edit, cancel, and delete transfer drafts", async () => {
+  const db = authenticatedDb(adminUid);
+  const editableRef = businessDoc(db, "inventory_transfers", "draft-editable");
+  const deletableRef = businessDoc(db, "inventory_transfers", "draft-delete");
+
+  await assertSucceeds(
+    setDoc(editableRef, transferDraftPayload("draft-editable")),
+  );
+  await assertSucceeds(
+    updateDoc(editableRef, {
+      notes: "Updated draft",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertSucceeds(
+    updateDoc(editableRef, {
+      status: "cancelled",
+      cancelledByUid: adminUid,
+      cancelledAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertSucceeds(
+    setDoc(deletableRef, transferDraftPayload("draft-delete")),
+  );
+  await assertSucceeds(deleteDoc(deletableRef));
+});
+
+test("representatives cannot manage transfers or directly change balances", async () => {
+  const db = authenticatedDb(repAUid);
+
+  await assertFails(
+    setDoc(
+      businessDoc(db, "inventory_transfers", "rep-created"),
+      transferDraftPayload("rep-created", repAUid),
+    ),
+  );
+  await assertFails(
+    updateDoc(businessDoc(db, "inventory_transfers", "transfer-a"), {
+      notes: "Tampered",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertFails(
+    updateDoc(
+      businessDoc(db, "rep_inventory_balances", `${repAUid}_item-a`),
+      {
+        quantity: 999,
+        updatedAt: serverTimestamp(),
+      },
+    ),
+  );
+});
+
+test("representative movements are immutable for admins and reps", async () => {
+  for (const uid of [adminUid, repAUid]) {
+    const db = authenticatedDb(uid);
+    const movementRef = businessDoc(
+      db,
+      "rep_inventory_movements",
+      "rep-movement-a",
+    );
+    await assertFails(updateDoc(movementRef, { quantity: 999 }));
+    await assertFails(deleteDoc(movementRef));
+  }
+});
+
+test("admin can atomically confirm a warehouse-to-representative transfer", async () => {
+  const db = authenticatedDb(adminUid);
+  const transferId = "confirm-delivery";
+  const itemId = "item-confirm";
+  const companyMovementId = `${transferId}_${itemId}_warehouse`;
+  const repMovementId = `${transferId}_${repAUid}_${itemId}`;
+  const transferRef = businessDoc(
+    db,
+    "inventory_transfers",
+    transferId,
+  );
+  const balanceRef = businessDoc(
+    db,
+    "rep_inventory_balances",
+    `${repAUid}_${itemId}`,
+  );
+  const draftPayload = transferDraftPayload(transferId);
+  draftPayload.lines[0].itemId = itemId;
+  await assertSucceeds(
+    setDoc(transferRef, draftPayload),
+  );
+
+  const batch = writeBatch(db);
+  batch.update(doc(db, "items", itemId), {
+    currentStock: 8,
+    inventoryUpdatedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    lastInventoryReferenceType: "inventoryTransfer",
+    lastInventoryReferenceId: transferId,
+    lastStockMovementId: companyMovementId,
+  });
+  batch.set(balanceRef, {
+    id: `${repAUid}_${itemId}`,
+    companyId,
+    salesRepId: repAUid,
+    itemId,
+    quantity: 2,
+    modelSnapshot: "A-1",
+    itemNameSnapshot: "Item A",
+    unitSnapshot: "piece",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    lastMovementId: repMovementId,
+    lastReferenceType: "inventoryTransfer",
+    lastReferenceId: transferId,
+  });
+  batch.set(businessDoc(db, "stock_movements", companyMovementId), {
+    id: companyMovementId,
+    companyId,
+    warehouseId: "default_warehouse",
+    itemId,
+    itemName: "Item A",
+    itemCode: "A-1",
+    movementType: "inventory_transfer",
+    direction: "out",
+    quantity: 2,
+    quantityBefore: 10,
+    quantityAfter: 8,
+    referenceType: "inventory_transfer",
+    referenceId: transferId,
+    referenceNumber: "TRN-2026-000001",
+    movementDate: serverTimestamp(),
+    notes: "",
+    createdByUid: adminUid,
+    createdByName: "Admin",
+    createdByRole: "admin",
+    createdAt: serverTimestamp(),
+  });
+  batch.set(businessDoc(db, "rep_inventory_movements", repMovementId), {
+    id: repMovementId,
+    companyId,
+    salesRepId: repAUid,
+    salesRepNameSnapshot: "Rep A",
+    itemId,
+    modelSnapshot: "A-1",
+    itemNameSnapshot: "Item A",
+    unitSnapshot: "piece",
+    direction: "in",
+    quantity: 2,
+    quantityBefore: 0,
+    quantityAfter: 2,
+    reason: "warehouseDelivery",
+    referenceType: "inventoryTransfer",
+    referenceId: transferId,
+    referenceNumber: "TRN-2026-000001",
+    transferType: "warehouseToRep",
+    createdByUid: adminUid,
+    createdByName: "Admin",
+    createdAt: serverTimestamp(),
+  });
+  batch.update(transferRef, {
+    status: "confirmed",
+    lines: [
+      {
+        itemId,
+        modelSnapshot: "A-1",
+        itemNameSnapshot: "Item A",
+        unitSnapshot: "piece",
+        quantity: 2,
+        warehouseQuantityBefore: 10,
+        warehouseQuantityAfter: 8,
+        repQuantityBefore: 0,
+        repQuantityAfter: 2,
+        companyMovementId,
+        repMovementId,
+      },
+    ],
+    confirmedByUid: adminUid,
+    confirmedByName: "Admin",
+    confirmedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    effectsVersion: 1,
+  });
+
+  await assertSucceeds(batch.commit());
 });
 
 test("stock movement queries are scoped only by createdByUid", async () => {
@@ -665,6 +962,46 @@ function expenseCreatePayload(id, uid, role, overrides = {}) {
     payload.approvedAt = overrides.approvedAt ?? serverTimestamp();
   }
   return payload;
+}
+
+function transferDraftPayload(id, createdByUid = adminUid) {
+  return {
+    id,
+    companyId,
+    transferNumber: `TRN-2026-${id === "draft-delete" ? "000002" : "000001"}`,
+    year: 2026,
+    type: "warehouseToRep",
+    status: "draft",
+    salesRepId: repAUid,
+    salesRepNameSnapshot: "Rep A",
+    lines: [
+      {
+        itemId: "item-a",
+        modelSnapshot: "A-1",
+        itemNameSnapshot: "Item A",
+        unitSnapshot: "piece",
+        quantity: 2,
+        warehouseQuantityBefore: null,
+        warehouseQuantityAfter: null,
+        repQuantityBefore: null,
+        repQuantityAfter: null,
+        companyMovementId: "",
+        repMovementId: "",
+      },
+    ],
+    totalQuantity: 2,
+    notes: "",
+    createdByUid,
+    createdByName: createdByUid === adminUid ? "Admin" : "Rep A",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    confirmedByUid: "",
+    confirmedByName: "",
+    confirmedAt: null,
+    cancelledByUid: "",
+    cancelledAt: null,
+    effectsVersion: 1,
+  };
 }
 
 function businessCollection(db, collectionName) {

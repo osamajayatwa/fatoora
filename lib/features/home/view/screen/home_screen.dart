@@ -106,10 +106,19 @@ class _WelcomeCard extends StatelessWidget {
               ),
               const SizedBox(height: 5),
               Text(
-                'financial_sales_rep_summary'.tr,
+                'financial_monthly_dashboard_summary'.tr,
                 style: Theme.of(
                   context,
                 ).textTheme.bodyMedium?.copyWith(color: context.appMutedText),
+              ),
+              const SizedBox(height: 10),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: OutlinedButton.icon(
+                  onPressed: () => controller.selectMonth(context),
+                  icon: const Icon(Icons.calendar_month_outlined, size: 18),
+                  label: Text(controller.selectedMonthLabel(context)),
+                ),
               ),
             ],
           );
@@ -271,6 +280,13 @@ class _QuickActions extends StatelessWidget {
         Icons.receipt_long_outlined,
         controller.openInvoices,
       ),
+      if (controller.canCreateReceipt)
+        _ActionData(
+          'create_receipt',
+          Icons.add_card_outlined,
+          controller.createReceipt,
+        ),
+      _ActionData('receipts', Icons.payments_outlined, controller.openReceipts),
       if (controller.canCreateQuotation)
         _ActionData(
           'dashboard_new_quotation',
@@ -286,6 +302,11 @@ class _QuickActions extends StatelessWidget {
         'sales_returns',
         Icons.assignment_return_outlined,
         controller.openSalesReturns,
+      ),
+      _ActionData(
+        'rep_inventory_my_inventory',
+        Icons.inventory_2_outlined,
+        controller.openMyInventory,
       ),
       _ActionData(
         'dashboard_customers',

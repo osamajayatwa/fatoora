@@ -60,6 +60,11 @@ class AdminSidebar extends StatelessWidget {
     ),
     _SidebarItem('inventory', Icons.warehouse_outlined, AppRoute.inventory),
     _SidebarItem(
+      'rep_inventory_transfers',
+      Icons.swap_horiz_rounded,
+      AppRoute.repInventoryTransfers,
+    ),
+    _SidebarItem(
       'dashboard_account_statement',
       Icons.article_outlined,
       AppRoute.statements,
@@ -195,6 +200,12 @@ class _SidebarContent extends StatelessWidget {
                       AppRoute.inventoryAdjustment,
                       AppRoute.itemStockDetails,
                     };
+                    final repInventoryRoutes = {
+                      AppRoute.repInventory,
+                      AppRoute.repInventoryTransfers,
+                      AppRoute.repInventoryTransferForm,
+                      AppRoute.repInventoryTransferDetails,
+                    };
                     final invoiceRoutes = {
                       AppRoute.invoices,
                       AppRoute.invoiceForm,
@@ -235,6 +246,8 @@ class _SidebarContent extends StatelessWidget {
                             itemRoutes.contains(Get.currentRoute)) ||
                         (item.route == AppRoute.inventory &&
                             inventoryRoutes.contains(Get.currentRoute)) ||
+                        (item.route == AppRoute.repInventoryTransfers &&
+                            repInventoryRoutes.contains(Get.currentRoute)) ||
                         (item.route == AppRoute.invoices &&
                             invoiceRoutes.contains(Get.currentRoute)) ||
                         (item.route == AppRoute.quotations &&
