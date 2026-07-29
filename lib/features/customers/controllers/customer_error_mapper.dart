@@ -16,7 +16,9 @@ class CustomerErrorMapper {
       CustomerRepositoryError.unavailable => StatusRequest.offlinefailure,
       CustomerRepositoryError.timeout => StatusRequest.timeout,
       CustomerRepositoryError.notFound ||
-      CustomerRepositoryError.duplicatePhone => StatusRequest.failure,
+      CustomerRepositoryError.duplicatePhone ||
+      CustomerRepositoryError.openingBalanceExists ||
+      CustomerRepositoryError.inactiveCustomer => StatusRequest.failure,
       CustomerRepositoryError.invalidData ||
       CustomerRepositoryError.unknown => StatusRequest.serverfailure,
     };
@@ -36,6 +38,10 @@ class CustomerErrorMapper {
       CustomerRepositoryError.timeout => 'customers_timeout_error',
       CustomerRepositoryError.notFound => 'customers_not_found',
       CustomerRepositoryError.duplicatePhone => 'customers_duplicate_phone',
+      CustomerRepositoryError.openingBalanceExists =>
+        'customers_opening_balance_exists',
+      CustomerRepositoryError.inactiveCustomer =>
+        'customers_opening_balance_inactive',
       CustomerRepositoryError.invalidData => 'customers_invalid_data',
       CustomerRepositoryError.unknown => fallback ?? 'customers_action_error',
     };

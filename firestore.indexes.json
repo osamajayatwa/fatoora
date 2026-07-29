@@ -85,6 +85,14 @@
       ]
     },
     {
+      "collectionGroup": "customer_transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "customerId", "order": "ASCENDING" },
+        { "fieldPath": "transactionDate", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "sales_returns",
       "queryScope": "COLLECTION",
       "fields": [

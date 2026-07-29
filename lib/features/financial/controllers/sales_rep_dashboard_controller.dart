@@ -135,6 +135,7 @@ class SalesRepDashboardController extends GetxController {
   }
 
   void openCustomers() => Get.toNamed(AppRoute.customers);
+  void createCustomer() => Get.toNamed(AppRoute.createCustomer);
   void openStatements() => Get.toNamed(AppRoute.statements);
   void openReceivables() => Get.toNamed(AppRoute.receivables);
   void openCash() => Get.toNamed(AppRoute.cashMovements);

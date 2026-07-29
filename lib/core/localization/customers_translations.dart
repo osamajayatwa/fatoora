@@ -5,6 +5,36 @@ const Map<String, String> customersEnglishTranslations = {
   'customers_details': 'Customer details',
   'customers_statement': 'Customer statement',
   'customers_opening_balance': 'Opening balance',
+  'customers_add_opening_balance': 'Add opening balance',
+  'customers_opening_balance_type': 'Balance type',
+  'customers_owes_us': 'Customer owes us',
+  'customers_has_credit': 'Customer has credit',
+  'customers_opening_balance_amount': 'Legacy balance amount',
+  'customers_opening_balance_amount_invalid':
+      'Enter an amount greater than zero with up to 3 decimals.',
+  'customers_opening_balance_date': 'Balance date',
+  'customers_opening_balance_notes_hint':
+      'Optional legacy reference or explanation',
+  'customers_opening_balance_warning':
+      'This is an immutable legacy balance entry. It changes only the customer balance and statement; it does not affect sales, stock, cash, tax, or invoice numbering.',
+  'customers_post_opening_balance': 'Post opening balance',
+  'customers_opening_balance_created': 'Opening balance posted successfully.',
+  'customers_opening_balance_exists':
+      'This customer already has an opening balance entry.',
+  'customers_opening_balance_inactive':
+      'Activate the customer before posting an opening balance.',
+  'customers_opening_balance_error': 'The opening balance could not be posted.',
+  'customers_opening_balance_check_error':
+      'Unable to check the existing opening balance. Please try again.',
+  'customers_opening_balance_close_error':
+      'The opening balance was saved, but the form could not close. You can close it safely.',
+  'customers_opening_balance_already_registered':
+      'An opening balance is already registered for this customer',
+  'customers_opening_balance_details': 'Opening balance details',
+  'customers_opening_balance_reference': 'Reference',
+  'customers_view_opening_balance': 'View opening balance',
+  'customers_view_details': 'View details',
+  'customers_close': 'Close',
   'customers_search_hint': 'Search by name, phone, city, area, or address...',
   'customers_empty': 'No customers found',
   'customers_no_search_results': 'No matching customers found',
@@ -60,6 +90,7 @@ const Map<String, String> customersEnglishTranslations = {
   'payment': 'Payment',
   'return': 'Return / credit note',
   'refund': 'Refund',
+  'opening_balance': 'Opening balance',
 };
 
 const Map<String, String> customersArabicTranslations = {
@@ -69,6 +100,35 @@ const Map<String, String> customersArabicTranslations = {
   'customers_details': 'تفاصيل العميل',
   'customers_statement': 'كشف حساب العميل',
   'customers_opening_balance': 'الرصيد الافتتاحي',
+  'customers_add_opening_balance': 'إضافة رصيد افتتاحي',
+  'customers_opening_balance_type': 'نوع الرصيد',
+  'customers_owes_us': 'العميل مدين لنا',
+  'customers_has_credit': 'للعميل رصيد دائن',
+  'customers_opening_balance_amount': 'مبلغ الرصيد السابق',
+  'customers_opening_balance_amount_invalid':
+      'أدخل مبلغاً أكبر من صفر وبحد أقصى 3 منازل عشرية.',
+  'customers_opening_balance_date': 'تاريخ الرصيد',
+  'customers_opening_balance_notes_hint': 'مرجع أو توضيح اختياري للرصيد السابق',
+  'customers_opening_balance_warning':
+      'هذا قيد رصيد سابق غير قابل للتعديل. يؤثر فقط على رصيد العميل وكشف الحساب، ولا يؤثر على المبيعات أو المخزون أو النقد أو الضريبة أو ترقيم الفواتير.',
+  'customers_post_opening_balance': 'ترحيل الرصيد الافتتاحي',
+  'customers_opening_balance_created': 'تم ترحيل الرصيد الافتتاحي بنجاح.',
+  'customers_opening_balance_exists':
+      'يوجد بالفعل قيد رصيد افتتاحي لهذا العميل.',
+  'customers_opening_balance_inactive':
+      'فعّل العميل قبل ترحيل الرصيد الافتتاحي.',
+  'customers_opening_balance_error': 'تعذر ترحيل الرصيد الافتتاحي.',
+  'customers_opening_balance_check_error':
+      'تعذر التحقق من الرصيد الافتتاحي المسجل. حاول مرة أخرى.',
+  'customers_opening_balance_close_error':
+      'تم حفظ الرصيد الافتتاحي، لكن تعذر إغلاق النموذج. يمكنك إغلاقه بأمان.',
+  'customers_opening_balance_already_registered':
+      'يوجد رصيد افتتاحي مسجل لهذا العميل بالفعل',
+  'customers_opening_balance_details': 'تفاصيل الرصيد الافتتاحي',
+  'customers_opening_balance_reference': 'المرجع',
+  'customers_view_opening_balance': 'عرض الرصيد الافتتاحي',
+  'customers_view_details': 'عرض التفاصيل',
+  'customers_close': 'إغلاق',
   'customers_search_hint':
       'ابحث بالاسم أو الهاتف أو المدينة أو المنطقة أو العنوان...',
   'customers_empty': 'لا يوجد عملاء.',
@@ -123,4 +183,5 @@ const Map<String, String> customersArabicTranslations = {
   'payment': 'دفعة',
   'return': 'مرتجع / إشعار دائن',
   'refund': 'استرداد',
+  'opening_balance': 'رصيد افتتاحي',
 };

@@ -2,6 +2,9 @@ import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/customers/controllers/customer_details_controller.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
+import 'package:fatoora/features/customers/data/models/customer_opening_balance.dart';
+import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
+import 'package:fatoora/features/customers/view/widgets/customer_opening_balance_dialog.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
@@ -50,6 +53,10 @@ class _DetailsBody extends StatelessWidget {
               _Header(customer: customer, controller: controller),
               const SizedBox(height: 16),
               _BalanceCards(customer: customer),
+              if (controller.openingBalance != null) ...[
+                const SizedBox(height: 16),
+                _OpeningBalanceCard(transaction: controller.openingBalance!),
+              ],
               const SizedBox(height: 16),
               _InfoCard(customer: customer),
             ],
@@ -133,6 +140,24 @@ class _Header extends StatelessWidget {
                   ),
                   _ResponsiveActionButton(
                     narrow: narrow,
+                    child: OutlinedButton.icon(
+                      onPressed:
+                          customer.active &&
+                              !controller.isPostingOpeningBalance &&
+                              !controller.isCheckingOpeningBalance
+                          ? () => _openOpeningBalance(context)
+                          : null,
+                      icon: const Icon(Icons.account_balance_wallet_outlined),
+                      label: Text(
+                        (controller.openingBalance == null
+                                ? 'customers_add_opening_balance'
+                                : 'customers_view_opening_balance')
+                            .tr,
+                      ),
+                    ),
+                  ),
+                  _ResponsiveActionButton(
+                    narrow: narrow,
                     child: FilledButton.icon(
                       onPressed: controller.openStatement,
                       style: FilledButton.styleFrom(
@@ -167,6 +192,33 @@ class _Header extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<void> _openOpeningBalance(BuildContext context) async {
+    final ready = await controller.prepareOpeningBalance();
+    if (!ready || !context.mounted) return;
+
+    final existing = controller.openingBalance;
+    if (existing != null) {
+      await showDialog<void>(
+        context: context,
+        builder: (_) =>
+            CustomerOpeningBalanceDetailsDialog(transaction: existing),
+      );
+      return;
+    }
+
+    final saved = await showDialog<CustomerTransactionModel>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => CustomerOpeningBalanceDialog(
+        customerName: customer.name,
+        onSubmit: controller.addOpeningBalance,
+      ),
+    );
+    if (saved != null && !controller.isClosed) {
+      controller.openingBalanceDialogCompleted(saved);
+    }
   }
 }
 
@@ -268,6 +320,78 @@ class _MetricCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _OpeningBalanceCard extends StatelessWidget {
+  const _OpeningBalanceCard({required this.transaction});
+
+  final CustomerTransactionModel transaction;
+
+  @override
+  Widget build(BuildContext context) {
+    final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
+    final type = CustomerOpeningBalanceType.fromValue(
+      transaction.openingBalanceType,
+    );
+    return DashboardCard(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 560;
+          final details = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'customers_opening_balance_details'.tr,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: AppColor.secondaryColor,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${currency.format(transaction.amount)} · '
+                '${(type == CustomerOpeningBalanceType.customerCredit ? 'customers_has_credit' : 'customers_owes_us').tr}',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                DateFormat.yMd().format(transaction.transactionDate),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColor.grey),
+              ),
+            ],
+          );
+          final action = OutlinedButton.icon(
+            onPressed: () => showDialog<void>(
+              context: context,
+              builder: (_) =>
+                  CustomerOpeningBalanceDetailsDialog(transaction: transaction),
+            ),
+            icon: const Icon(Icons.visibility_outlined),
+            label: Text('customers_view_details'.tr),
+          );
+          if (narrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [details, const SizedBox(height: 12), action],
+            );
+          }
+          return Row(
+            children: [
+              const Icon(Icons.history_rounded, color: AppColor.primaryColor),
+              const SizedBox(width: 14),
+              Expanded(child: details),
+              const SizedBox(width: 14),
+              action,
+            ],
+          );
+        },
       ),
     );
   }

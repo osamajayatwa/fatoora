@@ -13,6 +13,16 @@ class CustomerStatementSnapshot {
     required List<CustomerTransactionModel> transactions,
     required double openingBalance,
   }) {
+    var runningBalance = openingBalance;
+    final normalizedTransactions = transactions
+        .map((transaction) {
+          runningBalance =
+              runningBalance +
+              transaction.debitAmount -
+              transaction.creditAmount;
+          return transaction.copyWith(balanceAfter: runningBalance);
+        })
+        .toList(growable: false);
     final totalDebit = transactions.fold<double>(
       0,
       (sum, transaction) => sum + transaction.debitAmount,
@@ -22,11 +32,11 @@ class CustomerStatementSnapshot {
       (sum, transaction) => sum + transaction.creditAmount,
     );
     return CustomerStatementSnapshot(
-      transactions: List.unmodifiable(transactions),
+      transactions: List.unmodifiable(normalizedTransactions),
       openingBalance: openingBalance,
       totalDebit: totalDebit,
       totalCredit: totalCredit,
-      closingBalance: openingBalance + totalDebit - totalCredit,
+      closingBalance: runningBalance,
     );
   }
 

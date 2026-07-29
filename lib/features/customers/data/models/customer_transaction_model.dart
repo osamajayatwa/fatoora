@@ -14,7 +14,9 @@ class CustomerTransactionModel {
     required this.transactionDate,
     required this.debitAmount,
     required this.creditAmount,
+    this.balanceBefore = 0,
     required this.balanceAfter,
+    this.openingBalanceType = '',
     this.amount = 0,
     this.signedAmount = 0,
     this.invoiceId = '',
@@ -46,7 +48,9 @@ class CustomerTransactionModel {
   final DateTime transactionDate;
   final double debitAmount;
   final double creditAmount;
+  final double balanceBefore;
   final double balanceAfter;
+  final String openingBalanceType;
   final double amount;
   final double signedAmount;
   final String invoiceId;
@@ -84,7 +88,9 @@ class CustomerTransactionModel {
       transactionDate: _readDate(data, 'transactionDate'),
       debitAmount: _readDouble(data, 'debitAmount'),
       creditAmount: _readDouble(data, 'creditAmount'),
+      balanceBefore: _readDouble(data, 'balanceBefore'),
       balanceAfter: _readDouble(data, 'balanceAfter'),
+      openingBalanceType: _readString(data, 'openingBalanceType'),
       amount: _readDouble(data, 'amount') == 0
           ? _readDouble(data, 'debitAmount') + _readDouble(data, 'creditAmount')
           : _readDouble(data, 'amount'),
@@ -123,7 +129,9 @@ class CustomerTransactionModel {
     'transactionDate': Timestamp.fromDate(transactionDate),
     'debitAmount': debitAmount,
     'creditAmount': creditAmount,
+    'balanceBefore': balanceBefore,
     'balanceAfter': balanceAfter,
+    'openingBalanceType': openingBalanceType,
     'amount': amount,
     'signedAmount': signedAmount,
     'invoiceId': invoiceId,
@@ -142,6 +150,43 @@ class CustomerTransactionModel {
     'salesRepName': salesRepName,
     'createdAt': Timestamp.fromDate(createdAt),
   };
+
+  CustomerTransactionModel copyWith({double? balanceAfter}) {
+    return CustomerTransactionModel(
+      id: id,
+      companyId: companyId,
+      customerId: customerId,
+      customerName: customerName,
+      transactionType: transactionType,
+      type: type,
+      sourceCollection: sourceCollection,
+      sourceId: sourceId,
+      sourceNumber: sourceNumber,
+      transactionDate: transactionDate,
+      debitAmount: debitAmount,
+      creditAmount: creditAmount,
+      balanceBefore: balanceBefore,
+      balanceAfter: balanceAfter ?? this.balanceAfter,
+      openingBalanceType: openingBalanceType,
+      amount: amount,
+      signedAmount: signedAmount,
+      invoiceId: invoiceId,
+      invoiceNumber: invoiceNumber,
+      returnInvoiceId: returnInvoiceId,
+      returnNumber: returnNumber,
+      originalInvoiceId: originalInvoiceId,
+      originalInvoiceNumber: originalInvoiceNumber,
+      receiptId: receiptId,
+      receiptNumber: receiptNumber,
+      notes: notes,
+      createdByUid: createdByUid,
+      createdByName: createdByName,
+      createdByRole: createdByRole,
+      salesRepId: salesRepId,
+      salesRepName: salesRepName,
+      createdAt: createdAt,
+    );
+  }
 
   static String _readString(Map<String, dynamic> data, String key) {
     final value = data[key];

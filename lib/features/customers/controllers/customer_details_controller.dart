@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
@@ -5,6 +7,8 @@ import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/controllers/customer_error_mapper.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
+import 'package:fatoora/features/customers/data/models/customer_opening_balance.dart';
+import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
 import 'package:fatoora/features/customers/data/repositories/customer_repository.dart';
 import 'package:get/get.dart';
 
@@ -24,6 +28,9 @@ class CustomerDetailsController extends GetxController {
   String customerId = '';
   CustomerModel? customer;
   bool isUpdating = false;
+  bool isPostingOpeningBalance = false;
+  bool isCheckingOpeningBalance = false;
+  CustomerTransactionModel? openingBalance;
 
   @override
   void onReady() {
@@ -51,10 +58,16 @@ class CustomerDetailsController extends GetxController {
     loadErrorMessageKey = 'customers_load_error';
     update();
     try {
-      customer = await _repository.getCustomer(
+      final loadedCustomer = await _repository.getCustomer(
         companyId: companyId,
         customerId: customerId,
       );
+      final loadedOpeningBalance = await _repository.getOpeningBalance(
+        companyId: companyId,
+        customerId: customerId,
+      );
+      customer = loadedCustomer;
+      openingBalance = loadedOpeningBalance;
       statusRequest = StatusRequest.success;
     } catch (error) {
       statusRequest = CustomerErrorMapper.status(error);
@@ -85,6 +98,113 @@ class CustomerDetailsController extends GetxController {
       arguments: {'companyId': current.companyId, 'customerId': current.id},
     );
     await loadCustomer();
+  }
+
+  Future<bool> prepareOpeningBalance() async {
+    final current = customer;
+    if (current == null || isCheckingOpeningBalance) return false;
+    isCheckingOpeningBalance = true;
+    if (!isClosed) update();
+    try {
+      openingBalance = await _repository.getOpeningBalance(
+        companyId: current.companyId,
+        customerId: current.id,
+      );
+      return true;
+    } catch (error) {
+      if (!isClosed) {
+        _showError(
+          CustomerErrorMapper.messageKey(
+            error,
+            fallback: 'customers_opening_balance_check_error',
+          ),
+        );
+      }
+      return false;
+    } finally {
+      isCheckingOpeningBalance = false;
+      if (!isClosed) update();
+    }
+  }
+
+  Future<CustomerTransactionModel?> addOpeningBalance({
+    required CustomerOpeningBalanceType balanceType,
+    required double amount,
+    required DateTime transactionDate,
+    required String notes,
+  }) async {
+    final current = customer;
+    if (current == null || isPostingOpeningBalance) return null;
+    isPostingOpeningBalance = true;
+    if (!isClosed) update();
+    try {
+      final transaction = await _repository.addOpeningBalance(
+        companyId: current.companyId,
+        customerId: current.id,
+        balanceType: balanceType,
+        amount: amount,
+        transactionDate: transactionDate,
+        notes: notes,
+      );
+      if (!isClosed) {
+        openingBalance = transaction;
+        customer = current.copyWith(
+          currentBalance: transaction.balanceAfter,
+          updatedAt: DateTime.now(),
+        );
+        update();
+      }
+      return transaction;
+    } catch (error) {
+      if (error is OpeningBalanceAlreadyExistsException &&
+          error.openingBalance != null &&
+          !isClosed) {
+        openingBalance = error.openingBalance;
+      }
+      if (!isClosed) {
+        _showError(
+          CustomerErrorMapper.messageKey(
+            error,
+            fallback: 'customers_opening_balance_error',
+          ),
+        );
+      }
+      return null;
+    } finally {
+      isPostingOpeningBalance = false;
+      if (!isClosed) update();
+    }
+  }
+
+  void openingBalanceDialogCompleted(CustomerTransactionModel transaction) {
+    if (isClosed) return;
+    openingBalance = transaction;
+    _showSuccess('customers_opening_balance_created');
+    unawaited(_refreshAfterOpeningBalance());
+  }
+
+  Future<void> _refreshAfterOpeningBalance() async {
+    final current = customer;
+    if (current == null) return;
+    try {
+      final results = await Future.wait<Object?>([
+        _repository.getCustomer(
+          companyId: current.companyId,
+          customerId: current.id,
+        ),
+        _repository.getOpeningBalance(
+          companyId: current.companyId,
+          customerId: current.id,
+        ),
+      ]);
+      if (isClosed) return;
+      customer = results[0] as CustomerModel;
+      openingBalance = results[1] as CustomerTransactionModel?;
+      update();
+    } catch (_) {
+      // The committed transaction is already reflected locally. A refresh
+      // failure must not turn a successful financial posting into a failure.
+    }
   }
 
   Future<void> setActive(bool active) async {

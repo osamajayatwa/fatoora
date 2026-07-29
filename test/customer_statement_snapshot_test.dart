@@ -16,7 +16,26 @@ void main() {
     expect(snapshot.totalDebit, 100);
     expect(snapshot.totalCredit, 40);
     expect(snapshot.closingBalance, 85);
+    expect(snapshot.transactions[0].balanceAfter, 125);
+    expect(snapshot.transactions[1].balanceAfter, 85);
   });
+
+  test(
+    'statement replaces stale stored balances with chronological balances',
+    () {
+      final snapshot = CustomerStatementSnapshot.fromTransactions(
+        openingBalance: 1500,
+        transactions: [
+          _transaction(id: 'invoice', debit: 100, balanceAfter: 100),
+          _transaction(id: 'receipt', credit: 40, balanceAfter: 60),
+        ],
+      );
+
+      expect(snapshot.transactions[0].balanceAfter, 1600);
+      expect(snapshot.transactions[1].balanceAfter, 1560);
+      expect(snapshot.closingBalance, 1560);
+    },
+  );
 
   test('empty statement period keeps the opening balance', () {
     final snapshot = CustomerStatementSnapshot.fromTransactions(

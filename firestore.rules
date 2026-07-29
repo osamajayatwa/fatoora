@@ -646,6 +646,147 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time;
     }
 
+    function validCustomerOpeningBalancePostingUpdate(companyId) {
+      let transactionId =
+        request.resource.data.lastOpeningBalanceTransactionId;
+      let transactionPath =
+        /databases/$(database)/documents/companies/$(companyId)/customer_transactions/$(transactionId);
+      let opening = getAfter(transactionPath);
+      return canReadOwnedBusinessDoc(companyId, resource.data)
+        && customerIdentityPreserved()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'currentBalance',
+          'lastOpeningBalanceTransactionId',
+          'updatedAt'
+        ])
+        && transactionId is string
+        && transactionId == resource.data.id + '_opening_balance'
+        && !exists(transactionPath)
+        && existsAfter(transactionPath)
+        && opening.data.transactionType == 'opening_balance'
+        && opening.data.customerId == resource.data.id
+        && opening.data.balanceBefore == resource.data.currentBalance
+        && opening.data.balanceAfter
+          == request.resource.data.currentBalance
+        && opening.data.signedAmount
+          == request.resource.data.currentBalance
+            - resource.data.currentBalance
+        && request.resource.data.currentBalance is number
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validOpeningBalanceTransactionCreate(
+      companyId,
+      transactionId,
+      data
+    ) {
+      let customerPath =
+        /databases/$(database)/documents/companies/$(companyId)/customers/$(data.customerId);
+      let customerBefore = get(customerPath);
+      let customerAfter = getAfter(customerPath);
+      return validFinancialCreate(companyId, data)
+        && data.keys().hasOnly([
+          'id',
+          'companyId',
+          'customerId',
+          'customerName',
+          'transactionType',
+          'type',
+          'sourceCollection',
+          'sourceId',
+          'sourceNumber',
+          'transactionDate',
+          'debitAmount',
+          'creditAmount',
+          'balanceBefore',
+          'balanceAfter',
+          'openingBalanceType',
+          'amount',
+          'signedAmount',
+          'invoiceId',
+          'invoiceNumber',
+          'returnInvoiceId',
+          'returnNumber',
+          'originalInvoiceId',
+          'originalInvoiceNumber',
+          'receiptId',
+          'receiptNumber',
+          'notes',
+          'createdByUid',
+          'createdByName',
+          'createdByRole',
+          'salesRepId',
+          'salesRepName',
+          'createdAt',
+          'referenceId'
+        ])
+        && data.id == transactionId
+        && transactionId == data.customerId + '_opening_balance'
+        && data.transactionType == 'opening_balance'
+        && data.type == 'opening_balance'
+        && data.sourceCollection == 'customer_transactions'
+        && data.sourceId == transactionId
+        && data.referenceId == transactionId
+        && data.sourceNumber == 'OPENING'
+        && data.transactionDate is timestamp
+        && data.transactionDate <= request.time
+        && data.amount is number
+        && data.amount > 0
+        && data.amount <= 999999999
+        && data.openingBalanceType in [
+          'customer_owes',
+          'customer_credit'
+        ]
+        && data.debitAmount is number
+        && data.creditAmount is number
+        && data.signedAmount is number
+        && (
+          (
+            data.openingBalanceType == 'customer_owes'
+            && data.debitAmount == data.amount
+            && data.creditAmount == 0
+            && data.signedAmount == data.amount
+          )
+          || (
+            data.openingBalanceType == 'customer_credit'
+            && data.debitAmount == 0
+            && data.creditAmount == data.amount
+            && data.signedAmount == 0 - data.amount
+          )
+        )
+        && data.balanceBefore is number
+        && data.balanceAfter is number
+        && exists(customerPath)
+        && customerBefore.data.active == true
+        && (
+          isActiveAdmin()
+          || customerBefore.data.createdByUid == request.auth.uid
+        )
+        && data.customerName == customerBefore.data.name
+        && data.notes is string
+        && data.notes.size() <= 500
+        && data.balanceBefore == customerBefore.data.currentBalance
+        && data.balanceAfter == data.balanceBefore + data.signedAmount
+        && customerAfter.data.currentBalance == data.balanceAfter
+        && customerAfter.data.lastOpeningBalanceTransactionId
+          == transactionId
+        && customerAfter.data.totalSales == customerBefore.data.totalSales
+        && customerAfter.data.totalPaid == customerBefore.data.totalPaid
+        && (
+          (
+            isActiveAdmin()
+            && data.salesRepId == ''
+            && data.salesRepName == ''
+          )
+          || (
+            !isActiveAdmin()
+            && data.salesRepId == request.auth.uid
+            && data.salesRepName == data.createdByName
+          )
+        )
+        && data.createdAt == request.time;
+    }
+
     function validCustomerReturnPostingUpdate(companyId) {
       let returnPath =
         /databases/$(database)/documents/companies/$(companyId)/sales_returns/$(request.resource.data.lastSalesReturnId);
@@ -2134,6 +2275,7 @@ service cloud.firestore {
           isCustomerReturnPostingUpdate()
           && validCustomerReturnPostingUpdate(companyId)
         )
+        || validCustomerOpeningBalancePostingUpdate(companyId)
         || (
           !isCustomerReturnPostingUpdate()
           && (
@@ -2204,9 +2346,17 @@ service cloud.firestore {
         resource.data
       );
 
-      allow create: if validFinancialCreate(companyId, request.resource.data)
-        && request.resource.data.id == transactionId
-        && request.resource.data.createdAt == request.time;
+      allow create: if validOpeningBalanceTransactionCreate(
+          companyId,
+          transactionId,
+          request.resource.data
+        )
+        || (
+          request.resource.data.transactionType != 'opening_balance'
+          && validFinancialCreate(companyId, request.resource.data)
+          && request.resource.data.id == transactionId
+          && request.resource.data.createdAt == request.time
+        );
 
       allow update, delete: if false;
     }

@@ -706,6 +706,136 @@ test("customer owner fallback supports legacy transactions without salesRepId", 
   await assertFails(getDoc(businessDoc(repBDb, ...transaction)));
 });
 
+test("admin can atomically post a customer-owes opening balance", async () => {
+  await seedOpeningCustomer("opening-admin-customer", repAUid);
+  const db = authenticatedDb(adminUid);
+
+  await assertSucceeds(
+    commitOpeningBalance(db, {
+      customerId: "opening-admin-customer",
+      actorUid: adminUid,
+      actorName: "Admin",
+      actorRole: "admin",
+      type: "customer_owes",
+      amount: 1500,
+      balanceBefore: 25,
+      balanceAfter: 1525,
+    }),
+  );
+
+  const customer = await getDoc(
+    businessDoc(db, "customers", "opening-admin-customer"),
+  );
+  if (customer.data().currentBalance !== 1525) {
+    throw new Error("Opening debit was not applied to the customer balance");
+  }
+  if (customer.data().totalSales !== 100 || customer.data().totalPaid !== 40) {
+    throw new Error("Opening balance changed sales or paid totals");
+  }
+});
+
+test("sales rep can post customer credit only for an owned customer", async () => {
+  await seedOpeningCustomer("opening-rep-customer", repAUid);
+  await seedOpeningCustomer("opening-other-customer", repBUid);
+  const db = authenticatedDb(repAUid);
+
+  await assertSucceeds(
+    commitOpeningBalance(db, {
+      customerId: "opening-rep-customer",
+      actorUid: repAUid,
+      actorName: "Rep A",
+      actorRole: "sales_rep",
+      type: "customer_credit",
+      amount: 75.5,
+      balanceBefore: 25,
+      balanceAfter: -50.5,
+    }),
+  );
+  await assertFails(
+    commitOpeningBalance(db, {
+      customerId: "opening-other-customer",
+      actorUid: repAUid,
+      actorName: "Rep A",
+      actorRole: "sales_rep",
+      type: "customer_owes",
+      amount: 20,
+      balanceBefore: 25,
+      balanceAfter: 45,
+    }),
+  );
+});
+
+test("opening balance requires its matching customer update and ledger create", async () => {
+  await seedOpeningCustomer("opening-linked-customer", repAUid);
+  const db = authenticatedDb(adminUid);
+  const transactionId = "opening-linked-customer_opening_balance";
+
+  await assertFails(
+    setDoc(
+      businessDoc(db, "customer_transactions", transactionId),
+      openingBalancePayload({
+        customerId: "opening-linked-customer",
+        actorUid: adminUid,
+        actorName: "Admin",
+        actorRole: "admin",
+        type: "customer_owes",
+        amount: 10,
+        balanceBefore: 25,
+        balanceAfter: 35,
+      }),
+    ),
+  );
+  await assertFails(
+    updateDoc(businessDoc(db, "customers", "opening-linked-customer"), {
+      currentBalance: 35,
+      lastOpeningBalanceTransactionId: transactionId,
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test("opening balance cannot change sales totals or be posted twice", async () => {
+  await seedOpeningCustomer("opening-once-customer", repAUid);
+  const db = authenticatedDb(adminUid);
+  const options = {
+    customerId: "opening-once-customer",
+    actorUid: adminUid,
+    actorName: "Admin",
+    actorRole: "admin",
+    type: "customer_owes",
+    amount: 10,
+    balanceBefore: 25,
+    balanceAfter: 35,
+  };
+
+  const tampered = writeBatch(db);
+  tampered.update(businessDoc(db, "customers", options.customerId), {
+    currentBalance: 35,
+    totalSales: 999,
+    lastOpeningBalanceTransactionId:
+      "opening-once-customer_opening_balance",
+    updatedAt: serverTimestamp(),
+  });
+  tampered.set(
+    businessDoc(
+      db,
+      "customer_transactions",
+      "opening-once-customer_opening_balance",
+    ),
+    openingBalancePayload(options),
+  );
+  await assertFails(tampered.commit());
+
+  await assertSucceeds(commitOpeningBalance(db, options));
+  await assertFails(
+    commitOpeningBalance(db, {
+      ...options,
+      balanceBefore: 35,
+      balanceAfter: 45,
+    }),
+  );
+});
+
 test("an admin-created invoice assigned to rep A is visible only to rep A", async () => {
   const repADb = authenticatedDb(repAUid);
   const repBDb = authenticatedDb(repBUid);
@@ -857,6 +987,90 @@ function authenticatedDb(uid) {
   return testEnvironment.authenticatedContext(uid, {
     email: `${uid}@example.test`,
   }).firestore();
+}
+
+async function seedOpeningCustomer(customerId, ownerUid) {
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    await setDoc(businessDoc(context.firestore(), "customers", customerId), {
+      id: customerId,
+      companyId,
+      name: "Legacy Customer",
+      phone: "",
+      addressText: "",
+      city: "",
+      area: "",
+      notes: "",
+      active: true,
+      createdByUid: ownerUid,
+      createdByName: ownerUid === repAUid ? "Rep A" : "Rep B",
+      createdByRole: "sales_rep",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      currentBalance: 25,
+      totalSales: 100,
+      totalPaid: 40,
+      searchKeywords: ["legacy"],
+      nameLower: "legacy customer",
+      phoneNormalized: "",
+      cityLower: "",
+      areaLower: "",
+    });
+  });
+}
+
+function commitOpeningBalance(db, options) {
+  const transactionId = `${options.customerId}_opening_balance`;
+  const batch = writeBatch(db);
+  batch.update(businessDoc(db, "customers", options.customerId), {
+    currentBalance: options.balanceAfter,
+    lastOpeningBalanceTransactionId: transactionId,
+    updatedAt: serverTimestamp(),
+  });
+  batch.set(
+    businessDoc(db, "customer_transactions", transactionId),
+    openingBalancePayload(options),
+  );
+  return batch.commit();
+}
+
+function openingBalancePayload(options) {
+  const transactionId = `${options.customerId}_opening_balance`;
+  const isDebit = options.type === "customer_owes";
+  return {
+    id: transactionId,
+    companyId,
+    customerId: options.customerId,
+    customerName: "Legacy Customer",
+    transactionType: "opening_balance",
+    type: "opening_balance",
+    sourceCollection: "customer_transactions",
+    sourceId: transactionId,
+    sourceNumber: "OPENING",
+    transactionDate: new Date("2025-12-31T00:00:00.000Z"),
+    debitAmount: isDebit ? options.amount : 0,
+    creditAmount: isDebit ? 0 : options.amount,
+    balanceBefore: options.balanceBefore,
+    balanceAfter: options.balanceAfter,
+    openingBalanceType: options.type,
+    amount: options.amount,
+    signedAmount: isDebit ? options.amount : -options.amount,
+    invoiceId: "",
+    invoiceNumber: "",
+    returnInvoiceId: "",
+    returnNumber: "",
+    originalInvoiceId: "",
+    originalInvoiceNumber: "",
+    receiptId: "",
+    receiptNumber: "",
+    notes: "Imported legacy balance",
+    createdByUid: options.actorUid,
+    createdByName: options.actorName,
+    createdByRole: options.actorRole,
+    salesRepId: options.actorRole === "sales_rep" ? options.actorUid : "",
+    salesRepName: options.actorRole === "sales_rep" ? options.actorName : "",
+    createdAt: serverTimestamp(),
+    referenceId: transactionId,
+  };
 }
 
 function approvedUser(uid, role) {

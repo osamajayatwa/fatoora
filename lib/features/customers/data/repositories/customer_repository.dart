@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
+import 'package:fatoora/features/customers/data/models/customer_opening_balance.dart';
 import 'package:fatoora/features/customers/data/models/customer_statement_snapshot.dart';
 import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
 import 'package:fatoora/features/settings/data/models/app_settings_model.dart';
@@ -19,6 +20,8 @@ enum CustomerRepositoryError {
   timeout,
   notFound,
   duplicatePhone,
+  openingBalanceExists,
+  inactiveCustomer,
   invalidData,
   unknown,
 }
@@ -28,6 +31,13 @@ class CustomerRepositoryException implements Exception {
 
   final CustomerRepositoryError error;
   final Object? cause;
+}
+
+class OpeningBalanceAlreadyExistsException extends CustomerRepositoryException {
+  const OpeningBalanceAlreadyExistsException([this.openingBalance])
+    : super(CustomerRepositoryError.openingBalanceExists);
+
+  final CustomerTransactionModel? openingBalance;
 }
 
 class CustomerRepository {
@@ -249,6 +259,154 @@ class CustomerRepository {
     });
   }
 
+  Future<CustomerTransactionModel> addOpeningBalance({
+    String companyId = AuthRepository.defaultCompanyId,
+    required String customerId,
+    required CustomerOpeningBalanceType balanceType,
+    required double amount,
+    required DateTime transactionDate,
+    String notes = '',
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      if (!amount.isFinite || amount <= 0) {
+        throw const CustomerRepositoryException(
+          CustomerRepositoryError.invalidData,
+        );
+      }
+
+      final roundedAmount = _round(amount);
+      if (roundedAmount <= 0 ||
+          roundedAmount > 999999999 ||
+          (amount - roundedAmount).abs() > 0.0000001 ||
+          transactionDate.isAfter(DateTime.now()) ||
+          notes.trim().length > 500) {
+        throw const CustomerRepositoryException(
+          CustomerRepositoryError.invalidData,
+        );
+      }
+
+      final transactionRef = _transactions(
+        resolvedCompanyId,
+      ).doc('${customerId}_opening_balance');
+      late CustomerTransactionModel openingBalance;
+      try {
+        await _firestore
+            .runTransaction((transaction) async {
+              final customerRef = _customers(resolvedCompanyId).doc(customerId);
+              final customerSnapshot = await transaction.get(customerRef);
+              final existingOpening = await transaction.get(transactionRef);
+              if (!customerSnapshot.exists) {
+                throw const CustomerRepositoryException(
+                  CustomerRepositoryError.notFound,
+                );
+              }
+              if (existingOpening.exists) {
+                throw OpeningBalanceAlreadyExistsException(
+                  CustomerTransactionModel.fromFirestore(existingOpening),
+                );
+              }
+
+              final customer = CustomerModel.fromFirestore(customerSnapshot);
+              _requireCanAccessCustomer(user, customer);
+              if (!customer.active) {
+                throw const CustomerRepositoryException(
+                  CustomerRepositoryError.inactiveCustomer,
+                );
+              }
+
+              final balanceBefore = _round(customer.currentBalance);
+              final signedAmount = balanceType.balanceEffect(roundedAmount);
+              final balanceAfter = _round(balanceBefore + signedAmount);
+              final now = DateTime.now();
+              openingBalance = CustomerTransactionModel(
+                id: transactionRef.id,
+                companyId: resolvedCompanyId,
+                customerId: customer.id,
+                customerName: customer.name,
+                transactionType: 'opening_balance',
+                type: 'opening_balance',
+                sourceCollection: 'customer_transactions',
+                sourceId: transactionRef.id,
+                sourceNumber: 'OPENING',
+                transactionDate: transactionDate,
+                debitAmount: signedAmount > 0 ? roundedAmount : 0,
+                creditAmount: signedAmount < 0 ? roundedAmount : 0,
+                balanceBefore: balanceBefore,
+                balanceAfter: balanceAfter,
+                openingBalanceType: balanceType.value,
+                amount: roundedAmount,
+                signedAmount: signedAmount,
+                notes: notes.trim(),
+                createdByUid: user.uid,
+                createdByName: user.name,
+                createdByRole: user.role,
+                salesRepId: user.isSalesRep ? user.uid : '',
+                salesRepName: user.isSalesRep ? user.name : '',
+                createdAt: now,
+              );
+
+              transaction.update(customerRef, {
+                'currentBalance': balanceAfter,
+                'lastOpeningBalanceTransactionId': transactionRef.id,
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+              transaction.set(transactionRef, {
+                ...openingBalance.toMap(),
+                'referenceId': transactionRef.id,
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+            })
+            .timeout(const Duration(seconds: 20));
+      } on TimeoutException {
+        final committed = await _readOpeningBalanceAfterAmbiguousFailure(
+          transactionRef,
+        );
+        if (committed != null) return committed;
+        rethrow;
+      } on FirebaseException catch (error) {
+        if (_isAmbiguousCommitError(error.code)) {
+          final committed = await _readOpeningBalanceAfterAmbiguousFailure(
+            transactionRef,
+          );
+          if (committed != null) return committed;
+        }
+        rethrow;
+      }
+      return openingBalance;
+    });
+  }
+
+  Future<CustomerTransactionModel?> getOpeningBalance({
+    String companyId = AuthRepository.defaultCompanyId,
+    required String customerId,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      final customerSnapshot = await _customers(
+        resolvedCompanyId,
+      ).doc(customerId).get().timeout(const Duration(seconds: 20));
+      if (!customerSnapshot.exists) {
+        throw const CustomerRepositoryException(
+          CustomerRepositoryError.notFound,
+        );
+      }
+      _requireCanAccessCustomer(
+        user,
+        CustomerModel.fromFirestore(customerSnapshot),
+      );
+
+      final openingSnapshot = await _transactions(resolvedCompanyId)
+          .doc('${customerId}_opening_balance')
+          .get()
+          .timeout(const Duration(seconds: 20));
+      if (!openingSnapshot.exists) return null;
+      return CustomerTransactionModel.fromFirestore(openingSnapshot);
+    });
+  }
+
   Future<void> setActive({
     String companyId = AuthRepository.defaultCompanyId,
     required String customerId,
@@ -343,13 +501,13 @@ class CustomerRepository {
           isLessThan: Timestamp.fromDate(_startOfDay(beforeDate)),
         )
         .orderBy('transactionDate')
-        .limitToLast(1)
+        .limit(500)
         .get()
         .timeout(const Duration(seconds: 20));
-    if (snapshot.docs.isEmpty) return 0;
-    return CustomerTransactionModel.fromFirestore(
-      snapshot.docs.single,
-    ).balanceAfter;
+    return snapshot.docs.fold<double>(0, (balance, document) {
+      final transaction = CustomerTransactionModel.fromFirestore(document);
+      return balance + transaction.debitAmount - transaction.creditAmount;
+    });
   }
 
   Future<void> _ensurePhoneIsUnique({
@@ -432,6 +590,32 @@ class CustomerRepository {
 
   DateTime _endOfDay(DateTime date) =>
       DateTime(date.year, date.month, date.day, 23, 59, 59, 999);
+
+  double _round(double value) => (value * 1000).roundToDouble() / 1000;
+
+  bool _isAmbiguousCommitError(String code) {
+    return code == 'aborted' ||
+        code == 'cancelled' ||
+        code == 'deadline-exceeded' ||
+        code == 'internal' ||
+        code == 'unknown' ||
+        code == 'unavailable';
+  }
+
+  Future<CustomerTransactionModel?> _readOpeningBalanceAfterAmbiguousFailure(
+    DocumentReference<Map<String, dynamic>> transactionRef,
+  ) async {
+    try {
+      final snapshot = await transactionRef.get().timeout(
+        const Duration(seconds: 5),
+      );
+      return snapshot.exists
+          ? CustomerTransactionModel.fromFirestore(snapshot)
+          : null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<T> _run<T>(Future<T> Function() operation) async {
     try {
