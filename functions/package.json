@@ -10,6 +10,7 @@
     "lint": "tsc --noEmit",
     "test:rules": "node --test test/firestore.rules.test.js",
     "test:maintenance": "node --test test/invoice_sales_rep_maintenance.test.js",
+    "test:audit": "npm run build && node --test test/audit.test.js",
     "audit:invoice-sales-rep": "node scripts/audit_invoice_sales_rep.js",
     "backfill:invoice-sales-rep": "node scripts/backfill_invoice_sales_rep.js"
   },

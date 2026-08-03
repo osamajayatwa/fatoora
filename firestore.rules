@@ -2577,6 +2577,20 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Business audit events are immutable server-owned records. Admin SDK
+    // bypasses rules; every client write is denied, including admin clients.
+    match /companies/{companyId}/audit_events/{eventId} {
+      allow get, list: if isApprovedCompanyUser(companyId)
+        && isActiveAdmin();
+      allow create, update, delete: if false;
+
+      match /details/{detailId} {
+        allow get, list: if isApprovedCompanyUser(companyId)
+          && isActiveAdmin();
+        allow create, update, delete: if false;
+      }
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

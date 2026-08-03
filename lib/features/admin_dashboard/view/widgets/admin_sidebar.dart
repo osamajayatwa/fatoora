@@ -70,6 +70,11 @@ class AdminSidebar extends StatelessWidget {
       AppRoute.statements,
     ),
     _SidebarItem(
+      'audit_log_title',
+      Icons.manage_history_rounded,
+      AppRoute.adminAuditLog,
+    ),
+    _SidebarItem(
       'dashboard_settings',
       Icons.settings_outlined,
       AppRoute.settings,

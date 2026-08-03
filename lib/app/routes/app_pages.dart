@@ -30,6 +30,8 @@ import 'package:fatoora/features/inventory/view/screens/stock_movements_screen.d
 import 'package:fatoora/features/admin_dashboard/binding/admin_dashboard_binding.dart';
 import 'package:fatoora/features/admin_dashboard/view/screen/admin_home_screen.dart';
 import 'package:fatoora/features/admin_dashboard/view/screen/admin_sales_rep_details_screen.dart';
+import 'package:fatoora/features/admin/audit_log/bindings/audit_log_binding.dart';
+import 'package:fatoora/features/admin/audit_log/presentation/pages/audit_log_page.dart';
 import 'package:fatoora/features/expenses/bindings/expenses_binding.dart';
 import 'package:fatoora/features/expenses/view/screens/expense_details_screen.dart';
 import 'package:fatoora/features/expenses/view/screens/expense_form_screen.dart';
@@ -71,6 +73,12 @@ import 'package:fatoora/features/splash/view/screens/splash.dart';
 import 'package:get/get_navigation/src/routes/get_route.dart';
 
 List<GetPage<dynamic>> routes = [
+  GetPage(
+    name: AppRoute.adminAuditLog,
+    page: () => const AuditLogPage(),
+    binding: AuditLogBinding(),
+    middlewares: [AdminMiddleware()],
+  ),
   GetPage(
     name: '/',
     page: () => const Language(),

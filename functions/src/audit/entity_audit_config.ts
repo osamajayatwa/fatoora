@@ -21,11 +21,12 @@ const commonActorFields = [
 export const ENTITY_CONFIGS: Record<string, EntityAuditConfig> = {
   customers: config("customer", "customers", [
     "name", "phone", "email", "address", "taxNumber", "active",
-    "openingBalance", "balance", "creditBalance", "notes", ...commonActorFields,
+    "openingBalance", "currentBalance", "balance", "creditBalance",
+    "lastOpeningBalanceTransactionId", "notes", ...commonActorFields,
   ], AuditActions.customer.created, AuditActions.customer.updated,
   AuditActions.customer.archived, ["customerNumber"], ["name"]),
   invoices: config("invoice", "sales", [
-    "invoiceNumber", "status", "invoiceType", "customerId", "customerName",
+    "invoiceNumber", "invoiceStatus", "returnStatus", "invoiceType", "customerId", "customerName",
     "salesRepId", "salesRepName", "subtotal", "totalDiscount", "totalTax",
     "grandTotal", "paidAmount", "remainingAmount", "paymentType", "notes",
     "operationId", ...commonActorFields,
@@ -111,7 +112,7 @@ export const ENTITY_CONFIGS: Record<string, EntityAuditConfig> = {
   AuditActions.settlement.cancelled, ["settlementNumber"], ["settlementNumber"]),
   items: config("item", "inventory", [
     "name", "model", "barcode", "salePrice", "purchasePrice", "taxRate",
-    "trackStock", "stockQuantity", "minStock", "active", "notes",
+    "trackStock", "stockQuantity", "currentStock", "minStock", "active", "notes",
     "operationId", ...commonActorFields,
   ], AuditActions.item.created, AuditActions.item.updated,
   AuditActions.item.archived, [], ["name", "model"]),

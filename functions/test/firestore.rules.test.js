@@ -983,6 +983,37 @@ test("admin can reject pending expenses without changing financial fields", asyn
   );
 });
 
+test("audit events are admin-readable and immutable to every client", async () => {
+  const auditPath = (db) => doc(
+    db, "companies", companyId, "audit_events", "event-1",
+  );
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    await setDoc(auditPath(context.firestore()), {
+      schemaVersion: 1,
+      companyId,
+      eventId: "event-1",
+      action: "invoice.confirmed",
+      occurredAt: new Date("2026-07-29T10:00:00.000Z"),
+    });
+  });
+
+  await assertSucceeds(getDoc(auditPath(authenticatedDb(adminUid))));
+  await assertSucceeds(getDoc(auditPath(authenticatedDb(legacyAdminUid))));
+  await assertFails(getDoc(auditPath(authenticatedDb(repAUid))));
+  await assertFails(getDoc(auditPath(authenticatedDb(pendingUid))));
+  await assertFails(getDoc(auditPath(authenticatedDb(inactiveUid))));
+  await assertFails(getDoc(auditPath(
+    testEnvironment.unauthenticatedContext().firestore(),
+  )));
+
+  const adminRef = auditPath(authenticatedDb(adminUid));
+  await assertFails(setDoc(doc(
+    authenticatedDb(adminUid), "companies", companyId, "audit_events", "new",
+  ), {action: "forged"}));
+  await assertFails(updateDoc(adminRef, {action: "forged"}));
+  await assertFails(deleteDoc(adminRef));
+});
+
 function authenticatedDb(uid) {
   return testEnvironment.authenticatedContext(uid, {
     email: `${uid}@example.test`,

@@ -144,8 +144,18 @@ class _AdjustmentForm extends StatelessWidget {
             controller: controller.notesController,
             enabled: !controller.isLoading,
             maxLines: 3,
+            validator: (value) {
+              final reason = value?.trim() ?? '';
+              if (reason.isEmpty) {
+                return 'inventory_adjustment_reason_required'.tr;
+              }
+              if (reason.length > 500) {
+                return 'inventory_adjustment_reason_too_long'.tr;
+              }
+              return null;
+            },
             decoration: InputDecoration(
-              labelText: 'notes'.tr,
+              labelText: 'inventory_adjustment_reason'.tr,
               prefixIcon: const Icon(Icons.notes_rounded),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),

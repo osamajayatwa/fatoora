@@ -17,6 +17,11 @@ const Map<String, String> inventoryEnglishTranslations = {
   'inventory_no_low_stock': 'No low-stock items.',
   'inventory_no_movements': 'No stock movements found.',
   'inventory_adjustment': 'Stock adjustment',
+  'inventory_adjustment_reason': 'Adjustment reason',
+  'inventory_adjustment_reason_required':
+      'A reason is required for a manual stock adjustment.',
+  'inventory_adjustment_reason_too_long':
+      'The adjustment reason must be 500 characters or fewer.',
   'inventory_number_non_negative': 'Enter zero or a positive number.',
   'current_stock': 'Current stock',
   'opening_stock': 'Opening stock',
@@ -61,6 +66,10 @@ const Map<String, String> inventoryEnglishTranslations = {
 };
 
 const Map<String, String> inventoryArabicTranslations = {
+  'inventory_adjustment_reason': 'سبب تعديل المخزون',
+  'inventory_adjustment_reason_required':
+      'يجب إدخال سبب لتعديل المخزون اليدوي.',
+  'inventory_adjustment_reason_too_long': 'يجب ألا يتجاوز سبب التعديل 500 حرف.',
   'inventory': 'المخزون',
   'inventory_load_error': 'تعذر تحميل بيانات المخزون. يرجى المحاولة مرة أخرى.',
   'inventory_action_error': 'تعذر تنفيذ إجراء المخزون. يرجى المحاولة مرة أخرى.',
