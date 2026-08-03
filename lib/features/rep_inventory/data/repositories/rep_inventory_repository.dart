@@ -488,8 +488,20 @@ class RepInventoryRepository {
                 >{};
 
             for (final line in transfer.lines) {
-              final item = _trackedItem(itemSnapshots[line.itemId]!);
-              final balanceSnapshot = balanceSnapshots[line.itemId]!;
+              final itemSnapshot = itemSnapshots[line.itemId];
+              final balanceSnapshot = balanceSnapshots[line.itemId];
+              final companyMovementSnapshot =
+                  companyMovementSnapshots[line.itemId];
+              final repMovementSnapshot = repMovementSnapshots[line.itemId];
+              if (itemSnapshot == null ||
+                  balanceSnapshot == null ||
+                  companyMovementSnapshot == null ||
+                  repMovementSnapshot == null) {
+                throw const RepInventoryRepositoryException(
+                  RepInventoryRepositoryError.invalidData,
+                );
+              }
+              final item = _trackedItem(itemSnapshot);
               final repBefore = balanceSnapshot.exists
                   ? RepInventoryBalanceModel.fromFirestore(
                       balanceSnapshot,
@@ -519,8 +531,8 @@ class RepInventoryRepository {
                   '${transfer.id}_${line.itemId}_warehouse';
               final repMovementId =
                   '${transfer.id}_${transfer.salesRepId}_${line.itemId}';
-              if (companyMovementSnapshots[line.itemId]!.exists ||
-                  repMovementSnapshots[line.itemId]!.exists) {
+              if (companyMovementSnapshot.exists ||
+                  repMovementSnapshot.exists) {
                 throw const RepInventoryRepositoryException(
                   RepInventoryRepositoryError.alreadyConfirmed,
                 );

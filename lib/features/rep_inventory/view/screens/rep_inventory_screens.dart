@@ -27,43 +27,41 @@ class RepInventoryScreen extends StatelessWidget {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        controller.isAdmin
-                            ? 'rep_inventory_title'.tr
-                            : 'rep_inventory_my_inventory'.tr,
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                    if (controller.isAdmin)
-                      FilledButton.icon(
-                        onPressed: controller.createTransfer,
-                        icon: const Icon(Icons.swap_horiz_rounded),
-                        label: Text('rep_inventory_new_transfer'.tr),
-                      ),
-                  ],
+                _ResponsiveHeader(
+                  title: controller.isAdmin
+                      ? 'rep_inventory_title'.tr
+                      : 'rep_inventory_my_inventory'.tr,
+                  action: controller.isAdmin
+                      ? FilledButton.icon(
+                          onPressed: controller.createTransfer,
+                          icon: const Icon(Icons.swap_horiz_rounded),
+                          label: Text('rep_inventory_new_transfer'.tr),
+                        )
+                      : null,
                 ),
                 if (controller.isAdmin) ...[
                   const SizedBox(height: 14),
                   DropdownButtonFormField<String>(
-                    value: controller.selectedSalesRepId.isEmpty
-                        ? null
-                        : controller.selectedSalesRepId,
+                    value: _existingDropdownValue(
+                      controller.selectedSalesRepId,
+                      controller.salesReps.map((rep) => rep.uid),
+                    ),
+                    isExpanded: true,
                     decoration: InputDecoration(
                       labelText: 'rep_inventory_sales_rep'.tr,
                       border: const OutlineInputBorder(),
                     ),
-                    items: controller.salesReps
-                        .map(
-                          (rep) => DropdownMenuItem(
-                            value: rep.uid,
-                            child: Text(rep.name),
+                    items: _uniqueDropdownItems(
+                      controller.salesReps.map(
+                        (rep) => DropdownMenuItem(
+                          value: rep.uid,
+                          child: Text(
+                            rep.name,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        )
-                        .toList(),
+                        ),
+                      ),
+                    ),
                     onChanged: controller.selectSalesRep,
                   ),
                 ],
@@ -200,128 +198,161 @@ class InventoryTransfersScreen extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               physics: const AlwaysScrollableScrollPhysics(),
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: controller.searchController,
-                        decoration: InputDecoration(
-                          hintText: 'rep_inventory_search'.tr,
-                          prefixIcon: const Icon(Icons.search),
-                          border: const OutlineInputBorder(),
-                        ),
-                        onSubmitted: (_) => controller.load(),
-                      ),
+                _ResponsiveSearchHeader(
+                  search: TextField(
+                    controller: controller.searchController,
+                    decoration: InputDecoration(
+                      hintText: 'rep_inventory_search'.tr,
+                      prefixIcon: const Icon(Icons.search),
+                      border: const OutlineInputBorder(),
                     ),
-                    const SizedBox(width: 10),
-                    FilledButton.icon(
-                      onPressed: controller.create,
-                      icon: const Icon(Icons.add),
-                      label: Text('rep_inventory_new_transfer'.tr),
-                    ),
-                  ],
+                    onSubmitted: (_) => controller.load(),
+                  ),
+                  action: FilledButton.icon(
+                    onPressed: controller.create,
+                    icon: const Icon(Icons.add),
+                    label: Text('rep_inventory_new_transfer'.tr),
+                  ),
                 ),
                 const SizedBox(height: 16),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    SizedBox(
-                      width: 230,
-                      child: DropdownButtonFormField<String>(
-                        value: controller.selectedSalesRepId.isEmpty
-                            ? null
-                            : controller.selectedSalesRepId,
-                        decoration: InputDecoration(
-                          labelText: 'rep_inventory_sales_rep'.tr,
-                          border: const OutlineInputBorder(),
-                        ),
-                        items: [
-                          DropdownMenuItem(
-                            value: '',
-                            child: Text('rep_inventory_all'.tr),
-                          ),
-                          ...controller.salesReps.map(
-                            (rep) => DropdownMenuItem(
-                              value: rep.uid,
-                              child: Text(rep.name),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 600;
+                    final availableWidth = constraints.maxWidth;
+                    return Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        SizedBox(
+                          width: compact ? availableWidth : 230,
+                          child: DropdownButtonFormField<String>(
+                            value: _existingDropdownValue(
+                              controller.selectedSalesRepId,
+                              <String>[
+                                '',
+                                ...controller.salesReps.map((rep) => rep.uid),
+                              ],
                             ),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          controller.selectedSalesRepId = value ?? '';
-                          controller.load();
-                        },
-                      ),
-                    ),
-                    SizedBox(
-                      width: 220,
-                      child: DropdownButtonFormField<InventoryTransferType?>(
-                        value: controller.typeFilter,
-                        decoration: InputDecoration(
-                          labelText: 'rep_inventory_transfer_type'.tr,
-                          border: const OutlineInputBorder(),
-                        ),
-                        items: [
-                          DropdownMenuItem(
-                            value: null,
-                            child: Text('rep_inventory_all'.tr),
-                          ),
-                          ...InventoryTransferType.values.map(
-                            (type) => DropdownMenuItem(
-                              value: type,
-                              child: Text(_typeLabel(type)),
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              labelText: 'rep_inventory_sales_rep'.tr,
+                              border: const OutlineInputBorder(),
                             ),
+                            items: _uniqueDropdownItems([
+                              DropdownMenuItem<String>(
+                                value: '',
+                                child: Text(
+                                  'rep_inventory_all'.tr,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              ...controller.salesReps.map(
+                                (rep) => DropdownMenuItem(
+                                  value: rep.uid,
+                                  child: Text(
+                                    rep.name,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            ]),
+                            onChanged: (value) {
+                              controller.selectedSalesRepId = value ?? '';
+                              controller.load();
+                            },
                           ),
-                        ],
-                        onChanged: (value) {
-                          controller.typeFilter = value;
-                          controller.load();
-                        },
-                      ),
-                    ),
-                    SizedBox(
-                      width: 180,
-                      child: DropdownButtonFormField<InventoryTransferStatus?>(
-                        value: controller.statusFilter,
-                        decoration: InputDecoration(
-                          labelText: 'rep_inventory_status'.tr,
-                          border: const OutlineInputBorder(),
                         ),
-                        items: [
-                          DropdownMenuItem(
-                            value: null,
-                            child: Text('rep_inventory_all'.tr),
-                          ),
-                          ...InventoryTransferStatus.values.map(
-                            (status) => DropdownMenuItem(
-                              value: status,
-                              child: Text(_statusLabel(status)),
+                        SizedBox(
+                          width: compact ? availableWidth : 220,
+                          child: DropdownButtonFormField<String>(
+                            value: controller.typeFilter?.value ?? '',
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              labelText: 'rep_inventory_transfer_type'.tr,
+                              border: const OutlineInputBorder(),
                             ),
+                            items: [
+                              DropdownMenuItem(
+                                value: '',
+                                child: Text(
+                                  'rep_inventory_all'.tr,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              ...InventoryTransferType.values.map(
+                                (type) => DropdownMenuItem(
+                                  value: type.value,
+                                  child: Text(
+                                    _typeLabel(type),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              controller.typeFilter = InventoryTransferType
+                                  .values
+                                  .where((type) => type.value == value)
+                                  .firstOrNull;
+                              controller.load();
+                            },
                           ),
-                        ],
-                        onChanged: (value) {
-                          controller.statusFilter = value;
-                          controller.load();
-                        },
-                      ),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () => controller.selectDateRange(context),
-                      icon: const Icon(Icons.date_range_outlined),
-                      label: Text(
-                        controller.fromDate == null
-                            ? 'rep_inventory_date_range'.tr
-                            : '${DateFormat.yMd().format(controller.fromDate!)}'
-                                  ' – '
-                                  '${DateFormat.yMd().format(controller.toDate!)}',
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: controller.clearFilters,
-                      child: Text('rep_inventory_clear_filters'.tr),
-                    ),
-                  ],
+                        ),
+                        SizedBox(
+                          width: compact ? availableWidth : 180,
+                          child: DropdownButtonFormField<String>(
+                            value: controller.statusFilter?.value ?? '',
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              labelText: 'rep_inventory_status'.tr,
+                              border: const OutlineInputBorder(),
+                            ),
+                            items: [
+                              DropdownMenuItem(
+                                value: '',
+                                child: Text(
+                                  'rep_inventory_all'.tr,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              ...InventoryTransferStatus.values.map(
+                                (status) => DropdownMenuItem(
+                                  value: status.value,
+                                  child: Text(
+                                    _statusLabel(status),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              controller.statusFilter = InventoryTransferStatus
+                                  .values
+                                  .where((status) => status.value == value)
+                                  .firstOrNull;
+                              controller.load();
+                            },
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => controller.selectDateRange(context),
+                          icon: const Icon(Icons.date_range_outlined),
+                          label: Text(
+                            controller.fromDate == null ||
+                                    controller.toDate == null
+                                ? 'rep_inventory_date_range'.tr
+                                : '${DateFormat.yMd().format(controller.fromDate!)}'
+                                      ' – '
+                                      '${DateFormat.yMd().format(controller.toDate!)}',
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: controller.clearFilters,
+                          child: Text('rep_inventory_clear_filters'.tr),
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 16),
                 if (controller.transfers.isEmpty)
@@ -359,26 +390,29 @@ class InventoryTransferFormScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             children: [
               DropdownButtonFormField<String>(
-                value: controller.selectedSalesRepId.isEmpty
-                    ? null
-                    : controller.selectedSalesRepId,
+                value: _existingDropdownValue(
+                  controller.selectedSalesRepId,
+                  controller.salesReps.map((rep) => rep.uid),
+                ),
+                isExpanded: true,
                 decoration: InputDecoration(
                   labelText: 'rep_inventory_sales_rep'.tr,
                   border: const OutlineInputBorder(),
                 ),
-                items: controller.salesReps
-                    .map(
-                      (rep) => DropdownMenuItem(
-                        value: rep.uid,
-                        child: Text(rep.name),
-                      ),
-                    )
-                    .toList(),
+                items: _uniqueDropdownItems(
+                  controller.salesReps.map(
+                    (rep) => DropdownMenuItem(
+                      value: rep.uid,
+                      child: Text(rep.name, overflow: TextOverflow.ellipsis),
+                    ),
+                  ),
+                ),
                 onChanged: controller.selectSalesRep,
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<InventoryTransferType>(
                 value: controller.type,
+                isExpanded: true,
                 decoration: InputDecoration(
                   labelText: 'rep_inventory_transfer_type'.tr,
                   border: const OutlineInputBorder(),
@@ -387,7 +421,10 @@ class InventoryTransferFormScreen extends StatelessWidget {
                     .map(
                       (type) => DropdownMenuItem(
                         value: type,
-                        child: Text(_typeLabel(type)),
+                        child: Text(
+                          _typeLabel(type),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     )
                     .toList(),
@@ -396,36 +433,49 @@ class InventoryTransferFormScreen extends StatelessWidget {
               const SizedBox(height: 20),
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final item = DropdownButtonFormField<String>(
-                    value: controller.selectedItemId.isEmpty
-                        ? null
-                        : controller.selectedItemId,
-                    isExpanded: true,
+                  final availableItems = controller.items
+                      .where(
+                        (entry) => !controller.lines.any(
+                          (line) => line.itemId == entry.id,
+                        ),
+                      )
+                      .toList(growable: false);
+                  final availableItemIds = availableItems
+                      .map((entry) => entry.id)
+                      .toList(growable: false);
+                  final selectedItemId = _existingDropdownValue(
+                    controller.selectedItemId,
+                    availableItemIds,
+                  );
+                  final item = InputDecorator(
+                    isEmpty: selectedItemId == null,
                     decoration: InputDecoration(
                       labelText: 'rep_inventory_item'.tr,
                       border: const OutlineInputBorder(),
                     ),
-                    items: controller.items
-                        .where(
-                          (entry) => !controller.lines.any(
-                            (line) => line.itemId == entry.id,
-                          ),
-                        )
-                        .map(
-                          (entry) => DropdownMenuItem(
-                            value: entry.id,
-                            child: Text(
-                              '${entry.name} (${entry.code}) · '
-                              '${'rep_inventory_warehouse'.tr}: '
-                              '${_quantity(entry.currentStock)} · '
-                              '${'rep_inventory_rep_stock'.tr}: '
-                              '${_quantity(controller.repQuantities[entry.id] ?? 0)}',
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: selectedItemId,
+                        isExpanded: true,
+                        isDense: true,
+                        items: _uniqueDropdownItems(
+                          availableItems.map(
+                            (entry) => DropdownMenuItem(
+                              value: entry.id,
+                              child: Text(
+                                '${entry.name} (${entry.code}) · '
+                                '${'rep_inventory_warehouse'.tr}: '
+                                '${_quantity(entry.currentStock)} · '
+                                '${'rep_inventory_rep_stock'.tr}: '
+                                '${_quantity(controller.repQuantities[entry.id] ?? 0)}',
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ),
-                        )
-                        .toList(),
-                    onChanged: (value) =>
-                        controller.selectedItemId = value ?? '',
+                        ),
+                        onChanged: controller.selectItem,
+                      ),
+                    ),
                   );
                   final quantity = TextField(
                     controller: controller.quantityController,
@@ -653,6 +703,71 @@ class InventoryTransferDetailsScreen extends StatelessWidget {
   }
 }
 
+class _ResponsiveHeader extends StatelessWidget {
+  const _ResponsiveHeader({required this.title, this.action});
+
+  final String title;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    final titleWidget = Text(
+      title,
+      style: Theme.of(
+        context,
+      ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+    );
+    if (action == null) return titleWidget;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 520) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              titleWidget,
+              const SizedBox(height: 10),
+              Align(alignment: AlignmentDirectional.centerEnd, child: action),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: titleWidget),
+            const SizedBox(width: 12),
+            action!,
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ResponsiveSearchHeader extends StatelessWidget {
+  const _ResponsiveSearchHeader({required this.search, required this.action});
+
+  final Widget search;
+  final Widget action;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      if (constraints.maxWidth < 520) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [search, const SizedBox(height: 10), action],
+        );
+      }
+      return Row(
+        children: [
+          Expanded(child: search),
+          const SizedBox(width: 10),
+          action,
+        ],
+      );
+    },
+  );
+}
+
 class _LoadState extends StatelessWidget {
   const _LoadState({
     required this.status,
@@ -761,6 +876,22 @@ class _Fact extends StatelessWidget {
       ],
     ),
   );
+}
+
+T? _existingDropdownValue<T>(T? value, Iterable<T> availableValues) {
+  if (value == null || !availableValues.contains(value)) return null;
+  return value;
+}
+
+List<DropdownMenuItem<T>> _uniqueDropdownItems<T>(
+  Iterable<DropdownMenuItem<T>> items,
+) {
+  final unique = <T, DropdownMenuItem<T>>{};
+  for (final item in items) {
+    final value = item.value;
+    if (value != null) unique.putIfAbsent(value, () => item);
+  }
+  return List<DropdownMenuItem<T>>.unmodifiable(unique.values);
 }
 
 String _quantity(double value) {

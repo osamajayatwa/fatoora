@@ -12,6 +12,15 @@ import 'package:fatoora/features/rep_inventory/data/repositories/rep_inventory_r
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+List<T> _uniqueById<T>(Iterable<T> values, String Function(T value) idOf) {
+  final unique = <String, T>{};
+  for (final value in values) {
+    final id = idOf(value).trim();
+    if (id.isNotEmpty) unique.putIfAbsent(id, () => value);
+  }
+  return List<T>.unmodifiable(unique.values);
+}
+
 mixin RepInventoryControllerContext {
   MyServices get services;
 
@@ -115,12 +124,18 @@ class RepInventoryController extends GetxController
     update();
     try {
       if (isAdmin) {
-        salesReps = await _repository.fetchApprovedSalesReps(
-          companyId: companyId,
+        salesReps = _uniqueById(
+          await _repository.fetchApprovedSalesReps(companyId: companyId),
+          (rep) => rep.uid,
         );
-        if (selectedSalesRepId.isEmpty && salesReps.isNotEmpty) {
-          selectedSalesRepId = salesReps.first.uid;
-          selectedSalesRepName = salesReps.first.name;
+        final selectedRep = salesReps
+            .where((rep) => rep.uid == selectedSalesRepId)
+            .firstOrNull;
+        if (selectedRep == null) {
+          selectedSalesRepId = salesReps.firstOrNull?.uid ?? '';
+          selectedSalesRepName = salesReps.firstOrNull?.name ?? '';
+        } else {
+          selectedSalesRepName = selectedRep.name;
         }
       }
       if (selectedSalesRepId.isEmpty) {
@@ -208,9 +223,14 @@ class InventoryTransfersController extends GetxController
     update();
     try {
       if (salesReps.isEmpty && isAdmin) {
-        salesReps = await _repository.fetchApprovedSalesReps(
-          companyId: companyId,
+        salesReps = _uniqueById(
+          await _repository.fetchApprovedSalesReps(companyId: companyId),
+          (rep) => rep.uid,
         );
+        if (selectedSalesRepId.isNotEmpty &&
+            !salesReps.any((rep) => rep.uid == selectedSalesRepId)) {
+          selectedSalesRepId = '';
+        }
       }
       transfers = await _repository.fetchTransfers(
         companyId: companyId,
@@ -307,10 +327,15 @@ class InventoryTransferFormController extends GetxController
         _repository.fetchApprovedSalesReps(companyId: companyId),
         _repository.fetchTrackedItems(),
       ]);
-      salesReps = results[0] as List<AppUserModel>;
-      items = results[1] as List<ItemModel>;
-      if (salesReps.isNotEmpty) selectedSalesRepId = salesReps.first.uid;
-      if (items.isNotEmpty) selectedItemId = items.first.id;
+      salesReps = _uniqueById(
+        results[0] as List<AppUserModel>,
+        (rep) => rep.uid,
+      );
+      items = _uniqueById(results[1] as List<ItemModel>, (item) => item.id);
+      if (!salesReps.any((rep) => rep.uid == selectedSalesRepId)) {
+        selectedSalesRepId = salesReps.firstOrNull?.uid ?? '';
+      }
+      _selectFirstAvailableItemIfNeeded();
       await _loadRepBalances();
       statusRequest = StatusRequest.success;
     } catch (error) {
@@ -374,7 +399,21 @@ class InventoryTransferFormController extends GetxController
 
   void removeLine(String itemId) {
     lines = lines.where((line) => line.itemId != itemId).toList();
-    if (selectedItemId.isEmpty) selectedItemId = itemId;
+    if (selectedItemId.isEmpty && items.any((item) => item.id == itemId)) {
+      selectedItemId = itemId;
+    }
+    update();
+  }
+
+  void selectItem(String? value) {
+    final id = value?.trim() ?? '';
+    selectedItemId =
+        items.any(
+          (item) =>
+              item.id == id && !lines.any((line) => line.itemId == item.id),
+        )
+        ? id
+        : '';
     update();
   }
 
@@ -382,6 +421,7 @@ class InventoryTransferFormController extends GetxController
     if (selectedSalesRepId == value) return;
     selectedSalesRepId = value ?? '';
     lines = [];
+    _selectFirstAvailableItemIfNeeded();
     await _loadRepBalances();
     update();
   }
@@ -390,7 +430,18 @@ class InventoryTransferFormController extends GetxController
     if (value == null || value == type) return;
     type = value;
     lines = [];
+    _selectFirstAvailableItemIfNeeded();
     update();
+  }
+
+  void _selectFirstAvailableItemIfNeeded() {
+    final availableIds = items
+        .where((item) => !lines.any((line) => line.itemId == item.id))
+        .map((item) => item.id)
+        .toSet();
+    if (!availableIds.contains(selectedItemId)) {
+      selectedItemId = availableIds.firstOrNull ?? '';
+    }
   }
 
   Future<void> _loadRepBalances() async {
