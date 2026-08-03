@@ -546,6 +546,7 @@ class InventoryTransferDetailsController extends GetxController
   MyServices get services => _services;
   StatusRequest statusRequest = StatusRequest.loading;
   InventoryTransferModel? transfer;
+  bool isConfirming = false;
   String errorKey = 'rep_inventory_error_unknown';
 
   @override
@@ -575,16 +576,20 @@ class InventoryTransferDetailsController extends GetxController
 
   Future<void> confirm() async {
     final current = transfer;
-    if (current == null || !current.isDraft) return;
+    if (current == null || !current.isDraft || isConfirming) return;
+    isConfirming = true;
+    update();
     try {
       transfer = await _repository.confirmTransfer(
         companyId: companyId,
         transferId: current.id,
       );
       Get.snackbar('success'.tr, 'rep_inventory_confirmed'.tr);
-      update();
     } catch (error) {
       showInventoryError(error);
+    } finally {
+      isConfirming = false;
+      if (!isClosed) update();
     }
   }
 

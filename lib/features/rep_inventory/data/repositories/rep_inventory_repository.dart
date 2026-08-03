@@ -295,6 +295,31 @@ class RepInventoryRepository {
       final user = await _requireAdmin(companyId);
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
       _validateInputLines(lines);
+      final validationSnapshots = await Future.wait([
+        _users
+            .doc(salesRepId.trim())
+            .get(const GetOptions(source: Source.server)),
+        ...lines.map(
+          (line) => _items
+              .doc(line.itemId.trim())
+              .get(const GetOptions(source: Source.server)),
+        ),
+      ]).timeout(const Duration(seconds: 20));
+      final rep = _validRep(validationSnapshots.first, resolvedCompanyId);
+      final normalizedLines = <InventoryTransferLine>[];
+      for (var index = 0; index < lines.length; index++) {
+        final input = lines[index];
+        final item = _trackedItem(validationSnapshots[index + 1]);
+        normalizedLines.add(
+          InventoryTransferLine(
+            itemId: item.id,
+            modelSnapshot: item.code,
+            itemNameSnapshot: item.name,
+            unitSnapshot: item.unit,
+            quantity: _round(input.quantity),
+          ),
+        );
+      }
       final transferRef = transferId.trim().isEmpty
           ? _transfers(resolvedCompanyId).doc()
           : _transfers(resolvedCompanyId).doc(transferId.trim());
@@ -310,27 +335,6 @@ class RepInventoryRepository {
                   RepInventoryRepositoryError.notEditable,
                 );
               }
-            }
-            final rep = await _readValidRep(
-              transaction,
-              resolvedCompanyId,
-              salesRepId,
-            );
-            final normalizedLines = <InventoryTransferLine>[];
-            for (final input in lines) {
-              final itemSnapshot = await transaction.get(
-                _items.doc(input.itemId.trim()),
-              );
-              final item = _trackedItem(itemSnapshot);
-              normalizedLines.add(
-                InventoryTransferLine(
-                  itemId: item.id,
-                  modelSnapshot: item.code,
-                  itemNameSnapshot: item.name,
-                  unitSnapshot: item.unit,
-                  quantity: _round(input.quantity),
-                ),
-              );
             }
             final now = DateTime.now();
             DocumentReference<Map<String, dynamic>>? counterRef;
@@ -428,12 +432,6 @@ class RepInventoryRepository {
               );
             }
             _validateInputLines(transfer.lines);
-            await _readValidRep(
-              transaction,
-              resolvedCompanyId,
-              transfer.salesRepId,
-            );
-
             final itemSnapshots =
                 <String, DocumentSnapshot<Map<String, dynamic>>>{};
             final balanceSnapshots =
@@ -442,28 +440,38 @@ class RepInventoryRepository {
                 <String, DocumentSnapshot<Map<String, dynamic>>>{};
             final repMovementSnapshots =
                 <String, DocumentSnapshot<Map<String, dynamic>>>{};
-            for (final line in transfer.lines) {
-              itemSnapshots[line.itemId] = await transaction.get(
-                _items.doc(line.itemId),
-              );
-              final balanceId = RepInventoryBalanceModel.documentId(
-                transfer.salesRepId,
-                line.itemId,
-              );
-              balanceSnapshots[line.itemId] = await transaction.get(
-                _balances(resolvedCompanyId).doc(balanceId),
-              );
-              final companyMovementId =
-                  '${transfer.id}_${line.itemId}_warehouse';
-              final repMovementId =
-                  '${transfer.id}_${transfer.salesRepId}_${line.itemId}';
-              companyMovementSnapshots[line.itemId] = await transaction.get(
-                _stockMovements(resolvedCompanyId).doc(companyMovementId),
-              );
-              repMovementSnapshots[line.itemId] = await transaction.get(
-                _repMovements(resolvedCompanyId).doc(repMovementId),
-              );
-            }
+            final repSnapshotFuture = transaction.get(
+              _users.doc(transfer.salesRepId),
+            );
+            final lineSnapshotsFuture = Future.wait(
+              transfer.lines.map((line) async {
+                final balanceId = RepInventoryBalanceModel.documentId(
+                  transfer.salesRepId,
+                  line.itemId,
+                );
+                final companyMovementId =
+                    '${transfer.id}_${line.itemId}_warehouse';
+                final repMovementId =
+                    '${transfer.id}_${transfer.salesRepId}_${line.itemId}';
+                final snapshots = await Future.wait([
+                  transaction.get(_items.doc(line.itemId)),
+                  transaction.get(_balances(resolvedCompanyId).doc(balanceId)),
+                  transaction.get(
+                    _stockMovements(resolvedCompanyId).doc(companyMovementId),
+                  ),
+                  transaction.get(
+                    _repMovements(resolvedCompanyId).doc(repMovementId),
+                  ),
+                ]);
+                itemSnapshots[line.itemId] = snapshots[0];
+                balanceSnapshots[line.itemId] = snapshots[1];
+                companyMovementSnapshots[line.itemId] = snapshots[2];
+                repMovementSnapshots[line.itemId] = snapshots[3];
+              }),
+            );
+            final repSnapshot = await repSnapshotFuture;
+            _validRep(repSnapshot, resolvedCompanyId);
+            await lineSnapshotsFuture;
 
             final confirmedLines = <InventoryTransferLine>[];
             final itemWrites =
@@ -753,12 +761,10 @@ class RepInventoryRepository {
     return user;
   }
 
-  Future<AppUserModel> _readValidRep(
-    Transaction transaction,
+  AppUserModel _validRep(
+    DocumentSnapshot<Map<String, dynamic>> snapshot,
     String companyId,
-    String salesRepId,
-  ) async {
-    final snapshot = await transaction.get(_users.doc(salesRepId.trim()));
+  ) {
     if (!snapshot.exists) {
       throw const RepInventoryRepositoryException(
         RepInventoryRepositoryError.invalidRepresentative,

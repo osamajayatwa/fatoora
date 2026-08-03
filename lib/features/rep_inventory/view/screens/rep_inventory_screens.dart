@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/features/items/data/models/item_model.dart';
 import 'package:fatoora/features/rep_inventory/controllers/rep_inventory_controllers.dart';
 import 'package:fatoora/features/rep_inventory/data/models/inventory_transfer_model.dart';
 import 'package:fatoora/features/rep_inventory/data/models/rep_inventory_enums.dart';
@@ -440,42 +441,14 @@ class InventoryTransferFormScreen extends StatelessWidget {
                         ),
                       )
                       .toList(growable: false);
-                  final availableItemIds = availableItems
-                      .map((entry) => entry.id)
-                      .toList(growable: false);
-                  final selectedItemId = _existingDropdownValue(
-                    controller.selectedItemId,
-                    availableItemIds,
-                  );
-                  final item = InputDecorator(
-                    isEmpty: selectedItemId == null,
-                    decoration: InputDecoration(
-                      labelText: 'rep_inventory_item'.tr,
-                      border: const OutlineInputBorder(),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: selectedItemId,
-                        isExpanded: true,
-                        isDense: true,
-                        items: _uniqueDropdownItems(
-                          availableItems.map(
-                            (entry) => DropdownMenuItem(
-                              value: entry.id,
-                              child: Text(
-                                '${entry.name} (${entry.code}) · '
-                                '${'rep_inventory_warehouse'.tr}: '
-                                '${_quantity(entry.currentStock)} · '
-                                '${'rep_inventory_rep_stock'.tr}: '
-                                '${_quantity(controller.repQuantities[entry.id] ?? 0)}',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-                        ),
-                        onChanged: controller.selectItem,
-                      ),
-                    ),
+                  final selectedItem = availableItems
+                      .where((item) => item.id == controller.selectedItemId)
+                      .firstOrNull;
+                  final item = _SearchableItemPicker(
+                    items: availableItems,
+                    selectedItem: selectedItem,
+                    repQuantities: controller.repQuantities,
+                    onSelected: (item) => controller.selectItem(item.id),
                   );
                   final quantity = TextField(
                     controller: controller.quantityController,
@@ -687,8 +660,17 @@ class InventoryTransferDetailsScreen extends StatelessWidget {
                                 label: Text('delete'.tr),
                               ),
                               FilledButton.icon(
-                                onPressed: controller.confirm,
-                                icon: const Icon(Icons.check_circle_outline),
+                                onPressed: controller.isConfirming
+                                    ? null
+                                    : controller.confirm,
+                                icon: controller.isConfirming
+                                    ? const SizedBox.square(
+                                        dimension: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.check_circle_outline),
                                 label: Text('rep_inventory_confirm'.tr),
                               ),
                             ],
@@ -701,6 +683,315 @@ class InventoryTransferDetailsScreen extends StatelessWidget {
       },
     );
   }
+}
+
+class _SearchableItemPicker extends StatelessWidget {
+  const _SearchableItemPicker({
+    required this.items,
+    required this.selectedItem,
+    required this.repQuantities,
+    required this.onSelected,
+  });
+
+  final List<ItemModel> items;
+  final ItemModel? selectedItem;
+  final Map<String, double> repQuantities;
+  final ValueChanged<ItemModel> onSelected;
+
+  Future<void> _openPicker(BuildContext context) async {
+    FocusScope.of(context).unfocus();
+    final selected = await showModalBottomSheet<ItemModel>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      constraints: const BoxConstraints(maxWidth: 720),
+      builder: (context) => _ItemSearchSheet(
+        items: items,
+        selectedItemId: selectedItem?.id,
+        repQuantities: repQuantities,
+      ),
+    );
+    if (selected != null) onSelected(selected);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = selectedItem;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: items.isEmpty ? null : () => _openPicker(context),
+        borderRadius: BorderRadius.circular(12),
+        child: InputDecorator(
+          isEmpty: selected == null,
+          decoration: InputDecoration(
+            labelText: 'rep_inventory_item'.tr,
+            border: const OutlineInputBorder(),
+            enabled: items.isNotEmpty,
+            prefixIcon: const Icon(Icons.inventory_2_outlined),
+            suffixIcon: const Icon(Icons.manage_search_rounded),
+          ),
+          child: selected == null
+              ? Text(
+                  'rep_inventory_select_item'.tr,
+                  style: TextStyle(color: context.appMutedText),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      selected.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${selected.code} · '
+                      '${'rep_inventory_warehouse'.tr}: '
+                      '${_quantity(selected.currentStock)} · '
+                      '${'rep_inventory_rep_stock'.tr}: '
+                      '${_quantity(repQuantities[selected.id] ?? 0)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.appMutedText,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ItemSearchSheet extends StatefulWidget {
+  const _ItemSearchSheet({
+    required this.items,
+    required this.selectedItemId,
+    required this.repQuantities,
+  });
+
+  final List<ItemModel> items;
+  final String? selectedItemId;
+  final Map<String, double> repQuantities;
+
+  @override
+  State<_ItemSearchSheet> createState() => _ItemSearchSheetState();
+}
+
+class _ItemSearchSheetState extends State<_ItemSearchSheet> {
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  List<ItemModel> get _filteredItems {
+    if (_query.isEmpty) return widget.items;
+    return widget.items
+        .where((item) {
+          final barcode = item.barcode?.toLowerCase() ?? '';
+          return item.name.toLowerCase().contains(_query) ||
+              item.code.toLowerCase().contains(_query) ||
+              barcode.contains(_query);
+        })
+        .toList(growable: false);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredItems = _filteredItems;
+    final theme = Theme.of(context);
+    return SizedBox(
+      height: MediaQuery.sizeOf(context).height * 0.82,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 14),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'rep_inventory_select_item'.tr,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    filteredItems.length.toString(),
+                    style: TextStyle(
+                      color: theme.colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: TextField(
+              controller: _searchController,
+              autofocus: true,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'rep_inventory_search_items'.tr,
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: _query.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'rep_inventory_clear_filters'.tr,
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _query = '');
+                        },
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                filled: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              onChanged: (value) =>
+                  setState(() => _query = value.trim().toLowerCase()),
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: filteredItems.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.search_off_rounded,
+                            size: 44,
+                            color: context.appMutedText,
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'rep_inventory_no_matching_items'.tr,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                    itemCount: filteredItems.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 6),
+                    itemBuilder: (context, index) {
+                      final item = filteredItems[index];
+                      final selected = item.id == widget.selectedItemId;
+                      return Material(
+                        color: selected
+                            ? theme.colorScheme.primaryContainer.withValues(
+                                alpha: 0.55,
+                              )
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(14),
+                        child: ListTile(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          onTap: () => Navigator.of(context).pop(item),
+                          leading: CircleAvatar(
+                            backgroundColor: selected
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.surfaceContainerHighest,
+                            foregroundColor: selected
+                                ? theme.colorScheme.onPrimary
+                                : theme.colorScheme.onSurfaceVariant,
+                            child: const Icon(Icons.inventory_2_outlined),
+                          ),
+                          title: Text(
+                            item.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 5),
+                            child: Wrap(
+                              spacing: 8,
+                              runSpacing: 5,
+                              children: [
+                                _ItemMeta(icon: Icons.tag, text: item.code),
+                                _ItemMeta(
+                                  icon: Icons.warehouse_outlined,
+                                  text:
+                                      '${'rep_inventory_warehouse'.tr}: ${_quantity(item.currentStock)}',
+                                ),
+                                _ItemMeta(
+                                  icon: Icons.badge_outlined,
+                                  text:
+                                      '${'rep_inventory_rep_stock'.tr}: ${_quantity(widget.repQuantities[item.id] ?? 0)}',
+                                ),
+                              ],
+                            ),
+                          ),
+                          trailing: selected
+                              ? Icon(
+                                  Icons.check_circle_rounded,
+                                  color: theme.colorScheme.primary,
+                                )
+                              : const Icon(Icons.chevron_right_rounded),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ItemMeta extends StatelessWidget {
+  const _ItemMeta({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14),
+        const SizedBox(width: 4),
+        Text(text, style: Theme.of(context).textTheme.bodySmall),
+      ],
+    ),
+  );
 }
 
 class _ResponsiveHeader extends StatelessWidget {
