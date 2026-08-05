@@ -459,6 +459,18 @@ test("sales representatives read only their own custody documents", async () => 
   }
 });
 
+test("approved users can check missing custody posting documents", async () => {
+  for (const uid of [adminUid, repAUid]) {
+    const db = authenticatedDb(uid);
+    await assertSucceeds(
+      getDoc(businessDoc(db, "rep_inventory_balances", "missing-balance")),
+    );
+    await assertSucceeds(
+      getDoc(businessDoc(db, "rep_inventory_movements", "missing-movement")),
+    );
+  }
+});
+
 test("admin reads all representative custody documents", async () => {
   const db = authenticatedDb(adminUid);
 

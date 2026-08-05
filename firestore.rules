@@ -2531,7 +2531,17 @@ service cloud.firestore {
     }
 
     match /companies/{companyId}/rep_inventory_balances/{balanceId} {
-      allow get, list: if canReadSalesRepOwnedDoc(
+      // Invoice posting must be able to read a missing balance so it can
+      // report insufficient custody stock instead of failing with a rules
+      // error. Existing documents remain owner-scoped.
+      allow get: if isApprovedCompanyUser(companyId)
+        && (
+          !exists(
+            /databases/$(database)/documents/companies/$(companyId)/rep_inventory_balances/$(balanceId)
+          )
+          || canReadSalesRepOwnedDoc(companyId, resource.data)
+        );
+      allow list: if canReadSalesRepOwnedDoc(
         companyId,
         resource.data
       );
@@ -2543,7 +2553,17 @@ service cloud.firestore {
     }
 
     match /companies/{companyId}/rep_inventory_movements/{movementId} {
-      allow get, list: if canReadSalesRepOwnedDoc(
+      // Confirming an invoice first checks its deterministic movement ID for
+      // idempotency. Permit that read while the document does not yet exist;
+      // existing movements and all queries remain owner-scoped.
+      allow get: if isApprovedCompanyUser(companyId)
+        && (
+          !exists(
+            /databases/$(database)/documents/companies/$(companyId)/rep_inventory_movements/$(movementId)
+          )
+          || canReadSalesRepOwnedDoc(companyId, resource.data)
+        );
+      allow list: if canReadSalesRepOwnedDoc(
         companyId,
         resource.data
       );
