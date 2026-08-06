@@ -55,31 +55,70 @@ class EditItemController extends GetxController with ItemPageNavigation {
   @override
   void onInit() {
     super.onInit();
-    final argument = Get.arguments;
-    if (argument is! ItemModel) {
-      statusRequest = StatusRequest.failure;
-      return;
-    }
-    item = argument;
-    nameController.text = argument.name;
-    codeController.text = argument.code;
-    descriptionController.text = argument.description;
-    unitController.text = argument.unit;
-    priceController.text = _formatNumber(argument.price);
-    taxRateController.text = _formatNumber(argument.taxRate);
-    currentStockController.text = _formatNumber(argument.currentStock);
-    openingStockController.text = _formatNumber(argument.openingStock);
-    minStockController.text = _formatNumber(argument.minStock);
-    costPriceController.text = _formatNumber(argument.costPrice);
-    barcodeController.text = argument.barcode ?? '';
-    categoryController.text = argument.category ?? '';
-    warehouseController.text = argument.warehouseId;
-    active = argument.active;
-    trackStock = argument.trackStock;
     for (final controller in _textControllers) {
       controller.addListener(_markDirty);
     }
-    statusRequest = StatusRequest.success;
+  }
+
+  @override
+  void onReady() {
+    super.onReady();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    final argument = Get.arguments;
+    final routeItemId = (Get.parameters['itemId'] ?? '').trim();
+    if (argument is ItemModel &&
+        (routeItemId.isEmpty || argument.id == routeItemId)) {
+      item = argument;
+      _applyItem(argument);
+      isDirty = false;
+      statusRequest = StatusRequest.success;
+      update();
+      return;
+    }
+    final itemId = routeItemId.isNotEmpty
+        ? routeItemId
+        : argument is String
+        ? argument.trim()
+        : '';
+    if (itemId.isEmpty) {
+      statusRequest = StatusRequest.failure;
+      update();
+      return;
+    }
+    statusRequest = StatusRequest.loading;
+    update();
+    try {
+      final loaded = await _repository.getItem(itemId);
+      if (isClosed) return;
+      item = loaded;
+      _applyItem(loaded);
+      isDirty = false;
+      statusRequest = StatusRequest.success;
+    } catch (_) {
+      statusRequest = StatusRequest.failure;
+    }
+    if (!isClosed) update();
+  }
+
+  void _applyItem(ItemModel value) {
+    nameController.text = value.name;
+    codeController.text = value.code;
+    descriptionController.text = value.description;
+    unitController.text = value.unit;
+    priceController.text = _formatNumber(value.price);
+    taxRateController.text = _formatNumber(value.taxRate);
+    currentStockController.text = _formatNumber(value.currentStock);
+    openingStockController.text = _formatNumber(value.openingStock);
+    minStockController.text = _formatNumber(value.minStock);
+    costPriceController.text = _formatNumber(value.costPrice);
+    barcodeController.text = value.barcode ?? '';
+    categoryController.text = value.category ?? '';
+    warehouseController.text = value.warehouseId;
+    active = value.active;
+    trackStock = value.trackStock;
   }
 
   String _formatNumber(double value) => value == value.roundToDouble()
@@ -137,7 +176,7 @@ class EditItemController extends GetxController with ItemPageNavigation {
       isDirty = false;
       update();
       await leavePage(
-        fallbackRoute: AppRoute.adminItemDetails,
+        fallbackRoute: AppRoute.itemDetailsPath(current.id),
         fallbackArguments: current,
         result: true,
       );
@@ -194,7 +233,7 @@ class EditItemController extends GetxController with ItemPageNavigation {
   Future<void> _leaveEditPage() => leavePage(
     fallbackRoute: item == null
         ? AppRoute.adminItems
-        : AppRoute.adminItemDetails,
+        : AppRoute.itemDetailsPath(item!.id),
     fallbackArguments: item,
   );
 

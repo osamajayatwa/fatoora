@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
@@ -33,6 +34,10 @@ class QuotationsListController extends GetxController {
   String searchText = '';
   QuotationStatus? statusFilter;
   Timer? _searchDebounce;
+  bool isLoadingMore = false;
+  bool hasMore = false;
+  FirestorePageCursor? _pageCursor;
+  int _loadGeneration = 0;
   EffectiveBusinessPermissions permissions =
       EffectiveBusinessPermissions.denied;
 
@@ -50,18 +55,26 @@ class QuotationsListController extends GetxController {
   }
 
   Future<void> loadQuotations() async {
+    final generation = ++_loadGeneration;
     statusRequest = StatusRequest.loading;
+    _pageCursor = null;
+    hasMore = false;
     loadErrorMessageKey = 'quotations_load_error';
     update();
     try {
       permissions = await _permissionResolver.resolve(companyId);
-      quotations = await _repository.fetchQuotations(
+      final page = await _repository.fetchQuotationsPage(
         companyId: companyId,
         status: statusFilter,
         searchText: searchText,
       );
+      if (generation != _loadGeneration) return;
+      quotations = page.items;
+      _pageCursor = page.cursor;
+      hasMore = page.hasMore;
       statusRequest = StatusRequest.success;
     } catch (error) {
+      if (generation != _loadGeneration) return;
       statusRequest = QuotationErrorMapper.status(error);
       loadErrorMessageKey = QuotationErrorMapper.messageKey(
         error,
@@ -73,6 +86,31 @@ class QuotationsListController extends GetxController {
   }
 
   Future<void> refreshQuotations() => loadQuotations();
+
+  Future<void> loadMoreQuotations() async {
+    if (isLoadingMore || !hasMore || _pageCursor == null) return;
+    isLoadingMore = true;
+    final generation = _loadGeneration;
+    update();
+    try {
+      final page = await _repository.fetchQuotationsPage(
+        companyId: companyId,
+        status: statusFilter,
+        searchText: searchText,
+        after: _pageCursor,
+      );
+      if (generation != _loadGeneration) return;
+      quotations = [...quotations, ...page.items];
+      _pageCursor = page.cursor;
+      hasMore = page.hasMore;
+    } catch (error) {
+      if (generation != _loadGeneration) return;
+      _showError(QuotationErrorMapper.messageKey(error));
+    } finally {
+      isLoadingMore = false;
+      if (!isClosed) update();
+    }
+  }
 
   void onSearchChanged(String value) {
     searchText = value;
@@ -107,7 +145,7 @@ class QuotationsListController extends GetxController {
 
   Future<void> openDetails(QuotationModel quotation) async {
     final changed = await Get.toNamed(
-      AppRoute.quotationDetails,
+      AppRoute.quotationDetailsPath(quotation.id),
       arguments: {
         'companyId': quotation.companyId,
         'quotationId': quotation.id,

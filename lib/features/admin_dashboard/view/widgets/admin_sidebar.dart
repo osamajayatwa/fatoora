@@ -214,11 +214,13 @@ class _SidebarContent extends StatelessWidget {
                     final invoiceRoutes = {
                       AppRoute.invoices,
                       AppRoute.invoiceForm,
+                      AppRoute.invoiceEdit,
                       AppRoute.invoiceDetails,
                     };
                     final quotationRoutes = {
                       AppRoute.quotations,
                       AppRoute.createQuotation,
+                      AppRoute.quotationEdit,
                       AppRoute.quotationDetails,
                     };
                     final receiptRoutes = {

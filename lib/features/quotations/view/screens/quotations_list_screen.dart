@@ -48,6 +48,30 @@ class QuotationsListScreen extends StatelessWidget {
                             _Cards(controller: controller)
                           else
                             _Table(controller: controller),
+                          if (controller.quotations.isNotEmpty &&
+                              controller.hasMore) ...[
+                            const SizedBox(height: 18),
+                            Center(
+                              child: FilledButton.tonalIcon(
+                                onPressed: controller.isLoadingMore
+                                    ? null
+                                    : controller.loadMoreQuotations,
+                                icon: controller.isLoadingMore
+                                    ? const SizedBox.square(
+                                        dimension: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.expand_more_rounded),
+                                label: Text(
+                                  controller.isLoadingMore
+                                      ? 'loading_more_records'.tr
+                                      : 'load_more_records'.tr,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),

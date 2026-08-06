@@ -1,4 +1,10 @@
 const Map<String, String> commonEnglishTranslations = {
+  'load_more_records': 'Load more',
+  'loading_more_records': 'Loading...',
+  'page_not_found_title': 'Page not found',
+  'page_not_found_body':
+      'The link is invalid or the page is no longer available.',
+  'go_back': 'Go back',
   'Alert': 'Alert',
   'Choose Language': 'Choose language',
   'Continue': 'Continue',
@@ -19,6 +25,11 @@ const Map<String, String> commonEnglishTranslations = {
 };
 
 const Map<String, String> commonArabicTranslations = {
+  'load_more_records': 'تحميل المزيد',
+  'loading_more_records': 'جارٍ التحميل...',
+  'page_not_found_title': 'الصفحة غير موجودة',
+  'page_not_found_body': 'الرابط غير صالح أو أن الصفحة لم تعد متاحة.',
+  'go_back': 'رجوع',
   'Alert': 'تنبيه',
   'Choose Language': 'اختر اللغة',
   'Continue': 'متابعة',

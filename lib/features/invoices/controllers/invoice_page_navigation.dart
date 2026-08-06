@@ -4,7 +4,7 @@ import 'package:get/get.dart';
 
 bool keepInvoiceParentRoute(Route<dynamic> route) {
   final name = route.settings.name;
-  return name != AppRoute.invoiceForm && name != AppRoute.invoiceDetails;
+  return name == null || !name.startsWith('/invoices/');
 }
 
 mixin InvoicePageNavigation on GetxController {
@@ -45,7 +45,7 @@ mixin InvoicePageNavigation on GetxController {
     update();
     await WidgetsBinding.instance.endOfFrame;
     Get.offNamedUntil<void>(
-      AppRoute.invoiceDetails,
+      AppRoute.invoiceDetailsPath(invoiceId),
       keepInvoiceParentRoute,
       arguments: {'companyId': companyId, 'invoiceId': invoiceId},
     );

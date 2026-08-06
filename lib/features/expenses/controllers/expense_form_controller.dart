@@ -105,7 +105,7 @@ class ExpenseFormController extends GetxController {
         colorText: AppColor.surface,
       );
       await Get.offNamed(
-        AppRoute.expenseDetails,
+        AppRoute.expenseDetailsPath(expense.id),
         arguments: {'companyId': expense.companyId, 'expenseId': expense.id},
       );
     } catch (error) {

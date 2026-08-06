@@ -34,6 +34,8 @@ class ReceiptDetailsController extends GetxController {
   }
 
   String get receiptId {
+    final parameter = (Get.parameters['receiptId'] ?? '').trim();
+    if (parameter.isNotEmpty) return parameter;
     final args = Get.arguments;
     if (args is Map && args['receiptId'] is String) {
       return (args['receiptId'] as String).trim();

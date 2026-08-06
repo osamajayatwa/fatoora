@@ -111,7 +111,7 @@ class ReceiptsListController extends GetxController {
 
   Future<void> openDetails(ReceiptModel receipt) async {
     await Get.toNamed(
-      AppRoute.receiptDetails,
+      AppRoute.receiptDetailsPath(receipt.id),
       arguments: {'companyId': receipt.companyId, 'receiptId': receipt.id},
     );
   }

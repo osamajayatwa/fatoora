@@ -98,7 +98,7 @@ class StatementsController extends GetxController {
 
   void openStatement(CustomerModel customer) {
     Get.toNamed(
-      AppRoute.customerStatement,
+      AppRoute.customerStatementPath(customer.id),
       arguments: {'companyId': customer.companyId, 'customerId': customer.id},
     );
   }

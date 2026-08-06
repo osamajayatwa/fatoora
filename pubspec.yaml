@@ -10,16 +10,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
   cupertino_icons: ^1.0.8
+
   get: ^4.6.6
-  flutter_dotenv: ^5.2.1
 
   # Firebase
   firebase_core: ^3.3.0
   firebase_auth: ^5.1.4
   cloud_firestore: ^5.2.1
-  firebase_storage: ^12.1.3
   firebase_messaging: ^15.2.10
   cloud_functions: ^5.0.4
   google_sign_in: ^6.3.0
@@ -33,9 +31,7 @@ dependencies:
   dartz: ^0.10.1
   connectivity_plus: ^6.0.5
   web_socket_channel: ^3.0.3
-  uuid: ^4.5.1
   intl: ^0.20.1
-  jiffy: ^6.3.2
 
   # Notifications
   flutter_local_notifications: ^18.0.1
@@ -43,22 +39,11 @@ dependencies:
   # Documents and files
   pdf: ^3.11.1
   printing: ^5.13.4
-  path_provider: ^2.1.4
-  open_filex: ^4.5.0
-
-  # Media
-  image_picker: ^1.1.2
-  cached_network_image: ^3.3.1
 
   # UI
   flutter_animate: ^4.5.2
   glassmorphism_ui: ^0.3.0
   lottie: ^3.1.2
-  flutter_svg: ^2.0.10+1
-  iconsax_flutter: ^1.0.0
-  flutter_screenutil: ^5.9.3
-  responsive_builder: ^0.7.0
-  shimmer: ^3.0.0
 
 dev_dependencies:
   flutter_test:
@@ -69,7 +54,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - .env
     - assets/images/
     - assets/lottie/
 

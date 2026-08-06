@@ -96,7 +96,7 @@ class _InventoryHeader extends StatelessWidget {
         IconButton.filled(
           tooltip: 'stock_movements'.tr,
           onPressed: controller.openMovements,
-          icon: const Icon(Icons.history_rounded , color: Colors.white),
+          icon: const Icon(Icons.history_rounded, color: Colors.white),
           style: IconButton.styleFrom(backgroundColor: AppColor.secondaryColor),
         ),
         const SizedBox(width: 8),

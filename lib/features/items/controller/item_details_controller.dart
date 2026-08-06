@@ -23,12 +23,14 @@ class ItemDetailsController extends GetxController with ItemPageNavigation {
   void onInit() {
     super.onInit();
     final argument = Get.arguments;
+    final routeItemId = (Get.parameters['itemId'] ?? '').trim();
     if (argument is ItemModel) {
       item = argument;
       loadItem();
-    } else if (argument is String && argument.isNotEmpty) {
+    } else if (routeItemId.isNotEmpty ||
+        (argument is String && argument.isNotEmpty)) {
       item = ItemModel(
-        id: argument,
+        id: routeItemId.isNotEmpty ? routeItemId : argument as String,
         code: '',
         name: '',
         description: '',
@@ -75,7 +77,10 @@ class ItemDetailsController extends GetxController with ItemPageNavigation {
 
   Future<void> editItem() async {
     if (item == null || isActionLoading) return;
-    final updated = await Get.toNamed(AppRoute.adminEditItem, arguments: item);
+    final updated = await Get.toNamed(
+      AppRoute.itemEditPath(item!.id),
+      arguments: item,
+    );
     if (updated == true) {
       changed = true;
       await loadItem();

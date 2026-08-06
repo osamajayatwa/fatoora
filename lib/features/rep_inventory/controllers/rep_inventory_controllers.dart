@@ -183,7 +183,7 @@ class RepInventoryController extends GetxController
 
   void createTransfer() => Get.toNamed(AppRoute.repInventoryTransferForm);
   void openTransfer(InventoryTransferModel transfer) => Get.toNamed(
-    AppRoute.repInventoryTransferDetails,
+    AppRoute.inventoryTransferDetailsPath(transfer.id),
     arguments: {'transferId': transfer.id},
   );
 }
@@ -250,7 +250,7 @@ class InventoryTransfersController extends GetxController
   }
 
   void open(InventoryTransferModel transfer) => Get.toNamed(
-    AppRoute.repInventoryTransferDetails,
+    AppRoute.inventoryTransferDetailsPath(transfer.id),
     arguments: {'transferId': transfer.id},
   );
   void create() => Get.toNamed(AppRoute.repInventoryTransferForm);
@@ -488,7 +488,7 @@ class InventoryTransferFormController extends GetxController
       if (saved != null) {
         Get.snackbar('success'.tr, 'rep_inventory_draft_saved'.tr);
         Get.offNamed(
-          AppRoute.repInventoryTransferDetails,
+          AppRoute.inventoryTransferDetailsPath(saved.id),
           arguments: {'transferId': saved.id},
         );
       }
@@ -513,7 +513,7 @@ class InventoryTransferFormController extends GetxController
       );
       Get.snackbar('success'.tr, 'rep_inventory_confirmed'.tr);
       Get.offNamed(
-        AppRoute.repInventoryTransferDetails,
+        AppRoute.inventoryTransferDetailsPath(confirmed.id),
         arguments: {'transferId': confirmed.id},
       );
     } catch (error) {
@@ -558,7 +558,12 @@ class InventoryTransferDetailsController extends GetxController
   Future<void> load() async {
     try {
       final args = Get.arguments;
-      final id = args is Map ? (args['transferId'] ?? '').toString() : '';
+      final id =
+          (Get.parameters['transferId'] ??
+                  (args is Map ? args['transferId'] : '') ??
+                  '')
+              .toString()
+              .trim();
       transfer = await _repository.getTransfer(
         companyId: companyId,
         transferId: id,

@@ -78,7 +78,6 @@ class QuotationFormController extends GetxController {
           (args['companyId'] as String?) ??
           _myServices.sharedPreferences.getString('companyId') ??
           AuthRepository.defaultCompanyId;
-      quotationId = (args['quotationId'] as String?)?.trim() ?? '';
       mode = (args['mode'] as String?)?.trim().isEmpty ?? true
           ? 'create'
           : (args['mode'] as String).trim();
@@ -87,6 +86,12 @@ class QuotationFormController extends GetxController {
           _myServices.sharedPreferences.getString('companyId') ??
           AuthRepository.defaultCompanyId;
     }
+    quotationId =
+        (Get.parameters['quotationId'] ??
+                (args is Map ? args['quotationId'] as String? : null) ??
+                '')
+            .trim();
+    if (quotationId.isNotEmpty) mode = 'edit';
 
     permissions = await _permissionResolver.resolve(companyId);
     if (isCreateMode && !permissions.createQuotations) {
@@ -262,7 +267,7 @@ class QuotationFormController extends GetxController {
       );
       if (isCreateMode) {
         await Get.offNamed(
-          AppRoute.quotationDetails,
+          AppRoute.quotationDetailsPath(id),
           arguments: {'companyId': companyId, 'quotationId': id},
         );
       } else {

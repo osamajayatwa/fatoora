@@ -85,19 +85,19 @@ class _PrimaryActionCard extends StatelessWidget {
       semanticLabel: data.title,
       tint: data.emphasized
           ? Color.alphaBlend(
-              AppColor.primaryColor.withValues(alpha: 0.075),
+              scheme.primary.withValues(alpha: 0.075),
               scheme.surface,
             )
           : null,
       borderColor: data.emphasized
-          ? AppColor.primaryColor.withValues(alpha: 0.42)
+          ? scheme.primary.withValues(alpha: 0.42)
           : null,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final horizontal = constraints.maxWidth >= 260;
           final icon = SalesRepIconBox(
             icon: data.icon,
-            color: data.emphasized ? AppColor.primaryColor : scheme.secondary,
+            color: data.emphasized ? scheme.primary : scheme.secondary,
             size: 46,
           );
           final arrow = _ActionArrow(emphasized: data.emphasized);
@@ -166,7 +166,9 @@ class _ActionArrow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = emphasized ? AppColor.primaryColor : context.appMutedText;
+    final color = emphasized
+        ? Theme.of(context).colorScheme.primary
+        : context.appMutedText;
     return Container(
       width: 28,
       height: 28,

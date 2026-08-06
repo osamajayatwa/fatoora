@@ -95,7 +95,7 @@ class CustomersController extends GetxController {
 
   Future<void> openCustomerDetails(CustomerModel customer) async {
     final changed = await Get.toNamed(
-      AppRoute.customerDetails,
+      AppRoute.customerDetailsPath(customer.id),
       arguments: {'companyId': customer.companyId, 'customerId': customer.id},
     );
     if (changed == true) await loadCustomers();

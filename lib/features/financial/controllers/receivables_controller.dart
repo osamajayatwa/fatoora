@@ -69,7 +69,7 @@ class ReceivablesController extends GetxController {
 
   void openStatement(FinancialCustomerBalance item) {
     Get.toNamed(
-      AppRoute.customerStatement,
+      AppRoute.customerStatementPath(item.customer.id),
       arguments: {'companyId': companyId, 'customerId': item.customer.id},
     );
   }

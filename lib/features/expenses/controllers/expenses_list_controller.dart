@@ -142,7 +142,7 @@ class ExpensesListController extends GetxController {
 
   Future<void> openDetails(ExpenseModel expense) async {
     final changed = await Get.toNamed(
-      AppRoute.expenseDetails,
+      AppRoute.expenseDetailsPath(expense.id),
       arguments: {'companyId': expense.companyId, 'expenseId': expense.id},
     );
     if (changed == true) await loadExpenses();

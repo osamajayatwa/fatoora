@@ -50,8 +50,12 @@ class CustomerStatementController extends GetxController {
           (args['companyId'] as String?) ??
           _myServices.sharedPreferences.getString('companyId') ??
           AuthRepository.defaultCompanyId;
-      customerId = (args['customerId'] as String?)?.trim() ?? '';
     }
+    customerId =
+        (Get.parameters['customerId'] ??
+                (args is Map ? args['customerId'] as String? : null) ??
+                '')
+            .trim();
     if (customerId.isEmpty) {
       statusRequest = StatusRequest.failure;
       loadErrorMessageKey = 'customers_not_found';

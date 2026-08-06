@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:fatoora/features/items/data/models/item_model.dart';
 import 'package:fatoora/features/shared/business/business_user_context.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -25,9 +26,11 @@ class ItemRepositoryException implements Exception {
 class ItemRepository {
   ItemRepository({
     FirebaseFirestore? firestore,
+    FirebaseFunctions? functions,
     FirebaseAuth? firebaseAuth,
     BusinessUserContextReader? contextReader,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _functions = functions ?? FirebaseFunctions.instance,
        _contextReader =
            contextReader ??
            BusinessUserContextReader(
@@ -36,6 +39,7 @@ class ItemRepository {
            );
 
   final FirebaseFirestore _firestore;
+  final FirebaseFunctions _functions;
   final BusinessUserContextReader _contextReader;
 
   CollectionReference<Map<String, dynamic>> get _items =>
@@ -106,65 +110,37 @@ class ItemRepository {
         minStock: minimum,
         costPrice: cost,
       );
+      if ((!trackStock && stock > 0) || (stock - opening).abs() >= 0.0005) {
+        throw const ItemRepositoryException(ItemRepositoryError.invalidData);
+      }
       final document = _items.doc();
-      await _firestore
-          .runTransaction((transaction) async {
-            final now = DateTime.now();
-            final resolvedWarehouseId = _warehouseId(warehouseId);
-            final itemData = {
-              'id': document.id,
-              'name': name.trim(),
-              'code': code.trim(),
-              'description': description.trim(),
-              'unit': unit.trim(),
-              'price': price,
-              'taxRate': taxRate,
-              'active': active,
-              'deleted': false,
-              'createdAt': FieldValue.serverTimestamp(),
-              'updatedAt': FieldValue.serverTimestamp(),
-              'createdBy': user.uid,
-              'currentStock': stock,
-              'openingStock': opening,
-              'minStock': minimum,
-              'trackStock': trackStock,
-              'costPrice': cost,
-              'barcode': _optionalText(barcode),
-              'category': _optionalText(category),
-              'warehouseId': resolvedWarehouseId,
-              'inventoryUpdatedAt': FieldValue.serverTimestamp(),
-            };
-            transaction.set(document, itemData);
-            if (trackStock && stock > 0) {
-              final movementRef = _stockMovements(user.companyId).doc();
-              transaction.set(
-                movementRef,
-                _stockMovementData(
-                  id: movementRef.id,
-                  companyId: user.companyId,
-                  warehouseId: resolvedWarehouseId,
-                  itemId: document.id,
-                  itemName: name.trim(),
-                  itemCode: code.trim(),
-                  movementType: 'opening_balance',
-                  direction: 'in',
-                  quantity: stock,
-                  quantityBefore: 0,
-                  quantityAfter: stock,
-                  referenceType: 'item',
-                  referenceId: document.id,
-                  referenceNumber: code.trim(),
-                  movementDate: now,
-                  notes: '',
-                  createdByUid: user.uid,
-                  createdByName: user.name,
-                  createdByRole: user.role,
-                ),
-              );
-            }
+      final result = await _functions
+          .httpsCallable('createItem')
+          .call<Map<String, dynamic>>({
+            'companyId': user.companyId,
+            'idempotencyKey': document.id,
+            'name': name,
+            'code': code,
+            'description': description,
+            'unit': unit,
+            'price': price,
+            'taxRate': taxRate,
+            'active': active,
+            'currentStock': stock,
+            'openingStock': opening,
+            'minStock': minimum,
+            'trackStock': trackStock,
+            'costPrice': cost,
+            'barcode': barcode,
+            'category': category,
+            'warehouseId': _warehouseId(warehouseId),
           })
-          .timeout(const Duration(seconds: 20));
-      return document.id;
+          .timeout(const Duration(seconds: 30));
+      final itemId = result.data['itemId'] as String?;
+      if (itemId == null || itemId.isEmpty) {
+        throw const ItemRepositoryException(ItemRepositoryError.invalidData);
+      }
+      return itemId;
     });
   }
 
@@ -211,6 +187,14 @@ class ItemRepository {
           final resolvedWarehouseId = _warehouseId(warehouseId);
           final beforeStock = existing.currentStock;
           final stockChanged = (stock - beforeStock).abs() >= 0.001;
+          if (stockChanged && (!existing.trackStock || !trackStock)) {
+            throw const ItemRepositoryException(
+              ItemRepositoryError.invalidData,
+            );
+          }
+          final movementRef = stockChanged
+              ? _stockMovements(user.companyId).doc()
+              : null;
           transaction.update(document, {
             'name': name.trim(),
             'code': code.trim(),
@@ -230,10 +214,14 @@ class ItemRepository {
             'warehouseId': resolvedWarehouseId,
             if (stockChanged)
               'inventoryUpdatedAt': FieldValue.serverTimestamp(),
+            if (movementRef != null) ...{
+              'lastInventoryReferenceType': 'itemCorrection',
+              'lastInventoryReferenceId': existing.id,
+              'lastStockMovementId': movementRef.id,
+            },
           });
-          if (trackStock && stockChanged) {
+          if (movementRef != null) {
             final diff = _round(stock - beforeStock);
-            final movementRef = _stockMovements(user.companyId).doc();
             transaction.set(
               movementRef,
               _stockMovementData(

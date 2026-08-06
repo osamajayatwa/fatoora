@@ -45,8 +45,12 @@ class CustomerDetailsController extends GetxController {
           (args['companyId'] as String?) ??
           _myServices.sharedPreferences.getString('companyId') ??
           AuthRepository.defaultCompanyId;
-      customerId = (args['customerId'] as String?)?.trim() ?? '';
     }
+    customerId =
+        (Get.parameters['customerId'] ??
+                (args is Map ? args['customerId'] as String? : null) ??
+                '')
+            .trim();
     if (customerId.isEmpty) {
       statusRequest = StatusRequest.failure;
       loadErrorMessageKey = 'customers_not_found';
@@ -84,7 +88,7 @@ class CustomerDetailsController extends GetxController {
     final current = customer;
     if (current == null) return;
     final changed = await Get.toNamed(
-      AppRoute.createCustomer,
+      AppRoute.customerEditPath(current.id),
       arguments: {'companyId': current.companyId, 'customerId': current.id},
     );
     if (changed == true) await loadCustomer();
@@ -94,7 +98,7 @@ class CustomerDetailsController extends GetxController {
     final current = customer;
     if (current == null) return;
     await Get.toNamed(
-      AppRoute.customerStatement,
+      AppRoute.customerStatementPath(current.id),
       arguments: {'companyId': current.companyId, 'customerId': current.id},
     );
     await loadCustomer();

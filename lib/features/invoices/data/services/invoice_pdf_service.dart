@@ -49,7 +49,7 @@ class InvoicePdfService {
         margin: const pw.EdgeInsets.fromLTRB(24, 18, 24, 20),
         theme: assets.theme,
         textDirection: loc.textDirection,
-        maxPages: 10,
+        maxPages: 100,
         header: (context) => _header(
           assets: assets,
           configuration: pdfConfiguration,

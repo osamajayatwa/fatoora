@@ -59,7 +59,10 @@ class InvoiceDetailsController extends GetxController
   Future<void> loadInvoice() async {
     final args = InvoiceContext.arguments(Get.arguments);
     companyId = InvoiceContext.resolveCompanyId(_myServices, args);
-    invoiceId = InvoiceContext.readString(args, 'invoiceId');
+    invoiceId =
+        (Get.parameters['invoiceId'] ??
+                InvoiceContext.readString(args, 'invoiceId'))
+            .trim();
     if (companyId.isEmpty || invoiceId.isEmpty) {
       statusRequest = StatusRequest.failure;
       loadErrorMessageKey = 'invoice_not_found';
@@ -101,7 +104,7 @@ class InvoiceDetailsController extends GetxController
       return;
     }
     final changed = await Get.toNamed(
-      AppRoute.invoiceForm,
+      AppRoute.invoiceEditPath(current.id),
       arguments: {
         'mode': 'edit',
         'companyId': current.companyId,

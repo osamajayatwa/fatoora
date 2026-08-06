@@ -88,7 +88,7 @@ class SalesReturnsListController extends GetxController {
 
   Future<void> openDetails(SalesReturnModel salesReturn) async {
     final changed = await Get.toNamed(
-      AppRoute.salesReturnDetails,
+      AppRoute.salesReturnDetailsPath(salesReturn.id),
       arguments: {
         'companyId': salesReturn.companyId,
         'returnId': salesReturn.id,

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
@@ -35,9 +37,11 @@ class FinancialRepositoryException implements Exception {
 class FinancialRepository {
   FinancialRepository({
     FirebaseFirestore? firestore,
+    FirebaseFunctions? functions,
     FirebaseAuth? firebaseAuth,
     BusinessUserContextReader? contextReader,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _functions = functions ?? FirebaseFunctions.instance,
        _contextReader =
            contextReader ??
            BusinessUserContextReader(
@@ -46,6 +50,7 @@ class FinancialRepository {
            );
 
   final FirebaseFirestore _firestore;
+  final FirebaseFunctions _functions;
   final BusinessUserContextReader _contextReader;
 
   CollectionReference<Map<String, dynamic>> _customers(String companyId) {
@@ -263,8 +268,7 @@ class FinancialRepository {
       final transactions = await _fetchTransactions(
         resolvedCompanyId,
         user,
-        fromDate: fromDate,
-        toDate: toDate,
+        toDate: toDate ?? fromDate,
       );
       final receivableCustomers = _buildReceivableCustomers(
         customers,
@@ -291,13 +295,28 @@ class FinancialRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
-      final movements = await _fetchCashMovements(
-        resolvedCompanyId,
-        user,
-        fromDate: fromDate,
-        toDate: toDate,
-      );
-      final cashLedger = CashLedgerCalculator.calculate(movements);
+      final allMovements = await _fetchCashMovements(resolvedCompanyId, user);
+      final periodStart = fromDate == null ? null : _startOfDay(fromDate);
+      final periodEnd = toDate == null ? null : _endOfDay(toDate);
+      final openingMovements = periodStart == null
+          ? const <CashMovementModel>[]
+          : allMovements
+                .where((movement) => movement.date.isBefore(periodStart))
+                .toList(growable: false);
+      final movements = allMovements
+          .where((movement) {
+            return (periodStart == null ||
+                    !movement.date.isBefore(periodStart)) &&
+                (periodEnd == null || !movement.date.isAfter(periodEnd));
+          })
+          .toList(growable: false);
+      final closingMovements = allMovements
+          .where((movement) {
+            return periodEnd == null || !movement.date.isAfter(periodEnd);
+          })
+          .toList(growable: false);
+      final openingLedger = CashLedgerCalculator.calculate(openingMovements);
+      final cashLedger = CashLedgerCalculator.calculate(closingMovements);
       final companyCash = user.isAdmin ? cashLedger.companyCash : 0.0;
       final repCashOutstanding = cashLedger.repCashOutstanding;
       final totalIn = _round(
@@ -312,6 +331,12 @@ class FinancialRepository {
       );
       return FinancialCashSnapshot(
         movements: movements,
+        openingBalance: _round(
+          user.isAdmin
+              ? openingLedger.companyCash
+              : openingLedger.repCashOutstanding,
+        ),
+        closingBalance: _round(user.isAdmin ? companyCash : repCashOutstanding),
         cashInHand: _round(user.isAdmin ? companyCash : repCashOutstanding),
         companyCash: _round(companyCash),
         repCashOutstanding: _round(repCashOutstanding),
@@ -334,59 +359,24 @@ class FinancialRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
-      if (!user.isAdmin || salesRepId.trim().isEmpty || amount <= 0) {
+      if (!user.isAdmin) {
         throw const FinancialRepositoryException(
           FinancialRepositoryError.permissionDenied,
         );
       }
-      final settlementId = _cashMovements(resolvedCompanyId).doc().id;
-      final repOutDocument = _cashMovements(
-        resolvedCompanyId,
-      ).doc('${settlementId}_rep_out');
-      final companyInDocument = _cashMovements(
-        resolvedCompanyId,
-      ).doc('${settlementId}_company_in');
-      final referenceNumber =
-          'SET-${settlementDate.year}${settlementDate.month.toString().padLeft(2, '0')}${settlementDate.day.toString().padLeft(2, '0')}-${settlementId.substring(0, math.min(6, settlementId.length)).toUpperCase()}';
-      final common = {
-        'companyId': resolvedCompanyId,
-        'type': 'settlement_to_admin',
-        'movementType': 'settlement_to_admin',
-        'amount': _round(amount),
-        'referenceId': settlementId,
-        'referenceNumber': referenceNumber,
-        'sourceCollection': 'cash_movements',
-        'sourceId': settlementId,
-        'sourceNumber': referenceNumber,
-        'settlementId': settlementId,
-        'customerId': '',
-        'customerName': '',
-        'date': Timestamp.fromDate(settlementDate),
-        'movementDate': Timestamp.fromDate(settlementDate),
-        'notes': notes.trim(),
-        'createdByUid': user.uid,
-        'createdByName': user.name,
-        'createdByRole': user.role,
-        'createdAt': FieldValue.serverTimestamp(),
-      };
-      final batch = _firestore.batch();
-      batch.set(repOutDocument, {
-        ...common,
-        'id': repOutDocument.id,
-        'salesRepId': salesRepId.trim(),
-        'salesRepName': salesRepName.trim(),
-        'cashAccount': CashMovementModel.repCashAccount,
-        'direction': 'out',
-      });
-      batch.set(companyInDocument, {
-        ...common,
-        'id': companyInDocument.id,
-        'salesRepId': '',
-        'salesRepName': salesRepName.trim(),
-        'cashAccount': CashMovementModel.companyCashAccount,
-        'direction': 'in',
-      });
-      await batch.commit().timeout(const Duration(seconds: 20));
+      final idempotencyKey = _cashMovements(resolvedCompanyId).doc().id;
+      await _functions
+          .httpsCallable('recordCashSettlement')
+          .call<void>({
+            'companyId': resolvedCompanyId,
+            'idempotencyKey': idempotencyKey,
+            'salesRepId': salesRepId,
+            'salesRepName': salesRepName,
+            'amount': amount,
+            'settlementDate': settlementDate.millisecondsSinceEpoch,
+            'notes': notes,
+          })
+          .timeout(const Duration(seconds: 30));
     });
   }
 
@@ -398,11 +388,8 @@ class FinancialRepository {
     if (user.isSalesRep) {
       query = query.where('createdByUid', isEqualTo: user.uid);
     }
-    final snapshot = await query
-        .limit(700)
-        .get()
-        .timeout(const Duration(seconds: 20));
-    final customers = snapshot.docs
+    final documents = await query.orderBy(FieldPath.documentId).getAllPages();
+    final customers = documents
         .map(CustomerModel.fromFirestore)
         .toList(growable: false);
     return customers;
@@ -432,10 +419,9 @@ class FinancialRepository {
     }
     final snapshot = await query
         .orderBy('invoiceDate', descending: true)
-        .limit(700)
-        .get()
-        .timeout(const Duration(seconds: 20));
-    final invoices = snapshot.docs
+        .orderBy(FieldPath.documentId, descending: true)
+        .getAllPages();
+    final invoices = snapshot
         .map(InvoiceModel.fromFirestore)
         .toList(growable: false);
     return invoices;
@@ -465,10 +451,9 @@ class FinancialRepository {
     }
     final snapshot = await query
         .orderBy('receiptDate', descending: true)
-        .limit(700)
-        .get()
-        .timeout(const Duration(seconds: 20));
-    final receipts = snapshot.docs
+        .orderBy(FieldPath.documentId, descending: true)
+        .getAllPages();
+    final receipts = snapshot
         .map(ReceiptModel.fromFirestore)
         .toList(growable: false);
     return receipts;
@@ -498,10 +483,9 @@ class FinancialRepository {
     }
     final snapshot = await query
         .orderBy('returnDate', descending: true)
-        .limit(700)
-        .get()
-        .timeout(const Duration(seconds: 20));
-    return snapshot.docs
+        .orderBy(FieldPath.documentId, descending: true)
+        .getAllPages();
+    return snapshot
         .map(SalesReturnModel.fromFirestore)
         .where(
           (salesReturn) =>
@@ -522,13 +506,17 @@ class FinancialRepository {
         .map((salesReturn) => salesReturn.originalInvoiceId)
         .where((id) => id.isNotEmpty && !paymentTypes.containsKey(id))
         .toSet();
-    for (final invoiceId in missingIds) {
-      final snapshot = await _invoices(
-        companyId,
-      ).doc(invoiceId).get().timeout(const Duration(seconds: 20));
-      if (!snapshot.exists) continue;
-      final invoice = InvoiceModel.fromFirestore(snapshot);
-      paymentTypes[invoice.id] = invoice.paymentType;
+    final ids = missingIds.toList(growable: false);
+    for (var start = 0; start < ids.length; start += 30) {
+      final chunk = ids.sublist(start, math.min(start + 30, ids.length));
+      final snapshots = await _invoices(companyId)
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get()
+          .timeout(const Duration(seconds: 20));
+      for (final snapshot in snapshots.docs) {
+        final invoice = InvoiceModel.fromFirestore(snapshot);
+        paymentTypes[invoice.id] = invoice.paymentType;
+      }
     }
     return paymentTypes;
   }
@@ -556,10 +544,10 @@ class FinancialRepository {
       );
     }
     final snapshot = await query
-        .limit(900)
-        .get()
-        .timeout(const Duration(seconds: 20));
-    final transactions = snapshot.docs
+        .orderBy('transactionDate', descending: true)
+        .orderBy(FieldPath.documentId, descending: true)
+        .getAllPages();
+    final transactions = snapshot
         .map(CustomerTransactionModel.fromFirestore)
         .toList(growable: false);
     transactions.sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
@@ -579,10 +567,10 @@ class FinancialRepository {
           .where('cashAccount', isEqualTo: CashMovementModel.repCashAccount);
     }
     final snapshot = await query
-        .limit(900)
-        .get()
-        .timeout(const Duration(seconds: 20));
-    final movements = snapshot.docs
+        .orderBy('date', descending: true)
+        .orderBy(FieldPath.documentId, descending: true)
+        .getAllPages();
+    final movements = snapshot
         .map(CashMovementModel.fromFirestore)
         .where((movement) {
           final afterFrom =
@@ -606,10 +594,10 @@ class FinancialRepository {
       query = query.where('paidByUid', isEqualTo: user.uid);
     }
     final snapshot = await query
-        .limit(700)
-        .get()
-        .timeout(const Duration(seconds: 20));
-    final expenses = snapshot.docs
+        .orderBy('expenseDate', descending: true)
+        .orderBy(FieldPath.documentId, descending: true)
+        .getAllPages();
+    final expenses = snapshot
         .map(ExpenseModel.fromFirestore)
         .toList(growable: false);
     expenses.sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
@@ -622,23 +610,37 @@ class FinancialRepository {
     bool hasDateFilter = false,
   }) {
     final lastTransactionByCustomer = <String, DateTime>{};
+    final historicalBalances = <String, double>{};
     for (final transaction in transactions) {
       final existing = lastTransactionByCustomer[transaction.customerId];
       if (existing == null || transaction.transactionDate.isAfter(existing)) {
         lastTransactionByCustomer[transaction.customerId] =
             transaction.transactionDate;
       }
+      historicalBalances[transaction.customerId] = _round(
+        (historicalBalances[transaction.customerId] ?? 0) +
+            transaction.debitAmount -
+            transaction.creditAmount,
+      );
     }
     final balances = customers
-        .where((customer) => customer.active && customer.currentBalance > 0)
+        .where((customer) {
+          final balance = hasDateFilter
+              ? historicalBalances[customer.id] ?? 0
+              : customer.currentBalance;
+          return customer.active && balance > 0;
+        })
         .map(
           (customer) => FinancialCustomerBalance(
             customer: customer,
-            balance: _round(customer.currentBalance),
+            balance: _round(
+              hasDateFilter
+                  ? historicalBalances[customer.id] ?? 0
+                  : customer.currentBalance,
+            ),
             lastTransactionDate: lastTransactionByCustomer[customer.id],
           ),
         )
-        .where((item) => !hasDateFilter || item.lastTransactionDate != null)
         .toList(growable: false);
     balances.sort((a, b) => b.balance.compareTo(a.balance));
     return balances;

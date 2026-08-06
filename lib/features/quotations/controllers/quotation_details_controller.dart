@@ -46,8 +46,12 @@ class QuotationDetailsController extends GetxController {
           (args['companyId'] as String?) ??
           _myServices.sharedPreferences.getString('companyId') ??
           AuthRepository.defaultCompanyId;
-      quotationId = (args['quotationId'] as String?)?.trim() ?? '';
     }
+    quotationId =
+        (Get.parameters['quotationId'] ??
+                (args is Map ? args['quotationId'] as String? : null) ??
+                '')
+            .trim();
     if (quotationId.isEmpty) {
       statusRequest = StatusRequest.failure;
       loadErrorMessageKey = 'quotation_not_found';
@@ -83,7 +87,7 @@ class QuotationDetailsController extends GetxController {
     final current = quotation;
     if (current == null || !current.canEdit) return;
     final changed = await Get.toNamed(
-      AppRoute.createQuotation,
+      AppRoute.quotationEditPath(current.id),
       arguments: {
         'mode': 'edit',
         'companyId': current.companyId,
@@ -127,7 +131,7 @@ class QuotationDetailsController extends GetxController {
       _showSuccess('quotation_converted_successfully');
       await loadQuotation();
       await Get.toNamed(
-        AppRoute.invoiceDetails,
+        AppRoute.invoiceDetailsPath(result.invoiceId),
         arguments: {
           'companyId': current.companyId,
           'invoiceId': result.invoiceId,

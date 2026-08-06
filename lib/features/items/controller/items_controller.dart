@@ -104,7 +104,7 @@ class ItemsController extends GetxController with ItemPageNavigation {
 
   Future<void> openItemDetails(ItemModel item) async {
     final changed = await Get.toNamed(
-      AppRoute.adminItemDetails,
+      AppRoute.itemDetailsPath(item.id),
       arguments: item,
     );
     if (changed == true) await loadItems();

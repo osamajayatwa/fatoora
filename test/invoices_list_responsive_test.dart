@@ -1,4 +1,5 @@
 import 'package:fatoora/core/class/statusrequest.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/features/invoices/controllers/invoices_list_controller.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_customer_snapshot.dart';
@@ -163,6 +164,31 @@ class _FakeInvoiceRepository implements InvoiceRepository {
         .where((invoice) => type == null || invoice.invoiceType == type)
         .where((invoice) => status == null || invoice.invoiceStatus == status)
         .toList(growable: false);
+  }
+
+  @override
+  Future<FirestorePage<InvoiceModel>> getInvoicesPage({
+    required String companyId,
+    InvoiceType? type,
+    InvoiceStatus? status,
+    DateTime? fromDate,
+    DateTime? toDate,
+    String? searchText,
+    FirestorePageCursor? after,
+    int pageSize = 50,
+  }) async {
+    return FirestorePage(
+      items: await getInvoices(
+        companyId: companyId,
+        type: type,
+        status: status,
+        fromDate: fromDate,
+        toDate: toDate,
+        searchText: searchText,
+      ),
+      cursor: null,
+      hasMore: false,
+    );
   }
 
   @override

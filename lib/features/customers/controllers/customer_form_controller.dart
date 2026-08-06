@@ -50,13 +50,17 @@ class CustomerFormController extends GetxController {
           (args['companyId'] as String?) ??
           _myServices.sharedPreferences.getString('companyId') ??
           AuthRepository.defaultCompanyId;
-      customerId = (args['customerId'] as String?)?.trim() ?? '';
       returningCustomer = args['returnCustomer'] == true;
     } else {
       companyId =
           _myServices.sharedPreferences.getString('companyId') ??
           AuthRepository.defaultCompanyId;
     }
+    customerId =
+        (Get.parameters['customerId'] ??
+                (args is Map ? args['customerId'] as String? : null) ??
+                '')
+            .trim();
     if (customerId.isEmpty) {
       statusRequest = StatusRequest.success;
       update();
@@ -157,7 +161,7 @@ class CustomerFormController extends GetxController {
       return;
     }
     await Get.offNamed(
-      AppRoute.customerDetails,
+      AppRoute.customerDetailsPath(customer.id),
       arguments: {'companyId': customer.companyId, 'customerId': customer.id},
     );
   }

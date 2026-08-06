@@ -26,8 +26,7 @@ class ApprovalStatusController extends GetxController {
     update();
     try {
       await FirebaseAuth.instance.signOut();
-    } catch (_) {
-    }
+    } catch (_) {}
     await AuthSession.clear(_myServices);
     await _myServices.secureStorage.deleteAll();
     isLoggingOut = false;

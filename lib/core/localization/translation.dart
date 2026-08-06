@@ -1,29 +1,29 @@
-import 'package:get/get.dart';
-import 'package:fatoora/core/localization/admin_login_translations.dart';
-import 'package:fatoora/core/localization/user_auth_translations.dart';
 import 'package:fatoora/core/localization/admin_dashboard_translations.dart';
+import 'package:fatoora/core/localization/admin_login_translations.dart';
 import 'package:fatoora/core/localization/admin_users_translations.dart';
-import 'package:fatoora/core/localization/items_translations.dart';
-import 'package:fatoora/core/localization/invoices_translations.dart';
-import 'package:fatoora/core/localization/inventory_translations.dart';
-import 'package:fatoora/core/localization/customers_translations.dart';
-import 'package:fatoora/core/localization/financial_translations.dart';
-import 'package:fatoora/core/localization/expenses_translations.dart';
-import 'package:fatoora/core/localization/receipts_translations.dart';
-import 'package:fatoora/core/localization/sales_return_translations.dart';
-import 'package:fatoora/core/localization/pdf_translations.dart';
-import 'package:fatoora/core/localization/quotations_translations.dart';
+import 'package:fatoora/core/localization/audit_log_translations.dart';
 import 'package:fatoora/core/localization/common_translations.dart';
-import 'package:fatoora/core/localization/settings_translations.dart';
+import 'package:fatoora/core/localization/customers_translations.dart';
+import 'package:fatoora/core/localization/expenses_translations.dart';
+import 'package:fatoora/core/localization/financial_translations.dart';
+import 'package:fatoora/core/localization/inventory_translations.dart';
+import 'package:fatoora/core/localization/invoices_translations.dart';
+import 'package:fatoora/core/localization/items_translations.dart';
+import 'package:fatoora/core/localization/pdf_translations.dart';
 import 'package:fatoora/core/localization/permissions_translations.dart';
+import 'package:fatoora/core/localization/quotations_translations.dart';
+import 'package:fatoora/core/localization/receipts_translations.dart';
 import 'package:fatoora/core/localization/rep_inventory_translations.dart';
 import 'package:fatoora/core/localization/sales_rep_home_translations.dart';
-import 'package:fatoora/core/localization/audit_log_translations.dart';
+import 'package:fatoora/core/localization/sales_return_translations.dart';
+import 'package:fatoora/core/localization/settings_translations.dart';
+import 'package:fatoora/core/localization/user_auth_translations.dart';
+import 'package:get/get.dart';
 
 class MyTranslation extends Translations {
   @override
   Map<String, Map<String, String>> get keys => {
-    "ar": {
+    'ar': {
       ...adminLoginArabicTranslations,
       ...userAuthArabicTranslations,
       ...adminDashboardArabicTranslations,
@@ -44,293 +44,8 @@ class MyTranslation extends Translations {
       ...repInventoryArabicTranslations,
       ...salesRepHomeArabicTranslations,
       ...auditLogArabicTranslations,
-      "Choose Language": "اختر اللغة",
-      "Continue": "متابعه",
-      "LogIn": "تسجيل الدخول",
-      "Welcome": "اهلا بك",
-      "Welcome !": " اهلا بك !",
-      "SignIn with Your Username And Password":
-          "يمكنك تسجيل الدخول من خلال اسم المستخدم وكلمة المرور",
-      "Enter Your Email": "ادخل البريد الالكتروني",
-      "Enter Your Password": "ادخل كلمة المرور",
-      "Forget Password": "هل نسيت كلمة المرور",
-      "Email": "البريد الالكتروني",
-      "Password": "كلمة المرور",
-      "Username": "اسم المستخدم",
-      "Phone": "رقم الهاتف",
-      "Enter Your Phone": "ادخل رقم الهاتف",
-      "Enter Your Username": "ادخل اسم المستخدم",
-      "Check Email": "فحص البريد الالكتروني",
-      "28": "تم انشاء الحساب بنجاح",
-      "please Enter Your Email Address To Recive A verification code":
-          "الرجاء ادخال البريد لتلقي رمز التحقق",
-      "check": "فحص",
-      "Go To Login": "الذهاب لتسجيل الدخول",
-      "Success": "نجاح",
-      "save": "حفظ",
-      "Please Enter new Password": "الرجاء ادخال كلمة المرور الجديدة",
-      "New Password": "الكلمة الجديدة",
-      "Password has been reset successfully":
-          "تم اعادة تعيين كلمة المرور بنجاح",
-      "congratulations": "تهانينا",
-      "Pleaze Enter  Code Sent To The Digit":
-          "الرجاء إدخال الرمز المرسل إلى الرقم",
-      "Resend verfiy code": "إعادة إرسال رمز التحقق",
-      "About Us": "معلومات عنا",
-      "Welcome to The School's Bus Tracking System!":
-          "مرحباً بكم في نظام تتبع الحافلات المدرسية!",
-      "At The School, we prioritize the safety and convenience of our students and their families. Our state-of-the-art School Bus Tracking System (SBTS) provides real-time tracking, parental notifications, and efficient route management to ensure timely and secure transportation.":
-          "في المدرسة، نضع سلامة وراحة طلابنا وأسرهم على رأس أولوياتنا. يوفر نظام تتبع الحافلات المدرسية المتطور لدينا تتبعًا في الوقت الفعلي وإشعارات للآباء وإدارة فعالة للمسار لضمان النقل الآمن في الوقت المناسب.",
-      "Why Choose Us?": "لماذا تختارنا؟",
-      "Enhanced Safety": "تعزيز السلامة",
-      "Our real-time tracking ensures your child’s safe journey to and from school.":
-          "يضمن نظام التتبع لدينا في الوقت الفعلي رحلة آمنة لطفلك من وإلى المدرسة.",
-      "Instant Notifications": "الإشعارات الفورية",
-      "Stay updated with real-time alerts on bus arrival and departure times.":
-          "احصل على تنبيهات فورية حول أوقات وصول ومغادرة الحافلات.",
-      "Peace of Mind": "راحة البال",
-      "Enjoy peace of mind knowing where your child is throughout their school commute.":
-          "استمتع براحة البال عند معرفة مكان طفلك طوال فترة تنقله إلى المدرسة.",
-      "Name": "الاسم",
-      "Please enter your name": "الرجاء إدخال اسمك",
-      "Contact Us": "اتصل بنا",
-      "Message Sent Successfully!": "تم إرسال الرسالة بنجاح!",
-      "Your Message": "رسالتك",
-      "Please enter your message": "الرجاء إدخال رسالتك",
-      "Send Message": "أرسل الرسالة",
-      "Profile": "الملف الشخصي",
-      "Students": "الطلاب",
-      "Home Address": "عنوان المنزل",
-      "Change Language": "تغيير اللغة",
-      "Terms Of Services": "شروط الخدمة",
-      "Logout": "تسجيل الخروج",
-      "Home": "الصفحة الرئيسية",
-      "Notifications": "إشعارات",
-      "No Students available.": "لا يوجد طلاب متاحين.",
-      "Age": "العمر",
-      "Welcome to School Bus Tracking System App!":
-          "مرحباً بكم في تطبيق نظام تتبع الحافلات المدرسية!",
-      "1. Introduction": "1. المقدمة",
-      "By using this app, you agree to comply with and be bound by the following terms and conditions. Please read them carefully.":
-          "باستخدام هذا التطبيق، فإنك توافق على الالتزام بالشروط والأحكام التالية. يرجى قراءتها بعناية.",
-      "2. Purpose of the App": "2. غرض التطبيق",
-      "Our app provides real-time school bus tracking to help parents and guardians monitor the location of their child’s bus during transit. This information is intended to enhance safety and improve the transportation experience.":
-          "يوفر تطبيقنا تتبعًا مباشرًا لحافلات المدارس لمساعدة الآباء والأولياء في مراقبة موقع حافلة أطفالهم أثناء النقل. تهدف هذه المعلومات إلى تعزيز السلامة وتحسين تجربة النقل.",
-      "3. Data Accuracy": "3. دقة البيانات",
-      "While we strive to provide accurate and timely data, we do not guarantee the precision of GPS tracking at all times. Factors such as network availability and GPS signal strength may affect data accuracy.":
-          "على الرغم من أننا نسعى جاهدين لتوفير بيانات دقيقة وفي الوقت المناسب، فإننا لا نضمن دقة تتبع نظام تحديد المواقع العالمي (GPS) في جميع الأوقات. قد تؤثر عوامل مثل توفر الشبكة وقوة إشارة نظام تحديد المواقع العالمي (GPS) على دقة البيانات.",
-      "4. User Responsibilities": "4. مسؤوليات المستخدم",
-      "Parents and guardians are responsible for using the app as an aid to monitor their child’s transportation, not as the sole source of information. Always confirm bus arrival times with other trusted sources.":
-          "يتحمل الآباء والأوصياء مسؤولية استخدام التطبيق كوسيلة مساعدة لمراقبة نقل أطفالهم، وليس كمصدر وحيد للمعلومات. تأكد دائمًا من مواعيد وصول الحافلة من مصادر موثوقة أخرى.",
-      "5. Limitation of Liability": "5. حدود المسؤولية",
-      "The School is not liable for any damages or issues arising from the use or inability to use the app. We are not responsible for any losses caused by inaccuracies in the tracking data.":
-          "لا تتحمل المدرسة مسؤولية أي أضرار أو مشاكل ناجمة عن استخدام التطبيق أو عدم القدرة على استخدامه، كما لا نتحمل مسؤولية أي خسائر ناجمة عن عدم دقة بيانات التتبع.",
-      "6. Privacy and Data Collection": "6. الخصوصية وجمع البيانات",
-      "We value your privacy. Our app collects only the necessary data required for tracking and providing notifications. For more details, please review our Privacy Policy.":
-          "نحن نقدر خصوصيتك. يجمع تطبيقنا فقط البيانات الضرورية المطلوبة للتتبع وتقديم الإشعارات. لمزيد من التفاصيل، يرجى مراجعة سياسة الخصوصية الخاصة بنا.",
-      "7. Changes to Terms": "7. التغييرات على الشروط",
-      "We reserve the right to update or change these terms at any time. We will notify you of any changes through the app or via your registered email address.":
-          "نحتفظ بالحق في تحديث أو تغيير هذه الشروط في أي وقت. وسنقوم بإخطارك بأي تغييرات من خلال التطبيق أو عبر عنوان بريدك الإلكتروني المسجل.",
-      "Thank you for using our app! We’re committed to making school transportation safer and more convenient.":
-          "نشكرك على استخدام تطبيقنا! نحن ملتزمون بجعل النقل المدرسي أكثر أمانًا وراحة.",
-      "oops \n No Notifications": "عفواً \n لا يوجد إشعارات",
-      "Rounds": "الجولات",
-      "Morning Rounds": "الجولات الصباحية",
-      "Time": "الوقت",
-      "Evening Rounds": "الجولات المسائية",
-      "Bus Tracking": "تتبع حافلة المدرسة",
-      "Continue as": "المتابعة بحساب",
-      "School Admin": "مسؤول المدرسة ",
-      "Bus Manager": "مدير الحافلة",
-      "Sorry": "للاسف",
-      "This action is only available between 6:00 and 8:00 am.":
-          "هذا الإجراء متاح فقط بين الساعة 6:00 و 8:00 صباحًا .",
-      "OK": "موافق",
-      "Driver Login": "تسجيل الدخول للسائق",
-      "Our Features": "مميزاتنا",
-      "Real-Time GPS Tracking": "تتبع GPS في الوقت الحقيقي",
-      "Monitor bus locations in real time to ensure timely arrivals and departures.":
-          "راقب مواقع الحافلات في الوقت الفعلي لضمان الوصول والمغادرة في الوقت المناسب.",
-      "Parental Notifications": "الإشعارات الأبوية",
-      "Receive live updates on bus locations and estimated arrival times.":
-          "احصل على تحديثات مباشرة حول مواقع الحافلات وأوقات الوصول المتوقعة.",
-      "Data Management": "إدارة البيانات",
-      "View detailed information on students, routes, and driver performance in our dashboard.":
-          "اطلع على معلومات تفصيلية حول الطلاب والطرق وأداء السائق في لوحة المعلومات الخاصة بنا.",
-      "105": "تم إرسال الرسالة بنجاح!",
-      "You cannot go back until the ride is ended.":
-          "لا يمكنك العودة حتى تنتهي الرحلة.",
-      "Students of the Round": "طلاب الجولة",
-      "End Round": "انهاء الجولة",
-      "You can't do this action": "لا يمكنك القيام بهذا الإجراء",
-      "Location": "الموقع",
-      "Street": "الشارع",
-      "112": "جولات المساء",
-      "Unknown Round": "جولة غير معروفة",
-      "No Morning Rounds Available": "لا تتوفر جولات صباحية",
-      "Student Tracking": "تتبع الطالب",
-      "Could not open Google Maps": "لم أتمكن من فتح خرائط جوجل",
-      "Current location is not available.": "الموقع الحالي غير متاح.",
-      "Show in Google Maps": "عرض في خرائط جوجل",
-      "End the ride": "انهاء الرحلة",
-      "Driver": "السائق",
-      "Round Not Active": "الجولة غير نشطة",
-      "This round is not active yet. Are you sure you want to start?":
-          "هذه الجولة غير نشطة بعد. هل أنت متأكد من أنك تريد البدء؟",
-      "Cancel": "الغاء",
-      "Yes, Start": "نعم, ابدأ",
-      "Error": "خطأ!",
-      "Are you sure?": "هل أنت متأكد؟",
-      "Do you want to logout?": "هل تريد تسجيل الخروج؟",
-      "You cannot access this ride at this time.":
-          "لا يمكنك الوصول إلى هذه الرحلة في هذا الوقت.",
-      "This action is only available between 1:00 and 2:00 pm.":
-          "هذا الإجراء متاح فقط بين الساعة 1:00 و 2:00 مساءا.",
-      "Admin Login": "تسجيل الدخول للمسؤول",
-      "can't be Empty": "لا يمكن أن يكون فارغا",
-      "for": " التابعة ل",
-      "English": "إنجليزي",
-      "Arabic": "عربي",
-      "Select Language": "اختر اللغة",
-      "School Name": "اسم المدرسة",
-      "Failed to load tracking data. Please try again.":
-          "فشل تحميل بيانات التتبع. يرجى المحاولة مرة أخرى.",
-      "Round Is Not Active": "الجولة ليست نشطة",
-      "Start Date": "تاريخ البدء",
-      "Verification Code": "رمز التحقق",
-      "not valid username": "اسم المستخدم غير فعال ",
-      "not valid Email": "الايميل غير صحيح",
-      "not valid Phone": "هاتف غير صحيح",
-      "No": "الغاء",
-      "Alert": "تنبيه  ",
-      "Do You Want To Exit The App ?": " ؟ هل تريد الخروح من التطبيق",
-      "Yes": "تاكيد",
-      "School Transportation Management System": "نظام إدارة النقل المدرسي",
-      "Safe & Reliable": "آمنة وموثوقة",
-      "Manage school transportation system": "إدارة نظام النقل المدرسي",
-      "Monitor and manage bus operations": "مراقبة وإدارة عمليات الحافلات",
-      "Sign in to continue your journey": "قم بتسجيل الدخول لمواصلة رحلتك",
-      "Home Page": "الصفحة الرئيسية",
-      "App Version": "إصدار التطبيق",
-      "Branch Name": "اسم الفرع",
-      "Transport Cost Analysis": "تحليل تكاليف النقل",
-      "Cost Distribution by Route": "توزيع التكلفة حسب المسار",
-      "Total Cost": "التكلفة الإجمالية",
-      "Total Distance": "المسافة الإجمالية",
-      "Diesel Price": "سعر الديزل",
-      "Maintenance": "الصيانة",
-      "Driver Salary": "راتب السائق",
-      "Manager Salary": "راتب مدير الحافلة",
-      "Error Loading Data": "خطأ في تحميل البيانات",
-      "Try Again": "حاول ثانية",
-      "View Profile": "عرض الملف الشخصي",
-      "Personal Account": "حساب شخصي",
-      "App Preferences": "تفضيلات التطبيق",
-      "Account Settings": "إعدادات الحساب",
-      "Help & Support": "المساعدة والدعم",
-      "Settings": "الإعدادات",
-      "Cost Chart": "مخطط التكلفة",
-      "Real-time GPS tracking":
-          "تتبع نظام تحديد المواقع العالمي (GPS) في الوقت الفعلي",
-      "Route optimization": "تحسين المسار",
-      "Instant notifications": "الإشعارات الفورية",
-      "Safety monitoring": "مراقبة السلامة",
-      "As a user, you agree to:": "كمستخدم، فإنك توافق على:",
-      "Network availability": "توفر الشبكة",
-      "GPS signal strength": "قوة إشارة GPS",
-      "Device compatibility": "توافق الجهاز",
-      "Environmental conditions": "الظروف البيئية",
-      "Use the app as a supplementary tool": "استخدم التطبيق كأداة تكميلية",
-      "Maintain account security": "الحفاظ على أمان الحساب",
-      "Update personal information": "تحديث المعلومات الشخصية",
-      "Follow school policies": "اتبع سياسات المدرسة",
-      "End-to-end encryption": "التشفير من البداية إلى النهاية",
-      "Regular security audits": "عمليات تدقيق أمنية منتظمة",
-      "Limited data retention": "الاحتفاظ المحدود بالبيانات",
-      "GDPR compliance": "الامتثال لقانون حماية البيانات العامة (GDPR)",
-      "Last Updated : ": "آخر تحديث : ",
-      "Thank you for choosing our service!": "شكرا لاختيارك خدمتنا!",
-      "Your child's safety is our priority. With real-time tracking, notifications, and enhanced security, we provide a reliable school bus monitoring experience.":
-          "سلامة طفلكم هي أولويتنا. مع التتبع الفوري والإشعارات والأمن المُحسّن، نوفر لكم تجربة مراقبة موثوقة لحافلات المدارس.",
-      "1. Purpose of the App": "1. الغرض من التطبيق",
-      "Our app provides real-time school bus tracking to help parents monitor their child's transportation. Features include:":
-          "يوفر تطبيقنا تتبعًا فوريًا لحافلات المدارس لمساعدة أولياء الأمور على مراقبة نقل أطفالهم. تشمل الميزات:",
-      "2. Data Accuracy": "2. دقة البيانات",
-      "While we strive for precision, various factors may affect accuracy:":
-          "بينما نسعى جاهدين لتحقيق الدقة، قد تؤثر عوامل مختلفة على الدقة:",
-      "3. User Responsibilities": "3. مسؤوليات المستخدم",
-      "4. Privacy & Security": "4. الخصوصية والأمان",
-      "Real-time tracking ensures your child’s safe journey to and from school.":
-          "يضمن التتبع في الوقت الفعلي رحلة آمنة لطفلك من وإلى المدرسة.",
-      "We collect only essential data for functionality. Our practices include:":
-          "نجمع البيانات الأساسية فقط لأغراض الأداء. تشمل ممارساتنا ما يلي:",
-      "Tracking Started": "بدأت عملية التتبع",
-      "Tracking for": "التتبع ل",
-      "has started": "لقد بدأ",
-      "All rounds has ended": "انتهت جميع الجولات",
-      "no children left in the round": "لم يبق أي أطفال في الجولة",
-      "not active": "غير نشطة",
-      "active": "نشطة",
-      "Invalid tracking parameters": "معلمات التتبع غير صالحة",
-      "Live Student Tracking": "تتبع الطلاب المباشر",
-      "Open Map": "افتح الخريطة",
-      "Calculating": "حساب",
-      "Estimated Arrival": "موعد الوصول المتوقع",
-      "remaining": "متبقي",
-      "Confirm End Round ?": "تأكيد نهاية الجولة ؟",
-      "Student Name": "اسم الطالب",
-      "Round Name": "اسم الجولة",
-      "Arrived": "وصل",
-      "min": "دقيقة",
-      "Do You Want To Start The Ride ?": "هل تريد أن تبدأ الرحلة؟",
-      "Start": "ابدأ",
-      "Connected": "متصل",
-      "Disconnected": "غير متصل",
-      "connection_error": "خطأ في الاتصال",
-      "reconnect": "إعادة الاتصال",
-      "All Caught Up!": "تم التقاط جميع الإشعارات!",
-      "You don't have any notifications right now": "ليس لديك أي إشعارات الآن",
-      "There are no students left in": "لم يتبق أي طلاب في",
-      "Back To School": "العودة إلى المدرسة",
-      "No Phone Added": "لم تتم إضافة أي هاتف",
-      "Please arrive to the previous student first.":
-          "يرجى الوصول إلى الطالب السابق أولاً.",
-      "Ready": "مستعد",
-      "number of students": "عدد الطلاب",
-      "current speed": "السرعة الحالية",
-      "km/h": "كم/ساعة",
-      "Location updated": "",
-      "Could not fetch current location": "لم يتمكن من جلب الموقع الحالي",
-      "Confirm the bus has arrived at destination for":
-          "تأكيد وصول الحافلة إلى ",
-      "Confirm": "تأكيد",
-      "in the home?": "؟في البيت",
-      "in the bus?": "في الحافلة؟",
-      "Go To Next Student ?": "انتقل إلى الطالب التالي؟",
-      "Go Next": "انتقل إلى التالي",
-      "You must arrive at the destination before confirming arrival.":
-          "يجب عليك الوصول إلى الوجهة قبل تأكيد الوصول.",
-      "All the students in the school?": "جميع الطلاب في المدرسة؟",
-      "All the students in there home?": "كل الطلاب في منزلهم؟",
-      "Go To Next Round ?": "انتقل إلى الجولة التالية؟",
-      "number of present\nstudents": "عدد الطلاب الحاضرين",
-      "number of absent\nstudents": "عدد الطلاب الغائبين",
-      "Live Bus Tracking": "تتبع الحافلات المباشرة",
-      "Last Update\n from the bus": "آخر تحديث من الحافلة",
-      "Refresh": "تحديث",
-      "Driver Name": "اسم السائق",
-      "Driver Phone": "هاتف السائق",
-      "Manager Name": "اسم المرافق",
-      "Manager Phone": "هاتف المرافق",
-      "Bus Number": "رقم الحافلة",
-      "close": "اغلاق",
-      "Bus Details": "تفاصيل الحافلة",
-      "Speed": "السرعة",
-      "": "",
-      ...commonArabicTranslations,
-      ...inventoryArabicTranslations,
     },
-    "en": {
+    'en': {
       ...adminLoginEnglishTranslations,
       ...userAuthEnglishTranslations,
       ...adminDashboardEnglishTranslations,

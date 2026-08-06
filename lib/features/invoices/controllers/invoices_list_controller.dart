@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/app_feature_flags.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_context.dart';
@@ -39,6 +40,10 @@ class InvoicesListController extends GetxController {
   String loadErrorMessageKey = 'invoice_load_error';
   bool isDeleting = false;
   bool isPrinting = false;
+  bool isLoadingMore = false;
+  bool hasMore = false;
+  FirestorePageCursor? _pageCursor;
+  int _loadGeneration = 0;
   Timer? _searchDebounce;
 
   String get companyId {
@@ -62,6 +67,7 @@ class InvoicesListController extends GetxController {
   }
 
   Future<void> loadInvoices() async {
+    final generation = ++_loadGeneration;
     final resolvedCompanyId = companyId;
     if (resolvedCompanyId.isEmpty) {
       statusRequest = StatusRequest.unauthorized;
@@ -71,10 +77,12 @@ class InvoicesListController extends GetxController {
     }
 
     statusRequest = StatusRequest.loading;
+    _pageCursor = null;
+    hasMore = false;
     loadErrorMessageKey = 'invoice_load_error';
     update();
     try {
-      final loaded = await _repository.getInvoices(
+      final page = await _repository.getInvoicesPage(
         companyId: resolvedCompanyId,
         type: typeFilter,
         status: statusFilter,
@@ -82,16 +90,13 @@ class InvoicesListController extends GetxController {
         toDate: toDate,
         searchText: searchText,
       );
-      invoices = loaded
-          .where((invoice) {
-            return (paymentStatusFilter == null ||
-                    invoice.paymentStatus == paymentStatusFilter) &&
-                (returnStatusFilter == null ||
-                    invoice.returnStatus == returnStatusFilter);
-          })
-          .toList(growable: false);
+      if (generation != _loadGeneration) return;
+      _pageCursor = page.cursor;
+      hasMore = page.hasMore;
+      invoices = _applyClientFilters(page.items);
       statusRequest = StatusRequest.success;
     } catch (error) {
+      if (generation != _loadGeneration) return;
       statusRequest = InvoiceErrorMapper.status(error);
       loadErrorMessageKey = InvoiceErrorMapper.messageKey(
         error,
@@ -103,6 +108,34 @@ class InvoicesListController extends GetxController {
   }
 
   Future<void> refreshInvoices() => loadInvoices();
+
+  Future<void> loadMoreInvoices() async {
+    if (isLoadingMore || !hasMore || _pageCursor == null) return;
+    isLoadingMore = true;
+    final generation = _loadGeneration;
+    update();
+    try {
+      final page = await _repository.getInvoicesPage(
+        companyId: companyId,
+        type: typeFilter,
+        status: statusFilter,
+        fromDate: fromDate,
+        toDate: toDate,
+        searchText: searchText,
+        after: _pageCursor,
+      );
+      if (generation != _loadGeneration) return;
+      _pageCursor = page.cursor;
+      hasMore = page.hasMore;
+      invoices = [...invoices, ..._applyClientFilters(page.items)];
+    } catch (error) {
+      if (generation != _loadGeneration) return;
+      _showError(InvoiceErrorMapper.messageKey(error));
+    } finally {
+      isLoadingMore = false;
+      if (!isClosed) update();
+    }
+  }
 
   void onSearchChanged(String value) {
     searchText = value;
@@ -186,7 +219,7 @@ class InvoicesListController extends GetxController {
 
   Future<void> openDetails(InvoiceModel invoice) async {
     final changed = await Get.toNamed(
-      AppRoute.invoiceDetails,
+      AppRoute.invoiceDetailsPath(invoice.id),
       arguments: {'companyId': invoice.companyId, 'invoiceId': invoice.id},
     );
     if (changed == true) await loadInvoices();
@@ -198,7 +231,7 @@ class InvoicesListController extends GetxController {
       return;
     }
     final changed = await Get.toNamed(
-      AppRoute.invoiceForm,
+      AppRoute.invoiceEditPath(invoice.id),
       arguments: {
         'mode': 'edit',
         'companyId': invoice.companyId,
@@ -271,6 +304,17 @@ class InvoicesListController extends GetxController {
       backgroundColor: AppColor.success,
       colorText: AppColor.surface,
     );
+  }
+
+  List<InvoiceModel> _applyClientFilters(List<InvoiceModel> source) {
+    return source
+        .where((invoice) {
+          return (paymentStatusFilter == null ||
+                  invoice.paymentStatus == paymentStatusFilter) &&
+              (returnStatusFilter == null ||
+                  invoice.returnStatus == returnStatusFilter);
+        })
+        .toList(growable: false);
   }
 
   void _showError(String messageKey) {

@@ -20,7 +20,9 @@ class ReceiptModel {
     required this.customerTransactionIds,
     required this.cashMovementIds,
     this.invoiceAllocations = const {},
+    this.invoiceAllocationDetails = const [],
     this.payFullBalance = false,
+    this.resultingCustomerBalance,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -42,7 +44,9 @@ class ReceiptModel {
   final List<String> customerTransactionIds;
   final List<String> cashMovementIds;
   final Map<String, double> invoiceAllocations;
+  final List<ReceiptInvoiceAllocation> invoiceAllocationDetails;
   final bool payFullBalance;
+  final double? resultingCustomerBalance;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -70,7 +74,13 @@ class ReceiptModel {
       customerTransactionIds: _readStringList(data['customerTransactionIds']),
       cashMovementIds: _readStringList(data['cashMovementIds']),
       invoiceAllocations: _readDoubleMap(data['invoiceAllocations']),
+      invoiceAllocationDetails: _readAllocationDetails(
+        data['invoiceAllocationDetails'],
+      ),
       payFullBalance: data['payFullBalance'] == true,
+      resultingCustomerBalance: _readNullableDouble(
+        data['resultingCustomerBalance'],
+      ),
       createdAt: _readDate(data, 'createdAt'),
       updatedAt: _readDate(data, 'updatedAt'),
     );
@@ -94,7 +104,12 @@ class ReceiptModel {
     'customerTransactionIds': customerTransactionIds,
     'cashMovementIds': cashMovementIds,
     'invoiceAllocations': invoiceAllocations,
+    'invoiceAllocationDetails': invoiceAllocationDetails
+        .map((allocation) => allocation.toMap())
+        .toList(growable: false),
     'payFullBalance': payFullBalance,
+    if (resultingCustomerBalance != null)
+      'resultingCustomerBalance': resultingCustomerBalance,
     'createdAt': Timestamp.fromDate(createdAt),
     'updatedAt': Timestamp.fromDate(updatedAt),
   };
@@ -109,6 +124,12 @@ class ReceiptModel {
     if (value is num && value.isFinite) return value.toDouble();
     if (value is String) return double.tryParse(value.trim()) ?? 0;
     return 0;
+  }
+
+  static double? _readNullableDouble(Object? value) {
+    if (value is num && value.isFinite) return value.toDouble();
+    if (value is String) return double.tryParse(value.trim());
+    return null;
   }
 
   static DateTime _readDate(Map<String, dynamic> data, String key) {
@@ -137,4 +158,45 @@ class ReceiptModel {
       return MapEntry(key.toString(), number);
     });
   }
+
+  static List<ReceiptInvoiceAllocation> _readAllocationDetails(Object? value) {
+    if (value is! List) return const [];
+    return value
+        .whereType<Map>()
+        .map(ReceiptInvoiceAllocation.fromMap)
+        .where(
+          (allocation) =>
+              allocation.invoiceId.isNotEmpty && allocation.amount > 0,
+        )
+        .toList(growable: false);
+  }
+}
+
+class ReceiptInvoiceAllocation {
+  const ReceiptInvoiceAllocation({
+    required this.invoiceId,
+    required this.invoiceNumber,
+    required this.amount,
+  });
+
+  final String invoiceId;
+  final String invoiceNumber;
+  final double amount;
+
+  factory ReceiptInvoiceAllocation.fromMap(Map<dynamic, dynamic> data) {
+    final rawAmount = data['amount'];
+    return ReceiptInvoiceAllocation(
+      invoiceId: data['invoiceId']?.toString().trim() ?? '',
+      invoiceNumber: data['invoiceNumber']?.toString().trim() ?? '',
+      amount: rawAmount is num
+          ? rawAmount.toDouble()
+          : double.tryParse(rawAmount?.toString() ?? '') ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+    'invoiceId': invoiceId,
+    'invoiceNumber': invoiceNumber,
+    'amount': amount,
+  };
 }

@@ -29,92 +29,91 @@ class CustomerStatementPdfService {
         );
     final assets = await AppPdfAssets.load(loadLogo: pdfConfiguration.showLogo);
     final loc = pdfConfiguration.localization;
-    final document = pw.Document(theme: assets.theme);
+    final document = pw.Document(
+      theme: assets.theme,
+      title: '${loc.t('customer_statement')} ${customer.name}',
+      author: pdfConfiguration.companySettings.name,
+      creator: 'Fatoora',
+    );
 
     document.addPage(
       pw.MultiPage(
-        pageTheme: BusinessPdfWidgets.pageTheme(assets),
+        pageTheme: BusinessPdfWidgets.pageTheme(
+          assets,
+          textDirection: loc.textDirection,
+        ),
+        maxPages: 100,
+        header: (_) => BusinessPdfWidgets.pageHeader(
+          assets: assets,
+          configuration: pdfConfiguration,
+          title: loc.t('customer_statement'),
+          subtitle: customer.name,
+        ),
+        footer: (context) => BusinessPdfWidgets.pageFooter(
+          context: context,
+          loc: loc,
+          text: pdfConfiguration.pdfSettings.statementFooterText,
+        ),
         build: (_) => [
-          BusinessPdfWidgets.shell(
-            assets: assets,
-            configuration: pdfConfiguration,
-            title: loc.t('customer_statement'),
-            subtitle: customer.name,
-            children: [
-              BusinessPdfWidgets.infoGrid(
-                loc: loc,
-                items: [
-                  PdfInfoItem(loc.t('customer'), customer.name, bold: true),
-                  PdfInfoItem(loc.t('phone'), customer.phone),
-                  PdfInfoItem(loc.t('address'), customer.addressText),
-                  PdfInfoItem(
-                    loc.t('date_range'),
-                    loc.dateRange(fromDate, toDate),
-                  ),
-                  PdfInfoItem(
-                    loc.t('opening_balance'),
-                    loc.money(openingBalance),
-                  ),
-                  PdfInfoItem(
-                    loc.t('final_balance'),
-                    loc.money(finalBalance),
-                    bold: true,
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 16),
-              BusinessPdfWidgets.table(
-                loc: loc,
-                headers: [
-                  loc.t('date'),
-                  loc.t('transaction_type'),
-                  loc.t('reference_number'),
-                  loc.t('description'),
-                  loc.t('debit'),
-                  loc.t('credit'),
-                  loc.t('running_balance'),
-                ],
-                data: transactions
-                    .map(
-                      (transaction) => [
-                        loc.date(transaction.transactionDate),
-                        loc.enumValue(transaction.transactionType),
-                        transaction.sourceNumber,
-                        transaction.notes,
-                        loc.money(transaction.debitAmount),
-                        loc.money(transaction.creditAmount),
-                        loc.money(transaction.balanceAfter),
-                      ],
-                    )
-                    .toList(growable: false),
-              ),
-              pw.SizedBox(height: 14),
-              BusinessPdfWidgets.totals(
-                loc: loc,
-                rows: [
-                  PdfInfoItem(
-                    loc.t('opening_balance'),
-                    loc.money(openingBalance),
-                  ),
-                  PdfInfoItem(loc.t('total_debit'), loc.money(totalDebit)),
-                  PdfInfoItem(loc.t('total_credit'), loc.money(totalCredit)),
-                  PdfInfoItem(
-                    loc.t('final_balance'),
-                    loc.money(finalBalance),
-                    bold: true,
-                  ),
-                ],
-              ),
-              BusinessPdfWidgets.notes(
-                loc: loc,
-                title: loc.t('notes'),
-                text: pdfConfiguration.pdfSettings.defaultNotes,
-              ),
-              BusinessPdfWidgets.footer(
-                loc: loc,
-                text: pdfConfiguration.pdfSettings.statementFooterText,
+          BusinessPdfWidgets.infoGrid(
+            loc: loc,
+            items: [
+              PdfInfoItem(loc.t('customer'), customer.name, bold: true),
+              PdfInfoItem(loc.t('phone'), customer.phone),
+              PdfInfoItem(loc.t('address'), customer.addressText),
+              PdfInfoItem(loc.t('date_range'), loc.dateRange(fromDate, toDate)),
+              PdfInfoItem(loc.t('opening_balance'), loc.money(openingBalance)),
+              PdfInfoItem(
+                loc.t('final_balance'),
+                loc.money(finalBalance),
+                bold: true,
               ),
             ],
+          ),
+          pw.SizedBox(height: 16),
+          BusinessPdfWidgets.table(
+            loc: loc,
+            headers: [
+              loc.t('date'),
+              loc.t('transaction_type'),
+              loc.t('reference_number'),
+              loc.t('description'),
+              loc.t('debit'),
+              loc.t('credit'),
+              loc.t('running_balance'),
+            ],
+            data: transactions
+                .map(
+                  (transaction) => [
+                    loc.date(transaction.transactionDate),
+                    loc.enumValue(transaction.transactionType),
+                    transaction.sourceNumber,
+                    transaction.notes,
+                    loc.money(transaction.debitAmount),
+                    loc.money(transaction.creditAmount),
+                    loc.money(transaction.balanceAfter),
+                  ],
+                )
+                .toList(growable: false),
+          ),
+          pw.SizedBox(height: 14),
+          BusinessPdfWidgets.totals(
+            loc: loc,
+            rows: [
+              PdfInfoItem(loc.t('opening_balance'), loc.money(openingBalance)),
+              PdfInfoItem(loc.t('total_debit'), loc.money(totalDebit)),
+              PdfInfoItem(loc.t('total_credit'), loc.money(totalCredit)),
+              PdfInfoItem(
+                loc.t('final_balance'),
+                loc.money(finalBalance),
+                bold: true,
+              ),
+            ],
+          ),
+          BusinessPdfWidgets.notes(
+            loc: loc,
+            title: loc.t('notes'),
+            text: pdfConfiguration.pdfSettings.defaultNotes,
           ),
         ],
       ),

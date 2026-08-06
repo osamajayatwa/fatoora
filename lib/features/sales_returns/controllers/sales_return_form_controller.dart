@@ -221,7 +221,7 @@ class SalesReturnFormController extends GetxController {
       );
       if (confirm) {
         await Get.offNamed(
-          AppRoute.salesReturnDetails,
+          AppRoute.salesReturnDetailsPath(saved.id),
           arguments: {'companyId': saved.companyId, 'returnId': saved.id},
         );
       } else {

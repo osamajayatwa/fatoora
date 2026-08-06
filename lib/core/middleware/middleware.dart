@@ -4,6 +4,28 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+/// GetX keeps the deepest matching route prefix, so its `unknownRoute` alone
+/// can resolve an invalid deep URL to a valid parent page. This guard verifies
+/// that the matched route consumes the complete path before any role checks.
+class ExactRouteMiddleware extends GetMiddleware {
+  @override
+  int? get priority => -100;
+
+  @override
+  RouteSettings? redirect(String? route) {
+    if (route == null || route == AppRoute.notFound) return null;
+    final path = Uri.tryParse(route)?.path;
+    if (path == null || path.isEmpty) {
+      return const RouteSettings(name: AppRoute.notFound);
+    }
+    final matched = Get.routeTree.matchRoute(path).route;
+    if (matched == null || !matched.path.regex.hasMatch(path)) {
+      return const RouteSettings(name: AppRoute.notFound);
+    }
+    return null;
+  }
+}
+
 class MyMiddleware extends GetMiddleware {
   @override
   int? get priority => 1;

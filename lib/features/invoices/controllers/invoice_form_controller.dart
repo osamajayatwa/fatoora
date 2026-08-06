@@ -119,8 +119,13 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
   Future<void> initialize() async {
     final args = InvoiceContext.arguments(Get.arguments);
     companyId = InvoiceContext.resolveCompanyId(_myServices, args);
-    invoiceId = InvoiceContext.readString(args, 'invoiceId');
-    mode = InvoiceContext.readString(args, 'mode').isEmpty
+    invoiceId =
+        (Get.parameters['invoiceId'] ??
+                InvoiceContext.readString(args, 'invoiceId'))
+            .trim();
+    mode = invoiceId.isNotEmpty
+        ? 'edit'
+        : InvoiceContext.readString(args, 'mode').isEmpty
         ? 'create'
         : InvoiceContext.readString(args, 'mode');
     invoiceType = invoiceTypeFromValue(args['invoiceType']);

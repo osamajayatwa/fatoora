@@ -2,19 +2,15 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fatoora/core/finance/financial_posting_calculator.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
+import 'package:fatoora/core/firebase/trusted_callable_client.dart';
 import 'package:fatoora/core/settings/business_settings_defaults.dart';
 import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
-import 'package:fatoora/features/customers/data/models/customer_model.dart';
-import 'package:fatoora/features/financial/data/models/cash_movement_model.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_item_snapshot.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
-import 'package:fatoora/features/items/data/models/item_model.dart';
-import 'package:fatoora/features/rep_inventory/data/models/rep_inventory_balance_model.dart';
-import 'package:fatoora/features/rep_inventory/data/models/rep_inventory_enums.dart';
-import 'package:fatoora/features/rep_inventory/data/services/rep_inventory_effect_calculator.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_enums.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_item_model.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_model.dart';
@@ -59,9 +55,17 @@ class SalesReturnQuantityFailure {
 class SalesReturnRepository {
   SalesReturnRepository({
     FirebaseFirestore? firestore,
+    FirebaseFunctions? functions,
     FirebaseAuth? firebaseAuth,
     BusinessUserContextReader? contextReader,
+    TrustedCallableClient? trustedCallableClient,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _trustedCallableClient =
+           trustedCallableClient ??
+           TrustedCallableClient.forDefaultApp(
+             firebaseAuth: firebaseAuth,
+             functions: functions,
+           ),
        _contextReader =
            contextReader ??
            BusinessUserContextReader(
@@ -70,6 +74,7 @@ class SalesReturnRepository {
            );
 
   final FirebaseFirestore _firestore;
+  final TrustedCallableClient _trustedCallableClient;
   final BusinessUserContextReader _contextReader;
 
   CollectionReference<Map<String, dynamic>> _returns(String companyId) {
@@ -85,51 +90,6 @@ class SalesReturnRepository {
         .doc(companyId)
         .collection('invoices');
   }
-
-  CollectionReference<Map<String, dynamic>> _customers(String companyId) {
-    return _firestore
-        .collection('companies')
-        .doc(companyId)
-        .collection('customers');
-  }
-
-  CollectionReference<Map<String, dynamic>> _transactions(String companyId) {
-    return _firestore
-        .collection('companies')
-        .doc(companyId)
-        .collection('customer_transactions');
-  }
-
-  CollectionReference<Map<String, dynamic>> _cashMovements(String companyId) {
-    return _firestore
-        .collection('companies')
-        .doc(companyId)
-        .collection('cash_movements');
-  }
-
-  CollectionReference<Map<String, dynamic>> _stockMovements(String companyId) {
-    return _firestore
-        .collection('companies')
-        .doc(companyId)
-        .collection('stock_movements');
-  }
-
-  CollectionReference<Map<String, dynamic>> _repBalances(String companyId) {
-    return _firestore
-        .collection('companies')
-        .doc(companyId)
-        .collection('rep_inventory_balances');
-  }
-
-  CollectionReference<Map<String, dynamic>> _repMovements(String companyId) {
-    return _firestore
-        .collection('companies')
-        .doc(companyId)
-        .collection('rep_inventory_movements');
-  }
-
-  CollectionReference<Map<String, dynamic>> get _items =>
-      _firestore.collection('items');
 
   DocumentReference<Map<String, dynamic>> _returnCounter(
     String companyId,
@@ -156,7 +116,7 @@ class SalesReturnRepository {
     String searchText = '',
     DateTime? fromDate,
     DateTime? toDate,
-    int maxResults = 150,
+    int pageSize = 150,
   }) {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
@@ -165,12 +125,27 @@ class SalesReturnRepository {
       if (user.isSalesRep) {
         query = query.where('salesRepId', isEqualTo: user.uid);
       }
-      final snapshot = await query
-          .limit(maxResults)
-          .get()
-          .timeout(const Duration(seconds: 20));
+      if (status != null) {
+        query = query.where('status', isEqualTo: status.value);
+      }
+      if (fromDate != null) {
+        query = query.where(
+          'returnDate',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfDay(fromDate)),
+        );
+      }
+      if (toDate != null) {
+        query = query.where(
+          'returnDate',
+          isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(toDate)),
+        );
+      }
+      final documents = await query
+          .orderBy('returnDate', descending: true)
+          .orderBy(FieldPath.documentId, descending: true)
+          .getAllPages(pageSize: pageSize);
       final normalizedSearch = searchText.trim().toLowerCase();
-      final result = snapshot.docs
+      final result = documents
           .map(SalesReturnModel.fromFirestore)
           .where((salesReturn) {
             final matchesStatus =
@@ -337,198 +312,34 @@ class SalesReturnRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final companyId = _resolveCompanyId(salesReturn.companyId, user);
-      final permissions = await _loadPermissions(companyId, user);
-      if (!permissions.createReturns) {
+      final idempotencyKey = _returns(companyId).doc().id;
+      final result = await _trustedCallableClient
+          .callAuthenticated<Map<String, dynamic>>('confirmSalesReturn', {
+            'companyId': companyId,
+            'returnId': salesReturn.id.trim(),
+            'idempotencyKey': idempotencyKey,
+            'originalInvoiceId': salesReturn.originalInvoiceId,
+            'items': salesReturn.items.map((item) => item.toMap()).toList(),
+            'refundType': salesReturn.refundType.value,
+            'returnDate': salesReturn.returnDate.millisecondsSinceEpoch,
+            'reason': salesReturn.reason,
+          })
+          .timeout(const Duration(seconds: 30));
+      final returnId = result.data['returnId'] as String?;
+      if (returnId == null || returnId.isEmpty) {
         throw const SalesReturnRepositoryException(
-          SalesReturnRepositoryError.createDisabled,
+          SalesReturnRepositoryError.invalidData,
         );
       }
-      final fallbackQuantities = await _fetchConfirmedReturnedQuantities(
-        companyId: companyId,
-        originalInvoiceId: salesReturn.originalInvoiceId,
-        user: user,
-      );
-      late SalesReturnModel confirmed;
-      final returnRef = salesReturn.id.trim().isEmpty
-          ? _returns(companyId).doc()
-          : _returns(companyId).doc(salesReturn.id.trim());
-
-      await _firestore
-          .runTransaction((transaction) async {
-            final invoiceRef = _invoices(
-              companyId,
-            ).doc(salesReturn.originalInvoiceId.trim());
-            final invoiceSnapshot = await transaction.get(invoiceRef);
-            if (!invoiceSnapshot.exists) {
-              throw const SalesReturnRepositoryException(
-                SalesReturnRepositoryError.notFound,
-              );
-            }
-            final originalInvoice = InvoiceModel.fromFirestore(invoiceSnapshot);
-            _requireEligibleInvoice(user, originalInvoice);
-
-            final existingSnapshot = await transaction.get(returnRef);
-            SalesReturnModel? existing;
-            if (existingSnapshot.exists) {
-              existing = SalesReturnModel.fromFirestore(existingSnapshot);
-              _requireCanAccessReturn(user, existing);
-              if (existing.originalInvoiceId != salesReturn.originalInvoiceId) {
-                throw const SalesReturnRepositoryException(
-                  SalesReturnRepositoryError.invalidData,
-                );
-              }
-              if (existing.isConfirmed) {
-                if (existing.financialPosted && existing.inventoryPosted) {
-                  confirmed = existing;
-                  return;
-                }
-                throw const SalesReturnRepositoryException(
-                  SalesReturnRepositoryError.alreadyPosted,
-                );
-              }
-              if (!existing.isDraft) {
-                throw const SalesReturnRepositoryException(
-                  SalesReturnRepositoryError.invalidState,
-                );
-              }
-            }
-
-            final source = existing ?? salesReturn;
-            _ReturnNumberAllocation? numberAllocation;
-            final returnNumber = existing?.returnNumber.isNotEmpty == true
-                ? existing!.returnNumber
-                : (numberAllocation = await _allocateReturnNumber(
-                    transaction: transaction,
-                    companyId: companyId,
-                    returnDate: source.returnDate,
-                  )).number;
-            var normalized = _normalizeReturn(
-              input: source,
-              originalInvoice: originalInvoice,
-              user: user,
-              id: returnRef.id,
-              returnNumber: returnNumber,
-              status: SalesReturnStatus.confirmed,
-              createdAt: existing?.createdAt ?? DateTime.now(),
-              updatedAt: DateTime.now(),
-              existing: existing,
-            );
-
-            final rawAllocation = invoiceSnapshot
-                .data()?['returnedQuantitiesByItem'];
-            final alreadyReturned = rawAllocation is Map
-                ? _readQuantityMap(rawAllocation)
-                : fallbackQuantities;
-            _validateAvailableQuantities(
-              salesReturn: normalized,
-              originalInvoice: originalInvoice,
-              alreadyReturned: alreadyReturned,
-            );
-
-            final inventoryPosting = await _buildInventoryPosting(
-              transaction: transaction,
-              salesReturn: normalized,
-              originalInvoice: originalInvoice,
-              user: user,
-            );
-            final returnImpact = FinancialPostingCalculator.salesReturn(
-              returnTotal: normalized.grandTotal,
-              outstandingReceivable: originalInvoice.effectiveOutstandingAmount,
-              refundPaidPortionToCash:
-                  normalized.refundType == RefundType.cashRefund,
-            );
-            normalized = normalized.copyWith(
-              receivableReduction: returnImpact.receivableReduction,
-              customerCreditAmount: returnImpact.customerCreditAmount,
-              cashRefundAmount: returnImpact.cashRefundAmount,
-            );
-            final financialPosting = await _buildFinancialPosting(
-              transaction: transaction,
-              salesReturn: normalized,
-              user: user,
-            );
-            final allocation = _nextAllocationMap(
-              current: alreadyReturned,
-              salesReturn: normalized,
-            );
-            final returnStatus = _returnStatusForAllocation(
-              originalInvoice: originalInvoice,
-              allocation: allocation,
-            );
-
-            normalized = normalized.copyWith(
-              financialPosted: true,
-              inventoryPosted: true,
-              financialPostedAt: DateTime.now(),
-              inventoryPostedAt: DateTime.now(),
-              stockMovementIds: inventoryPosting.movementRefs
-                  .map((reference) => reference.id)
-                  .toList(growable: false),
-              customerTransactionIds: financialPosting.customerTransactionRefs
-                  .map((reference) => reference.id)
-                  .toList(growable: false),
-              cashMovementIds: financialPosting.cashMovementRef == null
-                  ? const []
-                  : [financialPosting.cashMovementRef!.id],
-            );
-            confirmed = normalized;
-
-            transaction.set(returnRef, {
-              ...normalized.toMap(),
-              'createdAt': existing == null
-                  ? FieldValue.serverTimestamp()
-                  : Timestamp.fromDate(existing.createdAt),
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
-            if (numberAllocation != null) {
-              transaction.set(
-                numberAllocation.counterRef,
-                numberAllocation.counterData,
-                SetOptions(merge: true),
-              );
-            }
-            transaction.update(invoiceRef, {
-              // This is an allocation projection, not a second return ledger.
-              // It gives the transaction one document to guard against two
-              // simultaneous returns exceeding the original invoice quantity.
-              'returnedQuantitiesByItem': allocation,
-              'lastSalesReturnId': returnRef.id,
-              'returnStatus': returnStatus.value,
-              'returnedTotal': _round(
-                originalInvoice.returnedTotal + normalized.grandTotal,
-              ),
-              'returnedSubtotal': _round(
-                originalInvoice.returnedSubtotal + normalized.subtotal,
-              ),
-              'returnedDiscount': _round(
-                originalInvoice.returnedDiscount + normalized.totalDiscount,
-              ),
-              'returnedTax': _round(
-                originalInvoice.returnedTax + normalized.totalTax,
-              ),
-              'returnedReceivableAmount': _round(
-                originalInvoice.returnedReceivableAmount +
-                    normalized.receivableReduction,
-              ),
-              'customerCreditAmount': _round(
-                originalInvoice.customerCreditAmount +
-                    normalized.customerCreditAmount,
-              ),
-              'cashRefundAmount': _round(
-                originalInvoice.cashRefundAmount + normalized.cashRefundAmount,
-              ),
-              'returnInvoiceIds': [
-                ...originalInvoice.returnInvoiceIds,
-                returnRef.id,
-              ],
-              'latestReturnAt': FieldValue.serverTimestamp(),
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
-            _applyInventoryPosting(transaction, inventoryPosting);
-            _applyFinancialPosting(transaction, financialPosting);
-          })
-          .timeout(const Duration(seconds: 20));
-      return confirmed;
+      final snapshot = await _returns(
+        companyId,
+      ).doc(returnId).get().timeout(const Duration(seconds: 20));
+      if (!snapshot.exists) {
+        throw const SalesReturnRepositoryException(
+          SalesReturnRepositoryError.notFound,
+        );
+      }
+      return SalesReturnModel.fromFirestore(snapshot);
     });
   }
 
@@ -538,18 +349,15 @@ class SalesReturnRepository {
     required BusinessUserContext user,
   }) async {
     if (originalInvoiceId.trim().isEmpty) return const {};
-    Query<Map<String, dynamic>> query = _returns(companyId);
+    Query<Map<String, dynamic>> query = _returns(companyId)
+        .where('originalInvoiceId', isEqualTo: originalInvoiceId)
+        .where('status', isEqualTo: SalesReturnStatus.confirmed.value);
     if (user.isSalesRep) {
       query = query.where('salesRepId', isEqualTo: user.uid);
-    } else {
-      query = query.where('originalInvoiceId', isEqualTo: originalInvoiceId);
     }
-    final snapshot = await query
-        .limit(250)
-        .get()
-        .timeout(const Duration(seconds: 20));
+    final documents = await query.orderBy(FieldPath.documentId).getAllPages();
     final result = <String, double>{};
-    for (final document in snapshot.docs) {
+    for (final document in documents) {
       final salesReturn = SalesReturnModel.fromFirestore(document);
       if (salesReturn.originalInvoiceId != originalInvoiceId ||
           !salesReturn.isConfirmed) {
@@ -790,406 +598,6 @@ class SalesReturnRepository {
     }
   }
 
-  Future<_InventoryPosting> _buildInventoryPosting({
-    required Transaction transaction,
-    required SalesReturnModel salesReturn,
-    required InvoiceModel originalInvoice,
-    required BusinessUserContext user,
-  }) async {
-    final quantitiesByItem = <String, double>{};
-    for (final item in salesReturn.items) {
-      final itemId = item.itemId.trim();
-      if (itemId.isEmpty || itemId.startsWith('manual-')) continue;
-      quantitiesByItem[itemId] = _round(
-        (quantitiesByItem[itemId] ?? 0) + item.returnedQuantity,
-      );
-    }
-    final updates = <_InventoryItemUpdate>[];
-    final balanceWrites = <_InventoryDocumentWrite>[];
-    final movementRefs = <DocumentReference<Map<String, dynamic>>>[];
-    final movementData = <Map<String, dynamic>>[];
-    for (final entry in quantitiesByItem.entries) {
-      final itemRef = _items.doc(entry.key);
-      final itemSnapshot = await transaction.get(itemRef);
-      if (!itemSnapshot.exists) {
-        throw const SalesReturnRepositoryException(
-          SalesReturnRepositoryError.notFound,
-        );
-      }
-      final item = ItemModel.fromFirestore(itemSnapshot);
-      if (item.deleted) {
-        throw const SalesReturnRepositoryException(
-          SalesReturnRepositoryError.invalidState,
-        );
-      }
-      if (!item.trackStock) continue;
-      final quantity = _round(entry.value);
-      if (quantity <= 0) continue;
-      if (originalInvoice.stockSourceType == InventorySourceType.salesRep) {
-        final sourceRepId = originalInvoice.stockSourceSalesRepId.trim();
-        if (sourceRepId.isEmpty) {
-          throw const SalesReturnRepositoryException(
-            SalesReturnRepositoryError.invalidState,
-          );
-        }
-        final balanceRef = _repBalances(
-          salesReturn.companyId,
-        ).doc(RepInventoryBalanceModel.documentId(sourceRepId, item.id));
-        final balanceSnapshot = await transaction.get(balanceRef);
-        final before = balanceSnapshot.exists
-            ? RepInventoryBalanceModel.fromFirestore(balanceSnapshot).quantity
-            : 0.0;
-        final after = RepInventoryEffectCalculator.salesReturn(
-          repBefore: before,
-          quantity: quantity,
-        );
-        final movementRef = _repMovements(
-          salesReturn.companyId,
-        ).doc('${salesReturn.id}_${sourceRepId}_${item.id}_sales_return');
-        final existingMovement = await transaction.get(movementRef);
-        if (existingMovement.exists) {
-          throw const SalesReturnRepositoryException(
-            SalesReturnRepositoryError.alreadyPosted,
-          );
-        }
-        balanceWrites.add(
-          _InventoryDocumentWrite(
-            ref: balanceRef,
-            data: {
-              'id': balanceRef.id,
-              'companyId': salesReturn.companyId,
-              'salesRepId': sourceRepId,
-              'itemId': item.id,
-              'quantity': after,
-              'modelSnapshot': item.code,
-              'itemNameSnapshot': item.name,
-              'unitSnapshot': item.unit,
-              'createdAt': balanceSnapshot.exists
-                  ? (balanceSnapshot.data()?['createdAt'] ??
-                        FieldValue.serverTimestamp())
-                  : FieldValue.serverTimestamp(),
-              'updatedAt': FieldValue.serverTimestamp(),
-              'lastMovementId': movementRef.id,
-              'lastReferenceType': RepInventoryReferenceType.salesReturn.value,
-              'lastReferenceId': salesReturn.id,
-            },
-          ),
-        );
-        movementRefs.add(movementRef);
-        movementData.add({
-          'id': movementRef.id,
-          'companyId': salesReturn.companyId,
-          'salesRepId': sourceRepId,
-          'salesRepNameSnapshot': originalInvoice.salesRepName,
-          'itemId': item.id,
-          'modelSnapshot': item.code,
-          'itemNameSnapshot': item.name,
-          'unitSnapshot': item.unit,
-          'direction': RepInventoryDirection.inbound.value,
-          'quantity': quantity,
-          'quantityBefore': before,
-          'quantityAfter': after,
-          'reason': RepInventoryReason.salesReturn.value,
-          'referenceType': RepInventoryReferenceType.salesReturn.value,
-          'referenceId': salesReturn.id,
-          'referenceNumber': salesReturn.returnNumber,
-          'transferType': '',
-          'createdByUid': user.uid,
-          'createdByName': user.name,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-        continue;
-      }
-      final before = item.currentStock;
-      final after = _round(before + quantity);
-      final movementRef = _stockMovements(
-        salesReturn.companyId,
-      ).doc('${salesReturn.id}_${item.id}_sales_return');
-      final existingMovement = await transaction.get(movementRef);
-      if (existingMovement.exists) {
-        throw const SalesReturnRepositoryException(
-          SalesReturnRepositoryError.alreadyPosted,
-        );
-      }
-      updates.add(
-        _InventoryItemUpdate(
-          itemRef: itemRef,
-          data: {
-            'currentStock': after,
-            'inventoryUpdatedAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
-        ),
-      );
-      movementRefs.add(movementRef);
-      movementData.add({
-        'id': movementRef.id,
-        'companyId': salesReturn.companyId,
-        'warehouseId': item.warehouseId.trim().isEmpty
-            ? ItemModel.defaultWarehouseId
-            : item.warehouseId,
-        'itemId': item.id,
-        'itemName': item.name,
-        'itemCode': item.code,
-        'movementType': 'sales_return',
-        'direction': 'in',
-        'quantity': quantity,
-        'quantityBefore': before,
-        'quantityAfter': after,
-        'referenceType': 'sales_return',
-        'referenceId': salesReturn.id,
-        'referenceNumber': salesReturn.returnNumber,
-        'movementDate': Timestamp.fromDate(salesReturn.returnDate),
-        'notes': salesReturn.reason,
-        'createdByUid': user.uid,
-        'createdByName': user.name,
-        'createdByRole': user.role,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    }
-    return _InventoryPosting(
-      itemUpdates: updates,
-      balanceWrites: balanceWrites,
-      movementRefs: movementRefs,
-      movementData: movementData,
-    );
-  }
-
-  Future<_FinancialPosting> _buildFinancialPosting({
-    required Transaction transaction,
-    required SalesReturnModel salesReturn,
-    required BusinessUserContext user,
-  }) async {
-    final customerRef = _customers(
-      salesReturn.companyId,
-    ).doc(salesReturn.customerId);
-    final customerSnapshot = await transaction.get(customerRef);
-    if (!customerSnapshot.exists) {
-      throw const SalesReturnRepositoryException(
-        SalesReturnRepositoryError.notFound,
-      );
-    }
-    final customer = CustomerModel.fromFirestore(customerSnapshot);
-    _requireCanAccessCustomer(user, customer);
-    final balanceAfterReturn = _round(
-      customer.currentBalance - salesReturn.grandTotal,
-    );
-    final finalBalance = _round(
-      customer.currentBalance -
-          salesReturn.receivableReduction -
-          salesReturn.customerCreditAmount,
-    );
-    final customerUpdate = <String, dynamic>{
-      'currentBalance': finalBalance,
-      'totalSales': _round(
-        math.max(customer.totalSales - salesReturn.grandTotal, 0),
-      ),
-      'totalPaid': _round(
-        math.max(customer.totalPaid - salesReturn.cashRefundAmount, 0),
-      ),
-      'lastSalesReturnId': salesReturn.id,
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-    final customerTransactionRefs = <DocumentReference<Map<String, dynamic>>>[];
-    final customerTransactionData = <Map<String, dynamic>>[];
-    DocumentReference<Map<String, dynamic>>? cashMovementRef;
-    Map<String, dynamic>? cashMovementData;
-
-    final returnTransactionRef = _transactions(
-      salesReturn.companyId,
-    ).doc('${salesReturn.id}_credit');
-    final existingReturnTransaction = await transaction.get(
-      returnTransactionRef,
-    );
-    if (existingReturnTransaction.exists) {
-      throw const SalesReturnRepositoryException(
-        SalesReturnRepositoryError.alreadyPosted,
-      );
-    }
-    customerTransactionRefs.add(returnTransactionRef);
-    customerTransactionData.add({
-      'id': returnTransactionRef.id,
-      'companyId': salesReturn.companyId,
-      'customerId': customer.id,
-      'customerName': customer.name,
-      'transactionType': 'return',
-      'type': 'return',
-      'referenceId': salesReturn.id,
-      'returnInvoiceId': salesReturn.id,
-      'returnNumber': salesReturn.returnNumber,
-      'originalInvoiceId': salesReturn.originalInvoiceId,
-      'originalInvoiceNumber': salesReturn.originalInvoiceNumber,
-      'sourceCollection': 'sales_returns',
-      'sourceId': salesReturn.id,
-      'sourceNumber': salesReturn.returnNumber,
-      'transactionDate': Timestamp.fromDate(salesReturn.returnDate),
-      'debitAmount': 0,
-      'creditAmount': salesReturn.grandTotal,
-      'amount': salesReturn.grandTotal,
-      'signedAmount': -salesReturn.grandTotal,
-      'balanceAfter': balanceAfterReturn,
-      'notes': salesReturn.reason,
-      'createdByUid': user.uid,
-      'createdByName': user.name,
-      'createdByRole': user.role,
-      'salesRepId': salesReturn.salesRepId,
-      'salesRepName': salesReturn.salesRepName,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-    if (salesReturn.cashRefundAmount > 0) {
-      final refundTransactionRef = _transactions(
-        salesReturn.companyId,
-      ).doc('${salesReturn.id}_refund');
-      final existingRefundTransaction = await transaction.get(
-        refundTransactionRef,
-      );
-      if (existingRefundTransaction.exists) {
-        throw const SalesReturnRepositoryException(
-          SalesReturnRepositoryError.alreadyPosted,
-        );
-      }
-      customerTransactionRefs.add(refundTransactionRef);
-      customerTransactionData.add({
-        'id': refundTransactionRef.id,
-        'companyId': salesReturn.companyId,
-        'customerId': customer.id,
-        'customerName': customer.name,
-        'transactionType': 'refund',
-        'type': 'refund',
-        'referenceId': salesReturn.id,
-        'returnInvoiceId': salesReturn.id,
-        'returnNumber': salesReturn.returnNumber,
-        'originalInvoiceId': salesReturn.originalInvoiceId,
-        'originalInvoiceNumber': salesReturn.originalInvoiceNumber,
-        'sourceCollection': 'sales_returns',
-        'sourceId': salesReturn.id,
-        'sourceNumber': salesReturn.returnNumber,
-        'transactionDate': Timestamp.fromDate(salesReturn.returnDate),
-        'debitAmount': salesReturn.cashRefundAmount,
-        'creditAmount': 0,
-        'amount': salesReturn.cashRefundAmount,
-        'signedAmount': salesReturn.cashRefundAmount,
-        'balanceAfter': finalBalance,
-        'notes': salesReturn.reason,
-        'createdByUid': user.uid,
-        'createdByName': user.name,
-        'createdByRole': user.role,
-        'salesRepId': salesReturn.salesRepId,
-        'salesRepName': salesReturn.salesRepName,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      cashMovementRef = _cashMovements(
-        salesReturn.companyId,
-      ).doc('${salesReturn.id}_cash_refund');
-      final existingMovement = await transaction.get(cashMovementRef);
-      if (existingMovement.exists) {
-        throw const SalesReturnRepositoryException(
-          SalesReturnRepositoryError.alreadyPosted,
-        );
-      }
-      cashMovementData = {
-        'id': cashMovementRef.id,
-        'companyId': salesReturn.companyId,
-        'movementType': 'sales_return',
-        'type': 'sales_return_cash_refund',
-        'direction': 'out',
-        'amount': salesReturn.cashRefundAmount,
-        'cashAccount': user.isAdmin
-            ? CashMovementModel.companyCashAccount
-            : CashMovementModel.repCashAccount,
-        'paymentType': salesReturn.refundType.value,
-        'customerId': salesReturn.customerId,
-        'customerName': salesReturn.customerSnapshot?.name ?? '',
-        'referenceId': salesReturn.id,
-        'referenceNumber': salesReturn.returnNumber,
-        'sourceCollection': 'sales_returns',
-        'sourceId': salesReturn.id,
-        'sourceNumber': salesReturn.returnNumber,
-        'date': Timestamp.fromDate(salesReturn.returnDate),
-        'movementDate': Timestamp.fromDate(salesReturn.returnDate),
-        'notes': salesReturn.reason,
-        'salesRepId': salesReturn.salesRepId,
-        'salesRepName': salesReturn.salesRepName,
-        'createdByUid': user.uid,
-        'createdByName': user.name,
-        'createdByRole': user.role,
-        'createdAt': FieldValue.serverTimestamp(),
-      };
-    }
-    return _FinancialPosting(
-      customerRef: customerRef,
-      customerUpdate: customerUpdate,
-      customerTransactionRefs: customerTransactionRefs,
-      customerTransactionData: customerTransactionData,
-      cashMovementRef: cashMovementRef,
-      cashMovementData: cashMovementData,
-    );
-  }
-
-  InvoiceReturnStatus _returnStatusForAllocation({
-    required InvoiceModel originalInvoice,
-    required Map<String, double> allocation,
-  }) {
-    for (var index = 0; index < originalInvoice.items.length; index++) {
-      final lineId = originalInvoiceItemId(originalInvoice.id, index);
-      if ((allocation[lineId] ?? 0) < originalInvoice.items[index].quantity) {
-        return InvoiceReturnStatus.partiallyReturned;
-      }
-    }
-    return InvoiceReturnStatus.returned;
-  }
-
-  Map<String, double> _nextAllocationMap({
-    required Map<String, double> current,
-    required SalesReturnModel salesReturn,
-  }) {
-    final next = Map<String, double>.from(current);
-    for (final item in salesReturn.items) {
-      next[item.originalInvoiceItemId] = _round(
-        (next[item.originalInvoiceItemId] ?? 0) + item.returnedQuantity,
-      );
-    }
-    return next;
-  }
-
-  void _applyInventoryPosting(
-    Transaction transaction,
-    _InventoryPosting posting,
-  ) {
-    for (final update in posting.itemUpdates) {
-      transaction.update(update.itemRef, update.data);
-    }
-    for (final write in posting.balanceWrites) {
-      transaction.set(write.ref, write.data);
-    }
-    for (var index = 0; index < posting.movementRefs.length; index++) {
-      transaction.set(posting.movementRefs[index], posting.movementData[index]);
-    }
-  }
-
-  void _applyFinancialPosting(
-    Transaction transaction,
-    _FinancialPosting posting,
-  ) {
-    if (posting.customerRef != null && posting.customerUpdate != null) {
-      transaction.update(posting.customerRef!, posting.customerUpdate!);
-    }
-    for (
-      var index = 0;
-      index < posting.customerTransactionRefs.length;
-      index++
-    ) {
-      transaction.set(
-        posting.customerTransactionRefs[index],
-        posting.customerTransactionData[index],
-      );
-    }
-    if (posting.cashMovementRef != null && posting.cashMovementData != null) {
-      transaction.set(posting.cashMovementRef!, posting.cashMovementData!);
-    }
-  }
-
   void _requireEligibleInvoice(BusinessUserContext user, InvoiceModel invoice) {
     if (invoice.invoiceStatus != InvoiceStatus.confirmed) {
       throw const SalesReturnRepositoryException(
@@ -1220,17 +628,6 @@ class SalesReturnRepository {
     );
   }
 
-  void _requireCanAccessCustomer(
-    BusinessUserContext user,
-    CustomerModel customer,
-  ) {
-    if (user.isAdmin) return;
-    if (user.isSalesRep && customer.createdByUid == user.uid) return;
-    throw const SalesReturnRepositoryException(
-      SalesReturnRepositoryError.permissionDenied,
-    );
-  }
-
   String _resolveCompanyId(String requested, BusinessUserContext user) {
     final companyId = requested.trim().isEmpty
         ? AuthRepository.defaultCompanyId
@@ -1246,17 +643,6 @@ class SalesReturnRepository {
   double _netUnitPrice(InvoiceItemSnapshot item) {
     if (item.quantity <= 0) return 0;
     return _round(math.max(item.subtotal - item.discount, 0) / item.quantity);
-  }
-
-  Map<String, double> _readQuantityMap(Map<dynamic, dynamic> source) {
-    final result = <String, double>{};
-    for (final entry in source.entries) {
-      final key = entry.key?.toString().trim() ?? '';
-      final value = entry.value;
-      if (key.isEmpty || value is! num || !value.isFinite) continue;
-      result[key] = _round(value.toDouble());
-    }
-    return result;
   }
 
   DateTime _startOfDay(DateTime date) =>
@@ -1333,20 +719,6 @@ class SalesReturnRepository {
 String originalInvoiceItemId(String invoiceId, int index) =>
     '$invoiceId:$index';
 
-class _InventoryPosting {
-  const _InventoryPosting({
-    required this.itemUpdates,
-    required this.balanceWrites,
-    required this.movementRefs,
-    required this.movementData,
-  });
-
-  final List<_InventoryItemUpdate> itemUpdates;
-  final List<_InventoryDocumentWrite> balanceWrites;
-  final List<DocumentReference<Map<String, dynamic>>> movementRefs;
-  final List<Map<String, dynamic>> movementData;
-}
-
 class _ReturnNumberAllocation {
   const _ReturnNumberAllocation({
     required this.number,
@@ -1357,36 +729,4 @@ class _ReturnNumberAllocation {
   final String number;
   final DocumentReference<Map<String, dynamic>> counterRef;
   final Map<String, dynamic> counterData;
-}
-
-class _InventoryItemUpdate {
-  const _InventoryItemUpdate({required this.itemRef, required this.data});
-
-  final DocumentReference<Map<String, dynamic>> itemRef;
-  final Map<String, dynamic> data;
-}
-
-class _InventoryDocumentWrite {
-  const _InventoryDocumentWrite({required this.ref, required this.data});
-
-  final DocumentReference<Map<String, dynamic>> ref;
-  final Map<String, dynamic> data;
-}
-
-class _FinancialPosting {
-  const _FinancialPosting({
-    required this.customerRef,
-    required this.customerUpdate,
-    required this.customerTransactionRefs,
-    required this.customerTransactionData,
-    required this.cashMovementRef,
-    required this.cashMovementData,
-  });
-
-  final DocumentReference<Map<String, dynamic>>? customerRef;
-  final Map<String, dynamic>? customerUpdate;
-  final List<DocumentReference<Map<String, dynamic>>> customerTransactionRefs;
-  final List<Map<String, dynamic>> customerTransactionData;
-  final DocumentReference<Map<String, dynamic>>? cashMovementRef;
-  final Map<String, dynamic>? cashMovementData;
 }

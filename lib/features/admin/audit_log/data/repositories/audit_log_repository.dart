@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/features/admin/audit_log/data/models/audit_event_model.dart';
 
 class AuditLogFilter {
@@ -81,7 +82,10 @@ class AuditLogRepository implements AuditLogDataSource {
         isLessThan: Timestamp.fromDate(filter.to!.toUtc()),
       );
     }
-    query = query.orderBy('occurredAt', descending: true).limit(pageSize);
+    query = query
+        .orderBy('occurredAt', descending: true)
+        .orderBy(FieldPath.documentId, descending: true)
+        .limit(pageSize);
     if (after != null) query = query.startAfterDocument(after);
     final snapshot = await query.get();
     return AuditLogPage(
@@ -99,14 +103,12 @@ class AuditLogRepository implements AuditLogDataSource {
     required String operationId,
   }) async {
     if (operationId.isEmpty) return const [];
-    final snapshot = await _events(companyId)
+    final documents = await _events(companyId)
         .where('operationId', isEqualTo: operationId)
         .orderBy('occurredAt')
-        .limit(100)
-        .get();
-    return snapshot.docs
-        .map(AuditEventModel.fromFirestore)
-        .toList(growable: false);
+        .orderBy(FieldPath.documentId)
+        .getAllPages();
+    return documents.map(AuditEventModel.fromFirestore).toList(growable: false);
   }
 
   @override

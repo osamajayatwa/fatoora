@@ -8,10 +8,78 @@ import 'package:pdf/widgets.dart' as pw;
 class BusinessPdfWidgets {
   const BusinessPdfWidgets._();
 
-  static pw.PageTheme pageTheme(AppPdfAssets assets) {
+  static pw.PageTheme pageTheme(
+    AppPdfAssets assets, {
+    pw.TextDirection? textDirection,
+  }) {
     return pw.PageTheme(
+      pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.all(28),
       theme: assets.theme,
+      textDirection: textDirection,
+    );
+  }
+
+  static pw.Widget pageHeader({
+    required AppPdfAssets assets,
+    required BusinessPdfConfiguration configuration,
+    required String title,
+    String? subtitle,
+  }) {
+    final loc = configuration.localization;
+    return pw.Directionality(
+      textDirection: loc.textDirection,
+      child: pw.Column(
+        children: [
+          header(
+            assets: assets,
+            configuration: configuration,
+            title: title,
+            subtitle: subtitle,
+          ),
+          pw.SizedBox(height: 14),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget pageFooter({
+    required pw.Context context,
+    required AppPdfLocalization loc,
+    String text = '',
+  }) {
+    return pw.Directionality(
+      textDirection: loc.textDirection,
+      child: pw.Container(
+        padding: const pw.EdgeInsets.only(top: 7),
+        decoration: const pw.BoxDecoration(
+          border: pw.Border(
+            top: pw.BorderSide(color: PdfColors.grey400, width: 0.5),
+          ),
+        ),
+        child: pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.end,
+          children: [
+            pw.Expanded(
+              child: text.trim().isEmpty
+                  ? pw.SizedBox.shrink()
+                  : AppPdfDirection.text(
+                      text.trim(),
+                      fallbackDirection: loc.textDirection,
+                      style: const pw.TextStyle(
+                        fontSize: 8,
+                        color: PdfColors.grey700,
+                      ),
+                    ),
+            ),
+            pw.SizedBox(width: 12),
+            pw.Text(
+              '${loc.t('page')} ${context.pageNumber} / ${context.pagesCount}',
+              style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -196,6 +264,7 @@ class BusinessPdfWidgets {
       border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.35),
       children: [
         pw.TableRow(
+          repeat: true,
           decoration: const pw.BoxDecoration(color: PdfColors.grey200),
           children: [
             for (final header in displayHeaders)

@@ -1,4 +1,8 @@
 const Map<String, String> financialEnglishTranslations = {
+  'financial_opening_balance': 'Opening balance',
+  'financial_period_cash_in': 'Period cash in',
+  'financial_period_cash_out': 'Period cash out',
+  'financial_closing_balance': 'Closing balance',
   'financial_load_error': 'Unable to load financial data. Please try again.',
   'financial_session_error': 'Your session has expired. Please sign in again.',
   'financial_permission_error':
@@ -56,6 +60,10 @@ const Map<String, String> financialEnglishTranslations = {
 };
 
 const Map<String, String> financialArabicTranslations = {
+  'financial_opening_balance': 'الرصيد الافتتاحي',
+  'financial_period_cash_in': 'المقبوضات خلال الفترة',
+  'financial_period_cash_out': 'المدفوعات خلال الفترة',
+  'financial_closing_balance': 'الرصيد الختامي',
   'financial_load_error':
       'تعذر تحميل البيانات المالية. يرجى المحاولة مرة أخرى.',
   'financial_session_error': 'انتهت صلاحية جلستك. يرجى تسجيل الدخول مرة أخرى.',

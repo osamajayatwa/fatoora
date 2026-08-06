@@ -13,27 +13,30 @@ class CustomerStatementSnapshot {
     required List<CustomerTransactionModel> transactions,
     required double openingBalance,
   }) {
-    var runningBalance = openingBalance;
+    var runningBalance = _round(openingBalance);
     final normalizedTransactions = transactions
         .map((transaction) {
-          runningBalance =
-              runningBalance +
-              transaction.debitAmount -
-              transaction.creditAmount;
+          runningBalance = _round(
+            runningBalance + transaction.debitAmount - transaction.creditAmount,
+          );
           return transaction.copyWith(balanceAfter: runningBalance);
         })
         .toList(growable: false);
-    final totalDebit = transactions.fold<double>(
-      0,
-      (sum, transaction) => sum + transaction.debitAmount,
+    final totalDebit = _round(
+      transactions.fold<double>(
+        0,
+        (sum, transaction) => sum + transaction.debitAmount,
+      ),
     );
-    final totalCredit = transactions.fold<double>(
-      0,
-      (sum, transaction) => sum + transaction.creditAmount,
+    final totalCredit = _round(
+      transactions.fold<double>(
+        0,
+        (sum, transaction) => sum + transaction.creditAmount,
+      ),
     );
     return CustomerStatementSnapshot(
       transactions: List.unmodifiable(normalizedTransactions),
-      openingBalance: openingBalance,
+      openingBalance: _round(openingBalance),
       totalDebit: totalDebit,
       totalCredit: totalCredit,
       closingBalance: runningBalance,
@@ -45,4 +48,9 @@ class CustomerStatementSnapshot {
   final double totalDebit;
   final double totalCredit;
   final double closingBalance;
+
+  static double _round(double value) {
+    if (!value.isFinite) return 0;
+    return (value * 1000).roundToDouble() / 1000;
+  }
 }

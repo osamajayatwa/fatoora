@@ -34,6 +34,8 @@ class ExpenseDetailsController extends GetxController {
   }
 
   String get expenseId {
+    final parameter = (Get.parameters['expenseId'] ?? '').trim();
+    if (parameter.isNotEmpty) return parameter;
     final args = Get.arguments;
     if (args is Map && args['expenseId'] is String) {
       return (args['expenseId'] as String).trim();

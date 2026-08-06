@@ -38,7 +38,10 @@ class SalesReturnDetailsController extends GetxController {
   Future<void> loadSalesReturn() async {
     final args = SalesReturnContext.arguments(Get.arguments);
     companyId = SalesReturnContext.resolveCompanyId(_myServices, args);
-    returnId = SalesReturnContext.readString(args, 'returnId');
+    returnId =
+        (Get.parameters['returnId'] ??
+                SalesReturnContext.readString(args, 'returnId'))
+            .trim();
     if (returnId.isEmpty) {
       statusRequest = StatusRequest.failure;
       loadErrorMessageKey = 'sales_return_not_found';

@@ -12,6 +12,7 @@ class SalesRepNeedsAttentionPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
     final snapshot = controller.snapshot;
     final alerts = <_AttentionData>[
@@ -21,7 +22,7 @@ class SalesRepNeedsAttentionPanel extends StatelessWidget {
           detail: 'sales_rep_home_pending_expenses_detail'.tr,
           badge: snapshot.pendingExpenseCount.toString(),
           icon: Icons.pending_actions_outlined,
-          color: const Color(0xFFE49A13),
+          color: scheme.secondary,
           onTap: controller.openExpenses,
         ),
       if (snapshot.totalReceivables > 0)
@@ -30,7 +31,7 @@ class SalesRepNeedsAttentionPanel extends StatelessWidget {
           detail: 'sales_rep_home_receivables_detail'.tr,
           badge: currency.format(snapshot.totalReceivables),
           icon: Icons.account_balance_outlined,
-          color: const Color(0xFFE49A13),
+          color: scheme.secondary,
           onTap: controller.openReceivables,
         ),
       if (snapshot.repCashOutstanding > 0)
@@ -39,7 +40,7 @@ class SalesRepNeedsAttentionPanel extends StatelessWidget {
           detail: 'sales_rep_home_cash_attention_detail'.tr,
           badge: currency.format(snapshot.repCashOutstanding),
           icon: Icons.account_balance_wallet_outlined,
-          color: AppColor.primaryColor,
+          color: scheme.primary,
           onTap: controller.openCash,
         ),
     ];
@@ -152,9 +153,9 @@ class _AllGoodRow extends StatelessWidget {
     padding: const EdgeInsets.all(14),
     child: Row(
       children: [
-        const SalesRepIconBox(
+        SalesRepIconBox(
           icon: Icons.check_circle_outline_rounded,
-          color: AppColor.success,
+          color: Theme.of(context).colorScheme.tertiary,
           size: 40,
         ),
         const SizedBox(width: 10),
@@ -190,6 +191,7 @@ class SalesRepRecentActivityPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final activities = [
       ...controller.snapshot.recentInvoices.map(
         (invoice) => _ActivityData(
@@ -200,7 +202,7 @@ class SalesRepRecentActivityPanel extends StatelessWidget {
               '${invoice.invoiceNumber}',
           amount: invoice.grandTotal,
           icon: Icons.receipt_long_outlined,
-          color: AppColor.primaryColor,
+          color: scheme.primary,
           onTap: controller.openInvoices,
         ),
       ),
@@ -211,7 +213,7 @@ class SalesRepRecentActivityPanel extends StatelessWidget {
           detail: '${receipt.customerSnapshot.name} · ${receipt.receiptNumber}',
           amount: receipt.amount,
           icon: Icons.payments_outlined,
-          color: AppColor.success,
+          color: scheme.tertiary,
           onTap: controller.openReceipts,
         ),
       ),

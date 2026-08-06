@@ -400,6 +400,25 @@ void main() {
       beforeReturn.repCashOutstanding,
     );
   });
+
+  test('cash totals remain complete beyond the former report caps', () {
+    final movements = List.generate(
+      1200,
+      (index) => _movement(
+        id: 'bulk-$index',
+        type: index.isEven ? 'receipt_cash' : 'expense',
+        movementType: index.isEven ? 'receipt' : 'expense',
+        direction: index.isEven ? 'in' : 'out',
+        amount: index.isEven ? 1.001 : 0.501,
+        cashAccount: CashMovementModel.repCashAccount,
+      ),
+    );
+
+    final totals = CashLedgerCalculator.calculate(movements);
+
+    expect(totals.repCashOutstanding, 300);
+    expect(totals.repCashOutstandingBySalesRep.single.amount, 300);
+  });
 }
 
 CashMovementModel _movement({

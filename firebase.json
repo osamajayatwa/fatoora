@@ -1,4 +1,21 @@
 {
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint",
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ],
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
@@ -17,27 +34,7 @@
       }
     ]
   },
-  "flutter": {
-    "platforms": {
-      "android": {
-        "default": {
-          "projectId": "fatoora-6b192",
-          "appId": "1:961957914773:android:84ae3597a1dea12439139c",
-          "fileOutput": "android/app/google-services.json"
-        }
-      },
-      "dart": {
-        "lib/firebase_options.dart": {
-          "projectId": "fatoora-6b192",
-          "configurations": {
-            "android": "1:961957914773:android:84ae3597a1dea12439139c",
-            "ios": "1:961957914773:ios:30b473f930c6a52339139c",
-            "macos": "1:961957914773:ios:30b473f930c6a52339139c",
-            "web": "1:961957914773:web:8303af2cbdf82be639139c",
-            "windows": "1:961957914773:web:bdcca6eff279795439139c"
-          }
-        }
-      }
-    }
+  "emulators": {
+    "singleProjectMode": false
   }
 }

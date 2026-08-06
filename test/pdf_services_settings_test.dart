@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:fatoora/core/pdf/app_pdf_localization.dart';
 import 'package:fatoora/core/pdf/business_pdf_configuration.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
@@ -132,6 +134,176 @@ void main() {
     expect(bytes.length, greaterThan(1000));
     expect(String.fromCharCodes(bytes.take(4)), '%PDF');
   });
+
+  test(
+    'long bilingual business documents paginate without truncation',
+    () async {
+      await initializeDateFormatting('en');
+      await initializeDateFormatting('ar');
+      final fixture = _PdfFixture();
+      final longQuotation = fixture.quotation.copyWith(
+        items: List.generate(
+          140,
+          (index) => fixture.quotation.items.single.copyWith(
+            itemId: 'quotation-item-$index',
+            itemName:
+                'مضخة صناعية عالية الكفاءة / Industrial pump model $index',
+            itemCode: 'PUMP-$index',
+          ),
+        ),
+      );
+      final longReturn = fixture.salesReturn.copyWith(
+        items: List.generate(
+          140,
+          (index) => fixture.salesReturn.items.single.copyWith(
+            itemId: 'return-item-$index',
+            itemName: 'مرتجع مضخة / Returned pump model $index',
+            originalInvoiceItemId: 'invoice-line-$index',
+          ),
+        ),
+      );
+      final longTransactions = List.generate(
+        560,
+        (index) => CustomerTransactionModel(
+          id: 'transaction-$index',
+          companyId: _PdfFixture.companyId,
+          customerId: fixture.customer.id,
+          customerName: fixture.customer.name,
+          transactionType: index.isEven ? 'invoice' : 'receipt',
+          sourceCollection: index.isEven ? 'invoices' : 'receipts',
+          sourceId: 'source-$index',
+          sourceNumber: 'REF-$index',
+          transactionDate: fixture.now.add(Duration(minutes: index)),
+          debitAmount: index.isEven ? 1.001 : 0,
+          creditAmount: index.isOdd ? 0.501 : 0,
+          balanceAfter: 10 + (index * 0.5),
+          notes: 'حركة حساب تجريبية / Account movement $index',
+          createdByUid: 'admin-1',
+          createdByName: 'Admin',
+          createdByRole: 'admin',
+          salesRepId: 'rep-1',
+          salesRepName: 'مندوب المبيعات / Sales representative',
+          createdAt: fixture.now.add(Duration(minutes: index)),
+        ),
+      );
+      final longMovements = List.generate(
+        520,
+        (index) => CashMovementModel(
+          id: 'cash-$index',
+          companyId: _PdfFixture.companyId,
+          salesRepId: 'rep-1',
+          salesRepName: 'مندوب المبيعات / Sales representative',
+          type: index.isEven ? 'receipt_cash' : 'expense',
+          movementType: index.isEven ? 'receipt' : 'expense',
+          direction: index.isEven ? 'in' : 'out',
+          amount: index.isEven ? 1.001 : 0.501,
+          referenceId: 'source-$index',
+          referenceNumber: 'CASH-$index',
+          sourceCollection: index.isEven ? 'receipts' : 'expenses',
+          sourceId: 'source-$index',
+          sourceNumber: 'CASH-$index',
+          customerId: fixture.customer.id,
+          customerName: fixture.customer.name,
+          date: fixture.now.add(Duration(minutes: index)),
+          notes: 'حركة نقدية / Cash movement $index',
+          createdByUid: 'admin-1',
+          createdByName: 'Admin',
+          createdByRole: 'admin',
+          createdAt: fixture.now.add(Duration(minutes: index)),
+        ),
+      );
+      final longReceipt = ReceiptModel(
+        id: fixture.receipt.id,
+        companyId: fixture.receipt.companyId,
+        receiptNumber: fixture.receipt.receiptNumber,
+        receiptDate: fixture.receipt.receiptDate,
+        customerId: fixture.receipt.customerId,
+        customerSnapshot: fixture.receipt.customerSnapshot,
+        amount: 90,
+        paymentMethod: fixture.receipt.paymentMethod,
+        notes: 'توزيع دفعة طويلة / Long allocation receipt',
+        salesRepId: fixture.receipt.salesRepId,
+        salesRepName: fixture.receipt.salesRepName,
+        createdByUid: fixture.receipt.createdByUid,
+        createdByName: fixture.receipt.createdByName,
+        createdByRole: fixture.receipt.createdByRole,
+        customerTransactionIds: fixture.receipt.customerTransactionIds,
+        cashMovementIds: fixture.receipt.cashMovementIds,
+        invoiceAllocationDetails: List.generate(
+          90,
+          (index) => ReceiptInvoiceAllocation(
+            invoiceId: 'invoice-$index',
+            invoiceNumber: 'INV-2026-${index.toString().padLeft(6, '0')}',
+            amount: 1,
+          ),
+        ),
+        resultingCustomerBalance: 12.345,
+        createdAt: fixture.receipt.createdAt,
+        updatedAt: fixture.receipt.updatedAt,
+      );
+
+      final outputs = <List<int>>[];
+      outputs.add(
+        await QuotationPdfService.build(
+          longQuotation,
+          configuration: fixture.configuration,
+        ),
+      );
+      outputs.add(
+        await SalesReturnPdfService.build(
+          longReturn,
+          configuration: fixture.configuration,
+        ),
+      );
+      outputs.add(
+        await CustomerStatementPdfService.build(
+          customer: fixture.customer,
+          transactions: longTransactions,
+          fromDate: fixture.now,
+          toDate: fixture.now.add(const Duration(days: 1)),
+          openingBalance: 10,
+          totalDebit: 280.28,
+          totalCredit: 140.28,
+          finalBalance: 150,
+          configuration: fixture.configuration,
+        ),
+      );
+      outputs.add(
+        await CashReportPdfService.build(
+          snapshot: FinancialCashSnapshot(
+            movements: longMovements,
+            openingBalance: 10,
+            closingBalance: 140,
+            cashInHand: 140,
+            companyCash: 140,
+            totalIn: 260.26,
+            totalOut: 130.26,
+            cashBySalesRep: const [],
+          ),
+          fromDate: fixture.now,
+          toDate: fixture.now.add(const Duration(days: 1)),
+          salesRepFilterLabel: 'الكل / All',
+          configuration: fixture.configuration,
+        ),
+      );
+      outputs.add(
+        await ReceiptPdfService.build(
+          longReceipt,
+          configuration: fixture.configuration,
+        ),
+      );
+
+      for (final bytes in outputs) {
+        expect(String.fromCharCodes(bytes.take(4)), '%PDF');
+        expect(_pageCount(bytes), greaterThan(1));
+      }
+    },
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
+}
+
+int _pageCount(List<int> bytes) {
+  return RegExp(r'/Type\s*/Page\b').allMatches(latin1.decode(bytes)).length;
 }
 
 class _PdfFixture {

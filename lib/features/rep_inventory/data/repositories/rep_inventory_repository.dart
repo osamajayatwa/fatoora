@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/settings/business_settings_defaults.dart';
 import 'package:fatoora/features/auth/data/models/app_user_model.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
@@ -110,13 +111,12 @@ class RepInventoryRepository {
           RepInventoryRepositoryError.permissionDenied,
         );
       }
-      final snapshot = await _users
+      final documents = await _users
           .where('role', isEqualTo: AuthRepository.salesRepRole)
-          .limit(200)
-          .get()
-          .timeout(const Duration(seconds: 20));
+          .orderBy(FieldPath.documentId)
+          .getAllPages();
       final reps =
-          snapshot.docs
+          documents
               .map(AppUserModel.fromFirestore)
               .where(
                 (rep) =>
@@ -135,13 +135,12 @@ class RepInventoryRepository {
   Future<List<ItemModel>> fetchTrackedItems() {
     return _run(() async {
       await _contextReader.requireApprovedUser();
-      final snapshot = await _items
+      final documents = await _items
           .where('deleted', isEqualTo: false)
-          .limit(700)
-          .get()
-          .timeout(const Duration(seconds: 20));
+          .orderBy(FieldPath.documentId)
+          .getAllPages();
       final items =
-          snapshot.docs
+          documents
               .map(ItemModel.fromFirestore)
               .where((item) => item.active && item.trackStock)
               .toList(growable: false)
@@ -160,7 +159,7 @@ class RepInventoryRepository {
     DateTime? fromDate,
     DateTime? toDate,
     String searchText = '',
-    int maxResults = 200,
+    int pageSize = 200,
   }) {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
@@ -170,13 +169,28 @@ class RepInventoryRepository {
       if (ownerId.isNotEmpty) {
         query = query.where('salesRepId', isEqualTo: ownerId);
       }
-      final snapshot = await query
+      if (type != null) query = query.where('type', isEqualTo: type.value);
+      if (status != null) {
+        query = query.where('status', isEqualTo: status.value);
+      }
+      if (fromDate != null) {
+        query = query.where(
+          'createdAt',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfDay(fromDate)),
+        );
+      }
+      if (toDate != null) {
+        query = query.where(
+          'createdAt',
+          isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(toDate)),
+        );
+      }
+      final documents = await query
           .orderBy('createdAt', descending: true)
-          .limit(maxResults)
-          .get()
-          .timeout(const Duration(seconds: 20));
+          .orderBy(FieldPath.documentId, descending: true)
+          .getAllPages(pageSize: pageSize);
       final search = searchText.trim().toLowerCase();
-      return snapshot.docs
+      return documents
           .map(InventoryTransferModel.fromFirestore)
           .where((transfer) {
             if (!user.isAdmin && transfer.salesRepId != user.uid) return false;
@@ -227,7 +241,7 @@ class RepInventoryRepository {
   Future<List<RepInventoryBalanceModel>> fetchBalances({
     String companyId = AuthRepository.defaultCompanyId,
     String salesRepId = '',
-    int maxResults = 700,
+    int pageSize = 700,
   }) {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
@@ -238,13 +252,12 @@ class RepInventoryRepository {
           RepInventoryRepositoryError.invalidRepresentative,
         );
       }
-      final snapshot = await _balances(resolvedCompanyId)
+      final documents = await _balances(resolvedCompanyId)
           .where('salesRepId', isEqualTo: ownerId)
           .orderBy('updatedAt', descending: true)
-          .limit(maxResults)
-          .get()
-          .timeout(const Duration(seconds: 20));
-      return snapshot.docs
+          .orderBy(FieldPath.documentId, descending: true)
+          .getAllPages(pageSize: pageSize);
+      return documents
           .map(RepInventoryBalanceModel.fromFirestore)
           .where((balance) => balance.quantity > 0)
           .toList(growable: false);
@@ -255,7 +268,7 @@ class RepInventoryRepository {
     String companyId = AuthRepository.defaultCompanyId,
     String salesRepId = '',
     String itemId = '',
-    int maxResults = 150,
+    int pageSize = 150,
   }) {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
@@ -269,12 +282,14 @@ class RepInventoryRepository {
       Query<Map<String, dynamic>> query = _repMovements(
         resolvedCompanyId,
       ).where('salesRepId', isEqualTo: ownerId);
-      final snapshot = await query
+      if (itemId.trim().isNotEmpty) {
+        query = query.where('itemId', isEqualTo: itemId.trim());
+      }
+      final documents = await query
           .orderBy('createdAt', descending: true)
-          .limit(maxResults)
-          .get()
-          .timeout(const Duration(seconds: 20));
-      return snapshot.docs
+          .orderBy(FieldPath.documentId, descending: true)
+          .getAllPages(pageSize: pageSize);
+      return documents
           .map(RepInventoryMovementModel.fromFirestore)
           .where(
             (movement) => itemId.trim().isEmpty || movement.itemId == itemId,

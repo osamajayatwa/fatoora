@@ -50,7 +50,7 @@ class SalesRepSectionTitle extends StatelessWidget {
           width: 4,
           height: 20,
           decoration: BoxDecoration(
-            color: AppColor.primaryColor,
+            color: Theme.of(context).colorScheme.primary,
             borderRadius: BorderRadius.circular(4),
           ),
         ),

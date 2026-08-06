@@ -145,6 +145,8 @@ class FinancialReceivablesSnapshot {
 class FinancialCashSnapshot {
   const FinancialCashSnapshot({
     required this.movements,
+    this.openingBalance = 0,
+    this.closingBalance = 0,
     required this.cashInHand,
     this.companyCash = 0,
     this.repCashOutstanding = 0,
@@ -155,6 +157,8 @@ class FinancialCashSnapshot {
   });
 
   final List<CashMovementModel> movements;
+  final double openingBalance;
+  final double closingBalance;
 
   /// Backward-compatible effective cash value.
   ///

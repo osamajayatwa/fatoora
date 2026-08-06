@@ -17,6 +17,7 @@ class SalesRepDashboardHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final locale = Get.locale?.toLanguageTag();
     final date = DateFormat.yMMMMEEEEd(locale).format(DateTime.now());
     return SalesRepDashboardSurface(
@@ -27,14 +28,14 @@ class SalesRepDashboardHeader extends StatelessWidget {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: AppColor.primaryColor.withValues(alpha: 0.1),
+              color: scheme.primaryContainer,
               borderRadius: BorderRadius.circular(15),
             ),
             alignment: Alignment.center,
             child: Text(
               _initials(name),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColor.primaryColor,
+                color: scheme.onPrimaryContainer,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -44,7 +45,7 @@ class SalesRepDashboardHeader extends StatelessWidget {
             width: 3,
             height: 38,
             decoration: BoxDecoration(
-              color: AppColor.primaryColor,
+              color: scheme.primary,
               borderRadius: BorderRadius.circular(3),
             ),
           ),
@@ -92,7 +93,7 @@ class SalesRepDashboardHeader extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.labelSmall
                               ?.copyWith(
-                                color: AppColor.primaryColor,
+                                color: scheme.primary,
                                 fontWeight: FontWeight.w700,
                               ),
                         ),
@@ -139,7 +140,7 @@ class SalesRepDashboardHeader extends StatelessWidget {
                   padding: const EdgeInsets.all(7),
                   onPressed: controller.refreshDashboard,
                   icon: const Icon(Icons.refresh_rounded, size: 20),
-                  color: AppColor.primaryColor,
+                  color: scheme.primary,
                 ),
               ],
             ),

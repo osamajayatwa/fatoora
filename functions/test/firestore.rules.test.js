@@ -120,6 +120,27 @@ beforeEach(async () => {
           cashAccount: "company_cash",
         },
       ),
+      setDoc(businessDoc(db, "cash_balances", "rep_rep-a"), {
+        id: "rep_rep-a",
+        companyId,
+        cashAccount: "rep_cash",
+        salesRepId: repAUid,
+        amount: 25,
+      }),
+      setDoc(businessDoc(db, "cash_balances", "rep_rep-b"), {
+        id: "rep_rep-b",
+        companyId,
+        cashAccount: "rep_cash",
+        salesRepId: repBUid,
+        amount: 30,
+      }),
+      setDoc(businessDoc(db, "cash_balances", "company_cash"), {
+        id: "company_cash",
+        companyId,
+        cashAccount: "company_cash",
+        salesRepId: "",
+        amount: 100,
+      }),
       setDoc(
         businessDoc(db, "expenses", "expense-a"),
         expenseOwned("expense-a", repAUid, repAUid),
@@ -282,6 +303,11 @@ test("rep A can directly read own documents and cannot read rep B documents", as
     await assertSucceeds(getDoc(businessDoc(db, collectionName, ownId)));
     await assertFails(getDoc(businessDoc(db, collectionName, otherId)));
   }
+  await assertSucceeds(
+    getDoc(businessDoc(db, "cash_balances", "rep_rep-a")),
+  );
+  await assertFails(getDoc(businessDoc(db, "cash_balances", "rep_rep-b")));
+  await assertFails(getDoc(businessDoc(db, "cash_balances", "company_cash")));
 });
 
 test("rep B has the inverse direct-read boundary", async () => {
@@ -718,11 +744,11 @@ test("customer owner fallback supports legacy transactions without salesRepId", 
   await assertFails(getDoc(businessDoc(repBDb, ...transaction)));
 });
 
-test("admin can atomically post a customer-owes opening balance", async () => {
+test("clients cannot post an opening balance directly", async () => {
   await seedOpeningCustomer("opening-admin-customer", repAUid);
   const db = authenticatedDb(adminUid);
 
-  await assertSucceeds(
+  await assertFails(
     commitOpeningBalance(db, {
       customerId: "opening-admin-customer",
       actorUid: adminUid,
@@ -734,24 +760,14 @@ test("admin can atomically post a customer-owes opening balance", async () => {
       balanceAfter: 1525,
     }),
   );
-
-  const customer = await getDoc(
-    businessDoc(db, "customers", "opening-admin-customer"),
-  );
-  if (customer.data().currentBalance !== 1525) {
-    throw new Error("Opening debit was not applied to the customer balance");
-  }
-  if (customer.data().totalSales !== 100 || customer.data().totalPaid !== 40) {
-    throw new Error("Opening balance changed sales or paid totals");
-  }
 });
 
-test("sales rep can post customer credit only for an owned customer", async () => {
+test("sales rep cannot directly post customer credit", async () => {
   await seedOpeningCustomer("opening-rep-customer", repAUid);
   await seedOpeningCustomer("opening-other-customer", repBUid);
   const db = authenticatedDb(repAUid);
 
-  await assertSucceeds(
+  await assertFails(
     commitOpeningBalance(db, {
       customerId: "opening-rep-customer",
       actorUid: repAUid,
@@ -838,7 +854,7 @@ test("opening balance cannot change sales totals or be posted twice", async () =
   );
   await assertFails(tampered.commit());
 
-  await assertSucceeds(commitOpeningBalance(db, options));
+  await assertFails(commitOpeningBalance(db, options));
   await assertFails(
     commitOpeningBalance(db, {
       ...options,
@@ -846,6 +862,213 @@ test("opening balance cannot change sales totals or be posted twice", async () =
       balanceAfter: 45,
     }),
   );
+});
+
+test("clients cannot directly mutate customer financial projections", async () => {
+  await seedOpeningCustomer("forged-financial-customer", repAUid);
+  const db = authenticatedDb(repAUid);
+
+  await assertFails(
+    updateDoc(businessDoc(db, "customers", "forged-financial-customer"), {
+      currentBalance: 9999,
+      totalSales: 9999,
+      totalPaid: 9999,
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test("customer profiles and phone reservations are server-owned", async () => {
+  const firstDb = authenticatedDb(repAUid);
+  const phone = "0799999999";
+  await assertFails(customerCreateBatch(firstDb, "phone-race-a", phone).commit());
+  await assertFails(setDoc(
+    businessDoc(firstDb, "customer_phone_reservations", phone),
+    {
+      companyId,
+      phoneNormalized: phone,
+      customerId: "phone-race-a",
+      createdAt: serverTimestamp(),
+    },
+  ));
+  await seedOpeningCustomer("profile-update-customer", repAUid);
+  await assertFails(updateDoc(
+    businessDoc(firstDb, "customers", "profile-update-customer"),
+    {name: "Forged profile", updatedAt: serverTimestamp()},
+  ));
+});
+
+test("clients cannot create an arbitrary customer ledger entry", async () => {
+  const db = authenticatedDb(repAUid);
+  const payload = {
+    ...openingBalancePayload({
+      customerId: "customer-a",
+      actorUid: repAUid,
+      actorName: "Rep A",
+      actorRole: "sales_rep",
+      type: "customer_owes",
+      amount: 5000,
+      balanceBefore: 0,
+      balanceAfter: 5000,
+    }),
+    id: "forged-ledger-entry",
+    transactionType: "invoice",
+    type: "invoice",
+    sourceCollection: "invoices",
+    sourceId: "missing-invoice",
+    referenceId: "missing-invoice",
+  };
+
+  await assertFails(
+    setDoc(
+      businessDoc(db, "customer_transactions", "forged-ledger-entry"),
+      payload,
+    ),
+  );
+});
+
+test("clients cannot create arbitrary or partial settlement cash movements", async () => {
+  const db = authenticatedDb(adminUid);
+
+  await assertFails(
+    setDoc(
+      businessDoc(db, "cash_movements", "forged-company-cash"),
+      cashMovementPayload("forged-company-cash", {
+        type: "invoice_payment",
+        cashAccount: "company_cash",
+        direction: "in",
+        amount: 5000,
+      }),
+    ),
+  );
+
+  await assertFails(
+    setDoc(
+      businessDoc(db, "cash_movements", "partial-settlement-rep-out"),
+      cashMovementPayload("partial-settlement-rep-out", {
+        type: "settlement_to_admin",
+        cashAccount: "rep_cash",
+        direction: "out",
+        amount: 50,
+        salesRepId: repAUid,
+        settlementId: "partial-settlement",
+      }),
+    ),
+  );
+});
+
+test("clients cannot forge warehouse invoice or return stock deltas", async () => {
+  const db = authenticatedDb(repAUid);
+  const item = doc(db, "items", "item-a");
+
+  await assertFails(
+    updateDoc(item, {
+      currentStock: 1,
+      inventoryUpdatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertFails(
+    updateDoc(item, {
+      currentStock: 1000,
+      inventoryUpdatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test("admin stock corrections require one matching immutable movement", async () => {
+  const db = authenticatedDb(adminUid);
+  const item = doc(db, "items", "item-a");
+  const standaloneId = "standalone-adjustment";
+
+  await assertFails(
+    setDoc(
+      businessDoc(db, "stock_movements", standaloneId),
+      stockMovementPayload(standaloneId, {
+        quantity: 1,
+        quantityBefore: 10,
+        quantityAfter: 9,
+      }),
+    ),
+  );
+
+  const mismatchedId = "mismatched-adjustment";
+  const mismatchedBatch = writeBatch(db);
+  mismatchedBatch.update(item, {
+    currentStock: 8,
+    inventoryUpdatedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    lastInventoryReferenceType: "manualAdjustment",
+    lastInventoryReferenceId: mismatchedId,
+    lastStockMovementId: mismatchedId,
+  });
+  mismatchedBatch.set(
+    businessDoc(db, "stock_movements", mismatchedId),
+    stockMovementPayload(mismatchedId, {
+      quantity: 1,
+      quantityBefore: 10,
+      quantityAfter: 8,
+    }),
+  );
+  await assertFails(mismatchedBatch.commit());
+
+  const movementId = "matched-adjustment";
+  const batch = writeBatch(db);
+  batch.update(item, {
+    currentStock: 8,
+    inventoryUpdatedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    lastInventoryReferenceType: "manualAdjustment",
+    lastInventoryReferenceId: movementId,
+    lastStockMovementId: movementId,
+  });
+  batch.set(
+    businessDoc(db, "stock_movements", movementId),
+    stockMovementPayload(movementId, {
+      quantity: 2,
+      quantityBefore: 10,
+      quantityAfter: 8,
+    }),
+  );
+  await assertSucceeds(batch.commit());
+});
+
+test("opening stock creation is reserved for the trusted server", async () => {
+  const db = authenticatedDb(adminUid);
+  const itemId = "new-stocked-item";
+  const movementId = `${itemId}_opening_balance`;
+  const itemPayload = {
+    id: itemId,
+    createdBy: adminUid,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    currentStock: 5,
+    openingStock: 5,
+    trackStock: true,
+    deleted: false,
+    lastInventoryReferenceType: "openingBalance",
+    lastInventoryReferenceId: itemId,
+    lastStockMovementId: movementId,
+  };
+
+  await assertFails(setDoc(doc(db, "items", itemId), itemPayload));
+
+  const batch = writeBatch(db);
+  batch.set(doc(db, "items", itemId), itemPayload);
+  batch.set(
+    businessDoc(db, "stock_movements", movementId),
+    stockMovementPayload(movementId, {
+      movementType: "opening_balance",
+      quantity: 5,
+      quantityBefore: 0,
+      quantityAfter: 5,
+      referenceType: "item",
+      referenceId: itemId,
+      itemId,
+    }),
+  );
+  await assertFails(batch.commit());
 });
 
 test("an admin-created invoice assigned to rep A is visible only to rep A", async () => {
@@ -917,10 +1140,10 @@ test("sales reps can create only pending own expenses", async () => {
   );
 });
 
-test("admin can create posted company cash expenses", async () => {
+test("admin cannot directly create posted company cash expenses", async () => {
   const db = authenticatedDb(adminUid);
 
-  await assertSucceeds(
+  await assertFails(
     setDoc(
       businessDoc(db, "expenses", "new-admin-expense"),
       expenseCreatePayload("new-admin-expense", adminUid, "admin"),
@@ -928,11 +1151,11 @@ test("admin can create posted company cash expenses", async () => {
   );
 });
 
-test("admin can approve collected-cash and personal-cash rep expenses", async () => {
+test("expense approval financial effects are server-only", async () => {
   const adminDb = authenticatedDb(adminUid);
   const repDb = authenticatedDb(repAUid);
 
-  await assertSucceeds(
+  await assertFails(
     updateDoc(businessDoc(adminDb, "expenses", "expense-a"), {
       status: "approved",
       cashMovementId: "expense-a_cash_out",
@@ -943,7 +1166,7 @@ test("admin can approve collected-cash and personal-cash rep expenses", async ()
       updatedAt: serverTimestamp(),
     }),
   );
-  await assertSucceeds(
+  await assertFails(
     updateDoc(businessDoc(adminDb, "expenses", "expense-personal-a"), {
       status: "approved",
       cashMovementId: "",
@@ -1074,6 +1297,51 @@ function commitOpeningBalance(db, options) {
     openingBalancePayload(options),
   );
   return batch.commit();
+}
+
+function customerCreateBatch(db, customerId, phoneNormalized) {
+  const batch = writeBatch(db);
+  batch.set(
+    businessDoc(db, "customers", customerId),
+    customerCreatePayload(customerId, phoneNormalized),
+  );
+  batch.set(
+    businessDoc(db, "customer_phone_reservations", phoneNormalized),
+    {
+      companyId,
+      phoneNormalized,
+      customerId,
+      createdAt: serverTimestamp(),
+    },
+  );
+  return batch;
+}
+
+function customerCreatePayload(customerId, phoneNormalized) {
+  return {
+    id: customerId,
+    companyId,
+    name: `Customer ${customerId}`,
+    phone: phoneNormalized,
+    addressText: "",
+    city: "",
+    area: "",
+    notes: "",
+    active: true,
+    createdByUid: repAUid,
+    createdByName: "Rep A",
+    createdByRole: "sales_rep",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    currentBalance: 0,
+    totalSales: 0,
+    totalPaid: 0,
+    searchKeywords: [phoneNormalized],
+    nameLower: `customer ${customerId}`,
+    phoneNormalized,
+    cityLower: "",
+    areaLower: "",
+  };
 }
 
 function openingBalancePayload(options) {
@@ -1219,6 +1487,62 @@ function expenseCreatePayload(id, uid, role, overrides = {}) {
     payload.approvedAt = overrides.approvedAt ?? serverTimestamp();
   }
   return payload;
+}
+
+function cashMovementPayload(id, overrides = {}) {
+  return {
+    id,
+    companyId,
+    type: "adjustment",
+    movementType: "adjustment",
+    direction: "in",
+    amount: 1,
+    cashAccount: "company_cash",
+    salesRepId: "",
+    salesRepName: "",
+    customerId: "",
+    customerName: "",
+    referenceId: id,
+    referenceNumber: id,
+    sourceCollection: "cash_movements",
+    sourceId: id,
+    sourceNumber: id,
+    settlementId: "",
+    notes: "forged client write",
+    date: serverTimestamp(),
+    movementDate: serverTimestamp(),
+    createdByUid: adminUid,
+    createdByName: "Admin",
+    createdByRole: "admin",
+    createdAt: serverTimestamp(),
+    ...overrides,
+  };
+}
+
+function stockMovementPayload(id, overrides = {}) {
+  return {
+    id,
+    companyId,
+    warehouseId: "default_warehouse",
+    itemId: "item-a",
+    itemName: "Item A",
+    itemCode: "A-1",
+    movementType: "manual_adjustment_out",
+    direction: "out",
+    quantity: 1,
+    quantityBefore: 10,
+    quantityAfter: 9,
+    referenceType: "manual_adjustment",
+    referenceId: id,
+    referenceNumber: "",
+    movementDate: serverTimestamp(),
+    notes: "stock correction",
+    createdByUid: adminUid,
+    createdByName: "Admin",
+    createdByRole: "admin",
+    createdAt: serverTimestamp(),
+    ...overrides,
+  };
 }
 
 function transferDraftPayload(id, createdByUid = adminUid) {

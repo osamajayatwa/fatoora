@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/settings/business_settings_defaults.dart';
 import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
@@ -137,12 +138,43 @@ class QuotationRepository {
       if (normalizedSearch.isNotEmpty) {
         query = query.where('searchKeywords', arrayContains: normalizedSearch);
       }
-      final snapshot = await query
+      final documents = await query
           .orderBy('quotationDate', descending: true)
-          .limit(150)
-          .get()
-          .timeout(const Duration(seconds: 20));
-      return snapshot.docs.map(QuotationModel.fromFirestore).toList();
+          .orderBy(FieldPath.documentId, descending: true)
+          .getAllPages();
+      return documents.map(QuotationModel.fromFirestore).toList();
+    });
+  }
+
+  Future<FirestorePage<QuotationModel>> fetchQuotationsPage({
+    required String companyId,
+    QuotationStatus? status,
+    String? searchText,
+    FirestorePageCursor? after,
+    int pageSize = 50,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      Query<Map<String, dynamic>> query = _quotations(resolvedCompanyId);
+      if (user.isSalesRep) {
+        query = query.where('salesRepId', isEqualTo: user.uid);
+      }
+      if (status != null) {
+        query = query.where('status', isEqualTo: status.value);
+      }
+      final normalizedSearch = _normalize(searchText ?? '');
+      if (normalizedSearch.isNotEmpty) {
+        query = query.where('searchKeywords', arrayContains: normalizedSearch);
+      }
+      return query
+          .orderBy('quotationDate', descending: true)
+          .orderBy(FieldPath.documentId, descending: true)
+          .getPage(
+            decode: QuotationModel.fromFirestore,
+            after: after,
+            pageSize: pageSize,
+          );
     });
   }
 

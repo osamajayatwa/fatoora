@@ -1,4 +1,5 @@
 class AppRoute {
+  static const String notFound = "/not-found";
   static const String splash = "/splash";
   static const String language = "/language";
 
@@ -17,25 +18,25 @@ class AppRoute {
   static const String adminAuditLog = "/admin/audit-log";
 
   static const String customers = "/customers";
-  static const String createCustomer = "/create-customer";
-  static const String customerDetails = "/customer-details";
-  static const String customerStatement = "/customer-statement";
+  static const String createCustomer = "/customers/create";
+  static const String customerDetails = "/customers/:customerId";
+  static const String customerEdit = "/customers/:customerId/edit";
+  static const String customerStatement = "/customers/:customerId/statement";
 
   static const String adminItems = "/admin/items";
-  static const String adminAddItem = "/admin/items/add";
-  static const String adminEditItem = "/admin/items/edit";
-  static const String adminItemDetails = "/admin/items/details";
+  static const String adminAddItem = "/items/add";
+  static const String adminEditItem = "/items/:itemId/edit";
+  static const String adminItemDetails = "/items/:itemId";
 
   static const String inventory = "/inventory";
   static const String stockMovements = "/inventory/stock-movements";
   static const String inventoryAdjustment = "/inventory/adjustment";
   static const String itemStockDetails = "/inventory/item-stock-details";
   static const String repInventory = "/rep-inventory";
-  static const String repInventoryTransfers = "/inventory/rep-transfers";
-  static const String repInventoryTransferForm =
-      "/inventory/rep-transfers/form";
+  static const String repInventoryTransfers = "/inventory-transfers";
+  static const String repInventoryTransferForm = "/inventory-transfers/create";
   static const String repInventoryTransferDetails =
-      "/inventory/rep-transfers/details";
+      "/inventory-transfers/:transferId";
 
   // Backward-compatible aliases used by the existing dashboard navigation.
   static const String items = adminItems;
@@ -43,27 +44,29 @@ class AppRoute {
   static const String itemDetails = adminItemDetails;
 
   static const String invoices = "/invoices";
-  static const String invoiceForm = "/invoices/form";
-  static const String invoiceDetails = "/invoices/details";
+  static const String invoiceForm = "/invoices/create";
+  static const String invoiceEdit = "/invoices/:invoiceId/edit";
+  static const String invoiceDetails = "/invoices/:invoiceId";
   static const String createInvoice = invoiceForm;
 
   static const String salesReturns = "/sales-returns";
   static const String createSalesReturn = "/sales-returns/create";
-  static const String salesReturnDetails = "/sales-returns/details";
+  static const String salesReturnDetails = "/sales-returns/:returnId";
 
   static const String quotations = "/quotations";
   static const String createQuotation = "/quotations/create";
-  static const String quotationDetails = "/quotations/details";
+  static const String quotationEdit = "/quotations/:quotationId/edit";
+  static const String quotationDetails = "/quotations/:quotationId";
 
   static const String receipts = "/receipts";
-  static const String createReceipt = "/create-receipt";
-  static const String receiptDetails = "/receipts/details";
+  static const String createReceipt = "/receipts/create";
+  static const String receiptDetails = "/receipts/:receiptId";
 
   static const String receivables = "/receivables";
   static const String cashMovements = "/cash-movements";
   static const String expenses = "/expenses";
   static const String createExpense = "/expenses/create";
-  static const String expenseDetails = "/expenses/details";
+  static const String expenseDetails = "/expenses/:expenseId";
 
   static const String statements = "/statements";
   static const String settings = "/settings";
@@ -76,4 +79,26 @@ class AppRoute {
   static const String profileSettings = "/settings/profile";
   static const String appPreferencesSettings = "/settings/preferences";
   static const String accountSettings = "/settings/account";
+
+  static String customerDetailsPath(String id) => '/customers/${_segment(id)}';
+  static String customerEditPath(String id) =>
+      '/customers/${_segment(id)}/edit';
+  static String customerStatementPath(String id) =>
+      '/customers/${_segment(id)}/statement';
+  static String itemDetailsPath(String id) => '/items/${_segment(id)}';
+  static String itemEditPath(String id) => '/items/${_segment(id)}/edit';
+  static String invoiceDetailsPath(String id) => '/invoices/${_segment(id)}';
+  static String invoiceEditPath(String id) => '/invoices/${_segment(id)}/edit';
+  static String quotationDetailsPath(String id) =>
+      '/quotations/${_segment(id)}';
+  static String quotationEditPath(String id) =>
+      '/quotations/${_segment(id)}/edit';
+  static String receiptDetailsPath(String id) => '/receipts/${_segment(id)}';
+  static String salesReturnDetailsPath(String id) =>
+      '/sales-returns/${_segment(id)}';
+  static String expenseDetailsPath(String id) => '/expenses/${_segment(id)}';
+  static String inventoryTransferDetailsPath(String id) =>
+      '/inventory-transfers/${_segment(id)}';
+
+  static String _segment(String value) => Uri.encodeComponent(value.trim());
 }

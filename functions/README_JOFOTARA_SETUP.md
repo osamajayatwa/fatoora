@@ -1,6 +1,11 @@
-# JoFotara Setup Placeholder
+# JoFotara Integration (Disabled)
 
-The Cloud Function code is intentionally incomplete and must not be used for real submissions until every official integration detail is confirmed.
+JoFotara submission is disabled. The callable is not exported from
+`src/index.ts`; the retained replacement handler only returns
+`failed-precondition` and performs no Firestore reads or writes. During the
+next authorized Functions deployment, delete the previously deployed callable
+or replace it with this fail-closed handler before any client feature is
+enabled.
 
 Checklist for Osama:
 
@@ -11,24 +16,19 @@ Checklist for Osama:
 - Confirm whether the payload is XML, UBL, Base64, JSON, QR content, or another official format.
 - Confirm all required headers.
 - Confirm the test/sandbox environment.
-- Add environment variables from `.env.example` using secure Firebase configuration.
+- Store future credentials in Firebase-managed secrets, never Flutter assets.
 - Test locally with the Firebase emulator.
 - Keep `AppFeatureFlags.jofotaraEnabled = false` until the backend works end to end.
 - Enable `AppFeatureFlags.jofotaraEnabled = true` only after successful backend testing.
-- Deploy manually when ready.
+- Deploy only through the reviewed release process when ready.
 - Never put secrets inside Flutter.
 - Never commit real secrets to GitHub.
 
-Security rules note:
+Required security work before re-enabling:
 
-- Users should create and read invoices only for companies they are authorized to access.
-- Only authorized users should update invoices.
-- Accepted electronic invoices should be protected from client-side editing when possible.
-- Final invoice locking must also be enforced server-side, because client-side checks can be bypassed.
-
-Important TODO markers in code:
-
-- `// TODO: OSAMA ADD REAL JOFOTARA API URL HERE`
-- `// TODO: OSAMA ADD REQUIRED HEADERS HERE`
-- `// TODO: OSAMA MAP THE OFFICIAL XML/UBL PAYLOAD HERE`
-- `// TODO: OSAMA HANDLE REAL RESPONSE FIELDS HERE`
+- Validate active/approved user, company, role, permission, and invoice owner.
+- Require a confirmed eligible invoice and immutable request idempotency key.
+- Keep submission attempts and external responses in an append-only audit log.
+- Never change invoice status when the external request fails.
+- Cover admin, representative, pending, inactive, wrong-company, wrong-owner,
+  missing-invoice, duplicate, and external-failure cases with emulator tests.

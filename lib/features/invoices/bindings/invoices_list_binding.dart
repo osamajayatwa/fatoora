@@ -6,7 +6,6 @@ import 'package:fatoora/features/invoices/controllers/invoices_list_controller.d
 import 'package:fatoora/features/invoices/data/repositories/invoice_repository.dart';
 import 'package:fatoora/features/invoices/data/services/invoice_number_service.dart';
 import 'package:fatoora/features/invoices/data/services/invoice_totals_service.dart';
-import 'package:fatoora/features/invoices/data/services/jofotara_placeholder_service.dart';
 import 'package:fatoora/features/admin_dashboard/controller/admin_dashboard_controller.dart';
 import 'package:fatoora/features/items/binding/items_binding.dart';
 import 'package:fatoora/features/financial/bindings/financial_binding.dart';
@@ -43,19 +42,8 @@ void registerInvoiceCoreDependencies() {
       fenix: true,
     );
   }
-  if (!Get.isRegistered<JofotaraPlaceholderService>()) {
-    Get.lazyPut<JofotaraPlaceholderService>(
-      JofotaraPlaceholderService.new,
-      fenix: true,
-    );
-  }
   if (!Get.isRegistered<InvoiceRepository>()) {
-    Get.lazyPut<InvoiceRepository>(
-      () => InvoiceRepository(
-        jofotaraService: Get.find<JofotaraPlaceholderService>(),
-      ),
-      fenix: true,
-    );
+    Get.lazyPut<InvoiceRepository>(InvoiceRepository.new, fenix: true);
   }
 }
 

@@ -1,6 +1,6 @@
 import 'package:fatoora/app/app.dart';
+import 'package:fatoora/core/startup/startup_error_app.dart';
 import 'package:get/get.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/material.dart';
 import 'package:fatoora/core/localization/changelocal.dart';
 import 'package:fatoora/core/services/services.dart';
@@ -11,17 +11,23 @@ export 'package:fatoora/app/app.dart' show MyApp;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  await initializeDateFormatting();
-
-  await dotenv.load(fileName: '.env');
-
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
-  await initialServices();
-
-  final localeController = Get.put(LocaleController());
-  await localeController.init();
-
-  runApp(const MyApp());
+  try {
+    await initializeDateFormatting();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    await initialServices();
+    final localeController = Get.put(LocaleController());
+    await localeController.init();
+    runApp(const MyApp());
+  } catch (error, stackTrace) {
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stackTrace,
+        library: 'application bootstrap',
+      ),
+    );
+    runApp(StartupErrorApp(onRetry: main));
+  }
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/inventory/data/models/inventory_dashboard_snapshot.dart';
 import 'package:fatoora/features/inventory/data/models/stock_movement_model.dart';
@@ -63,7 +64,7 @@ class InventoryRepository {
           .toList(growable: false);
       final movements = await fetchStockMovements(
         companyId: resolvedCompanyId,
-        maxResults: 20,
+        pageSize: 20,
       );
       final lowStockItems =
           trackedItems
@@ -92,7 +93,7 @@ class InventoryRepository {
             (total, item) => total + (item.currentStock * item.costPrice),
           ),
         ),
-        recentMovements: movements,
+        recentMovements: movements.take(20).toList(growable: false),
         lowStockItems: lowStockItems.take(8).toList(growable: false),
       );
     });
@@ -105,7 +106,7 @@ class InventoryRepository {
     String searchText = '',
     DateTime? fromDate,
     DateTime? toDate,
-    int maxResults = 150,
+    int pageSize = 150,
   }) {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
@@ -117,12 +118,24 @@ class InventoryRepository {
       if (movementType.trim().isNotEmpty) {
         query = query.where('movementType', isEqualTo: movementType.trim());
       }
-      final snapshot = await query
-          .limit(maxResults)
-          .get()
-          .timeout(const Duration(seconds: 20));
+      if (fromDate != null) {
+        query = query.where(
+          'movementDate',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfDay(fromDate)),
+        );
+      }
+      if (toDate != null) {
+        query = query.where(
+          'movementDate',
+          isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(toDate)),
+        );
+      }
+      final documents = await query
+          .orderBy('movementDate', descending: true)
+          .orderBy(FieldPath.documentId, descending: true)
+          .getAllPages(pageSize: pageSize);
       final normalizedSearch = searchText.trim().toLowerCase();
-      final movements = snapshot.docs
+      final movements = documents
           .map(StockMovementModel.fromFirestore)
           .where((movement) {
             final afterFrom =
@@ -197,6 +210,9 @@ class InventoryRepository {
               'currentStock': after,
               'inventoryUpdatedAt': FieldValue.serverTimestamp(),
               'updatedAt': FieldValue.serverTimestamp(),
+              'lastInventoryReferenceType': 'manualAdjustment',
+              'lastInventoryReferenceId': movementRef.id,
+              'lastStockMovementId': movementRef.id,
             });
             transaction.set(movementRef, {
               'id': movementRef.id,
@@ -228,12 +244,11 @@ class InventoryRepository {
   }
 
   Future<List<ItemModel>> _fetchItems() async {
-    final snapshot = await _items
+    final documents = await _items
         .where('deleted', isEqualTo: false)
-        .limit(700)
-        .get()
-        .timeout(const Duration(seconds: 20));
-    return snapshot.docs.map(ItemModel.fromFirestore).toList(growable: false);
+        .orderBy(FieldPath.documentId)
+        .getAllPages();
+    return documents.map(ItemModel.fromFirestore).toList(growable: false);
   }
 
   String _normalizeAdjustmentType(String value) {

@@ -47,6 +47,29 @@ void main() {
     expect(snapshot.totalCredit, 0);
     expect(snapshot.closingBalance, 17.5);
   });
+
+  test('statement remains complete beyond the former 500-row cap', () {
+    final transactions = List.generate(
+      1200,
+      (index) => _transaction(
+        id: 'transaction-$index',
+        debit: index.isEven ? 1.001 : 0,
+        credit: index.isOdd ? 0.501 : 0,
+        balanceAfter: -999,
+      ),
+    );
+
+    final snapshot = CustomerStatementSnapshot.fromTransactions(
+      openingBalance: 10,
+      transactions: transactions,
+    );
+
+    expect(snapshot.transactions, hasLength(1200));
+    expect(snapshot.totalDebit, 600.6);
+    expect(snapshot.totalCredit, 300.6);
+    expect(snapshot.closingBalance, 310);
+    expect(snapshot.transactions.last.balanceAfter, 310);
+  });
 }
 
 CustomerTransactionModel _transaction({

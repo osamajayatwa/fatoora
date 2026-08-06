@@ -8,6 +8,42 @@ Production access requires Application Default Credentials, for example:
 gcloud auth application-default login
 ```
 
+## Reconcile materialized cash balances
+
+Cash reconciliation is read-only by default. It scans every `cash_movements`
+page, reports every company and representative account, and writes nothing:
+
+```powershell
+npm --prefix functions run reconcile:cash -- `
+  --project=fatoora-6b192 `
+  --company=default_company
+```
+
+The report includes movement count, total IN, total OUT, calculated balance,
+stored balance, and difference for each account. Malformed identities or
+amounts, duplicate posting identities, missing representative IDs, ambiguous
+sources/accounts, and unsupported movement types prevent apply mode.
+
+Apply mode must be run only after reviewing a clean dry-run and deploying the
+trusted Functions version that honors the cash-reconciliation maintenance
+lock. It requires exact project and company confirmation:
+
+```powershell
+npm --prefix functions run reconcile:cash -- `
+  --project=fatoora-6b192 `
+  --company=default_company `
+  --apply `
+  --confirm-project=fatoora-6b192 `
+  --confirm-company=default_company `
+  --max-writes=400
+```
+
+The command never edits `cash_movements`. Balance writes and lock release are
+committed atomically and are idempotent. If a process interruption leaves an
+active lock, inspect the recorded run ID and resume the same frozen scan with
+`--resume-run=<run-id>`; do not clear the lock manually while the outcome is
+unknown.
+
 ## Audit legacy invoice ownership
 
 The audit is read-only. It reports missing, null/empty, and potentially

@@ -1,4 +1,5 @@
 import 'package:fatoora/app/routes/app_routes.dart';
+import 'package:fatoora/app/routes/not_found_screen.dart';
 import 'package:fatoora/core/middleware/middleware.dart';
 import 'package:fatoora/features/auth/approval/binding/approval_status_binding.dart';
 import 'package:fatoora/features/auth/approval/view/rejected_approval_screen.dart';
@@ -72,7 +73,7 @@ import 'package:fatoora/features/splash/view/screens/language.dart';
 import 'package:fatoora/features/splash/view/screens/splash.dart';
 import 'package:get/get_navigation/src/routes/get_route.dart';
 
-List<GetPage<dynamic>> routes = [
+List<GetPage<dynamic>> routes = _guardRoutes([
   GetPage(
     name: AppRoute.adminAuditLog,
     page: () => const AuditLogPage(),
@@ -84,6 +85,7 @@ List<GetPage<dynamic>> routes = [
     page: () => const Language(),
     middlewares: [MyMiddleware()],
   ),
+  GetPage(name: AppRoute.notFound, page: () => const NotFoundScreen()),
   GetPage(
     name: AppRoute.userLogin,
     page: () => const UserLoginScreen(),
@@ -322,6 +324,12 @@ List<GetPage<dynamic>> routes = [
     middlewares: [ApprovedUserMiddleware()],
   ),
   GetPage(
+    name: AppRoute.invoiceEdit,
+    page: () => const InvoiceFormScreen(),
+    binding: InvoiceFormBinding(),
+    middlewares: [ApprovedUserMiddleware()],
+  ),
+  GetPage(
     name: AppRoute.invoiceDetails,
     page: () => const InvoiceDetailsScreen(),
     binding: InvoiceDetailsBinding(),
@@ -341,6 +349,12 @@ List<GetPage<dynamic>> routes = [
   ),
   GetPage(
     name: AppRoute.createQuotation,
+    page: () => const QuotationFormScreen(),
+    binding: QuotationFormBinding(),
+    middlewares: [ApprovedUserMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.quotationEdit,
     page: () => const QuotationFormScreen(),
     binding: QuotationFormBinding(),
     middlewares: [ApprovedUserMiddleware()],
@@ -382,6 +396,12 @@ List<GetPage<dynamic>> routes = [
     middlewares: [ApprovedUserMiddleware()],
   ),
   GetPage(
+    name: AppRoute.customerEdit,
+    page: () => const CustomerFormScreen(),
+    binding: CustomerFormBinding(),
+    middlewares: [ApprovedUserMiddleware()],
+  ),
+  GetPage(
     name: AppRoute.customerDetails,
     page: () => const CustomerDetailsScreen(),
     binding: CustomerDetailsBinding(),
@@ -411,9 +431,19 @@ List<GetPage<dynamic>> routes = [
     binding: ItemDetailsBinding(),
     middlewares: [AdminMiddleware()],
   ),
-];
+]);
+
+List<GetPage<dynamic>> _guardRoutes(List<GetPage<dynamic>> pages) {
+  return pages
+      .map(
+        (page) => page.copy(
+          middlewares: [ExactRouteMiddleware(), ...?page.middlewares],
+        ),
+      )
+      .toList(growable: false);
+}
 
 GetPage<dynamic> unknownRoute = GetPage(
-  name: '/not-found',
-  page: () => const Language(),
+  name: AppRoute.notFound,
+  page: () => const NotFoundScreen(),
 );

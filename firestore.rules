@@ -610,237 +610,6 @@ service cloud.firestore {
         );
     }
 
-    function customerIdentityPreserved() {
-      return request.resource.data.id == resource.data.id
-        && request.resource.data.companyId == resource.data.companyId
-        && request.resource.data.createdByUid == resource.data.createdByUid
-        && request.resource.data.createdByName == resource.data.createdByName
-        && request.resource.data.createdByRole == resource.data.createdByRole
-        && request.resource.data.createdAt == resource.data.createdAt;
-    }
-
-    function validCustomerProfileUpdate(companyId) {
-      return canReadOwnedBusinessDoc(companyId, resource.data)
-        && customerIdentityPreserved()
-        && request.resource.data.currentBalance == resource.data.currentBalance
-        && request.resource.data.totalSales == resource.data.totalSales
-        && request.resource.data.totalPaid == resource.data.totalPaid
-        && request.resource.data.updatedAt == request.time;
-    }
-
-    function validCustomerFinancialPostingUpdate(companyId) {
-      // TODO: OSAMA - Move financial posting to Cloud Functions for full trust.
-      return canReadOwnedBusinessDoc(companyId, resource.data)
-        && customerIdentityPreserved()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'currentBalance',
-          'totalSales',
-          'totalPaid',
-          'updatedAt'
-        ])
-        && request.resource.data.currentBalance is number
-        && request.resource.data.totalSales is number
-        && request.resource.data.totalPaid is number
-        && request.resource.data.totalSales >= resource.data.totalSales
-        && request.resource.data.totalPaid >= resource.data.totalPaid
-        && request.resource.data.updatedAt == request.time;
-    }
-
-    function validCustomerOpeningBalancePostingUpdate(companyId) {
-      let transactionId =
-        request.resource.data.lastOpeningBalanceTransactionId;
-      let transactionPath =
-        /databases/$(database)/documents/companies/$(companyId)/customer_transactions/$(transactionId);
-      let opening = getAfter(transactionPath);
-      return canReadOwnedBusinessDoc(companyId, resource.data)
-        && customerIdentityPreserved()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'currentBalance',
-          'lastOpeningBalanceTransactionId',
-          'updatedAt'
-        ])
-        && transactionId is string
-        && transactionId == resource.data.id + '_opening_balance'
-        && !exists(transactionPath)
-        && existsAfter(transactionPath)
-        && opening.data.transactionType == 'opening_balance'
-        && opening.data.customerId == resource.data.id
-        && opening.data.balanceBefore == resource.data.currentBalance
-        && opening.data.balanceAfter
-          == request.resource.data.currentBalance
-        && opening.data.signedAmount
-          == request.resource.data.currentBalance
-            - resource.data.currentBalance
-        && request.resource.data.currentBalance is number
-        && request.resource.data.updatedAt == request.time;
-    }
-
-    function validOpeningBalanceTransactionCreate(
-      companyId,
-      transactionId,
-      data
-    ) {
-      let customerPath =
-        /databases/$(database)/documents/companies/$(companyId)/customers/$(data.customerId);
-      let customerBefore = get(customerPath);
-      let customerAfter = getAfter(customerPath);
-      return validFinancialCreate(companyId, data)
-        && data.keys().hasOnly([
-          'id',
-          'companyId',
-          'customerId',
-          'customerName',
-          'transactionType',
-          'type',
-          'sourceCollection',
-          'sourceId',
-          'sourceNumber',
-          'transactionDate',
-          'debitAmount',
-          'creditAmount',
-          'balanceBefore',
-          'balanceAfter',
-          'openingBalanceType',
-          'amount',
-          'signedAmount',
-          'invoiceId',
-          'invoiceNumber',
-          'returnInvoiceId',
-          'returnNumber',
-          'originalInvoiceId',
-          'originalInvoiceNumber',
-          'receiptId',
-          'receiptNumber',
-          'notes',
-          'createdByUid',
-          'createdByName',
-          'createdByRole',
-          'salesRepId',
-          'salesRepName',
-          'createdAt',
-          'referenceId'
-        ])
-        && data.id == transactionId
-        && transactionId == data.customerId + '_opening_balance'
-        && data.transactionType == 'opening_balance'
-        && data.type == 'opening_balance'
-        && data.sourceCollection == 'customer_transactions'
-        && data.sourceId == transactionId
-        && data.referenceId == transactionId
-        && data.sourceNumber == 'OPENING'
-        && data.transactionDate is timestamp
-        && data.transactionDate <= request.time
-        && data.amount is number
-        && data.amount > 0
-        && data.amount <= 999999999
-        && data.openingBalanceType in [
-          'customer_owes',
-          'customer_credit'
-        ]
-        && data.debitAmount is number
-        && data.creditAmount is number
-        && data.signedAmount is number
-        && (
-          (
-            data.openingBalanceType == 'customer_owes'
-            && data.debitAmount == data.amount
-            && data.creditAmount == 0
-            && data.signedAmount == data.amount
-          )
-          || (
-            data.openingBalanceType == 'customer_credit'
-            && data.debitAmount == 0
-            && data.creditAmount == data.amount
-            && data.signedAmount == 0 - data.amount
-          )
-        )
-        && data.balanceBefore is number
-        && data.balanceAfter is number
-        && exists(customerPath)
-        && customerBefore.data.active == true
-        && (
-          isActiveAdmin()
-          || customerBefore.data.createdByUid == request.auth.uid
-        )
-        && data.customerName == customerBefore.data.name
-        && data.notes is string
-        && data.notes.size() <= 500
-        && data.balanceBefore == customerBefore.data.currentBalance
-        && data.balanceAfter == data.balanceBefore + data.signedAmount
-        && customerAfter.data.currentBalance == data.balanceAfter
-        && customerAfter.data.lastOpeningBalanceTransactionId
-          == transactionId
-        && customerAfter.data.totalSales == customerBefore.data.totalSales
-        && customerAfter.data.totalPaid == customerBefore.data.totalPaid
-        && (
-          (
-            isActiveAdmin()
-            && data.salesRepId == ''
-            && data.salesRepName == ''
-          )
-          || (
-            !isActiveAdmin()
-            && data.salesRepId == request.auth.uid
-            && data.salesRepName == data.createdByName
-          )
-        )
-        && data.createdAt == request.time;
-    }
-
-    function validCustomerReturnPostingUpdate(companyId) {
-      let returnPath =
-        /databases/$(database)/documents/companies/$(companyId)/sales_returns/$(request.resource.data.lastSalesReturnId);
-      let salesReturn = getAfter(returnPath);
-      return canReadOwnedBusinessDoc(companyId, resource.data)
-        && customerIdentityPreserved()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'currentBalance',
-          'totalSales',
-          'totalPaid',
-          'lastSalesReturnId',
-          'updatedAt'
-        ])
-        && request.resource.data.lastSalesReturnId is string
-        && request.resource.data.lastSalesReturnId.size() > 0
-        && existsAfter(returnPath)
-        && salesReturn.data.companyId == companyId
-        && salesReturn.data.customerId == resource.data.id
-        && salesReturn.data.status == 'confirmed'
-        && salesReturn.data.financialPosted == true
-        && request.resource.data.currentBalance
-          == resource.data.currentBalance
-            - salesReturn.data.receivableReduction
-            - salesReturn.data.customerCreditAmount
-        && (
-          (
-            resource.data.totalSales >= salesReturn.data.grandTotal
-            && request.resource.data.totalSales
-              == resource.data.totalSales - salesReturn.data.grandTotal
-          )
-          || (
-            resource.data.totalSales < salesReturn.data.grandTotal
-            && request.resource.data.totalSales == 0
-          )
-        )
-        && (
-          (
-            resource.data.totalPaid >= salesReturn.data.cashRefundAmount
-            && request.resource.data.totalPaid
-              == resource.data.totalPaid - salesReturn.data.cashRefundAmount
-          )
-          || (
-            resource.data.totalPaid < salesReturn.data.cashRefundAmount
-            && request.resource.data.totalPaid == 0
-          )
-        )
-        && request.resource.data.updatedAt == request.time;
-    }
-
-    function isCustomerReturnPostingUpdate() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
-        'lastSalesReturnId'
-      ]);
-    }
 
     function invoiceIdentityPreserved() {
       return request.resource.data.id == resource.data.id
@@ -965,6 +734,61 @@ service cloud.firestore {
         && movement.data.quantityAfter == request.resource.data.currentStock;
     }
 
+    function validAdminItemStockUpdate(itemId) {
+      let movementId = request.resource.data.lastStockMovementId;
+      let movementPath =
+        /databases/$(database)/documents/companies/default_company/stock_movements/$(movementId);
+      let movement = getAfter(movementPath);
+      return isActiveAdmin()
+        && itemIdentityPreserved()
+        && resource.data.trackStock == true
+        && request.resource.data.trackStock == true
+        && resource.data.deleted == false
+        && request.resource.data.deleted == false
+        && resource.data.currentStock is number
+        && request.resource.data.currentStock is number
+        && request.resource.data.currentStock >= 0
+        && request.resource.data.currentStock != resource.data.currentStock
+        && request.resource.data.inventoryUpdatedAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.lastInventoryReferenceType in [
+          'itemCorrection',
+          'manualAdjustment'
+        ]
+        && request.resource.data.lastInventoryReferenceId is string
+        && movementId is string
+        && movementId.size() > 0
+        && !exists(movementPath)
+        && existsAfter(movementPath)
+        && movement.data.id == movementId
+        && movement.data.itemId == itemId
+        && movement.data.quantityBefore == resource.data.currentStock
+        && movement.data.quantityAfter == request.resource.data.currentStock
+        && (
+          (
+            request.resource.data.lastInventoryReferenceType
+              == 'itemCorrection'
+            && movement.data.movementType == 'correction'
+            && movement.data.referenceType == 'item'
+            && movement.data.referenceId == itemId
+            && request.resource.data.lastInventoryReferenceId == itemId
+          )
+          || (
+            request.resource.data.lastInventoryReferenceType
+              == 'manualAdjustment'
+            && movement.data.movementType in [
+              'manual_adjustment_in',
+              'manual_adjustment_out',
+              'damage',
+              'correction'
+            ]
+            && movement.data.referenceType == 'manual_adjustment'
+            && movement.data.referenceId == movementId
+            && request.resource.data.lastInventoryReferenceId == movementId
+          )
+        );
+    }
+
     function stockMovementBaseValid(companyId, movementId, data) {
       return isApprovedCompanyUser(companyId)
         && data.keys().hasOnly([
@@ -1009,11 +833,19 @@ service cloud.firestore {
           (
             data.direction == 'in'
             && data.quantityAfter > data.quantityBefore
+            && data.quantity
+              >= data.quantityAfter - data.quantityBefore - 0.0005
+            && data.quantity
+              <= data.quantityAfter - data.quantityBefore + 0.0005
           )
           || (
             data.direction == 'out'
             && data.quantityAfter < data.quantityBefore
             && data.quantity <= data.quantityBefore
+            && data.quantity
+              >= data.quantityBefore - data.quantityAfter - 0.0005
+            && data.quantity
+              <= data.quantityBefore - data.quantityAfter + 0.0005
           )
         )
         && data.referenceType is string
@@ -1044,7 +876,6 @@ service cloud.firestore {
           request.resource.data
         )
         && request.resource.data.movementType in [
-          'opening_balance',
           'manual_adjustment_in',
           'manual_adjustment_out',
           'damage',
@@ -1054,7 +885,6 @@ service cloud.firestore {
         && (
           (
             request.resource.data.movementType in [
-              'opening_balance',
               'manual_adjustment_in'
             ]
             && request.resource.data.direction == 'in'
@@ -1070,7 +900,34 @@ service cloud.firestore {
             request.resource.data.movementType == 'correction'
             && request.resource.data.direction in ['in', 'out']
           )
+        )
+        && validAdminStockMovementItemCoupling(
+          companyId,
+          movementId,
+          request.resource.data
         );
+    }
+
+    function validAdminStockMovementItemCoupling(
+      companyId,
+      movementId,
+      data
+    ) {
+      let itemPath =
+        /databases/$(database)/documents/items/$(data.itemId);
+      let itemBefore = get(itemPath);
+      let itemAfter = getAfter(itemPath);
+      return companyId == 'default_company'
+        && exists(itemPath)
+        && existsAfter(itemPath)
+        && itemBefore.data.currentStock == data.quantityBefore
+        && itemAfter.data.currentStock == data.quantityAfter
+        && itemAfter.data.lastStockMovementId == movementId
+        && itemAfter.data.lastInventoryReferenceType in [
+          'itemCorrection',
+          'manualAdjustment'
+        ]
+        && itemAfter.data.lastInventoryReferenceId == data.referenceId;
     }
 
     function validInvoiceStockMovementCreate(companyId, movementId) {
@@ -1346,6 +1203,9 @@ service cloud.firestore {
     function invoiceIsEditableDraft(data) {
       return data.invoiceStatus == 'draft'
         && data.financialPosted == false
+        && data.inventoryPosted == false
+        && data.customerTransactionIds.size() == 0
+        && data.cashMovementIds.size() == 0
         && data.isLocked == false;
     }
 
@@ -2232,22 +2092,17 @@ service cloud.firestore {
     match /items/{itemId} {
       allow get, list: if isApprovedCompanyUser('default_company');
 
-      allow create: if isActiveAdmin()
-        && request.resource.data.id == itemId
-        && request.resource.data.createdBy == request.auth.uid
-        && request.resource.data.deleted == false
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time;
+      allow create: if false;
 
       allow update: if (
           isActiveAdmin()
           && request.resource.data.id == resource.data.id
           && request.resource.data.createdBy == resource.data.createdBy
           && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.currentStock == resource.data.currentStock
           && request.resource.data.updatedAt == request.time
         )
-        || validInvoiceSaleItemStockUpdate()
-        || validSalesReturnItemStockUpdate()
+        || validAdminItemStockUpdate(itemId)
         || validInventoryTransferItemStockUpdate(itemId);
 
       allow delete: if false;
@@ -2261,30 +2116,17 @@ service cloud.firestore {
           || resource.data.createdByUid == request.auth.uid
         );
 
-      allow create: if validBusinessCreate(companyId, request.resource.data)
-        && businessPermissionAllows(
-          companyId,
-          'allowSalesRepCreateCustomers'
-        )
-        && request.resource.data.id == customerId
-        && request.resource.data.active == true
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time;
-
-      allow update: if (
-          isCustomerReturnPostingUpdate()
-          && validCustomerReturnPostingUpdate(companyId)
-        )
-        || validCustomerOpeningBalancePostingUpdate(companyId)
-        || (
-          !isCustomerReturnPostingUpdate()
-          && (
-            validCustomerProfileUpdate(companyId)
-            || validCustomerFinancialPostingUpdate(companyId)
-          )
-        );
+      // Profiles and phone uniqueness are server-owned. The trusted callables
+      // normalize the raw phone and atomically maintain its reservation.
+      allow create, update: if false;
 
       allow delete: if false;
+    }
+
+    match /companies/{companyId}/customer_phone_reservations/{phoneNormalized} {
+      allow get: if isApprovedCompanyUser(companyId);
+      allow list: if false;
+      allow create, update, delete: if false;
     }
 
     match /companies/{companyId}/invoices/{invoiceId} {
@@ -2293,6 +2135,7 @@ service cloud.firestore {
 
       allow create: if validBusinessCreate(companyId, request.resource.data)
         && request.resource.data.id == invoiceId
+        && invoiceIsEditableDraft(request.resource.data)
         && documentDiscountAllowed(companyId, request.resource.data)
         && configuredDocumentNumberMatches(
           companyId,
@@ -2311,22 +2154,7 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
 
-      allow update: if (
-          isInvoiceReturnAllocationUpdate()
-          && validInvoiceReturnAllocationUpdate(companyId)
-        )
-        || (
-          isInvoiceReceiptPaymentUpdate()
-          && validInvoiceReceiptPaymentUpdate(companyId)
-        )
-        || (
-          !isInvoiceReturnAllocationUpdate()
-          && !isInvoiceReceiptPaymentUpdate()
-          && (
-            validInvoiceDraftUpdate(companyId)
-            || validInvoicePostingUpdate(companyId)
-          )
-        );
+      allow update: if validInvoiceDraftUpdate(companyId);
 
       allow delete: if canReadSalesRepOwnedDoc(companyId, resource.data)
         && resource.data.invoiceStatus == 'draft'
@@ -2346,17 +2174,8 @@ service cloud.firestore {
         resource.data
       );
 
-      allow create: if validOpeningBalanceTransactionCreate(
-          companyId,
-          transactionId,
-          request.resource.data
-        )
-        || (
-          request.resource.data.transactionType != 'opening_balance'
-          && validFinancialCreate(companyId, request.resource.data)
-          && request.resource.data.id == transactionId
-          && request.resource.data.createdAt == request.time
-        );
+      // Ledger entries are written only by trusted posting functions.
+      allow create: if false;
 
       allow update, delete: if false;
     }
@@ -2365,21 +2184,8 @@ service cloud.firestore {
       allow get: if canReadSalesRepOwnedDoc(companyId, resource.data);
       allow list: if canReadSalesRepOwnedDoc(companyId, resource.data);
 
-      allow create: if validBusinessCreate(companyId, request.resource.data)
-        && businessPermissionAllows(
-          companyId,
-          'allowSalesRepCreateReceipts'
-        )
-        && request.resource.data.id == receiptId
-        && configuredDocumentNumberMatches(
-          companyId,
-          request.resource.data.receiptNumber,
-          'receiptPrefix',
-          'REC'
-        )
-        && request.resource.data.salesRepId == request.auth.uid
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time;
+      // Receipt creation changes receivables, invoice allocations, and cash.
+      allow create: if false;
 
       allow update, delete: if false;
     }
@@ -2399,9 +2205,9 @@ service cloud.firestore {
           || resource.data.salesRepId == request.auth.uid
         );
 
-      allow create: if validSalesReturnCreate(companyId, returnId);
-      allow update: if validSalesReturnDraftUpdate(companyId)
-        || validSalesReturnPostingUpdate(companyId);
+      allow create: if validSalesReturnCreate(companyId, returnId)
+        && request.resource.data.status == 'draft';
+      allow update: if validSalesReturnDraftUpdate(companyId);
       allow delete: if false;
     }
 
@@ -2437,9 +2243,9 @@ service cloud.firestore {
         );
       allow list: if canReadExpense(companyId, resource.data);
 
-      allow create: if validAdminCompanyExpenseCreate(companyId, expenseId)
-        || validSalesRepExpenseCreate(companyId, expenseId);
-      allow update: if validAdminExpenseDecisionUpdate(companyId);
+      allow create: if validSalesRepExpenseCreate(companyId, expenseId);
+      allow update: if validAdminExpenseDecisionUpdate(companyId)
+        && request.resource.data.status == 'rejected';
       allow delete: if false;
     }
 
@@ -2453,33 +2259,31 @@ service cloud.firestore {
         );
       allow list: if canReadCashMovement(companyId, resource.data);
 
-      allow create: if validCashMovementCreate(companyId, request.resource.data)
-        && request.resource.data.id == movementId
-        && request.resource.data.amount is number
-        && request.resource.data.amount > 0
-        && request.resource.data.direction in ['in', 'out']
-        && (
-          (
-            request.resource.data.type in [
-              'settlement_to_admin',
-              'adjustment'
-            ]
-            && isActiveAdmin()
-          )
-          || (
-            !(request.resource.data.type in [
-              'settlement_to_admin',
-              'adjustment'
-            ])
-            && (
-              request.resource.data.salesRepId == request.auth.uid
-              || isActiveAdmin()
-            )
-          )
-        )
-        && request.resource.data.createdAt == request.time;
+      // Cash is an append-only server-owned ledger.
+      allow create: if false;
 
       allow update, delete: if false;
+    }
+
+    match /companies/{companyId}/cash_balances/{accountId} {
+      allow get, list: if isApprovedCompanyUser(companyId)
+        && (
+          isActiveAdmin()
+          || (
+            resource.data.cashAccount == 'rep_cash'
+            && resource.data.salesRepId == request.auth.uid
+          )
+        );
+      allow create, update, delete: if false;
+    }
+
+    match /companies/{companyId}/settlements/{settlementId} {
+      allow get, list: if isApprovedCompanyUser(companyId)
+        && (
+          isActiveAdmin()
+          || resource.data.salesRepId == request.auth.uid
+        );
+      allow create, update, delete: if false;
     }
 
     match /companies/{companyId}/stock_movements/{movementId} {
@@ -2493,20 +2297,11 @@ service cloud.firestore {
       allow list: if canReadCreatedByOwnedDoc(companyId, resource.data);
 
       allow create: if (
-          request.resource.data.movementType == 'sales_return'
-          && validSalesReturnStockMovementCreate(companyId, movementId)
-        )
-        || (
           request.resource.data.movementType == 'inventory_transfer'
           && validInventoryTransferStockMovementCreate(companyId, movementId)
         )
         || (
-          request.resource.data.movementType == 'invoice_sale'
-          && validInvoiceStockMovementCreate(companyId, movementId)
-        )
-        || (
           request.resource.data.movementType in [
-            'opening_balance',
             'manual_adjustment_in',
             'manual_adjustment_out',
             'damage',
@@ -2548,7 +2343,7 @@ service cloud.firestore {
       allow create, update: if validRepInventoryBalanceWrite(
         companyId,
         balanceId
-      );
+      ) && request.resource.data.lastReferenceType == 'inventoryTransfer';
       allow delete: if false;
     }
 
@@ -2570,9 +2365,7 @@ service cloud.firestore {
       allow create: if validTransferRepInventoryMovement(
           companyId,
           movementId
-        )
-        || validInvoiceRepInventoryMovement(companyId, movementId)
-        || validSalesReturnRepInventoryMovement(companyId, movementId);
+        );
       allow update, delete: if false;
     }
 

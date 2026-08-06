@@ -13,6 +13,7 @@ class SalesRepOverviewMetrics extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
     final metrics = [
       _MetricData(
@@ -20,7 +21,7 @@ class SalesRepOverviewMetrics extends StatelessWidget {
         value: currency.format(controller.snapshot.totalSales),
         support: controller.selectedMonthLabel(context),
         icon: Icons.trending_up_rounded,
-        color: AppColor.primaryColor,
+        color: scheme.primary,
         onTap: controller.openInvoices,
       ),
       _MetricData(
@@ -28,7 +29,7 @@ class SalesRepOverviewMetrics extends StatelessWidget {
         value: controller.snapshot.receiptCount.toString(),
         support: controller.selectedMonthLabel(context),
         icon: Icons.payments_outlined,
-        color: AppColor.success,
+        color: scheme.tertiary,
         onTap: controller.openReceipts,
       ),
       _MetricData(
@@ -36,7 +37,7 @@ class SalesRepOverviewMetrics extends StatelessWidget {
         value: currency.format(controller.snapshot.repCashOutstanding),
         support: 'financial_rep_cash_to_settle'.tr,
         icon: Icons.account_balance_wallet_outlined,
-        color: AppColor.secondaryColor,
+        color: scheme.secondary,
         onTap: controller.openCash,
       ),
       _MetricData(
@@ -44,7 +45,7 @@ class SalesRepOverviewMetrics extends StatelessWidget {
         value: 'sales_rep_home_view_inventory'.tr,
         support: 'sales_rep_home_inventory_hint'.tr,
         icon: Icons.inventory_2_outlined,
-        color: AppColor.tertiaryColor,
+        color: scheme.primaryContainer,
         onTap: controller.openMyInventory,
       ),
     ];

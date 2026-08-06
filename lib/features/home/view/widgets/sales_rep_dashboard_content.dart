@@ -63,7 +63,7 @@ class _DashboardContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
-      color: AppColor.primaryColor,
+      color: Theme.of(context).colorScheme.primary,
       onRefresh: controller.refreshDashboard,
       child: LayoutBuilder(
         builder: (context, constraints) {

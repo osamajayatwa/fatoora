@@ -174,47 +174,39 @@ class _CashSummaryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tiles = isAdmin
-        ? [
-            _CashSummaryData(
-              titleKey: 'financial_company_cash',
-              value: snapshot.companyCash,
-              color: AppColor.secondaryColor,
-              icon: Icons.account_balance_wallet_outlined,
-            ),
-            _CashSummaryData(
-              titleKey: 'financial_rep_cash_outstanding',
-              value: snapshot.repCashOutstanding,
-              color: AppColor.primaryColor,
-              icon: Icons.payments_outlined,
-            ),
-            _CashSummaryData(
-              titleKey: 'financial_total_cash_position',
-              value: snapshot.companyCash + snapshot.repCashOutstanding,
-              color: AppColor.success,
-              icon: Icons.account_balance_outlined,
-            ),
-          ]
-        : [
-            _CashSummaryData(
-              titleKey: 'financial_rep_cash_to_settle',
-              value: snapshot.repCashOutstanding,
-              color: AppColor.secondaryColor,
-              icon: Icons.account_balance_wallet_outlined,
-            ),
-            _CashSummaryData(
-              titleKey: 'financial_cash_in',
-              value: snapshot.totalIn,
-              color: AppColor.success,
-              icon: Icons.south_west_rounded,
-            ),
-            _CashSummaryData(
-              titleKey: 'financial_cash_out',
-              value: snapshot.totalOut,
-              color: AppColor.error,
-              icon: Icons.north_east_rounded,
-            ),
-          ];
+    final tiles = [
+      _CashSummaryData(
+        titleKey: 'financial_opening_balance',
+        value: snapshot.openingBalance,
+        color: AppColor.secondaryColor,
+        icon: Icons.first_page_rounded,
+      ),
+      _CashSummaryData(
+        titleKey: 'financial_period_cash_in',
+        value: snapshot.totalIn,
+        color: AppColor.success,
+        icon: Icons.south_west_rounded,
+      ),
+      _CashSummaryData(
+        titleKey: 'financial_period_cash_out',
+        value: snapshot.totalOut,
+        color: AppColor.error,
+        icon: Icons.north_east_rounded,
+      ),
+      _CashSummaryData(
+        titleKey: 'financial_closing_balance',
+        value: snapshot.closingBalance,
+        color: AppColor.primaryColor,
+        icon: Icons.last_page_rounded,
+      ),
+      if (isAdmin)
+        _CashSummaryData(
+          titleKey: 'financial_rep_cash_outstanding',
+          value: snapshot.repCashOutstanding,
+          color: AppColor.secondaryColor,
+          icon: Icons.payments_outlined,
+        ),
+    ];
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns = constraints.maxWidth >= 760 ? 3 : 1;
