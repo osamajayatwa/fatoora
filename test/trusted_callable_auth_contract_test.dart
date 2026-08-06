@@ -22,6 +22,9 @@ void main() {
       final expenseRepository = File(
         'lib/features/expenses/data/repositories/expense_repository.dart',
       ).readAsStringSync();
+      final itemRepository = File(
+        'lib/features/items/data/repositories/item_repository.dart',
+      ).readAsStringSync();
 
       expect(client, contains("static const String region = 'us-central1'"));
       expect(client, contains('final app = Firebase.app()'));
@@ -46,6 +49,7 @@ void main() {
         returnRepository,
         receiptRepository,
         expenseRepository,
+        itemRepository,
       ]) {
         expect(repository, contains('TrustedCallableClient.forDefaultApp'));
         expect(repository, contains('.callAuthenticated<'));

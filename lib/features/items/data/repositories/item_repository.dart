@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:fatoora/core/firebase/trusted_callable_client.dart';
 import 'package:fatoora/features/items/data/models/item_model.dart';
 import 'package:fatoora/features/shared/business/business_user_context.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -21,6 +22,57 @@ class ItemRepositoryException implements Exception {
 
   final ItemRepositoryError error;
   final Object? cause;
+
+  @override
+  String toString() {
+    final firebaseCode = cause is FirebaseException
+        ? ', firebaseCode=${(cause as FirebaseException).code}'
+        : '';
+    return 'ItemRepositoryException(error: ${error.name}$firebaseCode)';
+  }
+}
+
+class NewItemInventoryValues {
+  const NewItemInventoryValues({
+    required this.currentStock,
+    required this.openingStock,
+    required this.minStock,
+  });
+
+  final double currentStock;
+  final double openingStock;
+  final double minStock;
+}
+
+NewItemInventoryValues normalizeNewItemInventory({
+  required bool trackStock,
+  required double openingStock,
+  required double minStock,
+}) {
+  final opening = _roundQuantity(openingStock);
+  final minimum = _roundQuantity(minStock);
+  if (opening < 0 || minimum < 0) {
+    throw const ItemRepositoryException(ItemRepositoryError.invalidData);
+  }
+  if (!trackStock) {
+    return const NewItemInventoryValues(
+      currentStock: 0,
+      openingStock: 0,
+      minStock: 0,
+    );
+  }
+  return NewItemInventoryValues(
+    currentStock: opening,
+    openingStock: opening,
+    minStock: minimum,
+  );
+}
+
+double _roundQuantity(double value) {
+  if (!value.isFinite) {
+    throw const ItemRepositoryException(ItemRepositoryError.invalidData);
+  }
+  return (value * 1000).roundToDouble() / 1000;
 }
 
 class ItemRepository {
@@ -29,8 +81,14 @@ class ItemRepository {
     FirebaseFunctions? functions,
     FirebaseAuth? firebaseAuth,
     BusinessUserContextReader? contextReader,
+    TrustedCallableClient? trustedCallableClient,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
-       _functions = functions ?? FirebaseFunctions.instance,
+       _trustedCallableClient =
+           trustedCallableClient ??
+           TrustedCallableClient.forDefaultApp(
+             firebaseAuth: firebaseAuth,
+             functions: functions,
+           ),
        _contextReader =
            contextReader ??
            BusinessUserContextReader(
@@ -39,7 +97,7 @@ class ItemRepository {
            );
 
   final FirebaseFirestore _firestore;
-  final FirebaseFunctions _functions;
+  final TrustedCallableClient _trustedCallableClient;
   final BusinessUserContextReader _contextReader;
 
   CollectionReference<Map<String, dynamic>> get _items =>
@@ -89,7 +147,6 @@ class ItemRepository {
     required double price,
     required double taxRate,
     required bool active,
-    required double currentStock,
     required double openingStock,
     required double minStock,
     required bool trackStock,
@@ -100,23 +157,21 @@ class ItemRepository {
   }) async {
     return _run(() async {
       final user = await _requireAdmin();
-      final stock = _round(currentStock);
-      final opening = _round(openingStock);
-      final minimum = _round(minStock);
+      final inventory = normalizeNewItemInventory(
+        trackStock: trackStock,
+        openingStock: openingStock,
+        minStock: minStock,
+      );
       final cost = _round(costPrice);
       _validateInventoryNumbers(
-        currentStock: stock,
-        openingStock: opening,
-        minStock: minimum,
+        currentStock: inventory.currentStock,
+        openingStock: inventory.openingStock,
+        minStock: inventory.minStock,
         costPrice: cost,
       );
-      if ((!trackStock && stock > 0) || (stock - opening).abs() >= 0.0005) {
-        throw const ItemRepositoryException(ItemRepositoryError.invalidData);
-      }
       final document = _items.doc();
-      final result = await _functions
-          .httpsCallable('createItem')
-          .call<Map<String, dynamic>>({
+      final result = await _trustedCallableClient
+          .callAuthenticated<Map<String, dynamic>>('createItem', {
             'companyId': user.companyId,
             'idempotencyKey': document.id,
             'name': name,
@@ -126,9 +181,9 @@ class ItemRepository {
             'price': price,
             'taxRate': taxRate,
             'active': active,
-            'currentStock': stock,
-            'openingStock': opening,
-            'minStock': minimum,
+            'currentStock': inventory.currentStock,
+            'openingStock': inventory.openingStock,
+            'minStock': inventory.minStock,
             'trackStock': trackStock,
             'costPrice': cost,
             'barcode': barcode,
@@ -360,6 +415,9 @@ class ItemRepository {
         'unauthenticated' => ItemRepositoryError.unauthenticated,
         'unavailable' || 'deadline-exceeded' => ItemRepositoryError.unavailable,
         'not-found' => ItemRepositoryError.notFound,
+        'invalid-argument' ||
+        'failed-precondition' ||
+        'already-exists' => ItemRepositoryError.invalidData,
         _ => ItemRepositoryError.unknown,
       };
       throw ItemRepositoryException(type, error);

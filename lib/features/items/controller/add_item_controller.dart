@@ -143,7 +143,6 @@ class AddItemController extends GetxController with ItemPageNavigation {
         price: double.parse(priceController.text.trim()),
         taxRate: double.parse(taxRateController.text.trim()),
         active: active,
-        currentStock: double.parse(currentStockController.text.trim()),
         openingStock: double.parse(openingStockController.text.trim()),
         minStock: double.parse(minStockController.text.trim()),
         trackStock: trackStock,

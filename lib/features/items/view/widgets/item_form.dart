@@ -27,6 +27,7 @@ class ItemForm extends StatelessWidget {
     required this.onSubmit,
     required this.submitLabel,
     required this.loading,
+    this.showCurrentStock = true,
   });
 
   final GlobalKey<FormState> formKey;
@@ -50,6 +51,7 @@ class ItemForm extends StatelessWidget {
   final VoidCallback onSubmit;
   final String submitLabel;
   final bool loading;
+  final bool showCurrentStock;
 
   @override
   Widget build(BuildContext context) {
@@ -132,17 +134,18 @@ class ItemForm extends StatelessWidget {
                       onChanged: onTrackStockChanged,
                     ),
                   ),
-                  SizedBox(
-                    width: fieldWidth,
-                    child: _numberField(
-                      controller: currentStockController,
-                      label: 'current_stock'.tr,
-                      icon: Icons.inventory_2_outlined,
-                      validator: _validateNonNegative,
-                      suffix: 'quantity'.tr,
-                      enabled: trackStock,
+                  if (showCurrentStock)
+                    SizedBox(
+                      width: fieldWidth,
+                      child: _numberField(
+                        controller: currentStockController,
+                        label: 'current_stock'.tr,
+                        icon: Icons.inventory_2_outlined,
+                        validator: _validateNonNegative,
+                        suffix: 'quantity'.tr,
+                        enabled: trackStock,
+                      ),
                     ),
-                  ),
                   SizedBox(
                     width: fieldWidth,
                     child: _numberField(

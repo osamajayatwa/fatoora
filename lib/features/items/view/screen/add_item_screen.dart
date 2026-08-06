@@ -45,6 +45,7 @@ class AddItemScreen extends StatelessWidget {
                 onSubmit: controller.submit,
                 submitLabel: 'items_save'.tr,
                 loading: controller.isLoading,
+                showCurrentStock: false,
               ),
             ),
           ),
