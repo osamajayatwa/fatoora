@@ -11,6 +11,7 @@ import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_item_snapshot.dart';
+import 'package:fatoora/features/invoices/data/models/invoice_list_query.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/items/data/models/item_model.dart';
 import 'package:fatoora/features/rep_inventory/data/models/rep_inventory_enums.dart';
@@ -117,43 +118,35 @@ class InvoiceRepository {
     required String companyId,
     InvoiceType? type,
     InvoiceStatus? status,
+    PaymentStatus? paymentStatus,
+    InvoiceReturnStatus? returnStatus,
+    String? salesRepId,
+    String? customerId,
     DateTime? fromDate,
     DateTime? toDate,
     String? searchText,
+    InvoiceSortField sortField = InvoiceSortField.invoiceDate,
+    InvoiceSortDirection sortDirection = InvoiceSortDirection.descending,
   }) {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
-      Query<Map<String, dynamic>> query = _invoices(resolvedCompanyId);
-      if (user.isSalesRep) {
-        query = query.where('salesRepId', isEqualTo: user.uid);
-      }
-      if (type != null) {
-        query = query.where('invoiceType', isEqualTo: type.value);
-      }
-      if (status != null) {
-        query = query.where('invoiceStatus', isEqualTo: status.value);
-      }
-      if (fromDate != null) {
-        query = query.where(
-          'invoiceDate',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfDay(fromDate)),
-        );
-      }
-      if (toDate != null) {
-        query = query.where(
-          'invoiceDate',
-          isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(toDate)),
-        );
-      }
-      final normalizedSearch = _normalize(searchText ?? '');
-      if (normalizedSearch.isNotEmpty) {
-        query = query.where('searchKeywords', arrayContains: normalizedSearch);
-      }
-      final documents = await query
-          .orderBy('invoiceDate', descending: true)
-          .orderBy(FieldPath.documentId, descending: true)
-          .getAllPages();
+      final query = _invoiceListQuery(
+        companyId: resolvedCompanyId,
+        user: user,
+        type: type,
+        status: status,
+        paymentStatus: paymentStatus,
+        returnStatus: returnStatus,
+        salesRepId: salesRepId,
+        customerId: customerId,
+        fromDate: fromDate,
+        toDate: toDate,
+        searchText: searchText,
+        sortField: sortField,
+        sortDirection: sortDirection,
+      );
+      final documents = await query.getAllPages();
       return documents.map(InvoiceModel.fromFirestore).toList();
     });
   }
@@ -162,50 +155,226 @@ class InvoiceRepository {
     required String companyId,
     InvoiceType? type,
     InvoiceStatus? status,
+    PaymentStatus? paymentStatus,
+    InvoiceReturnStatus? returnStatus,
+    String? salesRepId,
+    String? customerId,
     DateTime? fromDate,
     DateTime? toDate,
     String? searchText,
+    InvoiceSortField sortField = InvoiceSortField.invoiceDate,
+    InvoiceSortDirection sortDirection = InvoiceSortDirection.descending,
     FirestorePageCursor? after,
     int pageSize = 50,
   }) {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
-      Query<Map<String, dynamic>> query = _invoices(resolvedCompanyId);
+      final query = _invoiceListQuery(
+        companyId: resolvedCompanyId,
+        user: user,
+        type: type,
+        status: status,
+        paymentStatus: paymentStatus,
+        returnStatus: returnStatus,
+        salesRepId: salesRepId,
+        customerId: customerId,
+        fromDate: fromDate,
+        toDate: toDate,
+        searchText: searchText,
+        sortField: sortField,
+        sortDirection: sortDirection,
+      );
+      return query.getPage(
+        decode: InvoiceModel.fromFirestore,
+        after: after,
+        pageSize: pageSize,
+      );
+    });
+  }
+
+  Future<List<InvoiceFilterOption>> getInvoiceCustomerFilterOptions({
+    required String companyId,
+    String searchText = '',
+    int limit = 30,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      Query<Map<String, dynamic>> query = _customers(
+        resolvedCompanyId,
+      ).where('active', isEqualTo: true);
       if (user.isSalesRep) {
-        query = query.where('salesRepId', isEqualTo: user.uid);
+        query = query.where('createdByUid', isEqualTo: user.uid);
       }
-      if (type != null) {
-        query = query.where('invoiceType', isEqualTo: type.value);
-      }
-      if (status != null) {
-        query = query.where('invoiceStatus', isEqualTo: status.value);
-      }
-      if (fromDate != null) {
-        query = query.where(
-          'invoiceDate',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfDay(fromDate)),
-        );
-      }
-      if (toDate != null) {
-        query = query.where(
-          'invoiceDate',
-          isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(toDate)),
-        );
-      }
-      final normalizedSearch = _normalize(searchText ?? '');
+      final normalizedSearch = _normalize(searchText);
       if (normalizedSearch.isNotEmpty) {
         query = query.where('searchKeywords', arrayContains: normalizedSearch);
       }
-      return query
-          .orderBy('invoiceDate', descending: true)
-          .orderBy(FieldPath.documentId, descending: true)
-          .getPage(
-            decode: InvoiceModel.fromFirestore,
-            after: after,
-            pageSize: pageSize,
-          );
+      final snapshot = await query
+          .orderBy('nameLower')
+          .limit(limit.clamp(1, 50).toInt())
+          .get()
+          .timeout(const Duration(seconds: 20));
+      return snapshot.docs
+          .where((document) {
+            final name = document.data()['name']?.toString().trim() ?? '';
+            return name.isNotEmpty && name.toLowerCase() != 'undefined';
+          })
+          .map((document) {
+            final data = document.data();
+            return InvoiceFilterOption(
+              id: document.id,
+              label: data['name']!.toString().trim(),
+              subtitle: data['phone']?.toString().trim() ?? '',
+            );
+          })
+          .toList(growable: false);
     });
+  }
+
+  Future<List<InvoiceFilterOption>> getInvoiceSalesRepFilterOptions({
+    required String companyId,
+    String searchText = '',
+    int limit = 50,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      final normalizedSearch = _normalize(searchText);
+      if (user.isSalesRep) {
+        final option = InvoiceFilterOption(
+          id: user.uid,
+          label: user.name,
+          subtitle: user.email,
+        );
+        return normalizedSearch.isEmpty ||
+                _normalize(option.label).contains(normalizedSearch) ||
+                _normalize(option.subtitle).contains(normalizedSearch)
+            ? [option]
+            : const [];
+      }
+
+      final snapshot = await _firestore
+          .collection('users')
+          .where('role', whereIn: const ['admin', 'sales_rep'])
+          .where('active', isEqualTo: true)
+          .where('approvalStatus', isEqualTo: 'approved')
+          .limit(200)
+          .get()
+          .timeout(const Duration(seconds: 20));
+      final options =
+          snapshot.docs
+              .where((document) {
+                final data = document.data();
+                if (data['active'] != true ||
+                    data['approvalStatus'] != 'approved' ||
+                    data['name']?.toString().trim().isEmpty != false ||
+                    data['name']?.toString().trim().toLowerCase() ==
+                        'undefined' ||
+                    (data['companyId']?.toString().trim().isNotEmpty == true &&
+                        data['companyId']?.toString().trim() !=
+                            resolvedCompanyId)) {
+                  return false;
+                }
+                if (normalizedSearch.isEmpty) return true;
+                final name = _normalize(data['name']?.toString() ?? '');
+                final email = _normalize(data['email']?.toString() ?? '');
+                return name.contains(normalizedSearch) ||
+                    email.contains(normalizedSearch);
+              })
+              .map((document) {
+                final data = document.data();
+                return InvoiceFilterOption(
+                  id: document.id,
+                  label: data['name']!.toString().trim(),
+                  subtitle: data['email']?.toString().trim() ?? '',
+                );
+              })
+              .toList(growable: false)
+            ..sort(
+              (left, right) =>
+                  _normalize(left.label).compareTo(_normalize(right.label)),
+            );
+      return options.take(limit.clamp(1, 100).toInt()).toList(growable: false);
+    });
+  }
+
+  Query<Map<String, dynamic>> _invoiceListQuery({
+    required String companyId,
+    required BusinessUserContext user,
+    required InvoiceType? type,
+    required InvoiceStatus? status,
+    required PaymentStatus? paymentStatus,
+    required InvoiceReturnStatus? returnStatus,
+    required String? salesRepId,
+    required String? customerId,
+    required DateTime? fromDate,
+    required DateTime? toDate,
+    required String? searchText,
+    required InvoiceSortField sortField,
+    required InvoiceSortDirection sortDirection,
+  }) {
+    final hasDateRange = fromDate != null || toDate != null;
+    if (hasDateRange && sortField != InvoiceSortField.invoiceDate) {
+      throw const InvoiceRepositoryException(
+        InvoiceRepositoryError.invalidData,
+      );
+    }
+    if (fromDate != null &&
+        toDate != null &&
+        _dateOnly(fromDate).isAfter(_dateOnly(toDate))) {
+      throw const InvoiceRepositoryException(
+        InvoiceRepositoryError.invalidData,
+      );
+    }
+
+    Query<Map<String, dynamic>> query = _invoices(companyId);
+    final requestedSalesRepId = salesRepId?.trim() ?? '';
+    if (user.isSalesRep) {
+      query = query.where('salesRepId', isEqualTo: user.uid);
+    } else if (requestedSalesRepId.isNotEmpty) {
+      query = query.where('salesRepId', isEqualTo: requestedSalesRepId);
+    }
+    final requestedCustomerId = customerId?.trim() ?? '';
+    if (requestedCustomerId.isNotEmpty) {
+      query = query.where('customerId', isEqualTo: requestedCustomerId);
+    }
+    if (type != null) {
+      query = query.where('invoiceType', isEqualTo: type.value);
+    }
+    if (status != null) {
+      query = query.where('invoiceStatus', isEqualTo: status.value);
+    }
+    if (paymentStatus != null) {
+      query = query.where('paymentStatus', isEqualTo: paymentStatus.value);
+    }
+    if (returnStatus != null) {
+      query = query.where('returnStatus', isEqualTo: returnStatus.value);
+    }
+    if (fromDate != null) {
+      query = query.where(
+        'invoiceDate',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(_dateOnly(fromDate)),
+      );
+    }
+    if (toDate != null) {
+      query = query.where(
+        'invoiceDate',
+        isLessThan: Timestamp.fromDate(
+          _dateOnly(toDate).add(const Duration(days: 1)),
+        ),
+      );
+    }
+    final normalizedSearch = _normalize(searchText ?? '');
+    if (normalizedSearch.isNotEmpty) {
+      query = query.where('searchKeywords', arrayContains: normalizedSearch);
+    }
+
+    final descending = sortDirection.descending;
+    return query
+        .orderBy(sortField.firestoreField, descending: descending)
+        .orderBy(FieldPath.documentId, descending: descending);
   }
 
   Stream<List<InvoiceModel>> watchInvoices({
@@ -851,13 +1020,6 @@ class InvoiceRepository {
       'deadline-exceeded' => InvoiceRepositoryError.unavailable,
       _ => InvoiceRepositoryError.unknown,
     };
-  }
-
-  DateTime _startOfDay(DateTime date) =>
-      DateTime(date.year, date.month, date.day);
-
-  DateTime _endOfDay(DateTime date) {
-    return DateTime(date.year, date.month, date.day, 23, 59, 59, 999);
   }
 
   String _normalize(String value) => value.trim().toLowerCase();

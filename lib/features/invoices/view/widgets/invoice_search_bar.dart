@@ -7,10 +7,12 @@ class InvoiceSearchBar extends StatelessWidget {
     super.key,
     required this.controller,
     required this.onChanged,
+    required this.onClear,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +22,13 @@ class InvoiceSearchBar extends StatelessWidget {
       decoration: InputDecoration(
         hintText: 'search_invoices'.tr,
         prefixIcon: const Icon(Icons.search_rounded),
+        suffixIcon: controller.text.isEmpty
+            ? null
+            : IconButton(
+                tooltip: 'clear_search'.tr,
+                onPressed: onClear,
+                icon: const Icon(Icons.close_rounded),
+              ),
         filled: true,
         fillColor: AppColor.surface,
         border: OutlineInputBorder(

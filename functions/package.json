@@ -10,10 +10,12 @@
     "lint": "tsc --noEmit",
     "test:rules": "node --test test/firestore.rules.test.js",
     "test:trusted": "npm run build && node --test test/trusted_transactions.test.js test/confirm_sales_return_auth.test.js",
-    "test:maintenance": "node --test test/invoice_sales_rep_maintenance.test.js test/cash_reconciliation.test.js",
+    "test:maintenance": "node --test test/invoice_sales_rep_maintenance.test.js test/invoice_list_fields_maintenance.test.js test/cash_reconciliation.test.js",
     "test:audit": "npm run build && node --test test/audit.test.js",
     "audit:invoice-sales-rep": "node scripts/audit_invoice_sales_rep.js",
     "backfill:invoice-sales-rep": "node scripts/backfill_invoice_sales_rep.js",
+    "audit:invoice-list-fields": "node scripts/backfill_invoice_list_fields.js",
+    "backfill:invoice-list-fields": "node scripts/backfill_invoice_list_fields.js --apply",
     "reconcile:cash": "node scripts/reconcile_cash_balances.js"
   },
   "dependencies": {

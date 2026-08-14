@@ -9,6 +9,7 @@ import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_context.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_error_mapper.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
+import 'package:fatoora/features/invoices/data/models/invoice_list_query.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/invoices/data/repositories/invoice_repository.dart';
 import 'package:fatoora/features/invoices/data/services/invoice_pdf_service.dart';
@@ -34,8 +35,12 @@ class InvoicesListController extends GetxController {
   InvoiceStatus? statusFilter;
   PaymentStatus? paymentStatusFilter;
   InvoiceReturnStatus? returnStatusFilter;
+  InvoiceFilterOption? salesRepFilter;
+  InvoiceFilterOption? customerFilter;
   DateTime? fromDate;
   DateTime? toDate;
+  InvoiceSortField sortField = InvoiceSortField.invoiceDate;
+  InvoiceSortDirection sortDirection = InvoiceSortDirection.descending;
   String searchText = '';
   String loadErrorMessageKey = 'invoice_load_error';
   bool isDeleting = false;
@@ -51,14 +56,19 @@ class InvoicesListController extends GetxController {
     return InvoiceContext.resolveCompanyId(_myServices, args);
   }
 
-  bool get hasFilters =>
+  bool get hasActiveFilters =>
       typeFilter != null ||
       statusFilter != null ||
       paymentStatusFilter != null ||
       returnStatusFilter != null ||
+      salesRepFilter != null ||
+      customerFilter != null ||
       fromDate != null ||
-      toDate != null ||
-      searchText.trim().isNotEmpty;
+      toDate != null;
+
+  bool get hasFilters => hasActiveFilters || searchText.trim().isNotEmpty;
+
+  bool get hasDateRange => fromDate != null || toDate != null;
 
   @override
   void onReady() {
@@ -86,14 +96,20 @@ class InvoicesListController extends GetxController {
         companyId: resolvedCompanyId,
         type: typeFilter,
         status: statusFilter,
+        paymentStatus: paymentStatusFilter,
+        returnStatus: returnStatusFilter,
+        salesRepId: salesRepFilter?.id,
+        customerId: customerFilter?.id,
         fromDate: fromDate,
         toDate: toDate,
         searchText: searchText,
+        sortField: sortField,
+        sortDirection: sortDirection,
       );
       if (generation != _loadGeneration) return;
       _pageCursor = page.cursor;
       hasMore = page.hasMore;
-      invoices = _applyClientFilters(page.items);
+      invoices = page.items;
       statusRequest = StatusRequest.success;
     } catch (error) {
       if (generation != _loadGeneration) return;
@@ -119,15 +135,21 @@ class InvoicesListController extends GetxController {
         companyId: companyId,
         type: typeFilter,
         status: statusFilter,
+        paymentStatus: paymentStatusFilter,
+        returnStatus: returnStatusFilter,
+        salesRepId: salesRepFilter?.id,
+        customerId: customerFilter?.id,
         fromDate: fromDate,
         toDate: toDate,
         searchText: searchText,
+        sortField: sortField,
+        sortDirection: sortDirection,
         after: _pageCursor,
       );
       if (generation != _loadGeneration) return;
       _pageCursor = page.cursor;
       hasMore = page.hasMore;
-      invoices = [...invoices, ..._applyClientFilters(page.items)];
+      invoices = [...invoices, ...page.items];
     } catch (error) {
       if (generation != _loadGeneration) return;
       _showError(InvoiceErrorMapper.messageKey(error));
@@ -142,6 +164,14 @@ class InvoicesListController extends GetxController {
     update();
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 350), loadInvoices);
+  }
+
+  void clearSearch() {
+    if (searchText.isEmpty && searchController.text.isEmpty) return;
+    _searchDebounce?.cancel();
+    searchText = '';
+    searchController.clear();
+    loadInvoices();
   }
 
   void setTypeFilter(InvoiceType? value) {
@@ -164,10 +194,63 @@ class InvoicesListController extends GetxController {
     loadInvoices();
   }
 
+  void setSalesRepFilter(InvoiceFilterOption? value) {
+    salesRepFilter = value;
+    loadInvoices();
+  }
+
+  void setCustomerFilter(InvoiceFilterOption? value) {
+    customerFilter = value;
+    loadInvoices();
+  }
+
+  Future<List<InvoiceFilterOption>> loadCustomerFilterOptions(
+    String searchText,
+  ) {
+    return _repository.getInvoiceCustomerFilterOptions(
+      companyId: companyId,
+      searchText: searchText,
+    );
+  }
+
+  Future<List<InvoiceFilterOption>> loadSalesRepFilterOptions(
+    String searchText,
+  ) {
+    return _repository.getInvoiceSalesRepFilterOptions(
+      companyId: companyId,
+      searchText: searchText,
+    );
+  }
+
   void setDateRange(DateTimeRange? range) {
     fromDate = range?.start;
     toDate = range?.end;
+    if (range != null) sortField = InvoiceSortField.invoiceDate;
     loadInvoices();
+  }
+
+  void setSortField(InvoiceSortField value) {
+    if (hasDateRange && value != InvoiceSortField.invoiceDate) {
+      _showInfo('sort_invoices'.tr, 'date_range_sort_notice'.tr);
+      return;
+    }
+    if (sortField == value) return;
+    sortField = value;
+    loadInvoices();
+  }
+
+  void setSortDirection(InvoiceSortDirection value) {
+    if (sortDirection == value) return;
+    sortDirection = value;
+    loadInvoices();
+  }
+
+  void toggleSortDirection() {
+    setSortDirection(
+      sortDirection == InvoiceSortDirection.ascending
+          ? InvoiceSortDirection.descending
+          : InvoiceSortDirection.ascending,
+    );
   }
 
   void clearFilters() {
@@ -175,10 +258,10 @@ class InvoicesListController extends GetxController {
     statusFilter = null;
     paymentStatusFilter = null;
     returnStatusFilter = null;
+    salesRepFilter = null;
+    customerFilter = null;
     fromDate = null;
     toDate = null;
-    searchText = '';
-    searchController.clear();
     loadInvoices();
   }
 
@@ -304,17 +387,6 @@ class InvoicesListController extends GetxController {
       backgroundColor: AppColor.success,
       colorText: AppColor.surface,
     );
-  }
-
-  List<InvoiceModel> _applyClientFilters(List<InvoiceModel> source) {
-    return source
-        .where((invoice) {
-          return (paymentStatusFilter == null ||
-                  invoice.paymentStatus == paymentStatusFilter) &&
-              (returnStatusFilter == null ||
-                  invoice.returnStatus == returnStatusFilter);
-        })
-        .toList(growable: false);
   }
 
   void _showError(String messageKey) {

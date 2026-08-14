@@ -4,6 +4,7 @@ import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/features/invoices/controllers/invoices_list_controller.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_customer_snapshot.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
+import 'package:fatoora/features/invoices/data/models/invoice_list_query.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/invoices/data/repositories/invoice_repository.dart';
 import 'package:fatoora/features/invoices/view/screens/invoices_list_screen.dart';
@@ -59,7 +60,7 @@ void main() {
 
     expect(find.byType(DataTable), findsOneWidget);
     expect(find.text('return_status'), findsWidgets);
-    expect(find.text('created_by'), findsWidgets);
+    expect(find.text('sales_rep'), findsWidgets);
     expect(find.byTooltip('print_export'), findsNWidgets(_invoices.length));
     _expectFinderInsideViewport(
       tester,
@@ -156,9 +157,15 @@ class _FakeInvoiceRepository implements InvoiceRepository {
     required String companyId,
     InvoiceType? type,
     InvoiceStatus? status,
+    PaymentStatus? paymentStatus,
+    InvoiceReturnStatus? returnStatus,
+    String? salesRepId,
+    String? customerId,
     DateTime? fromDate,
     DateTime? toDate,
     String? searchText,
+    InvoiceSortField sortField = InvoiceSortField.invoiceDate,
+    InvoiceSortDirection sortDirection = InvoiceSortDirection.descending,
   }) async {
     return invoices
         .where((invoice) => type == null || invoice.invoiceType == type)
@@ -171,9 +178,15 @@ class _FakeInvoiceRepository implements InvoiceRepository {
     required String companyId,
     InvoiceType? type,
     InvoiceStatus? status,
+    PaymentStatus? paymentStatus,
+    InvoiceReturnStatus? returnStatus,
+    String? salesRepId,
+    String? customerId,
     DateTime? fromDate,
     DateTime? toDate,
     String? searchText,
+    InvoiceSortField sortField = InvoiceSortField.invoiceDate,
+    InvoiceSortDirection sortDirection = InvoiceSortDirection.descending,
     FirestorePageCursor? after,
     int pageSize = 50,
   }) async {
@@ -182,9 +195,15 @@ class _FakeInvoiceRepository implements InvoiceRepository {
         companyId: companyId,
         type: type,
         status: status,
+        paymentStatus: paymentStatus,
+        returnStatus: returnStatus,
+        salesRepId: salesRepId,
+        customerId: customerId,
         fromDate: fromDate,
         toDate: toDate,
         searchText: searchText,
+        sortField: sortField,
+        sortDirection: sortDirection,
       ),
       cursor: null,
       hasMore: false,

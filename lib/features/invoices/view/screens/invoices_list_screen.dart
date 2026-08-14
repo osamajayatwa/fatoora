@@ -51,6 +51,7 @@ class InvoicesListScreen extends StatelessWidget {
                             InvoiceSearchBar(
                               controller: controller.searchController,
                               onChanged: controller.onSearchChanged,
+                              onClear: controller.clearSearch,
                             ),
                             const SizedBox(height: 14),
                             InvoiceFilterBar(
@@ -58,16 +59,29 @@ class InvoicesListScreen extends StatelessWidget {
                               status: controller.statusFilter,
                               paymentStatus: controller.paymentStatusFilter,
                               returnStatus: controller.returnStatusFilter,
+                              salesRep: controller.salesRepFilter,
+                              customer: controller.customerFilter,
                               fromDate: controller.fromDate,
                               toDate: controller.toDate,
-                              hasFilters: controller.hasFilters,
+                              sortField: controller.sortField,
+                              sortDirection: controller.sortDirection,
+                              hasActiveFilters: controller.hasActiveFilters,
+                              loadSalesRepOptions:
+                                  controller.loadSalesRepFilterOptions,
+                              loadCustomerOptions:
+                                  controller.loadCustomerFilterOptions,
                               onTypeChanged: controller.setTypeFilter,
                               onStatusChanged: controller.setStatusFilter,
                               onPaymentStatusChanged:
                                   controller.setPaymentStatusFilter,
                               onReturnStatusChanged:
                                   controller.setReturnStatusFilter,
+                              onSalesRepChanged: controller.setSalesRepFilter,
+                              onCustomerChanged: controller.setCustomerFilter,
                               onDateRangeChanged: controller.setDateRange,
+                              onSortFieldChanged: controller.setSortField,
+                              onSortDirectionChanged:
+                                  controller.setSortDirection,
                               onClear: controller.clearFilters,
                             ),
                             const SizedBox(height: 18),
@@ -272,7 +286,7 @@ class _InvoicesTableState extends State<_InvoicesTable> {
       if (mode.showReturnStatus)
         _column('return_status', width: mode.returnStatusWidth),
       _column('grand_total', width: 112, numeric: true),
-      if (mode.showCreatedBy) _column('created_by', width: mode.createdByWidth),
+      if (mode.showCreatedBy) _column('sales_rep', width: mode.createdByWidth),
       _column('actions', width: 144),
     ];
   }
@@ -344,7 +358,7 @@ class _InvoicesTableState extends State<_InvoicesTable> {
       ),
       if (mode.showCreatedBy)
         DataCell(
-          _BoundedCell(invoice.createdByName, width: mode.createdByWidth),
+          _BoundedCell(invoice.salesRepName, width: mode.createdByWidth),
         ),
       DataCell(_TableActions(controller: widget.controller, invoice: invoice)),
     ];
