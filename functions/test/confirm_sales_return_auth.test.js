@@ -10,6 +10,9 @@ const {
   confirmInvoice,
 } = require("../lib/trusted/confirm_invoice");
 const {
+  confirmInventoryTransfer,
+} = require("../lib/trusted/confirm_inventory_transfer");
+const {
   confirmSalesReturn,
 } = require("../lib/trusted/confirm_sales_return");
 const {
@@ -32,6 +35,9 @@ const {
 const {
   recordCashSettlement,
 } = require("../lib/trusted/record_cash_settlement");
+const {
+  updateCustomerOpeningBalance,
+} = require("../lib/trusted/update_opening_balance");
 
 const projectId = "fatoora-return-auth-test";
 const app = initializeApp({projectId});
@@ -52,6 +58,7 @@ test("all trusted callables use the same v2 authentication pathway and options",
   const callables = [
     approveExpense,
     confirmInvoice,
+    confirmInventoryTransfer,
     confirmSalesReturn,
     createCustomer,
     createExpense,
@@ -59,6 +66,7 @@ test("all trusted callables use the same v2 authentication pathway and options",
     createReceipt,
     postCustomerOpeningBalance,
     recordCashSettlement,
+    updateCustomerOpeningBalance,
     updateCustomer,
   ];
   for (const callable of callables) {
@@ -74,6 +82,7 @@ test("all trusted callables use the same v2 authentication pathway and options",
 
   const trustedSources = [
     "confirm_invoice.ts",
+    "confirm_inventory_transfer.ts",
     "confirm_sales_return.ts",
     "create_receipt.ts",
     "customer_profiles.ts",
@@ -81,6 +90,7 @@ test("all trusted callables use the same v2 authentication pathway and options",
     "inventory.ts",
     "post_opening_balance.ts",
     "record_cash_settlement.ts",
+    "update_opening_balance.ts",
   ].map((fileName) => readFileSync(
     join(__dirname, "..", "src", "trusted", fileName),
     "utf8",

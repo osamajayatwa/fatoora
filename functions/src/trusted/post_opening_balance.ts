@@ -99,6 +99,7 @@ export async function postOpeningBalanceTransaction(
 
     transaction.update(customerRef, {
       currentBalance: after,
+      openingBalance: signed,
       lastOpeningBalanceTransactionId: transactionId,
       updatedAt: FieldValue.serverTimestamp(),
     });

@@ -180,10 +180,68 @@ class CustomerDetailsController extends GetxController {
     }
   }
 
+  Future<CustomerTransactionModel?> updateOpeningBalance({
+    required CustomerOpeningBalanceType balanceType,
+    required double amount,
+    required String reason,
+  }) async {
+    final current = customer;
+    final existing = openingBalance;
+    if (current == null ||
+        existing == null ||
+        isPostingOpeningBalance ||
+        reason.trim().isEmpty) {
+      return null;
+    }
+    isPostingOpeningBalance = true;
+    if (!isClosed) update();
+    try {
+      final transaction = await _repository.updateOpeningBalance(
+        companyId: current.companyId,
+        customerId: current.id,
+        balanceType: balanceType,
+        amount: amount,
+        reason: reason,
+      );
+      if (!isClosed) {
+        final difference = transaction.signedAmount - existing.signedAmount;
+        openingBalance = transaction;
+        customer = current.copyWith(
+          currentBalance: _round(current.currentBalance + difference),
+          updatedAt: DateTime.now(),
+        );
+        update();
+      }
+      return transaction;
+    } catch (error) {
+      if (!isClosed) {
+        _showError(
+          CustomerErrorMapper.messageKey(
+            error,
+            fallback: 'customers_opening_balance_update_error',
+          ),
+        );
+      }
+      return null;
+    } finally {
+      isPostingOpeningBalance = false;
+      if (!isClosed) update();
+    }
+  }
+
   void openingBalanceDialogCompleted(CustomerTransactionModel transaction) {
     if (isClosed) return;
     openingBalance = transaction;
     _showSuccess('customers_opening_balance_created');
+    unawaited(_refreshAfterOpeningBalance());
+  }
+
+  void openingBalanceUpdateDialogCompleted(
+    CustomerTransactionModel transaction,
+  ) {
+    if (isClosed) return;
+    openingBalance = transaction;
+    _showSuccess('customers_opening_balance_updated');
     unawaited(_refreshAfterOpeningBalance());
   }
 
@@ -259,4 +317,6 @@ class CustomerDetailsController extends GetxController {
       colorText: AppColor.surface,
     );
   }
+
+  double _round(double value) => (value * 1000).roundToDouble() / 1000;
 }

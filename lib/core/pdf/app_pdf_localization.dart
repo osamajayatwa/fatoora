@@ -64,6 +64,7 @@ class AppPdfLocalization {
       value.replaceAll(RegExp(r'[\u061C\u200E\u200F]'), '');
 
   static const Map<String, String> _en = {
+    'opening_balance_adjustment': 'Opening balance adjustment',
     'all': 'All',
     'address': 'Address',
     'amount': 'Amount',
@@ -189,6 +190,7 @@ class AppPdfLocalization {
   };
 
   static const Map<String, String> _ar = {
+    'opening_balance_adjustment': 'تعديل الرصيد الافتتاحي',
     'all': 'الكل',
     'address': 'العنوان',
     'amount': 'المبلغ',

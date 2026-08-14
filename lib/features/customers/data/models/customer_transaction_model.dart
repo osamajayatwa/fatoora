@@ -27,6 +27,13 @@ class CustomerTransactionModel {
     this.originalInvoiceNumber = '',
     this.receiptId = '',
     this.receiptNumber = '',
+    this.oldAmount = 0,
+    this.newAmount = 0,
+    this.difference = 0,
+    this.reason = '',
+    this.adjustedByUid = '',
+    this.adjustedAt,
+    this.originalOpeningBalanceReference = '',
     required this.notes,
     required this.createdByUid,
     required this.createdByName,
@@ -61,6 +68,13 @@ class CustomerTransactionModel {
   final String originalInvoiceNumber;
   final String receiptId;
   final String receiptNumber;
+  final double oldAmount;
+  final double newAmount;
+  final double difference;
+  final String reason;
+  final String adjustedByUid;
+  final DateTime? adjustedAt;
+  final String originalOpeningBalanceReference;
   final String notes;
   final String createdByUid;
   final String createdByName;
@@ -106,6 +120,16 @@ class CustomerTransactionModel {
       originalInvoiceNumber: _readString(data, 'originalInvoiceNumber'),
       receiptId: _readString(data, 'receiptId'),
       receiptNumber: _readString(data, 'receiptNumber'),
+      oldAmount: _readDouble(data, 'oldAmount'),
+      newAmount: _readDouble(data, 'newAmount'),
+      difference: _readDouble(data, 'difference'),
+      reason: _readString(data, 'reason'),
+      adjustedByUid: _readString(data, 'adjustedByUid'),
+      adjustedAt: _readNullableDate(data, 'adjustedAt'),
+      originalOpeningBalanceReference: _readString(
+        data,
+        'originalOpeningBalanceReference',
+      ),
       notes: _readString(data, 'notes'),
       createdByUid: _readString(data, 'createdByUid'),
       createdByName: _readString(data, 'createdByName'),
@@ -142,6 +166,13 @@ class CustomerTransactionModel {
     'originalInvoiceNumber': originalInvoiceNumber,
     'receiptId': receiptId,
     'receiptNumber': receiptNumber,
+    'oldAmount': oldAmount,
+    'newAmount': newAmount,
+    'difference': difference,
+    'reason': reason,
+    'adjustedByUid': adjustedByUid,
+    'adjustedAt': adjustedAt == null ? null : Timestamp.fromDate(adjustedAt!),
+    'originalOpeningBalanceReference': originalOpeningBalanceReference,
     'notes': notes,
     'createdByUid': createdByUid,
     'createdByName': createdByName,
@@ -178,6 +209,13 @@ class CustomerTransactionModel {
       originalInvoiceNumber: originalInvoiceNumber,
       receiptId: receiptId,
       receiptNumber: receiptNumber,
+      oldAmount: oldAmount,
+      newAmount: newAmount,
+      difference: difference,
+      reason: reason,
+      adjustedByUid: adjustedByUid,
+      adjustedAt: adjustedAt,
+      originalOpeningBalanceReference: originalOpeningBalanceReference,
       notes: notes,
       createdByUid: createdByUid,
       createdByName: createdByName,
@@ -206,5 +244,13 @@ class CustomerTransactionModel {
     if (value is DateTime) return value;
     if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
     return DateTime.now();
+  }
+
+  static DateTime? _readNullableDate(Map<String, dynamic> data, String key) {
+    final value = data[key];
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    return null;
   }
 }

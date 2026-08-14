@@ -10,6 +10,9 @@ const {
   confirmInvoiceTransaction,
 } = require("../lib/trusted/confirm_invoice");
 const {
+  confirmInventoryTransferTransaction,
+} = require("../lib/trusted/confirm_inventory_transfer");
+const {
   confirmSalesReturnTransaction,
 } = require("../lib/trusted/confirm_sales_return");
 const {
@@ -20,6 +23,7 @@ const {
   createExpenseTransaction,
 } = require("../lib/trusted/expenses");
 const {
+  adjustStockTransaction,
   createItemTransaction,
 } = require("../lib/trusted/inventory");
 const {
@@ -30,6 +34,9 @@ const {
 const {
   postOpeningBalanceTransaction,
 } = require("../lib/trusted/post_opening_balance");
+const {
+  updateOpeningBalanceTransaction,
+} = require("../lib/trusted/update_opening_balance");
 const {
   recordCashSettlementTransaction,
 } = require("../lib/trusted/record_cash_settlement");
@@ -605,6 +612,209 @@ test("item opening stock is server-owned, paired, and idempotent", async () => {
   ));
 });
 
+test("manual stock adjustments are admin-only, atomic, and idempotent", async () => {
+  const companyId = "default_company";
+  const adminUid = "adjustment-admin";
+  const repUid = "adjustment-rep";
+  const itemId = "manual-adjustment-item";
+  const key = "manual-adjustment-key";
+  const input = {
+    itemId,
+    adjustmentType: "manual_adjustment_in",
+    quantity: 2.25,
+    notes: "Received after stock count",
+  };
+  await seedUser(adminUid, "admin", companyId);
+  await seedUser(repUid, "sales_rep", companyId);
+  await db.doc(`items/${itemId}`).set({
+    id: itemId,
+    companyId,
+    name: "Adjusted item",
+    code: "ADJ-1",
+    unit: "piece",
+    active: true,
+    deleted: false,
+    trackStock: true,
+    currentStock: 5,
+    warehouseId: "default_warehouse",
+  });
+
+  await assert.rejects(() => adjustStockTransaction(
+    db,
+    repUid,
+    companyId,
+    "manual-adjustment-rep-key",
+    input,
+  ));
+  const results = await Promise.all([
+    retryTransientTransaction(
+      () => adjustStockTransaction(db, adminUid, companyId, key, input),
+    ),
+    retryTransientTransaction(
+      () => adjustStockTransaction(db, adminUid, companyId, key, input),
+    ),
+  ]);
+  assert.deepEqual(
+    results.map((result) => result.alreadyPosted).sort(),
+    [false, true],
+  );
+
+  const movementId = `stock_adjustment_${key}`;
+  const item = (await db.doc(`items/${itemId}`).get()).data();
+  const movement = (await db.doc(
+    `companies/${companyId}/stock_movements/${movementId}`,
+  ).get()).data();
+  assert.equal(item.currentStock, 7.25);
+  assert.equal(item.lastStockMovementId, movementId);
+  assert.equal(movement.quantityBefore, 5);
+  assert.equal(movement.quantityAfter, 7.25);
+  assert.equal(movement.notes, input.notes);
+
+  await assert.rejects(
+    () => adjustStockTransaction(
+      db,
+      adminUid,
+      companyId,
+      "manual-adjustment-insufficient-key",
+      {...input, adjustmentType: "manual_adjustment_out", quantity: 99},
+    ),
+    (error) => error.code === "failed-precondition" &&
+      error.details?.reason === "insufficient-stock",
+  );
+  assert.equal((await db.doc(`items/${itemId}`).get()).data().currentStock, 7.25);
+});
+
+test("inventory transfers post atomically through the trusted server", async () => {
+  const companyId = "trusted-inventory-transfer";
+  const adminUid = "transfer-admin";
+  const repUid = "transfer-rep";
+  const itemId = "transfer-item";
+  const transferId = "warehouse-to-rep";
+  await seedUser(adminUid, "admin", companyId);
+  await seedUser(repUid, "sales_rep", companyId, {name: "Transfer Rep"});
+  await db.doc(`items/${itemId}`).set({
+    id: itemId,
+    name: "Transfer Item",
+    code: "TRF-1",
+    unit: "piece",
+    active: true,
+    deleted: false,
+    trackStock: true,
+    currentStock: 10,
+    warehouseId: "default_warehouse",
+  });
+  await db.doc(
+    `companies/${companyId}/rep_inventory_balances/${repUid}_${itemId}`,
+  ).set({
+    id: `${repUid}_${itemId}`,
+    companyId,
+    salesRepId: repUid,
+    itemId,
+    quantity: 1,
+    createdAt: now,
+  });
+  await seedInventoryTransfer(companyId, transferId, adminUid, repUid, itemId, {
+    quantity: 3.5,
+  });
+
+  await assert.rejects(
+    () => confirmInventoryTransferTransaction(
+      db,
+      repUid,
+      companyId,
+      transferId,
+    ),
+    (error) => error.code === "permission-denied",
+  );
+  const result = await confirmInventoryTransferTransaction(
+    db,
+    adminUid,
+    companyId,
+    transferId,
+  );
+  assert.deepEqual(result, {transferId, alreadyPosted: false});
+
+  const transfer = (await db.doc(
+    `companies/${companyId}/inventory_transfers/${transferId}`,
+  ).get()).data();
+  const item = (await db.doc(`items/${itemId}`).get()).data();
+  const balance = (await db.doc(
+    `companies/${companyId}/rep_inventory_balances/${repUid}_${itemId}`,
+  ).get()).data();
+  const companyMovement = (await db.doc(
+    `companies/${companyId}/stock_movements/${transferId}_${itemId}_warehouse`,
+  ).get()).data();
+  const repMovement = (await db.doc(
+    `companies/${companyId}/rep_inventory_movements/${transferId}_${repUid}_${itemId}`,
+  ).get()).data();
+  assert.equal(transfer.status, "confirmed");
+  assert.equal(transfer.lines[0].warehouseQuantityBefore, 10);
+  assert.equal(transfer.lines[0].warehouseQuantityAfter, 6.5);
+  assert.equal(transfer.lines[0].repQuantityBefore, 1);
+  assert.equal(transfer.lines[0].repQuantityAfter, 4.5);
+  assert.equal(item.currentStock, 6.5);
+  assert.equal(balance.quantity, 4.5);
+  assert.equal(companyMovement.direction, "out");
+  assert.equal(companyMovement.quantityBefore, 10);
+  assert.equal(companyMovement.quantityAfter, 6.5);
+  assert.equal(repMovement.direction, "in");
+  assert.equal(repMovement.reason, "warehouseDelivery");
+
+  const replay = await confirmInventoryTransferTransaction(
+    db,
+    adminUid,
+    companyId,
+    transferId,
+  );
+  assert.deepEqual(replay, {transferId, alreadyPosted: true});
+  assert.equal((await db.doc(`items/${itemId}`).get()).data().currentStock, 6.5);
+});
+
+test("an insufficient inventory transfer creates no partial effects", async () => {
+  const companyId = "trusted-inventory-transfer-insufficient";
+  const adminUid = "transfer-insufficient-admin";
+  const repUid = "transfer-insufficient-rep";
+  const itemId = "transfer-insufficient-item";
+  const transferId = "insufficient-transfer";
+  await seedUser(adminUid, "admin", companyId);
+  await seedUser(repUid, "sales_rep", companyId);
+  await db.doc(`items/${itemId}`).set({
+    id: itemId,
+    name: "Limited Item",
+    code: "LIMIT-1",
+    unit: "piece",
+    active: true,
+    deleted: false,
+    trackStock: true,
+    currentStock: 2,
+  });
+  await seedInventoryTransfer(companyId, transferId, adminUid, repUid, itemId, {
+    quantity: 3,
+  });
+
+  await assert.rejects(
+    () => confirmInventoryTransferTransaction(
+      db,
+      adminUid,
+      companyId,
+      transferId,
+    ),
+    (error) =>
+      error.code === "failed-precondition" &&
+      error.details?.reason === "insufficient-warehouse-stock",
+  );
+  assert.equal((await db.doc(`items/${itemId}`).get()).data().currentStock, 2);
+  assert.equal((await db.doc(
+    `companies/${companyId}/inventory_transfers/${transferId}`,
+  ).get()).data().status, "draft");
+  assert.equal((await db.doc(
+    `companies/${companyId}/stock_movements/${transferId}_${itemId}_warehouse`,
+  ).get()).exists, false);
+  assert.equal((await db.doc(
+    `companies/${companyId}/rep_inventory_balances/${repUid}_${itemId}`,
+  ).get()).exists, false);
+});
+
 test("opening balance is permission checked, one-time, and idempotent", async () => {
   const companyId = "trusted-opening";
   await seedUser("opening-admin", "admin", companyId);
@@ -650,6 +860,7 @@ test("opening balance is permission checked, one-time, and idempotent", async ()
   assert.equal(replay.alreadyPosted, true);
   const customer = (await db.doc(`companies/${companyId}/customers/customer-a`).get()).data();
   assert.equal(customer.currentBalance, 15);
+  assert.equal(customer.openingBalance, 10);
   assert.equal(customer.totalSales, 100);
   assert.equal(customer.totalPaid, 20);
   await assert.rejects(() => postOpeningBalanceTransaction(
@@ -659,6 +870,178 @@ test("opening balance is permission checked, one-time, and idempotent", async ()
     "customer-a",
     {...input, amount: 999},
   ));
+});
+
+test("opening balance edits post only signed differences and retain one original", async () => {
+  const companyId = "trusted-opening-adjustment";
+  const adminUid = "opening-adjustment-admin";
+  const otherRepUid = "opening-adjustment-other-rep";
+  const customerId = "opening-adjustment-customer";
+  await seedUser(adminUid, "admin", companyId);
+  await seedUser(otherRepUid, "sales_rep", companyId);
+  await db.doc(`companies/${companyId}/customers/${customerId}`).set({
+    id: customerId,
+    companyId,
+    name: "Adjustment Customer",
+    active: true,
+    createdByUid: adminUid,
+    currentBalance: 5,
+    totalSales: 100,
+    totalPaid: 20,
+  });
+  await postOpeningBalanceTransaction(
+    db,
+    adminUid,
+    companyId,
+    customerId,
+    {
+      openingBalanceType: "customer_owes",
+      amount: 10,
+      transactionDate: now,
+      notes: "Original opening balance",
+    },
+  );
+
+  const firstKey = "opening_adjustment_001";
+  await assert.rejects(
+    () => updateOpeningBalanceTransaction(
+      db,
+      otherRepUid,
+      companyId,
+      customerId,
+      "opening_adjustment_denied",
+      {
+        openingBalanceType: "customer_credit",
+        amount: 4,
+        reason: "Unauthorized correction",
+      },
+    ),
+    (error) => error.code === "permission-denied",
+  );
+  const first = await updateOpeningBalanceTransaction(
+    db,
+    adminUid,
+    companyId,
+    customerId,
+    firstKey,
+    {
+      openingBalanceType: "customer_credit",
+      amount: 4,
+      reason: "Correct sign from source records",
+    },
+  );
+  assert.equal(first.difference, -14);
+  assert.equal(first.balanceAfter, 1);
+  assert.equal(first.alreadyPosted, false);
+
+  const originalId = `${customerId}_opening_balance`;
+  const original = (await db.doc(
+    `companies/${companyId}/customer_transactions/${originalId}`,
+  ).get()).data();
+  const firstAdjustment = (await db.doc(
+    `companies/${companyId}/customer_transactions/${first.adjustmentTransactionId}`,
+  ).get()).data();
+  const customerAfterFirst = (await db.doc(
+    `companies/${companyId}/customers/${customerId}`,
+  ).get()).data();
+  assert.equal(original.transactionType, "opening_balance");
+  assert.equal(original.amount, 4);
+  assert.equal(original.signedAmount, -4);
+  assert.equal(original.openingBalanceType, "customer_credit");
+  assert.equal(original.debitAmount, 10);
+  assert.equal(original.creditAmount, 0);
+  assert.equal(firstAdjustment.transactionType, "opening_balance_adjustment");
+  assert.equal(firstAdjustment.oldAmount, 10);
+  assert.equal(firstAdjustment.newAmount, -4);
+  assert.equal(firstAdjustment.difference, -14);
+  assert.equal(firstAdjustment.debitAmount, 0);
+  assert.equal(firstAdjustment.creditAmount, 14);
+  assert.equal(firstAdjustment.reason, "Correct sign from source records");
+  assert.equal(firstAdjustment.adjustedByUid, adminUid);
+  assert.ok(firstAdjustment.adjustedAt);
+  assert.equal(firstAdjustment.originalOpeningBalanceReference, originalId);
+  assert.equal(customerAfterFirst.currentBalance, 1);
+  assert.equal(customerAfterFirst.openingBalance, -4);
+  assert.equal(customerAfterFirst.totalSales, 100);
+  assert.equal(customerAfterFirst.totalPaid, 20);
+
+  const replay = await updateOpeningBalanceTransaction(
+    db,
+    adminUid,
+    companyId,
+    customerId,
+    firstKey,
+    {
+      openingBalanceType: "customer_credit",
+      amount: 4,
+      reason: "Correct sign from source records",
+    },
+  );
+  assert.equal(replay.alreadyPosted, true);
+  assert.equal((await db.doc(
+    `companies/${companyId}/customers/${customerId}`,
+  ).get()).data().currentBalance, 1);
+
+  const second = await updateOpeningBalanceTransaction(
+    db,
+    adminUid,
+    companyId,
+    customerId,
+    "opening_adjustment_002",
+    {
+      openingBalanceType: "customer_owes",
+      amount: 7,
+      reason: "Final verified receivable",
+    },
+  );
+  assert.equal(second.difference, 11);
+  assert.equal(second.balanceAfter, 12);
+  const secondAdjustment = (await db.doc(
+    `companies/${companyId}/customer_transactions/${second.adjustmentTransactionId}`,
+  ).get()).data();
+  assert.equal(secondAdjustment.oldAmount, -4);
+  assert.equal(secondAdjustment.newAmount, 7);
+  assert.equal(secondAdjustment.debitAmount, 11);
+  assert.equal(secondAdjustment.creditAmount, 0);
+
+  const openingRows = await db.collection(
+    `companies/${companyId}/customer_transactions`,
+  ).where("transactionType", "==", "opening_balance").get();
+  const adjustmentRows = await db.collection(
+    `companies/${companyId}/customer_transactions`,
+  ).where("transactionType", "==", "opening_balance_adjustment").get();
+  assert.equal(openingRows.size, 1);
+  assert.equal(adjustmentRows.size, 2);
+  const ledgerSigned = [...openingRows.docs, ...adjustmentRows.docs]
+    .reduce((sum, document) => {
+      const data = document.data();
+      return sum + data.debitAmount - data.creditAmount;
+    }, 0);
+  assert.equal(ledgerSigned, 7);
+
+  await assert.rejects(
+    () => updateOpeningBalanceTransaction(
+      db,
+      adminUid,
+      companyId,
+      customerId,
+      "opening_adjustment_no_reason",
+      {openingBalanceType: "customer_credit", amount: 2, reason: ""},
+    ),
+    (error) => error.code === "invalid-argument",
+  );
+  await assert.rejects(
+    () => updateOpeningBalanceTransaction(
+      db,
+      adminUid,
+      companyId,
+      customerId,
+      "opening_adjustment_no_change",
+      {openingBalanceType: "customer_owes", amount: 7, reason: "No change"},
+    ),
+    (error) =>
+      error.code === "invalid-argument" && error.details?.reason === "no-change",
+  );
 });
 
 test("concurrent invoice confirmations post totals and stock exactly once", async () => {
@@ -1140,6 +1523,48 @@ async function seedUser(uid, role, companyId, overrides = {}) {
     active: true,
     approvalStatus: "approved",
     ...overrides,
+  });
+}
+
+async function seedInventoryTransfer(
+  companyId,
+  transferId,
+  adminUid,
+  repUid,
+  itemId,
+  overrides = {},
+) {
+  const quantity = overrides.quantity ?? 1;
+  await db.doc(
+    `companies/${companyId}/inventory_transfers/${transferId}`,
+  ).set({
+    id: transferId,
+    companyId,
+    transferNumber: "TRN-2026-000001",
+    year: 2026,
+    type: overrides.type ?? "warehouseToRep",
+    status: "draft",
+    salesRepId: repUid,
+    salesRepNameSnapshot: repUid,
+    lines: [{
+      itemId,
+      modelSnapshot: "stale-code",
+      itemNameSnapshot: "stale-name",
+      unitSnapshot: "stale-unit",
+      quantity,
+    }],
+    totalQuantity: quantity,
+    notes: "Trusted inventory transfer",
+    createdByUid: adminUid,
+    createdByName: adminUid,
+    createdAt: now,
+    updatedAt: now,
+    confirmedByUid: "",
+    confirmedByName: "",
+    confirmedAt: null,
+    cancelledByUid: "",
+    cancelledAt: null,
+    effectsVersion: 1,
   });
 }
 

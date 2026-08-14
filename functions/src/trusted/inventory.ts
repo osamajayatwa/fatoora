@@ -37,6 +37,15 @@ interface CreateItemRequest {
   warehouseId?: unknown;
 }
 
+interface AdjustStockRequest {
+  companyId?: unknown;
+  idempotencyKey?: unknown;
+  itemId?: unknown;
+  adjustmentType?: unknown;
+  quantity?: unknown;
+  notes?: unknown;
+}
+
 interface ValidatedItem {
   name: string;
   code: string;
@@ -54,12 +63,34 @@ interface ValidatedItem {
   warehouseId: string;
 }
 
+interface ValidatedStockAdjustment {
+  itemId: string;
+  movementType: string;
+  direction: "in" | "out";
+  quantity: number;
+  notes: string;
+}
+
 export const createItem = onCall(TRUSTED_CALLABLE_OPTIONS, async (request) => {
   const uid = requireCallableUid(request, "createItem");
   const input = record(request.data) as CreateItemRequest;
   const companyId = requiredString(input.companyId, "companyId");
   const key = requiredIdempotencyKey(input.idempotencyKey);
   return createItemTransaction(
+    getFirestore(),
+    uid,
+    companyId,
+    key,
+    input,
+  );
+});
+
+export const adjustStock = onCall(TRUSTED_CALLABLE_OPTIONS, async (request) => {
+  const uid = requireCallableUid(request, "adjustStock");
+  const input = record(request.data) as AdjustStockRequest;
+  const companyId = requiredString(input.companyId, "companyId");
+  const key = requiredIdempotencyKey(input.idempotencyKey);
+  return adjustStockTransaction(
     getFirestore(),
     uid,
     companyId,
@@ -158,6 +189,118 @@ export async function createItemTransaction(
   });
 }
 
+export async function adjustStockTransaction(
+  firestore: Firestore,
+  uid: string | undefined,
+  companyId: string,
+  idempotencyKey: string,
+  input: AdjustStockRequest,
+): Promise<{
+  movementId: string;
+  quantityAfter: number;
+  alreadyPosted: boolean;
+}> {
+  const adjustment = validateStockAdjustment(input);
+  const movementId = deterministicId("stock_adjustment", idempotencyKey);
+  return firestore.runTransaction(async (transaction) => {
+    const user = await requireTrustedUser(transaction, firestore, uid, companyId);
+    if (user.role !== "admin" || companyId !== DEFAULT_COMPANY_ID) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only administrators can adjust warehouse stock.",
+      );
+    }
+
+    const movementRef = firestore.doc(
+      businessPath(companyId, "stock_movements", movementId),
+    );
+    const existingMovement = await transaction.get(movementRef);
+    if (existingMovement.exists) {
+      const data = existingMovement.data() ?? {};
+      if (!sameStockAdjustment(
+        data,
+        user.uid,
+        companyId,
+        idempotencyKey,
+        adjustment,
+      )) {
+        throw new HttpsError(
+          "already-exists",
+          "Idempotency key is already in use.",
+        );
+      }
+      return {
+        movementId,
+        quantityAfter: inventoryBalance(data, "quantityAfter"),
+        alreadyPosted: true,
+      };
+    }
+
+    const itemRef = firestore.doc(`items/${adjustment.itemId}`);
+    const itemSnapshot = await transaction.get(itemRef);
+    if (!itemSnapshot.exists) {
+      throw new HttpsError("not-found", "Inventory item was not found.");
+    }
+    const item = itemSnapshot.data() ?? {};
+    if (
+      item.deleted === true ||
+      item.trackStock !== true ||
+      (optionalString(item.companyId) && item.companyId !== companyId)
+    ) {
+      failPrecondition(
+        "invalid-inventory-item",
+        "The item is not available for stock tracking.",
+      );
+    }
+
+    const before = inventoryBalance(item, "currentStock");
+    const after = roundQuantity(
+      adjustment.direction === "in" ?
+        before + adjustment.quantity :
+        before - adjustment.quantity,
+    );
+    if (after < 0) {
+      failPrecondition(
+        "insufficient-stock",
+        "The stock adjustment exceeds the available quantity.",
+      );
+    }
+
+    transaction.update(itemRef, {
+      currentStock: after,
+      inventoryUpdatedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      lastInventoryReferenceType: "manualAdjustment",
+      lastInventoryReferenceId: movementId,
+      lastStockMovementId: movementId,
+    });
+    transaction.set(movementRef, {
+      id: movementId,
+      companyId,
+      idempotencyKey,
+      warehouseId: optionalString(item.warehouseId) || "default_warehouse",
+      itemId: adjustment.itemId,
+      itemName: optionalString(item.name),
+      itemCode: optionalString(item.code),
+      movementType: adjustment.movementType,
+      direction: adjustment.direction,
+      quantity: adjustment.quantity,
+      quantityBefore: before,
+      quantityAfter: after,
+      referenceType: "manual_adjustment",
+      referenceId: movementId,
+      referenceNumber: "",
+      movementDate: FieldValue.serverTimestamp(),
+      notes: adjustment.notes,
+      createdByUid: user.uid,
+      createdByName: user.name,
+      createdByRole: user.role,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return {movementId, quantityAfter: after, alreadyPosted: false};
+  });
+}
+
 function validateItem(input: CreateItemRequest): ValidatedItem {
   const currentStock = roundQuantity(
     finiteNumber(input.currentStock, "currentStock"),
@@ -196,6 +339,48 @@ function validateItem(input: CreateItemRequest): ValidatedItem {
   };
 }
 
+function validateStockAdjustment(
+  input: AdjustStockRequest,
+): ValidatedStockAdjustment {
+  const itemId = requiredDocumentId(input.itemId, "itemId");
+  const requestedType = requiredString(
+    input.adjustmentType,
+    "adjustmentType",
+  );
+  const movementType = requestedType === "increase_stock" ?
+    "manual_adjustment_in" :
+    requestedType === "decrease_stock" ?
+      "manual_adjustment_out" :
+      requestedType;
+  if (![
+    "manual_adjustment_in",
+    "manual_adjustment_out",
+    "damage",
+    "correction",
+  ].includes(movementType)) {
+    throw new HttpsError("invalid-argument", "adjustmentType is invalid.");
+  }
+  const quantity = roundQuantity(finiteNumber(input.quantity, "quantity"));
+  if (quantity <= 0 || quantity > 999999999) {
+    throw new HttpsError("invalid-argument", "quantity must be positive.");
+  }
+  const notes = requiredString(input.notes, "notes");
+  if (notes.length > 500) {
+    throw new HttpsError(
+      "invalid-argument",
+      "notes must not exceed 500 characters.",
+    );
+  }
+  return {
+    itemId,
+    movementType,
+    direction: movementType === "manual_adjustment_out" ||
+      movementType === "damage" ? "out" : "in",
+    quantity,
+    notes,
+  };
+}
+
 function sameItemRequest(
   data: Record<string, unknown>,
   uid: string,
@@ -221,4 +406,44 @@ function sameItemRequest(
     optionalString(data.barcode) === item.barcode &&
     optionalString(data.category) === item.category &&
     data.warehouseId === item.warehouseId;
+}
+
+function sameStockAdjustment(
+  data: Record<string, unknown>,
+  uid: string,
+  companyId: string,
+  idempotencyKey: string,
+  adjustment: ValidatedStockAdjustment,
+): boolean {
+  return data.createdByUid === uid &&
+    data.companyId === companyId &&
+    data.idempotencyKey === idempotencyKey &&
+    data.itemId === adjustment.itemId &&
+    data.movementType === adjustment.movementType &&
+    data.direction === adjustment.direction &&
+    roundQuantity(numberFrom(data, "quantity")) === adjustment.quantity &&
+    optionalString(data.notes) === adjustment.notes;
+}
+
+function inventoryBalance(data: Record<string, unknown>, field: string): number {
+  const value = data[field];
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    failPrecondition(
+      "invalid-inventory-data",
+      `${field} contains an invalid inventory balance.`,
+    );
+  }
+  return roundQuantity(value);
+}
+
+function requiredDocumentId(value: unknown, field: string): string {
+  const id = requiredString(value, field);
+  if (id.includes("/") || id.length > 1500) {
+    throw new HttpsError("invalid-argument", `${field} is invalid.`);
+  }
+  return id;
+}
+
+function failPrecondition(reason: string, message: string): never {
+  throw new HttpsError("failed-precondition", message, {reason});
 }

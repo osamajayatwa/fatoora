@@ -485,13 +485,13 @@ test("sales representatives read only their own custody documents", async () => 
   }
 });
 
-test("approved users can check missing custody posting documents", async () => {
+test("clients cannot probe missing function-owned custody documents", async () => {
   for (const uid of [adminUid, repAUid]) {
     const db = authenticatedDb(uid);
-    await assertSucceeds(
+    await assertFails(
       getDoc(businessDoc(db, "rep_inventory_balances", "missing-balance")),
     );
-    await assertSucceeds(
+    await assertFails(
       getDoc(businessDoc(db, "rep_inventory_movements", "missing-movement")),
     );
   }
@@ -598,7 +598,7 @@ test("representative movements are immutable for admins and reps", async () => {
   }
 });
 
-test("admin can atomically confirm a warehouse-to-representative transfer", async () => {
+test("client-side inventory transfer posting is denied atomically", async () => {
   const db = authenticatedDb(adminUid);
   const transferId = "confirm-delivery";
   const itemId = "item-confirm";
@@ -712,7 +712,38 @@ test("admin can atomically confirm a warehouse-to-representative transfer", asyn
     effectsVersion: 1,
   });
 
-  await assertSucceeds(batch.commit());
+  await assertFails(batch.commit());
+
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    const serverDb = context.firestore();
+    const item = await getDoc(doc(serverDb, "items", itemId));
+    const transfer = await getDoc(businessDoc(
+      serverDb,
+      "inventory_transfers",
+      transferId,
+    ));
+    const balance = await getDoc(businessDoc(
+      serverDb,
+      "rep_inventory_balances",
+      `${repAUid}_${itemId}`,
+    ));
+    const companyMovement = await getDoc(businessDoc(
+      serverDb,
+      "stock_movements",
+      companyMovementId,
+    ));
+    const repMovement = await getDoc(businessDoc(
+      serverDb,
+      "rep_inventory_movements",
+      repMovementId,
+    ));
+    if (item.data().currentStock !== 10 || transfer.data().status !== "draft") {
+      throw new Error("Denied transfer posting changed source documents");
+    }
+    if (balance.exists() || companyMovement.exists() || repMovement.exists()) {
+      throw new Error("Denied transfer posting created an effect document");
+    }
+  });
 });
 
 test("stock movement queries are scoped only by createdByUid", async () => {
@@ -977,7 +1008,7 @@ test("clients cannot forge warehouse invoice or return stock deltas", async () =
   );
 });
 
-test("admin stock corrections require one matching immutable movement", async () => {
+test("all client-side stock corrections are denied", async () => {
   const db = authenticatedDb(adminUid);
   const item = doc(db, "items", "item-a");
   const standaloneId = "standalone-adjustment";
@@ -1031,7 +1062,7 @@ test("admin stock corrections require one matching immutable movement", async ()
       quantityAfter: 8,
     }),
   );
-  await assertSucceeds(batch.commit());
+  await assertFails(batch.commit());
 });
 
 test("opening stock creation is reserved for the trusted server", async () => {
@@ -1114,10 +1145,10 @@ test("sales reps cannot read company cash movements even when salesRepId matches
   );
 });
 
-test("sales reps can create only pending own expenses", async () => {
+test("expense creation is callable-owned for every client role", async () => {
   const db = authenticatedDb(repAUid);
 
-  await assertSucceeds(
+  await assertFails(
     setDoc(
       businessDoc(db, "expenses", "new-rep-expense"),
       expenseCreatePayload("new-rep-expense", repAUid, "sales_rep"),
@@ -1218,6 +1249,332 @@ test("admin can reject pending expenses without changing financial fields", asyn
   );
 });
 
+test("unauthenticated users cannot read or write application data", async () => {
+  const db = testEnvironment.unauthenticatedContext().firestore();
+
+  await assertFails(getDoc(doc(db, "items", "item-a")));
+  await assertFails(getDoc(doc(db, "users", adminUid)));
+  await assertFails(getDoc(businessDoc(db, "invoices", "invoice-a")));
+  await assertFails(
+    setDoc(
+      businessDoc(db, "invoices", "unauthenticated-draft"),
+      invoiceDraftPayload("unauthenticated-draft", repAUid),
+    ),
+  );
+});
+
+test("safe profile, preference, user-management, and settings writes remain available", async () => {
+  const repDb = authenticatedDb(repAUid);
+  const adminDb = authenticatedDb(adminUid);
+  const preferences = doc(repDb, "users", repAUid, "preferences", "app");
+
+  await assertSucceeds(setDoc(preferences, {
+    language: "en",
+    themeMode: "system",
+    defaultInvoiceNote: "",
+    defaultReceiptNote: "",
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(setDoc(
+    doc(repDb, "users", repBUid, "preferences", "app"),
+    {
+      language: "en",
+      themeMode: "system",
+      defaultInvoiceNote: "",
+      defaultReceiptNote: "",
+      updatedAt: serverTimestamp(),
+    },
+  ));
+  await assertSucceeds(updateDoc(doc(repDb, "users", repAUid), {
+    name: "Rep A",
+    phone: "0790000001",
+    photoUrl: "",
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(updateDoc(doc(repDb, "users", repAUid), {
+    role: "admin",
+    updatedAt: serverTimestamp(),
+  }));
+
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "users", "managed-user"), {
+      uid: "managed-user",
+      name: "Managed User",
+      email: "managed@example.test",
+      phone: "",
+      photoUrl: "",
+      role: "pending_sales_rep",
+      active: false,
+      approvalStatus: "pending",
+      companyId,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+  });
+  await assertSucceeds(updateDoc(doc(adminDb, "users", "managed-user"), {
+    role: "sales_rep",
+    active: true,
+    approvalStatus: "approved",
+    approvedAt: serverTimestamp(),
+    approvedByUid: adminUid,
+    updatedAt: serverTimestamp(),
+  }));
+
+  await assertSucceeds(setDoc(
+    businessDoc(adminDb, "settings", "app"),
+    appSettingsPayload(adminUid),
+  ));
+  await assertFails(setDoc(
+    businessDoc(repDb, "settings", "app"),
+    appSettingsPayload(repAUid),
+  ));
+});
+
+test("admin catalog edits remain allowed but inventory effects are server-owned", async () => {
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "items", "catalog-item"), {
+      id: "catalog-item",
+      name: "Catalog Item",
+      code: "CAT-1",
+      description: "",
+      unit: "piece",
+      price: 10,
+      taxRate: 0,
+      active: true,
+      currentStock: 5,
+      openingStock: 5,
+      minStock: 1,
+      trackStock: true,
+      costPrice: 7,
+      barcode: null,
+      category: null,
+      warehouseId: "default_warehouse",
+      deleted: false,
+      createdBy: adminUid,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+  });
+
+  const adminRef = doc(authenticatedDb(adminUid), "items", "catalog-item");
+  await assertSucceeds(updateDoc(adminRef, {
+    name: "Updated Catalog Item",
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(updateDoc(adminRef, {
+    currentStock: 999,
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(updateDoc(
+    doc(authenticatedDb(repAUid), "items", "catalog-item"),
+    {active: false, updatedAt: serverTimestamp()},
+  ));
+});
+
+test("invoice drafts support current Flutter CRUD but direct posting is denied", async () => {
+  await seedDraftCustomer("draft-customer", repAUid);
+  const db = authenticatedDb(repAUid);
+  const invoiceId = "invoice-draft";
+  const invoiceRef = businessDoc(db, "invoices", invoiceId);
+  const counterRef = businessDoc(db, "counters", "invoices_2026");
+  const create = writeBatch(db);
+  create.set(counterRef, counterPayload("invoices_2026", "INV", 1));
+  create.set(invoiceRef, invoiceDraftPayload(
+    invoiceId,
+    repAUid,
+    {customerId: "draft-customer"},
+  ));
+  await assertSucceeds(create.commit());
+
+  await assertSucceeds(updateDoc(invoiceRef, {
+    notes: "Edited draft",
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(updateDoc(invoiceRef, {
+    invoiceStatus: "confirmed",
+    financialPosted: true,
+    inventoryPosted: true,
+    isLocked: true,
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(updateDoc(invoiceRef, {
+    customerTransactionIds: ["forged-ledger"],
+    cashMovementIds: ["forged-cash"],
+    inventoryMovementIds: ["forged-stock"],
+    updatedAt: serverTimestamp(),
+  }));
+  await assertSucceeds(deleteDoc(invoiceRef));
+});
+
+test("confirmed and legacy financial documents are readable but immutable", async () => {
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(businessDoc(db, "invoices", "confirmed-invoice"), {
+      id: "confirmed-invoice",
+      companyId,
+      invoiceStatus: "confirmed",
+      financialPosted: true,
+      inventoryPosted: true,
+      salesRepId: repAUid,
+      createdByUid: repAUid,
+    });
+  });
+
+  const repRef = businessDoc(
+    authenticatedDb(repAUid),
+    "invoices",
+    "confirmed-invoice",
+  );
+  await assertSucceeds(getDoc(repRef));
+  await assertFails(updateDoc(repRef, {notes: "tampered"}));
+  await assertFails(deleteDoc(repRef));
+});
+
+test("sales return drafts remain editable and confirmation remains callable-only", async () => {
+  await seedDraftCustomer("return-customer", repAUid);
+  await seedConfirmedInvoice("return-source", "return-customer", repAUid);
+  const db = authenticatedDb(repAUid);
+  const returnId = "return-draft";
+  const returnRef = businessDoc(db, "sales_returns", returnId);
+
+  const create = writeBatch(db);
+  create.set(
+    businessDoc(db, "counters", "sales_returns_2026"),
+    counterPayload("sales_returns_2026", "RET", 1),
+  );
+  create.set(
+    returnRef,
+    returnDraftPayload(returnId, "return-source", "return-customer", repAUid),
+  );
+  await assertSucceeds(create.commit());
+  await assertSucceeds(updateDoc(returnRef, {
+    reason: "Updated return reason",
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(updateDoc(returnRef, {
+    status: "confirmed",
+    financialPosted: true,
+    inventoryPosted: true,
+    customerTransactionIds: ["forged"],
+    updatedAt: serverTimestamp(),
+  }));
+});
+
+test("quotation draft and status workflow remains client-owned", async () => {
+  await seedDraftCustomer("quote-customer", repAUid);
+  const db = authenticatedDb(repAUid);
+  const quotationId = "quotation-draft";
+  const quotationRef = businessDoc(db, "quotations", quotationId);
+
+  const create = writeBatch(db);
+  create.set(
+    businessDoc(db, "counters", "quotations_2026"),
+    counterPayload("quotations_2026", "QUO", 1),
+  );
+  create.set(
+    quotationRef,
+    quotationDraftPayload(quotationId, "quote-customer", repAUid),
+  );
+  await assertSucceeds(create.commit());
+  await assertSucceeds(updateDoc(quotationRef, {
+    notes: "Edited quotation",
+    updatedAt: serverTimestamp(),
+  }));
+  await assertSucceeds(updateDoc(quotationRef, {
+    status: "sent",
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(updateDoc(quotationRef, {
+    status: "converted",
+    convertedInvoiceId: "missing-invoice",
+    convertedInvoiceNumber: "FORGED",
+    updatedAt: serverTimestamp(),
+  }));
+
+  const invoiceId = "quote-invoice";
+  const conversion = writeBatch(db);
+  conversion.set(
+    businessDoc(db, "counters", "invoices_2026"),
+    counterPayload("invoices_2026", "INV", 1),
+  );
+  conversion.set(
+    businessDoc(db, "invoices", invoiceId),
+    invoiceDraftPayload(invoiceId, repAUid, {
+      customerId: "quote-customer",
+      invoiceNumber: "INV-2026-000001",
+    }),
+  );
+  conversion.update(quotationRef, {
+    status: "converted",
+    convertedInvoiceId: invoiceId,
+    convertedInvoiceNumber: "INV-2026-000001",
+    updatedAt: serverTimestamp(),
+  });
+  await assertSucceeds(conversion.commit());
+});
+
+test("all posting, balance, reservation, audit, and lock paths fail closed", async () => {
+  const db = authenticatedDb(adminUid);
+  for (const [collectionName, documentId] of [
+    ["customers", "forged-customer"],
+    ["customer_phone_reservations", "0791234567"],
+    ["customer_transactions", "forged-ledger"],
+    ["receipts", "forged-receipt"],
+    ["cash_movements", "forged-cash"],
+    ["cash_balances", "forged-balance"],
+    ["settlements", "forged-settlement"],
+    ["stock_movements", "forged-stock"],
+    ["rep_inventory_balances", "forged-rep-balance"],
+    ["rep_inventory_movements", "forged-rep-movement"],
+    ["audit_events", "forged-audit"],
+    ["maintenance_locks", "forged-lock"],
+  ]) {
+    await assertFails(setDoc(
+      businessDoc(db, collectionName, documentId),
+      {
+        id: documentId,
+        companyId,
+        salesRepId: repAUid,
+        createdByUid: adminUid,
+      },
+    ));
+  }
+  await assertFails(setDoc(
+    doc(
+      db,
+      "companies",
+      companyId,
+      "audit_events",
+      "event",
+      "details",
+      "detail",
+    ),
+    {forged: true},
+  ));
+  await assertFails(setDoc(
+    businessDoc(db, "counters", "receipts_2026"),
+    counterPayload("receipts_2026", "REC", 1),
+  ));
+});
+
+test("cross-company reads and writes are denied", async () => {
+  const otherCompany = "other_company";
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    await setDoc(
+      doc(context.firestore(), "companies", otherCompany, "invoices", "x"),
+      {companyId: otherCompany, salesRepId: repAUid},
+    );
+  });
+  const db = authenticatedDb(repAUid);
+  await assertFails(getDoc(
+    doc(db, "companies", otherCompany, "invoices", "x"),
+  ));
+  await assertFails(setDoc(
+    doc(db, "companies", otherCompany, "invoices", "draft"),
+    invoiceDraftPayload("draft", repAUid, {companyId: otherCompany}),
+  ));
+});
+
 test("audit events are admin-readable and immutable to every client", async () => {
   const auditPath = (db) => doc(
     db, "companies", companyId, "audit_events", "event-1",
@@ -1253,6 +1610,248 @@ function authenticatedDb(uid) {
   return testEnvironment.authenticatedContext(uid, {
     email: `${uid}@example.test`,
   }).firestore();
+}
+
+async function seedDraftCustomer(customerId, ownerUid) {
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    await setDoc(businessDoc(context.firestore(), "customers", customerId), {
+      id: customerId,
+      companyId,
+      name: "Draft Customer",
+      active: true,
+      createdByUid: ownerUid,
+    });
+  });
+}
+
+async function seedConfirmedInvoice(invoiceId, customerId, salesRepId) {
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    await setDoc(businessDoc(context.firestore(), "invoices", invoiceId), {
+      id: invoiceId,
+      companyId,
+      invoiceNumber: "INV-2026-000099",
+      invoiceStatus: "confirmed",
+      customerId,
+      salesRepId,
+      financialPosted: true,
+      inventoryPosted: true,
+    });
+  });
+}
+
+function counterPayload(id, prefix, lastNumber) {
+  return {
+    id,
+    companyId,
+    year: 2026,
+    lastNumber,
+    prefix,
+    updatedAt: serverTimestamp(),
+  };
+}
+
+function invoiceDraftPayload(id, uid, overrides = {}) {
+  const isAdmin = uid === adminUid;
+  const customerId = overrides.customerId ?? "draft-customer";
+  return {
+    id,
+    companyId: overrides.companyId ?? companyId,
+    invoiceNumber: overrides.invoiceNumber ?? "INV-2026-000001",
+    invoiceType: "regular",
+    invoiceStatus: "draft",
+    paymentType: "credit",
+    paymentStatus: "unpaid",
+    hasReceivedPayment: false,
+    invoiceDate: new Date("2026-08-01T00:00:00.000Z"),
+    dueDate: new Date("2026-08-31T00:00:00.000Z"),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    createdByUid: uid,
+    createdByName: isAdmin ? "Admin" : "Rep A",
+    createdByRole: isAdmin ? "admin" : "sales_rep",
+    salesRepId: uid,
+    salesRepName: isAdmin ? "Admin" : "Rep A",
+    customerId,
+    customerSnapshot: {id: customerId, name: "Draft Customer"},
+    items: [{
+      itemId: "item-a",
+      itemName: "Item A",
+      itemCode: "A-1",
+      unit: "piece",
+      quantity: 1,
+      unitPrice: 100,
+      discount: 0,
+      taxPercent: 0,
+      subtotal: 100,
+      taxAmount: 0,
+      total: 100,
+    }],
+    subtotal: 100,
+    totalDiscount: 0,
+    totalTax: 0,
+    grandTotal: 100,
+    paidAmount: 0,
+    remainingAmount: 100,
+    returnStatus: "none",
+    returnedTotal: 0,
+    returnedSubtotal: 0,
+    returnedDiscount: 0,
+    returnedTax: 0,
+    returnedReceivableAmount: 0,
+    customerCreditAmount: 0,
+    cashRefundAmount: 0,
+    returnInvoiceIds: [],
+    latestReturnAt: null,
+    receiptIds: [],
+    lastReceiptId: "",
+    notes: "",
+    paymentMethod: "credit",
+    isLocked: false,
+    financialPosted: false,
+    financialPostedAt: null,
+    financialPostedByUid: "",
+    financialPostedByName: "",
+    customerTransactionIds: [],
+    cashMovementIds: [],
+    inventoryPosted: false,
+    inventoryPostedAt: null,
+    inventoryPostedByUid: "",
+    inventoryPostedByName: "",
+    inventoryMovementIds: [],
+    stockSourceType: isAdmin ? "companyWarehouse" : "salesRep",
+    stockSourceId: isAdmin ? "default_warehouse" : uid,
+    stockSourceSalesRepId: isAdmin ? "" : uid,
+    searchKeywords: ["draft"],
+    customerNameLower: "draft customer",
+    itemNamesLower: ["item a"],
+    invoiceNumberLower: "inv-2026-000001",
+    dateString: "2026-08-01",
+    government: null,
+  };
+}
+
+function returnDraftPayload(id, invoiceId, customerId, uid) {
+  return {
+    id,
+    companyId,
+    returnNumber: "RET-2026-000001",
+    returnInvoiceId: id,
+    originalInvoiceId: invoiceId,
+    originalInvoiceNumber: "INV-2026-000099",
+    originalInvoiceDate: new Date("2026-07-01T00:00:00.000Z"),
+    customerId,
+    customerSnapshot: {id: customerId, name: "Draft Customer"},
+    items: [{itemId: "item-a", returnedQuantity: 1}],
+    subtotal: 100,
+    totalDiscount: 0,
+    totalTax: 0,
+    grandTotal: 100,
+    receivableReduction: 0,
+    customerCreditAmount: 0,
+    cashRefundAmount: 0,
+    refundType: "credit_customer_balance",
+    returnDate: new Date("2026-08-02T00:00:00.000Z"),
+    reason: "Customer return",
+    status: "draft",
+    salesRepId: uid,
+    salesRepName: "Rep A",
+    createdByUid: uid,
+    createdByName: "Rep A",
+    createdByRole: "sales_rep",
+    financialPosted: false,
+    inventoryPosted: false,
+    financialPostedAt: null,
+    inventoryPostedAt: null,
+    stockMovementIds: [],
+    customerTransactionIds: [],
+    cashMovementIds: [],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+}
+
+function quotationDraftPayload(id, customerId, uid) {
+  return {
+    id,
+    companyId,
+    quotationNumber: "QUO-2026-000001",
+    quotationDate: new Date("2026-08-01T00:00:00.000Z"),
+    validUntil: new Date("2026-08-31T00:00:00.000Z"),
+    customerId,
+    customerSnapshot: {id: customerId, name: "Draft Customer"},
+    items: [{itemId: "item-a", quantity: 1, total: 100}],
+    subtotal: 100,
+    totalDiscount: 0,
+    totalTax: 0,
+    grandTotal: 100,
+    notes: "",
+    terms: "",
+    status: "draft",
+    salesRepId: uid,
+    salesRepName: "Rep A",
+    createdByUid: uid,
+    createdByName: "Rep A",
+    createdByRole: "sales_rep",
+    convertedInvoiceId: "",
+    convertedInvoiceNumber: "",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    searchKeywords: ["draft"],
+  };
+}
+
+function appSettingsPayload(uid) {
+  return {
+    companySettings: {
+      name: "Fatoora",
+      country: "Jordan",
+      email: "",
+      website: "",
+      phone: "",
+      address: "",
+      logoEnabled: false,
+    },
+    documentSettings: {
+      invoicePrefix: "INV",
+      receiptPrefix: "REC",
+      quotationPrefix: "QUO",
+      salesReturnPrefix: "RET",
+      defaultDueDays: 30,
+      defaultTaxPercent: 0,
+      allowDiscount: true,
+      allowSalesRepPriceEdit: false,
+    },
+    inventorySettings: {
+      defaultWarehouseId: "default_warehouse",
+      allowNegativeStock: false,
+      lowStockAlertsEnabled: true,
+      defaultMinStock: 0,
+      trackStockByDefault: true,
+    },
+    pdfSettings: {
+      showLogo: false,
+      showCompanyInfo: true,
+      pdfLanguageMode: "app_language",
+      invoiceFooterText: "",
+      quotationTerms: "",
+      receiptFooterText: "",
+      statementFooterText: "",
+      defaultNotes: "",
+    },
+    permissionSettings: {
+      allowSalesRepCreateCustomers: true,
+      allowSalesRepCreateReceipts: true,
+      allowSalesRepCreateReturns: true,
+      allowSalesRepCreateQuotations: true,
+      allowSalesRepPriceEdit: false,
+      allowSalesRepDiscount: false,
+    },
+    jofotaraStatusSettings: {enabled: false, status: "disabled"},
+    schemaVersion: 1,
+    updatedAt: serverTimestamp(),
+    updatedByUid: uid,
+    updatedByName: uid === adminUid ? "Admin" : "Rep A",
+  };
 }
 
 async function seedOpeningCustomer(customerId, ownerUid) {

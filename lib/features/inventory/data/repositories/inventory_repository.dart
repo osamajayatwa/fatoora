@@ -1,6 +1,9 @@
 import 'dart:async';
+
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fatoora/core/data/firestore_query_pager.dart';
+import 'package:fatoora/core/firebase/trusted_callable_client.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/inventory/data/models/inventory_dashboard_snapshot.dart';
 import 'package:fatoora/features/inventory/data/models/stock_movement_model.dart';
@@ -29,9 +32,17 @@ class InventoryRepositoryException implements Exception {
 class InventoryRepository {
   InventoryRepository({
     FirebaseFirestore? firestore,
+    FirebaseFunctions? functions,
     FirebaseAuth? firebaseAuth,
     BusinessUserContextReader? contextReader,
+    TrustedCallableClient? trustedCallableClient,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _trustedCallableClient =
+           trustedCallableClient ??
+           TrustedCallableClient.forDefaultApp(
+             firebaseAuth: firebaseAuth,
+             functions: functions,
+           ),
        _contextReader =
            contextReader ??
            BusinessUserContextReader(
@@ -40,6 +51,7 @@ class InventoryRepository {
            );
 
   final FirebaseFirestore _firestore;
+  final TrustedCallableClient _trustedCallableClient;
   final BusinessUserContextReader _contextReader;
 
   CollectionReference<Map<String, dynamic>> get _items =>
@@ -180,66 +192,17 @@ class InventoryRepository {
         );
       }
       final movementType = _normalizeAdjustmentType(adjustmentType);
-      final direction = _directionForAdjustment(movementType);
-      await _firestore
-          .runTransaction((transaction) async {
-            final itemRef = _items.doc(itemId.trim());
-            final itemSnapshot = await transaction.get(itemRef);
-            if (!itemSnapshot.exists) {
-              throw const InventoryRepositoryException(
-                InventoryRepositoryError.notFound,
-              );
-            }
-            final item = ItemModel.fromFirestore(itemSnapshot);
-            if (item.deleted || !item.trackStock) {
-              throw const InventoryRepositoryException(
-                InventoryRepositoryError.invalidData,
-              );
-            }
-            final before = item.currentStock;
-            final after = direction == 'in'
-                ? _round(before + roundedQuantity)
-                : _round(before - roundedQuantity);
-            if (after < 0) {
-              throw const InventoryRepositoryException(
-                InventoryRepositoryError.insufficientStock,
-              );
-            }
-            final movementRef = _stockMovements(resolvedCompanyId).doc();
-            transaction.update(itemRef, {
-              'currentStock': after,
-              'inventoryUpdatedAt': FieldValue.serverTimestamp(),
-              'updatedAt': FieldValue.serverTimestamp(),
-              'lastInventoryReferenceType': 'manualAdjustment',
-              'lastInventoryReferenceId': movementRef.id,
-              'lastStockMovementId': movementRef.id,
-            });
-            transaction.set(movementRef, {
-              'id': movementRef.id,
-              'companyId': resolvedCompanyId,
-              'warehouseId': item.warehouseId.trim().isEmpty
-                  ? ItemModel.defaultWarehouseId
-                  : item.warehouseId,
-              'itemId': item.id,
-              'itemName': item.name,
-              'itemCode': item.code,
-              'movementType': movementType,
-              'direction': direction,
-              'quantity': roundedQuantity,
-              'quantityBefore': before,
-              'quantityAfter': after,
-              'referenceType': 'manual_adjustment',
-              'referenceId': movementRef.id,
-              'referenceNumber': '',
-              'movementDate': FieldValue.serverTimestamp(),
-              'notes': notes.trim(),
-              'createdByUid': user.uid,
-              'createdByName': user.name,
-              'createdByRole': user.role,
-              'createdAt': FieldValue.serverTimestamp(),
-            });
+      final idempotencyKey = _stockMovements(resolvedCompanyId).doc().id;
+      await _trustedCallableClient
+          .callAuthenticated<Map<String, dynamic>>('adjustStock', {
+            'companyId': resolvedCompanyId,
+            'idempotencyKey': idempotencyKey,
+            'itemId': itemId.trim(),
+            'adjustmentType': movementType,
+            'quantity': roundedQuantity,
+            'notes': notes.trim(),
           })
-          .timeout(const Duration(seconds: 20));
+          .timeout(const Duration(seconds: 30));
     });
   }
 
@@ -261,13 +224,6 @@ class InventoryRepository {
       _ => throw const InventoryRepositoryException(
         InventoryRepositoryError.invalidData,
       ),
-    };
-  }
-
-  String _directionForAdjustment(String value) {
-    return switch (value) {
-      'manual_adjustment_out' || 'damage' => 'out',
-      _ => 'in',
     };
   }
 
@@ -306,6 +262,13 @@ class InventoryRepository {
         InventoryRepositoryError.timeout,
         error,
       );
+    } on FirebaseFunctionsException catch (error) {
+      final details = error.details;
+      final reason = details is Map ? details['reason']?.toString() : null;
+      final mapped = reason == 'insufficient-stock'
+          ? InventoryRepositoryError.insufficientStock
+          : _mapFirebaseError(error.code);
+      throw InventoryRepositoryException(mapped, error);
     } on FirebaseException catch (error) {
       throw InventoryRepositoryException(_mapFirebaseError(error.code), error);
     } on FormatException catch (error) {
@@ -341,7 +304,9 @@ class InventoryRepository {
       'unavailable' ||
       'deadline-exceeded' => InventoryRepositoryError.unavailable,
       'not-found' => InventoryRepositoryError.notFound,
+      'invalid-argument' ||
       'failed-precondition' ||
+      'already-exists' ||
       'aborted' => InventoryRepositoryError.invalidData,
       _ => InventoryRepositoryError.unknown,
     };

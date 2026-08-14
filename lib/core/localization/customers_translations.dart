@@ -1,4 +1,23 @@
 const Map<String, String> customersEnglishTranslations = {
+  'customers_edit_opening_balance': 'Edit opening balance',
+  'customers_opening_balance_new_amount': 'New opening balance amount',
+  'customers_opening_balance_edit_warning':
+      'The original opening balance will be preserved. Only the difference is applied to the customer balance, and an adjustment entry records the change.',
+  'customers_opening_balance_reason': 'Adjustment reason',
+  'customers_opening_balance_reason_hint':
+      'Explain why the opening balance is being changed',
+  'customers_opening_balance_reason_required':
+      'A reason is required for this adjustment.',
+  'customers_opening_balance_old_value': 'Old value',
+  'customers_opening_balance_new_value': 'New value',
+  'customers_opening_balance_difference': 'Difference',
+  'customers_opening_balance_no_change':
+      'Enter a value different from the existing opening balance.',
+  'customers_save_opening_balance_change': 'Save opening balance change',
+  'customers_opening_balance_updated': 'Opening balance updated successfully.',
+  'customers_opening_balance_update_error':
+      'The opening balance could not be updated.',
+  'opening_balance_adjustment': 'Opening balance adjustment',
   'customers': 'Customers',
   'customers_add': 'Add customer',
   'customers_edit': 'Edit customer',
@@ -94,6 +113,22 @@ const Map<String, String> customersEnglishTranslations = {
 };
 
 const Map<String, String> customersArabicTranslations = {
+  'customers_edit_opening_balance': 'تعديل الرصيد الافتتاحي',
+  'customers_opening_balance_new_amount': 'مبلغ الرصيد الافتتاحي الجديد',
+  'customers_opening_balance_edit_warning':
+      'سيتم الاحتفاظ بقيد الرصيد الافتتاحي الأصلي، وسيُطبّق الفرق فقط على رصيد العميل مع تسجيل قيد تعديل مستقل.',
+  'customers_opening_balance_reason': 'سبب التعديل',
+  'customers_opening_balance_reason_hint': 'وضّح سبب تعديل الرصيد الافتتاحي',
+  'customers_opening_balance_reason_required': 'سبب التعديل مطلوب.',
+  'customers_opening_balance_old_value': 'القيمة القديمة',
+  'customers_opening_balance_new_value': 'القيمة الجديدة',
+  'customers_opening_balance_difference': 'الفرق',
+  'customers_opening_balance_no_change':
+      'أدخل قيمة تختلف عن الرصيد الافتتاحي الحالي.',
+  'customers_save_opening_balance_change': 'حفظ تعديل الرصيد الافتتاحي',
+  'customers_opening_balance_updated': 'تم تحديث الرصيد الافتتاحي بنجاح.',
+  'customers_opening_balance_update_error': 'تعذر تحديث الرصيد الافتتاحي.',
+  'opening_balance_adjustment': 'تعديل الرصيد الافتتاحي',
   'customers': 'العملاء',
   'customers_add': 'إضافة عميل',
   'customers_edit': 'تعديل العميل',

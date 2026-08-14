@@ -6,79 +6,79 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function userDoc() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    function userPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
     }
 
-    function hasUserDoc() {
-      return isSignedIn()
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    function hasUser() {
+      return isSignedIn() && exists(userPath());
+    }
+
+    function user() {
+      return get(userPath()).data;
+    }
+
+    function profileCompany(data) {
+      return data.keys().hasAny(['companyId'])
+        ? data.companyId
+        : 'default_company';
+    }
+
+    function hasApprovedStatus(data) {
+      return (
+          data.keys().hasAny(['approvalStatus'])
+          && data.approvalStatus == 'approved'
+        )
+        || (
+          !data.keys().hasAny(['approvalStatus'])
+          && data.role == 'admin'
+        );
     }
 
     function isApprovedCompanyUser(companyId) {
-      let user = userDoc().data;
-      return hasUserDoc()
-        && (
-          (
-            user.keys().hasAny(['companyId'])
-            && user.companyId == companyId
-          )
-          || (
-            companyId == 'default_company'
-            && !user.keys().hasAny(['companyId'])
-          )
-        )
-        && user.active == true
-        && (
-          (
-            user.keys().hasAny(['approvalStatus'])
-            && user.approvalStatus == 'approved'
-          )
-          || (
-            !user.keys().hasAny(['approvalStatus'])
-            && user.role == 'admin'
-          )
-        )
-        && (
-          user.role == 'admin'
-          || user.role == 'sales_rep'
-        );
+      return hasUser()
+        && profileCompany(user()) == companyId
+        && user().active == true
+        && hasApprovedStatus(user())
+        && user().role in ['admin', 'sales_rep'];
     }
 
-    function isActiveAdmin() {
-      let user = userDoc().data;
-      return hasUserDoc()
-        && user.role == 'admin'
-        && user.active == true
-        && (
-          (
-            user.keys().hasAny(['approvalStatus'])
-            && user.approvalStatus == 'approved'
-          )
-          || !user.keys().hasAny(['approvalStatus'])
-        );
+    function isAdmin(companyId) {
+      return isApprovedCompanyUser(companyId) && user().role == 'admin';
     }
 
-    function isOwnerField(data) {
-      return data.createdByUid == request.auth.uid
-        || data.salesRepId == request.auth.uid;
+    function ownsCreatedDocument(data) {
+      return data.keys().hasAny(['createdByUid'])
+        && data.createdByUid == request.auth.uid;
     }
 
-    function canReadOwnedBusinessDoc(companyId, data) {
+    function ownsSalesRepDocument(data) {
+      return data.keys().hasAny(['salesRepId'])
+        && data.salesRepId == request.auth.uid;
+    }
+
+    function canReadCreatedDocument(companyId, data) {
+      return isApprovedCompanyUser(companyId)
+        && (isAdmin(companyId) || ownsCreatedDocument(data));
+    }
+
+    function canReadSalesRepDocument(companyId, data) {
+      return isApprovedCompanyUser(companyId)
+        && (isAdmin(companyId) || ownsSalesRepDocument(data));
+    }
+
+    function canReadCustomerTransaction(companyId, data) {
+      let customerPath =
+        /databases/$(database)/documents/companies/$(companyId)/customers/$(data.customerId);
       return isApprovedCompanyUser(companyId)
         && (
-          userDoc().data.role == 'admin'
-          || isOwnerField(data)
-        );
-    }
-
-    function canReadSalesRepOwnedDoc(companyId, data) {
-      return isApprovedCompanyUser(companyId)
-        && (
-          isActiveAdmin()
+          isAdmin(companyId)
+          || ownsSalesRepDocument(data)
           || (
-            data.keys().hasAny(['salesRepId'])
-            && data.salesRepId == request.auth.uid
+            data.keys().hasAny(['customerId'])
+            && data.customerId is string
+            && exists(customerPath)
+            && get(customerPath).data.createdByUid == request.auth.uid
           )
         );
     }
@@ -86,7 +86,7 @@ service cloud.firestore {
     function canReadCashMovement(companyId, data) {
       return isApprovedCompanyUser(companyId)
         && (
-          isActiveAdmin()
+          isAdmin(companyId)
           || (
             data.keys().hasAll(['cashAccount', 'salesRepId'])
             && data.cashAccount == 'rep_cash'
@@ -98,83 +98,97 @@ service cloud.firestore {
     function canReadExpense(companyId, data) {
       return isApprovedCompanyUser(companyId)
         && (
-          isActiveAdmin()
-          || data.paidByUid == request.auth.uid
-          || data.salesRepId == request.auth.uid
-        );
-    }
-
-    function canReadCreatedByOwnedDoc(companyId, data) {
-      return isApprovedCompanyUser(companyId)
-        && (
-          isActiveAdmin()
-          || data.createdByUid == request.auth.uid
-        );
-    }
-
-    function canReadCustomerTransaction(companyId, data) {
-      return isApprovedCompanyUser(companyId)
-        && (
-          isActiveAdmin()
-          || data.salesRepId == request.auth.uid
+          isAdmin(companyId)
           || (
-            data.customerId is string
-            && exists(
-              /databases/$(database)/documents/companies/$(companyId)/customers/$(data.customerId)
+            data.keys().hasAny(['paidByUid'])
+            && data.paidByUid == request.auth.uid
+          )
+          || ownsSalesRepDocument(data)
+        );
+    }
+
+    function settingsPath(companyId) {
+      return /databases/$(database)/documents/companies/$(companyId)/settings/app;
+    }
+
+    function permissionAllows(companyId, field) {
+      let path = settingsPath(companyId);
+      return user().role == 'admin'
+        || (
+          user().role == 'sales_rep'
+          && (
+            !exists(path)
+            || !get(path).data.keys().hasAny(['permissionSettings'])
+            || !get(path).data.permissionSettings.keys().hasAny([field])
+            || get(path).data.permissionSettings[field] == true
+          )
+        );
+    }
+
+    function configuredPrefix(companyId, prefix, field, fallback) {
+      let path = settingsPath(companyId);
+      return prefix is string
+        && prefix.matches('^[A-Z0-9]{1,10}$')
+        && (
+          (
+            exists(path)
+            && get(path).data.keys().hasAny(['documentSettings'])
+            && get(path).data.documentSettings.keys().hasAny([field])
+            && prefix == get(path).data.documentSettings[field]
+          )
+          || (!exists(path) && prefix == fallback)
+        );
+    }
+
+    function configuredNumber(companyId, number, field, fallback) {
+      let path = settingsPath(companyId);
+      return number is string
+        && number.matches('^[A-Z0-9]{1,10}-[0-9]{4}-[0-9]{6}$')
+        && (
+          (
+            exists(path)
+            && get(path).data.keys().hasAny(['documentSettings'])
+            && get(path).data.documentSettings.keys().hasAny([field])
+            && number.matches(
+              '^' + get(path).data.documentSettings[field]
+              + '-[0-9]{4}-[0-9]{6}$'
             )
-            && get(
-              /databases/$(database)/documents/companies/$(companyId)/customers/$(data.customerId)
-            ).data.createdByUid == request.auth.uid
+          )
+          || (
+            !exists(path)
+            && number.matches('^' + fallback + '-[0-9]{4}-[0-9]{6}$')
           )
         );
     }
 
     function validPendingUserCreate(userId) {
-      return request.auth.uid == userId
+      let data = request.resource.data;
+      return isSignedIn()
+        && request.auth.uid == userId
         && request.auth.token.email != null
-        && request.resource.data.keys().hasOnly([
-          'uid',
-          'name',
-          'email',
-          'phone',
-          'photoUrl',
-          'role',
-          'active',
-          'approvalStatus',
-          'companyId',
-          'createdAt',
-          'updatedAt'
+        && data.keys().hasOnly([
+          'uid', 'name', 'email', 'phone', 'photoUrl', 'role', 'active',
+          'approvalStatus', 'companyId', 'createdAt', 'updatedAt'
         ])
-        && request.resource.data.uid == userId
-        && request.resource.data.email == request.auth.token.email
-        && request.resource.data.name is string
-        && request.resource.data.name.size() >= 2
-        && request.resource.data.name != 'undefined'
-        && request.resource.data.role == 'pending_sales_rep'
-        && request.resource.data.active == false
-        && request.resource.data.approvalStatus == 'pending'
-        && request.resource.data.companyId == 'default_company'
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time;
+        && data.uid == userId
+        && data.email == request.auth.token.email
+        && data.name is string
+        && data.name.size() >= 2
+        && data.name != 'undefined'
+        && data.role == 'pending_sales_rep'
+        && data.active == false
+        && data.approvalStatus == 'pending'
+        && data.companyId == 'default_company'
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
     }
 
     function validSafeSelfProfileUpdate(userId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
       return isSignedIn()
         && request.auth.uid == userId
-        && isApprovedCompanyUser(resource.data.companyId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'name',
-          'phone',
-          'photoUrl',
-          'updatedAt'
-        ])
-        && request.resource.data.uid == resource.data.uid
-        && request.resource.data.email == resource.data.email
-        && request.resource.data.role == resource.data.role
-        && request.resource.data.active == resource.data.active
-        && request.resource.data.approvalStatus == resource.data.approvalStatus
-        && request.resource.data.companyId == resource.data.companyId
-        && request.resource.data.createdAt == resource.data.createdAt
+        && isApprovedCompanyUser(profileCompany(resource.data))
+        && changed.hasOnly(['name', 'phone', 'photoUrl', 'updatedAt'])
         && request.resource.data.name is string
         && request.resource.data.name.size() >= 2
         && request.resource.data.name != 'undefined'
@@ -183,66 +197,58 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time;
     }
 
-    function validAdminManagedUserUpdate(userId) {
-      return isActiveAdmin()
+    function validAdminUserUpdate(userId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return isAdmin('default_company')
         && request.auth.uid != userId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'name',
-          'phone',
-          'photoUrl',
-          'role',
-          'active',
-          'approvalStatus',
-          'approvedAt',
-          'approvedByUid',
-          'rejectedAt',
-          'rejectedByUid',
+        && profileCompany(resource.data) == 'default_company'
+        && profileCompany(request.resource.data) == 'default_company'
+        && changed.hasOnly([
+          'name', 'phone', 'photoUrl', 'role', 'active', 'approvalStatus',
+          'approvedAt', 'approvedByUid', 'rejectedAt', 'rejectedByUid',
           'updatedAt'
         ])
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.uid == userId
         && request.resource.data.email == resource.data.email
-        && request.resource.data.companyId == resource.data.companyId
-        && request.resource.data.companyId == 'default_company'
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.role in [
-          'admin',
-          'sales_rep',
-          'pending_sales_rep'
+          'admin', 'sales_rep', 'pending_sales_rep'
         ]
         && request.resource.data.approvalStatus in [
-          'approved',
-          'pending',
-          'rejected'
+          'approved', 'pending', 'rejected'
         ]
         && request.resource.data.updatedAt == request.time;
     }
 
-    function validAppSettingsWrite(companyId, settingsId) {
+    function validPreferencesWrite(userId, preferenceId) {
       let data = request.resource.data;
-      return isActiveAdmin()
-        && settingsId == 'app'
-        && isApprovedCompanyUser(companyId)
+      return isSignedIn()
+        && request.auth.uid == userId
+        && preferenceId == 'app'
         && data.keys().hasOnly([
-          'companySettings',
-          'documentSettings',
-          'inventorySettings',
-          'pdfSettings',
-          'permissionSettings',
-          'jofotaraStatusSettings',
-          'schemaVersion',
-          'updatedAt',
-          'updatedByUid',
-          'updatedByName'
+          'language', 'themeMode', 'defaultInvoiceNote',
+          'defaultReceiptNote', 'updatedAt'
+        ])
+        && data.language in ['ar', 'en']
+        && data.themeMode in ['system', 'light', 'dark']
+        && data.defaultInvoiceNote is string
+        && data.defaultReceiptNote is string
+        && data.updatedAt == request.time;
+    }
+
+    function validAppSettings(companyId, settingsId) {
+      let data = request.resource.data;
+      return isAdmin(companyId)
+        && settingsId == 'app'
+        && data.keys().hasOnly([
+          'companySettings', 'documentSettings', 'inventorySettings',
+          'pdfSettings', 'permissionSettings', 'jofotaraStatusSettings',
+          'schemaVersion', 'updatedAt', 'updatedByUid', 'updatedByName'
         ])
         && data.companySettings is map
         && data.companySettings.keys().hasOnly([
-          'name',
-          'country',
-          'email',
-          'website',
-          'phone',
-          'address',
+          'name', 'country', 'email', 'website', 'phone', 'address',
           'logoEnabled'
         ])
         && data.companySettings.name is string
@@ -256,14 +262,9 @@ service cloud.firestore {
         && data.companySettings.logoEnabled is bool
         && data.documentSettings is map
         && data.documentSettings.keys().hasOnly([
-          'invoicePrefix',
-          'receiptPrefix',
-          'quotationPrefix',
-          'salesReturnPrefix',
-          'defaultDueDays',
-          'defaultTaxPercent',
-          'allowDiscount',
-          'allowSalesRepPriceEdit'
+          'invoicePrefix', 'receiptPrefix', 'quotationPrefix',
+          'salesReturnPrefix', 'defaultDueDays', 'defaultTaxPercent',
+          'allowDiscount', 'allowSalesRepPriceEdit'
         ])
         && data.documentSettings.invoicePrefix.matches('^[A-Z0-9]{1,10}$')
         && data.documentSettings.receiptPrefix.matches('^[A-Z0-9]{1,10}$')
@@ -279,11 +280,8 @@ service cloud.firestore {
         && data.documentSettings.allowSalesRepPriceEdit is bool
         && data.inventorySettings is map
         && data.inventorySettings.keys().hasOnly([
-          'defaultWarehouseId',
-          'allowNegativeStock',
-          'lowStockAlertsEnabled',
-          'defaultMinStock',
-          'trackStockByDefault'
+          'defaultWarehouseId', 'allowNegativeStock',
+          'lowStockAlertsEnabled', 'defaultMinStock', 'trackStockByDefault'
         ])
         && data.inventorySettings.defaultWarehouseId is string
         && data.inventorySettings.defaultWarehouseId.size() > 0
@@ -294,14 +292,9 @@ service cloud.firestore {
         && data.inventorySettings.trackStockByDefault is bool
         && data.pdfSettings is map
         && data.pdfSettings.keys().hasOnly([
-          'showLogo',
-          'showCompanyInfo',
-          'pdfLanguageMode',
-          'invoiceFooterText',
-          'quotationTerms',
-          'receiptFooterText',
-          'statementFooterText',
-          'defaultNotes'
+          'showLogo', 'showCompanyInfo', 'pdfLanguageMode',
+          'invoiceFooterText', 'quotationTerms', 'receiptFooterText',
+          'statementFooterText', 'defaultNotes'
         ])
         && data.pdfSettings.showLogo is bool
         && data.pdfSettings.showCompanyInfo is bool
@@ -313,12 +306,9 @@ service cloud.firestore {
         && data.pdfSettings.defaultNotes is string
         && data.permissionSettings is map
         && data.permissionSettings.keys().hasOnly([
-          'allowSalesRepCreateCustomers',
-          'allowSalesRepCreateReceipts',
-          'allowSalesRepCreateReturns',
-          'allowSalesRepCreateQuotations',
-          'allowSalesRepPriceEdit',
-          'allowSalesRepDiscount'
+          'allowSalesRepCreateCustomers', 'allowSalesRepCreateReceipts',
+          'allowSalesRepCreateReturns', 'allowSalesRepCreateQuotations',
+          'allowSalesRepPriceEdit', 'allowSalesRepDiscount'
         ])
         && data.permissionSettings.allowSalesRepCreateCustomers is bool
         && data.permissionSettings.allowSalesRepCreateReceipts is bool
@@ -327,12 +317,11 @@ service cloud.firestore {
         && data.permissionSettings.allowSalesRepPriceEdit is bool
         && data.permissionSettings.allowSalesRepDiscount is bool
         && data.jofotaraStatusSettings is map
-        && data.jofotaraStatusSettings.keys().hasOnly([
-          'enabled',
-          'status'
-        ])
+        && data.jofotaraStatusSettings.keys().hasOnly(['enabled', 'status'])
         && data.jofotaraStatusSettings.enabled == false
-        && data.jofotaraStatusSettings.status in ['disabled', 'not_configured']
+        && data.jofotaraStatusSettings.status in [
+          'disabled', 'not_configured'
+        ]
         && data.schemaVersion is number
         && data.schemaVersion >= 1
         && data.updatedAt == request.time
@@ -341,1143 +330,212 @@ service cloud.firestore {
         && data.updatedByName.size() > 0;
     }
 
-    function configuredPrefixMatches(companyId, prefix, field, fallback) {
-      let settingsPath =
-        /databases/$(database)/documents/companies/$(companyId)/settings/app;
-      return prefix is string
-        && prefix.matches('^[A-Z0-9]{1,10}$')
+    function customerAllowed(companyId, customerId) {
+      let path =
+        /databases/$(database)/documents/companies/$(companyId)/customers/$(customerId);
+      let customer = get(path);
+      return customerId is string
+        && customerId.size() > 0
+        && exists(path)
+        && customer.data.companyId == companyId
+        && customer.data.active == true
         && (
-          (
-            exists(settingsPath)
-            && prefix == get(settingsPath).data.documentSettings[field]
-          )
-          || (
-            !exists(settingsPath)
-            && prefix == fallback
-          )
+          user().role == 'admin'
+          || customer.data.createdByUid == request.auth.uid
         );
     }
 
-    function businessPermissionAllows(companyId, field) {
-      let settingsPath =
-        /databases/$(database)/documents/companies/$(companyId)/settings/app;
-      return isApprovedCompanyUser(companyId)
-        && (
-          isActiveAdmin()
-          || (
-            userDoc().data.role == 'sales_rep'
-            && (
-              !exists(settingsPath)
-              || !get(settingsPath).data.keys().hasAny([
-                'permissionSettings'
-              ])
-              || !get(settingsPath).data.permissionSettings.keys().hasAny([
-                field
-              ])
-              || get(settingsPath).data.permissionSettings[field] == true
-            )
-          )
-        );
-    }
-
-    function documentDiscountAllowed(companyId, data) {
-      // Rules cannot safely iterate document item lists to compare every
-      // catalog price. Repositories enforce price equality; rules enforce the
-      // aggregate discount gate without weakening existing document guards.
-      return isActiveAdmin()
-        || businessPermissionAllows(companyId, 'allowSalesRepDiscount')
-        || (
-          data.totalDiscount is number
-          && data.totalDiscount == 0
-        );
-    }
-
-    function configuredDocumentNumberMatches(
-      companyId,
-      number,
-      field,
-      fallback
-    ) {
-      let settingsPath =
-        /databases/$(database)/documents/companies/$(companyId)/settings/app;
-      return number is string
-        && number.matches('^[A-Z0-9]{1,10}-[0-9]{4}-[0-9]{6}$')
-        && (
-          (
-            exists(settingsPath)
-            && number.matches(
-              '^' + get(settingsPath).data.documentSettings[field]
-              + '-[0-9]{4}-[0-9]{6}$'
-            )
-          )
-          || (
-            !exists(settingsPath)
-            && number.matches(
-              '^' + fallback + '-[0-9]{4}-[0-9]{6}$'
-            )
-          )
-        );
-    }
-
-    function validUserPreferencesWrite(userId, preferenceId) {
-      let data = request.resource.data;
-      return isSignedIn()
-        && request.auth.uid == userId
-        && preferenceId == 'app'
-        && data.keys().hasOnly([
-          'language',
-          'themeMode',
-          'defaultInvoiceNote',
-          'defaultReceiptNote',
-          'updatedAt'
-        ])
-        && data.language in ['ar', 'en']
-        && data.themeMode in ['system', 'light', 'dark']
-        && data.defaultInvoiceNote is string
-        && data.defaultReceiptNote is string
-        && data.updatedAt == request.time;
-    }
-
-    function validBusinessCreate(companyId, data) {
+    function validCreator(companyId, data) {
       return isApprovedCompanyUser(companyId)
         && data.companyId == companyId
         && data.createdByUid == request.auth.uid
         && data.createdByName is string
         && data.createdByName.size() > 0
         && data.createdByName != 'undefined'
-        && data.createdByRole == userDoc().data.role;
+        && data.createdByRole == user().role;
     }
 
-    function validFinancialCreate(companyId, data) {
-      return isApprovedCompanyUser(companyId)
-        && data.companyId == companyId
-        && (
-          data.createdByUid == request.auth.uid
-          || isActiveAdmin()
+    function validCatalogUpdate() {
+      let data = request.resource.data;
+      let changed = data.diff(resource.data).affectedKeys();
+      return isAdmin('default_company')
+        && changed.hasOnly([
+          'name', 'code', 'description', 'unit', 'price', 'taxRate',
+          'active', 'minStock', 'trackStock', 'costPrice', 'barcode',
+          'category', 'warehouseId', 'deleted', 'updatedAt'
+        ])
+        && data.name is string
+        && data.name.size() > 0
+        && data.code is string
+        && data.code.size() > 0
+        && data.unit is string
+        && data.unit.size() > 0
+        && data.price is number
+        && data.price >= 0
+        && data.taxRate is number
+        && data.taxRate >= 0
+        && data.taxRate <= 100
+        && data.active is bool
+        && data.minStock is number
+        && data.minStock >= 0
+        && data.trackStock is bool
+        && data.costPrice is number
+        && data.costPrice >= 0
+        && data.deleted is bool
+        && data.updatedAt == request.time;
+    }
+
+    function validInvoiceStockSource(companyId, data) {
+      return (
+          user().role == 'admin'
+          && data.stockSourceType == 'companyWarehouse'
+          && data.stockSourceSalesRepId == ''
         )
-        && data.createdByName is string
-        && data.createdByName.size() > 0
-        && data.createdByName != 'undefined'
-        && (
-          data.createdByRole == userDoc().data.role
-          || isActiveAdmin()
+        || (
+          user().role == 'sales_rep'
+          && data.salesRepId == request.auth.uid
+          && data.stockSourceType == 'salesRep'
+          && data.stockSourceSalesRepId == request.auth.uid
         );
     }
 
-    function validCashMovementCreate(companyId, data) {
-      return validFinancialCreate(companyId, data)
-        && data.cashAccount in ['company_cash', 'rep_cash']
-        && (
-          isActiveAdmin()
-          || (
-            data.cashAccount == 'rep_cash'
-            && data.salesRepId == request.auth.uid
-          )
-        );
+    function validInvoiceDraftData(companyId, invoiceId, data) {
+      return data.id == invoiceId
+        && data.companyId == companyId
+        && configuredNumber(
+          companyId, data.invoiceNumber, 'invoicePrefix', 'INV'
+        )
+        && data.invoiceStatus == 'draft'
+        && data.salesRepId.size() > 0
+        && data.salesRepName.size() > 0
+        && data.salesRepName != 'undefined'
+        && customerAllowed(companyId, data.customerId)
+        && data.items is list
+        && data.items.size() > 0
+        && data.items.size() <= 100
+        && data.subtotal >= 0
+        && data.totalDiscount >= 0
+        && data.totalDiscount <= data.subtotal
+        && data.totalTax >= 0
+        && data.grandTotal > 0
+        && data.paidAmount >= 0
+        && data.paidAmount <= data.grandTotal
+        && data.remainingAmount == data.grandTotal - data.paidAmount
+        && data.returnStatus == 'none'
+        && data.returnedTotal == 0
+        && data.returnedSubtotal == 0
+        && data.returnedDiscount == 0
+        && data.returnedTax == 0
+        && data.returnedReceivableAmount == 0
+        && data.customerCreditAmount == 0
+        && data.cashRefundAmount == 0
+        && data.returnInvoiceIds.size() == 0
+        && data.latestReturnAt == null
+        && data.receiptIds.size() == 0
+        && data.lastReceiptId == ''
+        && data.isLocked == false
+        && data.financialPosted == false
+        && data.financialPostedAt == null
+        && data.financialPostedByUid == ''
+        && data.financialPostedByName == ''
+        && data.customerTransactionIds.size() == 0
+        && data.cashMovementIds.size() == 0
+        && data.inventoryPosted == false
+        && data.inventoryPostedAt == null
+        && data.inventoryPostedByUid == ''
+        && data.inventoryPostedByName == ''
+        && data.inventoryMovementIds.size() == 0
+        && validInvoiceStockSource(companyId, data)
+        && data.searchKeywords is list;
     }
 
-    function validExpenseBaseCreate(companyId, expenseId, data) {
-      return validFinancialCreate(companyId, data)
-        && data.id == expenseId
-        && data.amount is number
-        && data.amount > 0
-        && data.expenseDate is timestamp
-        && data.category in [
-          'fuel',
-          'parking',
-          'maintenance',
-          'delivery',
-          'meals',
-          'office',
-          'utilities',
-          'salary',
-          'rent',
-          'other'
-        ]
-        && data.fundingSource in [
-          'company_cash',
-          'rep_collected_cash',
-          'personal_cash'
-        ]
-        && data.status in [
-          'posted',
-          'pending',
-          'approved',
-          'rejected',
-          'cancelled'
-        ]
-        && data.reimbursementStatus in ['none', 'payable', 'paid']
-        && data.paymentMethod == 'cash'
-        && data.paidByUid == request.auth.uid
-        && data.paidByName is string
-        && data.paidByName.size() > 0
-        && data.paidByRole == userDoc().data.role
+    function validInvoiceDraftCreate(companyId, invoiceId) {
+      let data = request.resource.data;
+      return validCreator(companyId, data)
+        && validInvoiceDraftData(companyId, invoiceId, data)
+        && (isAdmin(companyId) || data.salesRepId == request.auth.uid)
+        && (isAdmin(companyId) || data.totalDiscount == 0 || permissionAllows(companyId, 'allowSalesRepDiscount'))
         && data.createdAt == request.time
         && data.updatedAt == request.time;
     }
 
-    function validAdminCompanyExpenseCreate(companyId, expenseId) {
+    function validInvoiceDraftUpdate(companyId) {
       let data = request.resource.data;
-      return isActiveAdmin()
-        && validExpenseBaseCreate(companyId, expenseId, data)
-        && data.fundingSource == 'company_cash'
-        && data.status == 'posted'
-        && data.reimbursementStatus == 'none'
-        && data.salesRepId == ''
-        && data.cashMovementId is string
-        && data.cashMovementId.size() > 0
-        && data.approvedByUid == request.auth.uid
-        && data.approvedByName is string
-        && data.approvedByName.size() > 0
-        && data.approvedAt == request.time;
-    }
-
-    function validSalesRepExpenseCreate(companyId, expenseId) {
-      let data = request.resource.data;
-      return userDoc().data.role == 'sales_rep'
-        && validExpenseBaseCreate(companyId, expenseId, data)
-        && data.fundingSource in ['rep_collected_cash', 'personal_cash']
-        && data.status == 'pending'
-        && data.reimbursementStatus == 'none'
-        && data.salesRepId == request.auth.uid
-        && data.salesRepName is string
-        && data.salesRepName.size() > 0
-        && data.cashMovementId == ''
-        && !data.keys().hasAny(['approvedAt', 'rejectedAt']);
-    }
-
-    function validAdminExpenseDecisionUpdate(companyId) {
-      let changed = request.resource.data.diff(resource.data).affectedKeys();
-      return isActiveAdmin()
-        && isApprovedCompanyUser(companyId)
-        && resource.data.status == 'pending'
-        && request.resource.data.id == resource.data.id
-        && request.resource.data.companyId == resource.data.companyId
-        && request.resource.data.amount == resource.data.amount
-        && request.resource.data.expenseDate == resource.data.expenseDate
-        && request.resource.data.category == resource.data.category
-        && request.resource.data.fundingSource == resource.data.fundingSource
-        && request.resource.data.paidByUid == resource.data.paidByUid
-        && request.resource.data.salesRepId == resource.data.salesRepId
-        && request.resource.data.createdByUid == resource.data.createdByUid
-        && request.resource.data.createdAt == resource.data.createdAt
-        && changed.hasOnly([
-          'status',
-          'cashMovementId',
-          'reimbursementStatus',
-          'approvedByUid',
-          'approvedByName',
-          'approvedAt',
-          'rejectedByUid',
-          'rejectedByName',
-          'rejectedAt',
-          'rejectionReason',
-          'updatedAt'
-        ])
-        && request.resource.data.updatedAt == request.time
-        && (
-          (
-            request.resource.data.status == 'approved'
-            && request.resource.data.approvedByUid == request.auth.uid
-            && request.resource.data.approvedByName is string
-            && request.resource.data.approvedByName.size() > 0
-            && request.resource.data.approvedAt == request.time
-            && (
-              (
-                resource.data.fundingSource == 'rep_collected_cash'
-                && request.resource.data.cashMovementId is string
-                && request.resource.data.cashMovementId.size() > 0
-                && request.resource.data.reimbursementStatus == 'none'
-              )
-              || (
-                resource.data.fundingSource == 'personal_cash'
-                && request.resource.data.cashMovementId == ''
-                && request.resource.data.reimbursementStatus == 'payable'
-              )
-            )
-          )
-          || (
-            request.resource.data.status == 'rejected'
-            && request.resource.data.cashMovementId == resource.data.cashMovementId
-            && request.resource.data.reimbursementStatus == 'none'
-            && request.resource.data.rejectedByUid == request.auth.uid
-            && request.resource.data.rejectedByName is string
-            && request.resource.data.rejectedByName.size() > 0
-            && request.resource.data.rejectedAt == request.time
-            && request.resource.data.rejectionReason is string
-            && request.resource.data.rejectionReason.size() > 0
-          )
-        );
-    }
-
-
-    function invoiceIdentityPreserved() {
-      return request.resource.data.id == resource.data.id
-        && request.resource.data.companyId == resource.data.companyId
-        && request.resource.data.invoiceNumber == resource.data.invoiceNumber
-        && request.resource.data.salesRepId == resource.data.salesRepId
-        && request.resource.data.salesRepName == resource.data.salesRepName
-        && request.resource.data.createdByUid == resource.data.createdByUid
-        && request.resource.data.createdByName == resource.data.createdByName
-        && request.resource.data.createdByRole == resource.data.createdByRole
-        && invoiceStockSourceType(request.resource.data)
-          == invoiceStockSourceType(resource.data)
-        && invoiceStockSourceRep(request.resource.data)
-          == invoiceStockSourceRep(resource.data)
-        && request.resource.data.createdAt == resource.data.createdAt;
-    }
-
-    function invoiceStockSourceType(data) {
-      return data.keys().hasAny(['stockSourceType'])
-        ? data.stockSourceType
-        : 'companyWarehouse';
-    }
-
-    function invoiceStockSourceRep(data) {
-      return data.keys().hasAny(['stockSourceSalesRepId'])
-        ? data.stockSourceSalesRepId
-        : '';
-    }
-
-    function validInvoiceStockSource(data) {
-      return (
-          isActiveAdmin()
-          && invoiceStockSourceType(data) == 'companyWarehouse'
-          && invoiceStockSourceRep(data) == ''
-        )
-        || (
-          userDoc().data.role == 'sales_rep'
-          && data.salesRepId == request.auth.uid
-          && invoiceStockSourceType(data) == 'salesRep'
-          && invoiceStockSourceRep(data) == request.auth.uid
-        );
-    }
-
-    function itemIdentityPreserved() {
-      return request.resource.data.id == resource.data.id
-        && request.resource.data.createdBy == resource.data.createdBy
-        && request.resource.data.createdAt == resource.data.createdAt;
-    }
-
-    function validInvoiceSaleItemStockUpdate() {
-      // TODO: OSAMA - Move stock posting to Cloud Functions for stronger
-      // server-side coupling between invoice confirmation and item stock.
-      return isApprovedCompanyUser('default_company')
-        && itemIdentityPreserved()
-        && resource.data.currentStock is number
-        && resource.data.trackStock == true
-        && resource.data.deleted == false
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'currentStock',
-          'inventoryUpdatedAt',
-          'updatedAt'
-        ])
-        && request.resource.data.currentStock is number
-        && request.resource.data.currentStock >= 0
-        && request.resource.data.currentStock < resource.data.currentStock
-        && request.resource.data.inventoryUpdatedAt == request.time
-        && request.resource.data.updatedAt == request.time;
-    }
-
-    function validSalesReturnItemStockUpdate() {
-      // A confirmed sales return restores tracked stock in the same transaction
-      // as its immutable stock movement.
-      return isApprovedCompanyUser('default_company')
-        && itemIdentityPreserved()
-        && resource.data.currentStock is number
-        && resource.data.trackStock == true
-        && resource.data.deleted == false
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'currentStock',
-          'inventoryUpdatedAt',
-          'updatedAt'
-        ])
-        && request.resource.data.currentStock is number
-        && request.resource.data.currentStock > resource.data.currentStock
-        && request.resource.data.inventoryUpdatedAt == request.time
-        && request.resource.data.updatedAt == request.time;
-    }
-
-    function validInventoryTransferItemStockUpdate(itemId) {
-      let transferPath =
-        /databases/$(database)/documents/companies/default_company/inventory_transfers/$(request.resource.data.lastInventoryReferenceId);
-      let movementPath =
-        /databases/$(database)/documents/companies/default_company/stock_movements/$(request.resource.data.lastStockMovementId);
-      let transfer = getAfter(transferPath);
-      let movement = getAfter(movementPath);
-      return isActiveAdmin()
-        && itemIdentityPreserved()
-        && resource.data.trackStock == true
-        && resource.data.deleted == false
-        && resource.data.currentStock is number
-        && request.resource.data.currentStock is number
-        && request.resource.data.currentStock >= 0
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'currentStock',
-          'inventoryUpdatedAt',
-          'updatedAt',
-          'lastInventoryReferenceType',
-          'lastInventoryReferenceId',
-          'lastStockMovementId'
-        ])
-        && request.resource.data.lastInventoryReferenceType
-          == 'inventoryTransfer'
-        && request.resource.data.inventoryUpdatedAt == request.time
-        && request.resource.data.updatedAt == request.time
-        && existsAfter(transferPath)
-        && transfer.data.status == 'confirmed'
-        && existsAfter(movementPath)
-        && movement.data.itemId == itemId
-        && movement.data.referenceType == 'inventory_transfer'
-        && movement.data.referenceId == transfer.data.id
-        && movement.data.quantityBefore == resource.data.currentStock
-        && movement.data.quantityAfter == request.resource.data.currentStock;
-    }
-
-    function validAdminItemStockUpdate(itemId) {
-      let movementId = request.resource.data.lastStockMovementId;
-      let movementPath =
-        /databases/$(database)/documents/companies/default_company/stock_movements/$(movementId);
-      let movement = getAfter(movementPath);
-      return isActiveAdmin()
-        && itemIdentityPreserved()
-        && resource.data.trackStock == true
-        && request.resource.data.trackStock == true
-        && resource.data.deleted == false
-        && request.resource.data.deleted == false
-        && resource.data.currentStock is number
-        && request.resource.data.currentStock is number
-        && request.resource.data.currentStock >= 0
-        && request.resource.data.currentStock != resource.data.currentStock
-        && request.resource.data.inventoryUpdatedAt == request.time
-        && request.resource.data.updatedAt == request.time
-        && request.resource.data.lastInventoryReferenceType in [
-          'itemCorrection',
-          'manualAdjustment'
-        ]
-        && request.resource.data.lastInventoryReferenceId is string
-        && movementId is string
-        && movementId.size() > 0
-        && !exists(movementPath)
-        && existsAfter(movementPath)
-        && movement.data.id == movementId
-        && movement.data.itemId == itemId
-        && movement.data.quantityBefore == resource.data.currentStock
-        && movement.data.quantityAfter == request.resource.data.currentStock
-        && (
-          (
-            request.resource.data.lastInventoryReferenceType
-              == 'itemCorrection'
-            && movement.data.movementType == 'correction'
-            && movement.data.referenceType == 'item'
-            && movement.data.referenceId == itemId
-            && request.resource.data.lastInventoryReferenceId == itemId
-          )
-          || (
-            request.resource.data.lastInventoryReferenceType
-              == 'manualAdjustment'
-            && movement.data.movementType in [
-              'manual_adjustment_in',
-              'manual_adjustment_out',
-              'damage',
-              'correction'
-            ]
-            && movement.data.referenceType == 'manual_adjustment'
-            && movement.data.referenceId == movementId
-            && request.resource.data.lastInventoryReferenceId == movementId
-          )
-        );
-    }
-
-    function stockMovementBaseValid(companyId, movementId, data) {
-      return isApprovedCompanyUser(companyId)
-        && data.keys().hasOnly([
-          'id',
-          'companyId',
-          'warehouseId',
-          'itemId',
-          'itemName',
-          'itemCode',
-          'movementType',
-          'direction',
-          'quantity',
-          'quantityBefore',
-          'quantityAfter',
-          'referenceType',
-          'referenceId',
-          'referenceNumber',
-          'movementDate',
-          'notes',
-          'createdByUid',
-          'createdByName',
-          'createdByRole',
-          'createdAt'
-        ])
-        && data.id == movementId
-        && data.companyId == companyId
-        && data.warehouseId is string
-        && data.warehouseId.size() > 0
-        && data.itemId is string
-        && data.itemId.size() > 0
-        && data.itemName is string
-        && data.itemName.size() > 0
-        && data.itemCode is string
-        && data.direction in ['in', 'out']
-        && data.quantity is number
-        && data.quantity > 0
-        && data.quantityBefore is number
-        && data.quantityBefore >= 0
-        && data.quantityAfter is number
-        && data.quantityAfter >= 0
-        && (
-          (
-            data.direction == 'in'
-            && data.quantityAfter > data.quantityBefore
-            && data.quantity
-              >= data.quantityAfter - data.quantityBefore - 0.0005
-            && data.quantity
-              <= data.quantityAfter - data.quantityBefore + 0.0005
-          )
-          || (
-            data.direction == 'out'
-            && data.quantityAfter < data.quantityBefore
-            && data.quantity <= data.quantityBefore
-            && data.quantity
-              >= data.quantityBefore - data.quantityAfter - 0.0005
-            && data.quantity
-              <= data.quantityBefore - data.quantityAfter + 0.0005
-          )
-        )
-        && data.referenceType is string
-        && data.referenceId is string
-        && data.referenceId.size() > 0
-        && data.referenceNumber is string
-        && data.movementDate is timestamp
-        && data.notes is string
-        && (
-          data.createdByUid == request.auth.uid
-          || isActiveAdmin()
-        )
-        && data.createdByName is string
-        && data.createdByName.size() > 0
-        && data.createdByName != 'undefined'
-        && (
-          data.createdByRole == userDoc().data.role
-          || isActiveAdmin()
-        )
-        && data.createdAt == request.time;
-    }
-
-    function validAdminStockMovementCreate(companyId, movementId) {
-      return isActiveAdmin()
-        && stockMovementBaseValid(
-          companyId,
-          movementId,
-          request.resource.data
-        )
-        && request.resource.data.movementType in [
-          'manual_adjustment_in',
-          'manual_adjustment_out',
-          'damage',
-          'correction'
-        ]
-        && request.resource.data.referenceType in ['item', 'manual_adjustment']
-        && (
-          (
-            request.resource.data.movementType in [
-              'manual_adjustment_in'
-            ]
-            && request.resource.data.direction == 'in'
-          )
-          || (
-            request.resource.data.movementType in [
-              'manual_adjustment_out',
-              'damage'
-            ]
-            && request.resource.data.direction == 'out'
-          )
-          || (
-            request.resource.data.movementType == 'correction'
-            && request.resource.data.direction in ['in', 'out']
-          )
-        )
-        && validAdminStockMovementItemCoupling(
-          companyId,
-          movementId,
-          request.resource.data
-        );
-    }
-
-    function validAdminStockMovementItemCoupling(
-      companyId,
-      movementId,
-      data
-    ) {
-      let itemPath =
-        /databases/$(database)/documents/items/$(data.itemId);
-      let itemBefore = get(itemPath);
-      let itemAfter = getAfter(itemPath);
-      return companyId == 'default_company'
-        && exists(itemPath)
-        && existsAfter(itemPath)
-        && itemBefore.data.currentStock == data.quantityBefore
-        && itemAfter.data.currentStock == data.quantityAfter
-        && itemAfter.data.lastStockMovementId == movementId
-        && itemAfter.data.lastInventoryReferenceType in [
-          'itemCorrection',
-          'manualAdjustment'
-        ]
-        && itemAfter.data.lastInventoryReferenceId == data.referenceId;
-    }
-
-    function validInvoiceStockMovementCreate(companyId, movementId) {
-      let invoicePath =
-        /databases/$(database)/documents/companies/$(companyId)/invoices/$(request.resource.data.referenceId);
-      let invoice = getAfter(invoicePath);
-      return stockMovementBaseValid(
-          companyId,
-          movementId,
-          request.resource.data
-        )
-        && request.resource.data.movementType == 'invoice_sale'
-        && request.resource.data.direction == 'out'
-        && request.resource.data.referenceType == 'invoice'
-        && existsAfter(invoicePath)
-        && invoice.data.companyId == companyId
-        && invoice.data.invoiceStatus == 'confirmed'
-        && invoice.data.inventoryPosted == true
-        && invoice.data.inventoryPostedByUid == request.auth.uid;
-    }
-
-    function validSalesReturnStockMovementCreate(companyId, movementId) {
-      let returnPath =
-        /databases/$(database)/documents/companies/$(companyId)/sales_returns/$(request.resource.data.referenceId);
-      let salesReturn = getAfter(returnPath);
-      return stockMovementBaseValid(
-          companyId,
-          movementId,
-          request.resource.data
-        )
-        && request.resource.data.movementType == 'sales_return'
-        && request.resource.data.direction == 'in'
-        && request.resource.data.referenceType == 'sales_return'
-        && existsAfter(returnPath)
-        && salesReturn.data.companyId == companyId
-        && salesReturn.data.status == 'confirmed'
-        && salesReturn.data.inventoryPosted == true;
-    }
-
-    function validInventoryTransferStockMovementCreate(companyId, movementId) {
-      let transferPath =
-        /databases/$(database)/documents/companies/$(companyId)/inventory_transfers/$(request.resource.data.referenceId);
-      let transfer = getAfter(transferPath);
-      return isActiveAdmin()
-        && stockMovementBaseValid(
-          companyId,
-          movementId,
-          request.resource.data
-        )
-        && request.resource.data.movementType == 'inventory_transfer'
-        && request.resource.data.referenceType == 'inventory_transfer'
-        && existsAfter(transferPath)
-        && transfer.data.status == 'confirmed'
-        && transfer.data.companyId == companyId
-        && request.resource.data.referenceNumber
-          == transfer.data.transferNumber;
-    }
-
-    function repInventoryBalanceFieldsValid(companyId, balanceId, data) {
-      return data.keys().hasOnly([
-          'id',
-          'companyId',
-          'salesRepId',
-          'itemId',
-          'quantity',
-          'modelSnapshot',
-          'itemNameSnapshot',
-          'unitSnapshot',
-          'createdAt',
-          'updatedAt',
-          'lastMovementId',
-          'lastReferenceType',
-          'lastReferenceId'
-        ])
-        && data.id == balanceId
-        && data.companyId == companyId
-        && data.salesRepId is string
-        && data.salesRepId.size() > 0
-        && data.itemId is string
-        && data.itemId.size() > 0
-        && balanceId == data.salesRepId + '_' + data.itemId
-        && data.quantity is number
-        && data.quantity >= 0
-        && data.modelSnapshot is string
-        && data.itemNameSnapshot is string
-        && data.itemNameSnapshot.size() > 0
-        && data.unitSnapshot is string
-        && data.updatedAt == request.time
-        && data.lastMovementId is string
-        && data.lastMovementId.size() > 0
-        && data.lastReferenceType in [
-          'inventoryTransfer',
-          'invoice',
-          'salesReturn'
-        ]
-        && data.lastReferenceId is string
-        && data.lastReferenceId.size() > 0;
-    }
-
-    function validRepInventoryBalanceWrite(companyId, balanceId) {
-      let movementPath =
-        /databases/$(database)/documents/companies/$(companyId)/rep_inventory_movements/$(request.resource.data.lastMovementId);
-      let movement = getAfter(movementPath);
-      return repInventoryBalanceFieldsValid(
-          companyId,
-          balanceId,
-          request.resource.data
-        )
-        && (
-          !exists(
-            /databases/$(database)/documents/companies/$(companyId)/rep_inventory_balances/$(balanceId)
-          )
-          || (
-            request.resource.data.id == resource.data.id
-            && request.resource.data.companyId == resource.data.companyId
-            && request.resource.data.salesRepId == resource.data.salesRepId
-            && request.resource.data.itemId == resource.data.itemId
-            && request.resource.data.createdAt == resource.data.createdAt
-          )
-        )
-        && existsAfter(movementPath)
-        && movement.data.companyId == companyId
-        && movement.data.salesRepId == request.resource.data.salesRepId
-        && movement.data.itemId == request.resource.data.itemId
-        && movement.data.quantityAfter == request.resource.data.quantity
-        && movement.data.referenceType
-          == request.resource.data.lastReferenceType
-        && movement.data.referenceId == request.resource.data.lastReferenceId;
-    }
-
-    function repInventoryMovementBaseValid(companyId, movementId, data) {
-      return isApprovedCompanyUser(companyId)
-        && data.keys().hasOnly([
-          'id',
-          'companyId',
-          'salesRepId',
-          'salesRepNameSnapshot',
-          'itemId',
-          'modelSnapshot',
-          'itemNameSnapshot',
-          'unitSnapshot',
-          'direction',
-          'quantity',
-          'quantityBefore',
-          'quantityAfter',
-          'reason',
-          'referenceType',
-          'referenceId',
-          'referenceNumber',
-          'transferType',
-          'createdByUid',
-          'createdByName',
-          'createdAt'
-        ])
-        && data.id == movementId
-        && data.companyId == companyId
-        && data.salesRepId is string
-        && data.salesRepId.size() > 0
-        && data.salesRepNameSnapshot is string
-        && data.salesRepNameSnapshot.size() > 0
-        && data.itemId is string
-        && data.itemId.size() > 0
-        && data.itemNameSnapshot is string
-        && data.itemNameSnapshot.size() > 0
-        && data.direction in ['in', 'out']
-        && data.quantity is number
-        && data.quantity > 0
-        && data.quantityBefore is number
-        && data.quantityBefore >= 0
-        && data.quantityAfter is number
-        && data.quantityAfter >= 0
-        && (
-          (
-            data.direction == 'in'
-            && data.quantityAfter
-              >= data.quantityBefore + data.quantity - 0.001
-            && data.quantityAfter
-              <= data.quantityBefore + data.quantity + 0.001
-          )
-          || (
-            data.direction == 'out'
-            && data.quantityAfter
-              >= data.quantityBefore - data.quantity - 0.001
-            && data.quantityAfter
-              <= data.quantityBefore - data.quantity + 0.001
-          )
-        )
-        && data.referenceType in [
-          'inventoryTransfer',
-          'invoice',
-          'salesReturn'
-        ]
-        && data.referenceId is string
-        && data.referenceId.size() > 0
-        && data.referenceNumber is string
-        && (
-          data.createdByUid == request.auth.uid
-          || isActiveAdmin()
-        )
-        && data.createdByName is string
-        && data.createdByName.size() > 0
-        && data.createdByName != 'undefined'
-        && data.createdAt == request.time;
-    }
-
-    function validTransferRepInventoryMovement(companyId, movementId) {
-      let data = request.resource.data;
-      let transferPath =
-        /databases/$(database)/documents/companies/$(companyId)/inventory_transfers/$(data.referenceId);
-      let transfer = getAfter(transferPath);
-      return isActiveAdmin()
-        && repInventoryMovementBaseValid(companyId, movementId, data)
-        && data.referenceType == 'inventoryTransfer'
-        && data.reason in ['warehouseDelivery', 'warehouseReturn']
-        && existsAfter(transferPath)
-        && transfer.data.status == 'confirmed'
-        && transfer.data.salesRepId == data.salesRepId
-        && transfer.data.transferNumber == data.referenceNumber
-        && transfer.data.type == data.transferType
-        && (
-          (
-            transfer.data.type == 'warehouseToRep'
-            && data.direction == 'in'
-            && data.reason == 'warehouseDelivery'
-          )
-          || (
-            transfer.data.type == 'repToWarehouse'
-            && data.direction == 'out'
-            && data.reason == 'warehouseReturn'
-          )
-        );
-    }
-
-    function validInvoiceRepInventoryMovement(companyId, movementId) {
-      let data = request.resource.data;
-      let invoicePath =
-        /databases/$(database)/documents/companies/$(companyId)/invoices/$(data.referenceId);
-      let invoice = getAfter(invoicePath);
-      return repInventoryMovementBaseValid(companyId, movementId, data)
-        && data.referenceType == 'invoice'
-        && data.reason == 'invoiceSale'
-        && data.direction == 'out'
-        && existsAfter(invoicePath)
-        && invoice.data.invoiceStatus == 'confirmed'
-        && invoice.data.inventoryPosted == true
-        && invoiceStockSourceType(invoice.data) == 'salesRep'
-        && invoiceStockSourceRep(invoice.data) == data.salesRepId
-        && invoice.data.salesRepId == data.salesRepId
-        && data.referenceNumber == invoice.data.invoiceNumber;
-    }
-
-    function validSalesReturnRepInventoryMovement(companyId, movementId) {
-      let data = request.resource.data;
-      let returnPath =
-        /databases/$(database)/documents/companies/$(companyId)/sales_returns/$(data.referenceId);
-      let salesReturn = getAfter(returnPath);
-      let invoicePath =
-        /databases/$(database)/documents/companies/$(companyId)/invoices/$(salesReturn.data.originalInvoiceId);
-      let invoice = getAfter(invoicePath);
-      return repInventoryMovementBaseValid(companyId, movementId, data)
-        && data.referenceType == 'salesReturn'
-        && data.reason == 'salesReturn'
-        && data.direction == 'in'
-        && existsAfter(returnPath)
-        && salesReturn.data.status == 'confirmed'
-        && salesReturn.data.inventoryPosted == true
-        && existsAfter(invoicePath)
-        && invoiceStockSourceType(invoice.data) == 'salesRep'
-        && invoiceStockSourceRep(invoice.data) == data.salesRepId
-        && data.referenceNumber == salesReturn.data.returnNumber;
-    }
-
-    function invoiceIsEditableDraft(data) {
-      return data.invoiceStatus == 'draft'
+      let changed = data.diff(resource.data).affectedKeys();
+      return canReadSalesRepDocument(companyId, resource.data)
+        && resource.data.invoiceStatus == 'draft'
+        && resource.data.financialPosted == false
+        && resource.data.inventoryPosted == false
+        && data.invoiceStatus == 'draft'
         && data.financialPosted == false
         && data.inventoryPosted == false
-        && data.customerTransactionIds.size() == 0
-        && data.cashMovementIds.size() == 0
-        && data.isLocked == false;
-    }
-
-    function validInvoiceDraftUpdate(companyId) {
-      return canReadSalesRepOwnedDoc(companyId, resource.data)
-        && documentDiscountAllowed(companyId, request.resource.data)
-        && invoiceIdentityPreserved()
-        && invoiceIsEditableDraft(resource.data)
-        && invoiceIsEditableDraft(request.resource.data)
-        && request.resource.data.updatedAt == request.time;
-    }
-
-    function validInvoicePostingUpdate(companyId) {
-      return canReadSalesRepOwnedDoc(companyId, resource.data)
-        && documentDiscountAllowed(companyId, request.resource.data)
-        && invoiceIdentityPreserved()
-        && invoiceIsEditableDraft(resource.data)
-        && request.resource.data.invoiceStatus == 'confirmed'
-        && request.resource.data.financialPosted == true
-        && request.resource.data.financialPostedByUid == request.auth.uid
-        && request.resource.data.financialPostedByName is string
-        && request.resource.data.financialPostedByName.size() > 0
-        && request.resource.data.financialPostedByName != 'undefined'
-        && request.resource.data.updatedAt == request.time;
-    }
-
-    function validInvoiceReturnAllocationUpdate(companyId) {
-      let returnPath =
-        /databases/$(database)/documents/companies/$(companyId)/sales_returns/$(request.resource.data.lastSalesReturnId);
-      let salesReturn = getAfter(returnPath);
-      return canReadSalesRepOwnedDoc(companyId, resource.data)
-        && invoiceIdentityPreserved()
-        && resource.data.invoiceStatus == 'confirmed'
-        && request.resource.data.invoiceStatus == 'confirmed'
-        && resource.data.financialPosted == true
-        && resource.data.inventoryPosted == true
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'returnedQuantitiesByItem',
-          'lastSalesReturnId',
-          'returnStatus',
-          'returnedTotal',
-          'returnedSubtotal',
-          'returnedDiscount',
-          'returnedTax',
-          'returnedReceivableAmount',
-          'customerCreditAmount',
-          'cashRefundAmount',
-          'returnInvoiceIds',
-          'latestReturnAt',
+        && changed.hasOnly([
+          'invoiceType', 'paymentType', 'paymentStatus',
+          'hasReceivedPayment', 'invoiceDate', 'dueDate', 'customerId',
+          'customerSnapshot', 'items', 'subtotal', 'totalDiscount', 'totalTax',
+          'grandTotal', 'paidAmount', 'remainingAmount', 'notes',
+          'paymentMethod', 'searchKeywords', 'customerNameLower',
+          'itemNamesLower', 'invoiceNumberLower', 'dateString', 'government',
           'updatedAt'
         ])
-        && request.resource.data.returnedQuantitiesByItem is map
-        && request.resource.data.lastSalesReturnId is string
-        && request.resource.data.lastSalesReturnId.size() > 0
-        && request.resource.data.updatedAt == request.time
-        && request.resource.data.returnStatus in [
-          'partiallyReturned',
-          'returned'
-        ]
-        && request.resource.data.returnedTotal
-          == returnSummaryNumber(resource.data, 'returnedTotal')
-            + salesReturn.data.grandTotal
-        && request.resource.data.returnedSubtotal
-          == returnSummaryNumber(resource.data, 'returnedSubtotal')
-            + salesReturn.data.subtotal
-        && request.resource.data.returnedDiscount
-          == returnSummaryNumber(resource.data, 'returnedDiscount')
-            + salesReturn.data.totalDiscount
-        && request.resource.data.returnedTax
-          == returnSummaryNumber(resource.data, 'returnedTax')
-            + salesReturn.data.totalTax
-        && request.resource.data.returnedReceivableAmount
-          == returnSummaryNumber(resource.data, 'returnedReceivableAmount')
-            + salesReturn.data.receivableReduction
-        && request.resource.data.customerCreditAmount
-          == returnSummaryNumber(resource.data, 'customerCreditAmount')
-            + salesReturn.data.customerCreditAmount
-        && request.resource.data.cashRefundAmount
-          == returnSummaryNumber(resource.data, 'cashRefundAmount')
-            + salesReturn.data.cashRefundAmount
-        && request.resource.data.returnInvoiceIds is list
-        && request.resource.data.returnInvoiceIds.size()
-          == returnInvoiceCount(resource.data) + 1
-        && request.resource.data.returnInvoiceIds[
-          request.resource.data.returnInvoiceIds.size() - 1
-        ] == request.resource.data.lastSalesReturnId
-        && request.resource.data.latestReturnAt == request.time
-        && existsAfter(returnPath)
-        && salesReturn.data.companyId == companyId
-        && salesReturn.data.originalInvoiceId == resource.data.id
-        && salesReturn.data.status == 'confirmed'
-        && salesReturn.data.inventoryPosted == true
-        && salesReturn.data.financialPosted == true
-        && (
-          isActiveAdmin()
-          || salesReturn.data.createdByUid == request.auth.uid
-          || salesReturn.data.salesRepId == request.auth.uid
-        );
+        && customerAllowed(companyId, data.customerId)
+        && data.items is list
+        && data.items.size() > 0
+        && data.items.size() <= 100
+        && data.subtotal >= 0
+        && data.totalDiscount >= 0
+        && data.totalDiscount <= data.subtotal
+        && data.totalTax >= 0
+        && data.grandTotal > 0
+        && data.paidAmount >= 0
+        && data.paidAmount <= data.grandTotal
+        && data.remainingAmount == data.grandTotal - data.paidAmount
+        && (isAdmin(companyId) || data.totalDiscount == 0 || permissionAllows(companyId, 'allowSalesRepDiscount'))
+        && data.updatedAt == request.time;
     }
 
-    function isInvoiceReturnAllocationUpdate() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
-        'lastSalesReturnId'
-      ]);
-    }
-
-    function returnedReceivableAmount(data) {
-      return data.keys().hasAny(['returnedReceivableAmount'])
-        ? data.returnedReceivableAmount
-        : 0;
-    }
-
-    function returnSummaryNumber(data, field) {
-      return data.keys().hasAny([field]) ? data[field] : 0;
-    }
-
-    function returnInvoiceCount(data) {
-      return data.keys().hasAny(['returnInvoiceIds'])
-        ? data.returnInvoiceIds.size()
-        : 0;
-    }
-
-    function receiptIdCount(data) {
-      return data.keys().hasAny(['receiptIds']) ? data.receiptIds.size() : 0;
-    }
-
-    function validInvoiceReceiptPaymentUpdate(companyId) {
-      let receiptPath =
-        /databases/$(database)/documents/companies/$(companyId)/receipts/$(request.resource.data.lastReceiptId);
-      let receipt = getAfter(receiptPath);
-      let allocation = receipt.data.invoiceAllocations[resource.data.id];
-      return canReadSalesRepOwnedDoc(companyId, resource.data)
-        && invoiceIdentityPreserved()
-        && resource.data.invoiceStatus in ['confirmed', 'accepted']
-        && resource.data.financialPosted == true
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'paidAmount',
-          'remainingAmount',
-          'paymentStatus',
-          'hasReceivedPayment',
-          'receiptIds',
-          'lastReceiptId',
-          'updatedAt'
-        ])
-        && request.resource.data.lastReceiptId is string
-        && request.resource.data.lastReceiptId.size() > 0
-        && existsAfter(receiptPath)
-        && receipt.data.companyId == companyId
-        && receipt.data.customerId == resource.data.customerId
-        && receipt.data.invoiceAllocations is map
-        && receipt.data.invoiceAllocations.keys().hasAny([resource.data.id])
-        && allocation is number
-        && allocation > 0
-        && request.resource.data.paidAmount
-          == resource.data.paidAmount + allocation
-        && request.resource.data.remainingAmount
-          == resource.data.remainingAmount - allocation
-        && request.resource.data.remainingAmount >= 0
-        && request.resource.data.hasReceivedPayment == true
-        && request.resource.data.paymentStatus
-          == (
-            request.resource.data.remainingAmount
-              - returnedReceivableAmount(request.resource.data) <= 0
-              ? 'paid'
-              : 'partiallyPaid'
-          )
-        && request.resource.data.receiptIds is list
-        && request.resource.data.receiptIds.size()
-          == receiptIdCount(resource.data) + 1
-        && request.resource.data.receiptIds[
-          request.resource.data.receiptIds.size() - 1
-        ] == request.resource.data.lastReceiptId
-        && request.resource.data.updatedAt == request.time;
-    }
-
-    function isInvoiceReceiptPaymentUpdate() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
-        'lastReceiptId'
-      ]);
-    }
-
-    function salesReturnIdentityPreserved() {
-      return request.resource.data.id == resource.data.id
-        && request.resource.data.companyId == resource.data.companyId
-        && request.resource.data.returnNumber == resource.data.returnNumber
-        && (
-          !resource.data.keys().hasAny(['returnInvoiceId'])
-          || request.resource.data.returnInvoiceId == resource.data.returnInvoiceId
-        )
-        && request.resource.data.originalInvoiceId == resource.data.originalInvoiceId
-        && request.resource.data.originalInvoiceNumber == resource.data.originalInvoiceNumber
-        && (
-          !resource.data.keys().hasAny(['originalInvoiceDate'])
-          || request.resource.data.originalInvoiceDate == resource.data.originalInvoiceDate
-        )
-        && request.resource.data.customerId == resource.data.customerId
-        && request.resource.data.createdByUid == resource.data.createdByUid
-        && request.resource.data.createdByName == resource.data.createdByName
-        && request.resource.data.createdByRole == resource.data.createdByRole
-        && request.resource.data.createdAt == resource.data.createdAt;
-    }
-
-    function salesReturnSourceInvoiceIsAllowed(companyId, data) {
-      let invoicePath =
+    function sourceInvoiceAllowed(companyId, data) {
+      let path =
         /databases/$(database)/documents/companies/$(companyId)/invoices/$(data.originalInvoiceId);
-      let invoice = get(invoicePath);
-      return exists(invoicePath)
-        && invoice.data.companyId == companyId
-        && invoice.data.invoiceStatus == 'confirmed'
-        && data.originalInvoiceNumber == invoice.data.invoiceNumber
-        && data.customerId == invoice.data.customerId
-        && data.salesRepId == invoice.data.salesRepId
+      return data.originalInvoiceId is string
+        && data.originalInvoiceId.size() > 0
+        && exists(path)
+        && get(path).data.companyId == companyId
+        && get(path).data.invoiceStatus in ['confirmed', 'accepted']
+        && data.originalInvoiceNumber == get(path).data.invoiceNumber
+        && data.customerId == get(path).data.customerId
+        && data.salesRepId == get(path).data.salesRepId
         && (
-          isActiveAdmin()
-          || invoice.data.createdByUid == request.auth.uid
-          || invoice.data.salesRepId == request.auth.uid
+          isAdmin(companyId)
+          || get(path).data.salesRepId == request.auth.uid
         );
     }
 
-    function salesReturnFieldsAreValid(companyId, returnId, data) {
+    function validReturnDraftData(companyId, returnId, data) {
       return data.keys().hasOnly([
-          'id',
-          'companyId',
-          'returnNumber',
-          'returnInvoiceId',
-          'originalInvoiceId',
-          'originalInvoiceNumber',
-          'originalInvoiceDate',
-          'customerId',
-          'customerSnapshot',
-          'items',
-          'subtotal',
-          'totalDiscount',
-          'totalTax',
-          'grandTotal',
-          'receivableReduction',
-          'customerCreditAmount',
-          'cashRefundAmount',
-          'refundType',
-          'returnDate',
-          'reason',
-          'status',
-          'salesRepId',
-          'salesRepName',
-          'createdByUid',
-          'createdByName',
-          'createdByRole',
-          'financialPosted',
-          'inventoryPosted',
-          'financialPostedAt',
-          'inventoryPostedAt',
-          'stockMovementIds',
-          'customerTransactionIds',
-          'cashMovementIds',
-          'createdAt',
-          'updatedAt'
+          'id', 'companyId', 'returnNumber', 'returnInvoiceId',
+          'originalInvoiceId', 'originalInvoiceNumber', 'originalInvoiceDate',
+          'customerId', 'customerSnapshot', 'items', 'subtotal',
+          'totalDiscount', 'totalTax', 'grandTotal', 'receivableReduction',
+          'customerCreditAmount', 'cashRefundAmount', 'refundType',
+          'returnDate', 'reason', 'status', 'salesRepId', 'salesRepName',
+          'createdByUid', 'createdByName', 'createdByRole', 'financialPosted',
+          'inventoryPosted', 'financialPostedAt', 'inventoryPostedAt',
+          'stockMovementIds', 'customerTransactionIds', 'cashMovementIds',
+          'createdAt', 'updatedAt'
         ])
         && data.id == returnId
         && data.returnInvoiceId == returnId
         && data.companyId == companyId
-        && data.returnNumber.matches(
-          '^[A-Z0-9]{1,10}-[0-9]{4}-[0-9]{6}$'
+        && configuredNumber(
+          companyId, data.returnNumber, 'salesReturnPrefix', 'RET'
         )
-        && data.originalInvoiceId is string
-        && data.originalInvoiceId.size() > 0
-        && data.originalInvoiceNumber is string
+        && sourceInvoiceAllowed(companyId, data)
         && data.originalInvoiceDate is timestamp
-        && data.customerId is string
-        && data.customerId.size() > 0
         && data.customerSnapshot is map
         && data.items is list
         && data.items.size() > 0
+        && data.items.size() <= 100
         && data.subtotal is number
         && data.subtotal >= 0
         && data.totalDiscount is number
@@ -1486,41 +544,11 @@ service cloud.firestore {
         && data.totalTax >= 0
         && data.grandTotal is number
         && data.grandTotal > 0
-        && data.receivableReduction is number
-        && data.receivableReduction >= 0
-        && data.customerCreditAmount is number
-        && data.customerCreditAmount >= 0
-        && data.cashRefundAmount is number
-        && data.cashRefundAmount >= 0
-        && (
-          (
-            data.status == 'draft'
-            && data.receivableReduction == 0
-            && data.customerCreditAmount == 0
-            && data.cashRefundAmount == 0
-          )
-          || (
-            data.status == 'confirmed'
-            && data.receivableReduction
-              + data.customerCreditAmount
-              + data.cashRefundAmount == data.grandTotal
-            && (
-              (
-                data.refundType == 'credit_customer_balance'
-                && data.cashRefundAmount == 0
-              )
-              || (
-                data.refundType == 'cash_refund'
-                && data.customerCreditAmount == 0
-              )
-            )
-          )
-        )
         && data.refundType in ['credit_customer_balance', 'cash_refund']
         && data.returnDate is timestamp
         && data.reason is string
         && data.reason.size() > 0
-        && data.status in ['draft', 'confirmed', 'cancelled']
+        && data.status == 'draft'
         && data.salesRepId is string
         && data.salesRepId.size() > 0
         && data.salesRepName is string
@@ -1530,186 +558,90 @@ service cloud.firestore {
         && data.createdByName.size() > 0
         && data.createdByName != 'undefined'
         && data.createdByRole is string
-        && data.financialPosted is bool
-        && data.inventoryPosted is bool
-        && data.stockMovementIds is list
-        && data.customerTransactionIds is list
-        && data.cashMovementIds is list;
+        && data.financialPosted == false
+        && data.inventoryPosted == false
+        && data.financialPostedAt == null
+        && data.inventoryPostedAt == null
+        && data.stockMovementIds.size() == 0
+        && data.customerTransactionIds.size() == 0
+        && data.cashMovementIds.size() == 0
+        && data.receivableReduction == 0
+        && data.customerCreditAmount == 0
+        && data.cashRefundAmount == 0;
     }
 
-    function validSalesReturnCreate(companyId, returnId) {
+    function validReturnDraftCreate(companyId, returnId) {
       let data = request.resource.data;
-      return validBusinessCreate(companyId, data)
-        && businessPermissionAllows(
-          companyId,
-          'allowSalesRepCreateReturns'
-        )
-        && salesReturnFieldsAreValid(companyId, returnId, data)
-        && configuredDocumentNumberMatches(
-          companyId,
-          data.returnNumber,
-          'salesReturnPrefix',
-          'RET'
-        )
-        && salesReturnSourceInvoiceIsAllowed(companyId, data)
+      return validCreator(companyId, data)
+        && permissionAllows(companyId, 'allowSalesRepCreateReturns')
+        && validReturnDraftData(companyId, returnId, data)
         && data.createdAt == request.time
-        && data.updatedAt == request.time
-        && (
-          (
-            data.status == 'draft'
-            && data.financialPosted == false
-            && data.inventoryPosted == false
-            && data.stockMovementIds.size() == 0
-            && data.customerTransactionIds.size() == 0
-            && data.cashMovementIds.size() == 0
-            && data.receivableReduction == 0
-            && data.customerCreditAmount == 0
-            && data.cashRefundAmount == 0
-          )
-          || (
-            data.status == 'confirmed'
-            && data.financialPosted == true
-            && data.inventoryPosted == true
-          )
-        );
+        && data.updatedAt == request.time;
     }
 
-    function validSalesReturnDraftUpdate(companyId) {
-      return canReadOwnedBusinessDoc(companyId, resource.data)
-        && businessPermissionAllows(
-          companyId,
-          'allowSalesRepCreateReturns'
-        )
-        && salesReturnIdentityPreserved()
+    function validReturnDraftUpdate(companyId) {
+      let data = request.resource.data;
+      let changed = data.diff(resource.data).affectedKeys();
+      return canReadSalesRepDocument(companyId, resource.data)
         && resource.data.status == 'draft'
-        && request.resource.data.status == 'draft'
-        && salesReturnFieldsAreValid(
-          companyId,
-          resource.data.id,
-          request.resource.data
-        )
-        && salesReturnSourceInvoiceIsAllowed(companyId, request.resource.data)
-        && request.resource.data.financialPosted == false
-        && request.resource.data.inventoryPosted == false
-        && request.resource.data.stockMovementIds.size() == 0
-        && request.resource.data.customerTransactionIds.size() == 0
-        && request.resource.data.cashMovementIds.size() == 0
-        && request.resource.data.receivableReduction == 0
-        && request.resource.data.customerCreditAmount == 0
-        && request.resource.data.cashRefundAmount == 0
-        && request.resource.data.updatedAt == request.time;
-    }
-
-    function validSalesReturnPostingUpdate(companyId) {
-      return canReadOwnedBusinessDoc(companyId, resource.data)
-        && businessPermissionAllows(
-          companyId,
-          'allowSalesRepCreateReturns'
-        )
-        && salesReturnIdentityPreserved()
-        && resource.data.status == 'draft'
-        && request.resource.data.status == 'confirmed'
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'status',
-          'returnInvoiceId',
-          'originalInvoiceDate',
-          'items',
-          'totalDiscount',
-          'financialPosted',
-          'inventoryPosted',
-          'financialPostedAt',
-          'inventoryPostedAt',
-          'stockMovementIds',
-          'customerTransactionIds',
-          'cashMovementIds',
-          'receivableReduction',
-          'customerCreditAmount',
-          'cashRefundAmount',
-          'updatedAt'
+        && resource.data.financialPosted == false
+        && resource.data.inventoryPosted == false
+        && permissionAllows(companyId, 'allowSalesRepCreateReturns')
+        && data.status == 'draft'
+        && data.financialPosted == false
+        && data.inventoryPosted == false
+        && changed.hasOnly([
+          'customerSnapshot', 'items', 'subtotal', 'totalDiscount', 'totalTax',
+          'grandTotal', 'refundType', 'returnDate', 'reason', 'updatedAt'
         ])
-        && salesReturnFieldsAreValid(
-          companyId,
-          resource.data.id,
-          request.resource.data
-        )
-        && salesReturnSourceInvoiceIsAllowed(companyId, request.resource.data)
-        && request.resource.data.financialPosted == true
-        && request.resource.data.inventoryPosted == true
-        && request.resource.data.updatedAt == request.time;
+        && data.items is list
+        && data.items.size() > 0
+        && data.items.size() <= 100
+        && data.subtotal >= 0
+        && data.totalDiscount >= 0
+        && data.totalTax >= 0
+        && data.grandTotal > 0
+        && data.refundType in ['credit_customer_balance', 'cash_refund']
+        && data.reason is string
+        && data.reason.size() > 0
+        && data.updatedAt == request.time;
     }
 
-    function quotationIdentityPreserved() {
-      return request.resource.data.id == resource.data.id
-        && request.resource.data.companyId == resource.data.companyId
-        && request.resource.data.quotationNumber == resource.data.quotationNumber
-        && request.resource.data.customerId == resource.data.customerId
-        && request.resource.data.createdByUid == resource.data.createdByUid
-        && request.resource.data.createdByName == resource.data.createdByName
-        && request.resource.data.createdByRole == resource.data.createdByRole
-        && request.resource.data.createdAt == resource.data.createdAt;
-    }
-
-    function quotationFieldsAreValid(companyId, quotationId, data) {
+    function validQuotationData(companyId, quotationId, data) {
       return data.keys().hasOnly([
-          'id',
-          'companyId',
-          'quotationNumber',
-          'quotationDate',
-          'validUntil',
-          'customerId',
-          'customerSnapshot',
-          'items',
-          'subtotal',
-          'totalDiscount',
-          'totalTax',
-          'grandTotal',
-          'notes',
-          'terms',
-          'status',
-          'salesRepId',
-          'salesRepName',
-          'createdByUid',
-          'createdByName',
-          'createdByRole',
-          'convertedInvoiceId',
-          'convertedInvoiceNumber',
-          'createdAt',
-          'updatedAt',
-          'searchKeywords'
+          'id', 'companyId', 'quotationNumber', 'quotationDate', 'validUntil',
+          'customerId', 'customerSnapshot', 'items', 'subtotal',
+          'totalDiscount', 'totalTax', 'grandTotal', 'notes', 'terms', 'status',
+          'salesRepId', 'salesRepName', 'createdByUid', 'createdByName',
+          'createdByRole', 'convertedInvoiceId', 'convertedInvoiceNumber',
+          'createdAt', 'updatedAt', 'searchKeywords'
         ])
         && data.id == quotationId
         && data.companyId == companyId
-        && data.quotationNumber.matches(
-          '^[A-Z0-9]{1,10}-[0-9]{4}-[0-9]{6}$'
+        && configuredNumber(
+          companyId, data.quotationNumber, 'quotationPrefix', 'QUO'
         )
         && data.quotationDate is timestamp
         && data.validUntil is timestamp
         && data.validUntil >= data.quotationDate
-        && data.customerId is string
-        && data.customerId.size() > 0
+        && customerAllowed(companyId, data.customerId)
         && data.customerSnapshot is map
-        && data.customerSnapshot.id == data.customerId
-        && data.customerSnapshot.name is string
-        && data.customerSnapshot.name.size() > 0
         && data.items is list
         && data.items.size() > 0
+        && data.items.size() <= 100
         && data.subtotal is number
         && data.subtotal >= 0
         && data.totalDiscount is number
         && data.totalDiscount >= 0
+        && data.totalDiscount <= data.subtotal
         && data.totalTax is number
         && data.totalTax >= 0
         && data.grandTotal is number
-        && data.grandTotal >= 0
+        && data.grandTotal > 0
         && data.notes is string
         && data.terms is string
         && data.status in [
-          'draft',
-          'sent',
-          'accepted',
-          'rejected',
-          'expired',
-          'converted'
+          'draft', 'sent', 'accepted', 'rejected', 'expired', 'converted'
         ]
         && data.salesRepId is string
         && data.salesRepId.size() > 0
@@ -1726,267 +658,118 @@ service cloud.firestore {
         && data.searchKeywords is list;
     }
 
-    function quotationCustomerIsAllowed(companyId, data) {
-      let customerPath =
-        /databases/$(database)/documents/companies/$(companyId)/customers/$(data.customerId);
-      let customer = get(customerPath);
-      return exists(customerPath)
-        && customer.data.companyId == companyId
-        && customer.data.active == true
-        && (
-          isActiveAdmin()
-          || customer.data.createdByUid == request.auth.uid
-        );
-    }
-
     function validQuotationCreate(companyId, quotationId) {
       let data = request.resource.data;
-      let user = userDoc().data;
-      let settingsPath =
-        /databases/$(database)/documents/companies/$(companyId)/settings/app;
-      let settings = get(settingsPath);
-      let customerPath =
-        /databases/$(database)/documents/companies/$(companyId)/customers/$(data.customerId);
-      let customer = get(customerPath);
-      let isAdmin = user.role == 'admin';
-      return isApprovedCompanyUser(companyId)
-        && data.companyId == companyId
-        && data.createdByUid == request.auth.uid
-        && data.createdByName is string
-        && data.createdByName.size() > 0
-        && data.createdByName != 'undefined'
-        && data.createdByRole == user.role
-        && (
-          isAdmin
-          || (
-            user.role == 'sales_rep'
-            && (
-              !exists(settingsPath)
-              || !settings.data.keys().hasAny(['permissionSettings'])
-              || !settings.data.permissionSettings.keys().hasAny([
-                'allowSalesRepCreateQuotations'
-              ])
-              || settings.data.permissionSettings.allowSalesRepCreateQuotations
-                == true
-            )
-          )
-        )
-        && (
-          isAdmin
-          || data.totalDiscount == 0
-          || (
-            user.role == 'sales_rep'
-            && (
-              !exists(settingsPath)
-              || !settings.data.keys().hasAny(['permissionSettings'])
-              || !settings.data.permissionSettings.keys().hasAny([
-                'allowSalesRepDiscount'
-              ])
-              || settings.data.permissionSettings.allowSalesRepDiscount == true
-            )
-          )
-        )
-        && quotationFieldsAreValid(companyId, quotationId, data)
-        && (
-          (
-            exists(settingsPath)
-            && data.quotationNumber.matches(
-              '^' + settings.data.documentSettings.quotationPrefix
-              + '-[0-9]{4}-[0-9]{6}$'
-            )
-          )
-          || (
-            !exists(settingsPath)
-            && data.quotationNumber.matches(
-              '^QUO-[0-9]{4}-[0-9]{6}$'
-            )
-          )
-        )
-        && exists(customerPath)
-        && customer.data.companyId == companyId
-        && customer.data.active == true
-        && (
-          isAdmin
-          || customer.data.createdByUid == request.auth.uid
-        )
+      return validCreator(companyId, data)
+        && permissionAllows(companyId, 'allowSalesRepCreateQuotations')
+        && (isAdmin(companyId) || data.totalDiscount == 0 || permissionAllows(companyId, 'allowSalesRepDiscount'))
+        && validQuotationData(companyId, quotationId, data)
         && data.status == 'draft'
         && data.convertedInvoiceId == ''
         && data.convertedInvoiceNumber == ''
-        && (
-          isAdmin
-          || data.salesRepId == request.auth.uid
-        )
+        && (isAdmin(companyId) || data.salesRepId == request.auth.uid)
         && data.createdAt == request.time
         && data.updatedAt == request.time;
     }
 
     function validQuotationDraftUpdate(companyId) {
-      return resource.data.status == 'draft'
-        && documentDiscountAllowed(companyId, request.resource.data)
-        && request.resource.data.status == 'draft'
-        && canReadOwnedBusinessDoc(companyId, resource.data)
-        && quotationIdentityPreserved()
-        && quotationFieldsAreValid(
-          companyId,
-          resource.data.id,
-          request.resource.data
-        )
-        && quotationCustomerIsAllowed(companyId, request.resource.data)
-        && request.resource.data.convertedInvoiceId == ''
-        && request.resource.data.convertedInvoiceNumber == ''
-        && request.resource.data.updatedAt == request.time;
+      let data = request.resource.data;
+      let changed = data.diff(resource.data).affectedKeys();
+      return canReadSalesRepDocument(companyId, resource.data)
+        && resource.data.status == 'draft'
+        && data.status == 'draft'
+        && data.convertedInvoiceId == ''
+        && data.convertedInvoiceNumber == ''
+        && changed.hasOnly([
+          'quotationDate', 'validUntil', 'customerSnapshot', 'items',
+          'subtotal', 'totalDiscount', 'totalTax', 'grandTotal', 'notes',
+          'terms', 'searchKeywords', 'updatedAt'
+        ])
+        && data.items is list
+        && data.items.size() > 0
+        && data.items.size() <= 100
+        && data.subtotal >= 0
+        && data.totalDiscount >= 0
+        && data.totalDiscount <= data.subtotal
+        && data.totalTax >= 0
+        && data.grandTotal > 0
+        && (isAdmin(companyId) || data.totalDiscount == 0 || permissionAllows(companyId, 'allowSalesRepDiscount'))
+        && data.updatedAt == request.time;
     }
 
     function validQuotationStatusUpdate(companyId) {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'status',
-          'updatedAt'
-        ])
+      return canReadSalesRepDocument(companyId, resource.data)
         && resource.data.status != 'converted'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'updatedAt'
+        ])
         && request.resource.data.status in [
-          'sent',
-          'accepted',
-          'rejected',
-          'expired'
+          'sent', 'accepted', 'rejected', 'expired'
         ]
-        && canReadOwnedBusinessDoc(companyId, resource.data)
-        && quotationIdentityPreserved()
         && request.resource.data.updatedAt == request.time;
     }
 
-    function validQuotationConversionUpdate(companyId) {
-      let invoicePath =
-        /databases/$(database)/documents/companies/$(companyId)/invoices/$(request.resource.data.convertedInvoiceId);
-      let invoice = getAfter(invoicePath);
-      return resource.data.status in ['sent', 'accepted']
-        && request.resource.data.status == 'converted'
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'status',
-          'convertedInvoiceId',
-          'convertedInvoiceNumber',
-          'updatedAt'
-        ])
+    function validQuotationConversion(companyId) {
+      return request.resource.data.status == 'converted'
         && request.resource.data.convertedInvoiceId is string
         && request.resource.data.convertedInvoiceId.size() > 0
-        && configuredDocumentNumberMatches(
+        && configuredNumber(
           companyId,
           request.resource.data.convertedInvoiceNumber,
           'invoicePrefix',
           'INV'
         )
-        && request.resource.data.updatedAt == request.time
-        && canReadOwnedBusinessDoc(companyId, resource.data)
-        && quotationIdentityPreserved()
-        && existsAfter(invoicePath)
-        && invoice.data.companyId == companyId
-        && invoice.data.id == request.resource.data.convertedInvoiceId
-        && invoice.data.invoiceNumber == request.resource.data.convertedInvoiceNumber
-        && invoice.data.invoiceStatus == 'draft'
-        && invoice.data.financialPosted == false
-        && invoice.data.inventoryPosted == false
-        && invoice.data.customerId == resource.data.customerId
-        && invoice.data.grandTotal == resource.data.grandTotal
-        && invoice.data.createdByUid == request.auth.uid;
-    }
-
-    function validCounterWrite(companyId, counterId) {
-      // TODO: OSAMA - Generate official numbers in Cloud Functions when possible.
-      return isApprovedCompanyUser(companyId)
-        && counterId.matches('^(invoices|receipts|sales_returns|quotations|inventory_transfers)_[0-9]{4}$')
-        && request.resource.data.keys().hasOnly([
-          'id',
-          'companyId',
-          'year',
-          'lastNumber',
-          'prefix',
-          'updatedAt'
+        && canReadSalesRepDocument(companyId, resource.data)
+        && resource.data.status in ['sent', 'accepted']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'convertedInvoiceId', 'convertedInvoiceNumber', 'updatedAt'
         ])
-        && request.resource.data.id == counterId
-        && request.resource.data.companyId == companyId
-        && request.resource.data.year is number
-        && request.resource.data.year >= 2020
-        && request.resource.data.year <= 2100
-        && request.resource.data.lastNumber is number
-        && request.resource.data.lastNumber > 0
         && request.resource.data.updatedAt == request.time
-        && (
-          (
-            counterId.matches('^invoices_[0-9]{4}$')
-            && configuredPrefixMatches(
-              companyId,
-              request.resource.data.prefix,
-              'invoicePrefix',
-              'INV'
-            )
-          )
-          || (
-            counterId.matches('^receipts_[0-9]{4}$')
-            && configuredPrefixMatches(
-              companyId,
-              request.resource.data.prefix,
-              'receiptPrefix',
-              'REC'
-            )
-          )
-          || (
-            counterId.matches('^sales_returns_[0-9]{4}$')
-            && configuredPrefixMatches(
-              companyId,
-              request.resource.data.prefix,
-              'salesReturnPrefix',
-              'RET'
-            )
-          )
-          || (
-            counterId.matches('^quotations_[0-9]{4}$')
-            && configuredPrefixMatches(
-              companyId,
-              request.resource.data.prefix,
-              'quotationPrefix',
-              'QUO'
-            )
-          )
-          || (
-            counterId.matches('^inventory_transfers_[0-9]{4}$')
-            && isActiveAdmin()
-            && request.resource.data.prefix == 'TRN'
-          )
-        );
+        && request.resource.data.convertedInvoiceId != resource.data.id;
     }
 
-    function inventoryTransferFieldsValid(companyId, transferId, data) {
-      return isActiveAdmin()
+    function validExpenseRejection(companyId) {
+      let data = request.resource.data;
+      return isAdmin(companyId)
+        && resource.data.status == 'pending'
+        && data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'reimbursementStatus', 'rejectedByUid', 'rejectedByName',
+          'rejectedAt', 'rejectionReason', 'updatedAt'
+        ])
+        && data.status == 'rejected'
+        && data.reimbursementStatus == 'none'
+        && data.rejectedByUid == request.auth.uid
+        && data.rejectedByName is string
+        && data.rejectedByName.size() > 0
+        && data.rejectedAt == request.time
+        && data.rejectionReason is string
+        && data.rejectionReason.size() > 0
+        && data.updatedAt == request.time;
+    }
+
+    function validTransferData(companyId, transferId, data) {
+      let repPath = /databases/$(database)/documents/users/$(data.salesRepId);
+      return isAdmin(companyId)
         && data.keys().hasOnly([
-          'id',
-          'companyId',
-          'transferNumber',
-          'year',
-          'type',
-          'status',
-          'salesRepId',
-          'salesRepNameSnapshot',
-          'lines',
-          'totalQuantity',
-          'notes',
-          'createdByUid',
-          'createdByName',
-          'createdAt',
-          'updatedAt',
-          'confirmedByUid',
-          'confirmedByName',
-          'confirmedAt',
-          'cancelledByUid',
-          'cancelledAt',
-          'effectsVersion'
+          'id', 'companyId', 'transferNumber', 'year', 'type', 'status',
+          'salesRepId', 'salesRepNameSnapshot', 'lines', 'totalQuantity',
+          'notes', 'createdByUid', 'createdByName', 'createdAt', 'updatedAt',
+          'confirmedByUid', 'confirmedByName', 'confirmedAt',
+          'cancelledByUid', 'cancelledAt', 'effectsVersion'
         ])
         && data.id == transferId
         && data.companyId == companyId
         && data.transferNumber.matches('^TRN-[0-9]{4}-[0-9]{6}$')
         && data.year is number
         && data.type in ['warehouseToRep', 'repToWarehouse']
-        && data.status in ['draft', 'confirmed', 'cancelled']
+        && data.status in ['draft', 'cancelled']
         && data.salesRepId is string
         && data.salesRepId.size() > 0
+        && exists(repPath)
+        && get(repPath).data.role == 'sales_rep'
+        && get(repPath).data.active == true
+        && hasApprovedStatus(get(repPath).data)
+        && profileCompany(get(repPath).data) == companyId
         && data.salesRepNameSnapshot is string
         && data.salesRepNameSnapshot.size() > 0
         && data.lines is list
@@ -1999,10 +782,23 @@ service cloud.firestore {
         && data.createdByName is string
         && data.createdByName.size() > 0
         && data.updatedAt == request.time
-        && data.effectsVersion == 1;
+        && data.effectsVersion == 1
+        && data.confirmedByUid == ''
+        && data.confirmedByName == ''
+        && data.confirmedAt == null;
     }
 
-    function inventoryTransferIdentityPreserved() {
+    function validTransferCreate(companyId, transferId) {
+      let data = request.resource.data;
+      return validTransferData(companyId, transferId, data)
+        && data.status == 'draft'
+        && data.createdByUid == request.auth.uid
+        && data.createdAt == request.time
+        && data.cancelledByUid == ''
+        && data.cancelledAt == null;
+    }
+
+    function transferIdentityPreserved() {
       return request.resource.data.id == resource.data.id
         && request.resource.data.companyId == resource.data.companyId
         && request.resource.data.transferNumber == resource.data.transferNumber
@@ -2011,53 +807,21 @@ service cloud.firestore {
         && request.resource.data.createdAt == resource.data.createdAt;
     }
 
-    function validInventoryTransferCreate(companyId, transferId) {
+    function validTransferUpdate(companyId, transferId) {
       let data = request.resource.data;
-      return inventoryTransferFieldsValid(companyId, transferId, data)
-        && data.status == 'draft'
-        && data.createdByUid == request.auth.uid
-        && data.createdAt == request.time
-        && data.confirmedByUid == ''
-        && data.confirmedByName == ''
-        && data.confirmedAt == null
-        && data.cancelledByUid == ''
-        && data.cancelledAt == null;
-    }
-
-    function validInventoryTransferUpdate(companyId, transferId) {
-      let data = request.resource.data;
-      return inventoryTransferFieldsValid(companyId, transferId, data)
-        && inventoryTransferIdentityPreserved()
-        && resource.data.status == 'draft'
+      return resource.data.status == 'draft'
+        && transferIdentityPreserved()
+        && validTransferData(companyId, transferId, data)
         && (
           (
             data.status == 'draft'
-            && data.confirmedByUid == ''
-            && data.confirmedAt == null
-          )
-          || (
-            data.status == 'confirmed'
-            && data.diff(resource.data).affectedKeys().hasOnly([
-              'status',
-              'lines',
-              'confirmedByUid',
-              'confirmedByName',
-              'confirmedAt',
-              'updatedAt',
-              'effectsVersion'
-            ])
-            && data.confirmedByUid == request.auth.uid
-            && data.confirmedByName is string
-            && data.confirmedByName.size() > 0
-            && data.confirmedAt == request.time
+            && data.cancelledByUid == ''
+            && data.cancelledAt == null
           )
           || (
             data.status == 'cancelled'
             && data.diff(resource.data).affectedKeys().hasOnly([
-              'status',
-              'cancelledByUid',
-              'cancelledAt',
-              'updatedAt'
+              'status', 'cancelledByUid', 'cancelledAt', 'updatedAt'
             ])
             && data.cancelledByUid == request.auth.uid
             && data.cancelledAt == request.time
@@ -2065,100 +829,106 @@ service cloud.firestore {
         );
     }
 
+    function validCounterWrite(companyId, counterId) {
+      let data = request.resource.data;
+      return isApprovedCompanyUser(companyId)
+        && counterId.matches(
+          '^(invoices|sales_returns|quotations|inventory_transfers)_[0-9]{4}$'
+        )
+        && data.keys().hasOnly([
+          'id', 'companyId', 'year', 'lastNumber', 'prefix', 'updatedAt'
+        ])
+        && data.id == counterId
+        && data.companyId == companyId
+        && data.year is number
+        && data.year >= 2020
+        && data.year <= 2100
+        && data.lastNumber is number
+        && data.lastNumber > 0
+        && data.updatedAt == request.time
+        && (
+          (
+            counterId.matches('^invoices_[0-9]{4}$')
+            && configuredPrefix(
+              companyId, data.prefix, 'invoicePrefix', 'INV'
+            )
+          )
+          || (
+            counterId.matches('^sales_returns_[0-9]{4}$')
+            && permissionAllows(companyId, 'allowSalesRepCreateReturns')
+            && configuredPrefix(
+              companyId, data.prefix, 'salesReturnPrefix', 'RET'
+            )
+          )
+          || (
+            counterId.matches('^quotations_[0-9]{4}$')
+            && permissionAllows(companyId, 'allowSalesRepCreateQuotations')
+            && configuredPrefix(
+              companyId, data.prefix, 'quotationPrefix', 'QUO'
+            )
+          )
+          || (
+            counterId.matches('^inventory_transfers_[0-9]{4}$')
+            && isAdmin(companyId)
+            && data.prefix == 'TRN'
+          )
+        );
+    }
+
     match /users/{userId} {
       allow get: if isSignedIn()
-        && (request.auth.uid == userId || isActiveAdmin());
-
-      allow list: if isActiveAdmin();
-
-      allow create: if isSignedIn() && validPendingUserCreate(userId);
-
+        && (request.auth.uid == userId || isAdmin('default_company'));
+      allow list: if isAdmin('default_company');
+      allow create: if validPendingUserCreate(userId);
       allow update: if validSafeSelfProfileUpdate(userId)
-        || validAdminManagedUserUpdate(userId);
-
+        || validAdminUserUpdate(userId);
       allow delete: if false;
 
       match /preferences/{preferenceId} {
         allow get: if isSignedIn() && request.auth.uid == userId;
         allow list: if false;
-        allow create, update: if validUserPreferencesWrite(
-          userId,
-          preferenceId
-        );
+        allow create, update: if validPreferencesWrite(userId, preferenceId);
         allow delete: if false;
       }
     }
 
     match /items/{itemId} {
-      allow get, list: if isApprovedCompanyUser('default_company');
-
-      allow create: if false;
-
-      allow update: if (
-          isActiveAdmin()
-          && request.resource.data.id == resource.data.id
-          && request.resource.data.createdBy == resource.data.createdBy
-          && request.resource.data.createdAt == resource.data.createdAt
-          && request.resource.data.currentStock == resource.data.currentStock
-          && request.resource.data.updatedAt == request.time
-        )
-        || validAdminItemStockUpdate(itemId)
-        || validInventoryTransferItemStockUpdate(itemId);
-
-      allow delete: if false;
+      allow read: if isApprovedCompanyUser('default_company');
+      allow create, delete: if false;
+      allow update: if validCatalogUpdate();
     }
 
     match /companies/{companyId}/customers/{customerId} {
-      allow get: if canReadOwnedBusinessDoc(companyId, resource.data);
-      allow list: if isApprovedCompanyUser(companyId)
+      allow get: if isApprovedCompanyUser(companyId)
         && (
-          isActiveAdmin()
-          || resource.data.createdByUid == request.auth.uid
+          !exists(
+            /databases/$(database)/documents/companies/$(companyId)/customers/$(customerId)
+          )
+          || canReadCreatedDocument(companyId, resource.data)
         );
-
-      // Profiles and phone uniqueness are server-owned. The trusted callables
-      // normalize the raw phone and atomically maintain its reservation.
-      allow create, update: if false;
-
-      allow delete: if false;
+      allow list: if canReadCreatedDocument(companyId, resource.data);
+      allow write: if false;
     }
 
-    match /companies/{companyId}/customer_phone_reservations/{phoneNormalized} {
-      allow get: if isApprovedCompanyUser(companyId);
-      allow list: if false;
-      allow create, update, delete: if false;
+    match /companies/{companyId}/customer_phone_reservations/{reservationId} {
+      allow read, write: if false;
     }
 
     match /companies/{companyId}/invoices/{invoiceId} {
-      allow get: if canReadSalesRepOwnedDoc(companyId, resource.data);
-      allow list: if canReadSalesRepOwnedDoc(companyId, resource.data);
-
-      allow create: if validBusinessCreate(companyId, request.resource.data)
-        && request.resource.data.id == invoiceId
-        && invoiceIsEditableDraft(request.resource.data)
-        && documentDiscountAllowed(companyId, request.resource.data)
-        && configuredDocumentNumberMatches(
-          companyId,
-          request.resource.data.invoiceNumber,
-          'invoicePrefix',
-          'INV'
-        )
+      allow get: if isApprovedCompanyUser(companyId)
         && (
-          isActiveAdmin()
-          || request.resource.data.salesRepId == request.auth.uid
-        )
-        && request.resource.data.salesRepName is string
-        && request.resource.data.salesRepName.size() > 0
-        && request.resource.data.salesRepName != 'undefined'
-        && validInvoiceStockSource(request.resource.data)
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time;
-
+          !exists(
+            /databases/$(database)/documents/companies/$(companyId)/invoices/$(invoiceId)
+          )
+          || canReadSalesRepDocument(companyId, resource.data)
+        );
+      allow list: if canReadSalesRepDocument(companyId, resource.data);
+      allow create: if validInvoiceDraftCreate(companyId, invoiceId);
       allow update: if validInvoiceDraftUpdate(companyId);
-
-      allow delete: if canReadSalesRepOwnedDoc(companyId, resource.data)
+      allow delete: if canReadSalesRepDocument(companyId, resource.data)
         && resource.data.invoiceStatus == 'draft'
-        && resource.data.isLocked == false;
+        && resource.data.financialPosted == false
+        && resource.data.inventoryPosted == false;
     }
 
     match /companies/{companyId}/customer_transactions/{transactionId} {
@@ -2169,25 +939,20 @@ service cloud.firestore {
           )
           || canReadCustomerTransaction(companyId, resource.data)
         );
-      allow list: if canReadCustomerTransaction(
-        companyId,
-        resource.data
-      );
-
-      // Ledger entries are written only by trusted posting functions.
-      allow create: if false;
-
-      allow update, delete: if false;
+      allow list: if canReadCustomerTransaction(companyId, resource.data);
+      allow write: if false;
     }
 
     match /companies/{companyId}/receipts/{receiptId} {
-      allow get: if canReadSalesRepOwnedDoc(companyId, resource.data);
-      allow list: if canReadSalesRepOwnedDoc(companyId, resource.data);
-
-      // Receipt creation changes receivables, invoice allocations, and cash.
-      allow create: if false;
-
-      allow update, delete: if false;
+      allow get: if isApprovedCompanyUser(companyId)
+        && (
+          !exists(
+            /databases/$(database)/documents/companies/$(companyId)/receipts/$(receiptId)
+          )
+          || canReadSalesRepDocument(companyId, resource.data)
+        );
+      allow list: if canReadSalesRepDocument(companyId, resource.data);
+      allow write: if false;
     }
 
     match /companies/{companyId}/sales_returns/{returnId} {
@@ -2196,18 +961,11 @@ service cloud.firestore {
           !exists(
             /databases/$(database)/documents/companies/$(companyId)/sales_returns/$(returnId)
           )
-          || canReadOwnedBusinessDoc(companyId, resource.data)
+          || canReadSalesRepDocument(companyId, resource.data)
         );
-      allow list: if isApprovedCompanyUser(companyId)
-        && (
-          isActiveAdmin()
-          || resource.data.createdByUid == request.auth.uid
-          || resource.data.salesRepId == request.auth.uid
-        );
-
-      allow create: if validSalesReturnCreate(companyId, returnId)
-        && request.resource.data.status == 'draft';
-      allow update: if validSalesReturnDraftUpdate(companyId);
+      allow list: if canReadSalesRepDocument(companyId, resource.data);
+      allow create: if validReturnDraftCreate(companyId, returnId);
+      allow update: if validReturnDraftUpdate(companyId);
       allow delete: if false;
     }
 
@@ -2217,19 +975,25 @@ service cloud.firestore {
           !exists(
             /databases/$(database)/documents/companies/$(companyId)/quotations/$(quotationId)
           )
-          || canReadOwnedBusinessDoc(companyId, resource.data)
+          || canReadSalesRepDocument(companyId, resource.data)
         );
-      allow list: if isApprovedCompanyUser(companyId)
-        && (
-          isActiveAdmin()
-          || resource.data.createdByUid == request.auth.uid
-          || resource.data.salesRepId == request.auth.uid
-        );
-
+      allow list: if canReadSalesRepDocument(companyId, resource.data);
       allow create: if validQuotationCreate(companyId, quotationId);
-      allow update: if validQuotationDraftUpdate(companyId)
-        || validQuotationStatusUpdate(companyId)
-        || validQuotationConversionUpdate(companyId);
+      allow update: if (
+          resource.data.status == 'draft'
+          && request.resource.data.status == 'draft'
+          && validQuotationDraftUpdate(companyId)
+        )
+        || (
+          request.resource.data.status == 'converted'
+          && validQuotationConversion(companyId)
+        )
+        || (
+          request.resource.data.status in [
+            'sent', 'accepted', 'rejected', 'expired'
+          ]
+          && validQuotationStatusUpdate(companyId)
+        );
       allow delete: if false;
     }
 
@@ -2242,11 +1006,8 @@ service cloud.firestore {
           || canReadExpense(companyId, resource.data)
         );
       allow list: if canReadExpense(companyId, resource.data);
-
-      allow create: if validSalesRepExpenseCreate(companyId, expenseId);
-      allow update: if validAdminExpenseDecisionUpdate(companyId)
-        && request.resource.data.status == 'rejected';
-      allow delete: if false;
+      allow create, delete: if false;
+      allow update: if validExpenseRejection(companyId);
     }
 
     match /companies/{companyId}/cash_movements/{movementId} {
@@ -2258,32 +1019,25 @@ service cloud.firestore {
           || canReadCashMovement(companyId, resource.data)
         );
       allow list: if canReadCashMovement(companyId, resource.data);
-
-      // Cash is an append-only server-owned ledger.
-      allow create: if false;
-
-      allow update, delete: if false;
+      allow write: if false;
     }
 
     match /companies/{companyId}/cash_balances/{accountId} {
-      allow get, list: if isApprovedCompanyUser(companyId)
+      allow read: if isApprovedCompanyUser(companyId)
         && (
-          isActiveAdmin()
+          isAdmin(companyId)
           || (
             resource.data.cashAccount == 'rep_cash'
             && resource.data.salesRepId == request.auth.uid
           )
         );
-      allow create, update, delete: if false;
+      allow write: if false;
     }
 
     match /companies/{companyId}/settlements/{settlementId} {
-      allow get, list: if isApprovedCompanyUser(companyId)
-        && (
-          isActiveAdmin()
-          || resource.data.salesRepId == request.auth.uid
-        );
-      allow create, update, delete: if false;
+      allow read: if isApprovedCompanyUser(companyId)
+        && (isAdmin(companyId) || resource.data.salesRepId == request.auth.uid);
+      allow write: if false;
     }
 
     match /companies/{companyId}/stock_movements/{movementId} {
@@ -2292,85 +1046,39 @@ service cloud.firestore {
           !exists(
             /databases/$(database)/documents/companies/$(companyId)/stock_movements/$(movementId)
           )
-          || canReadCreatedByOwnedDoc(companyId, resource.data)
+          || canReadCreatedDocument(companyId, resource.data)
         );
-      allow list: if canReadCreatedByOwnedDoc(companyId, resource.data);
-
-      allow create: if (
-          request.resource.data.movementType == 'inventory_transfer'
-          && validInventoryTransferStockMovementCreate(companyId, movementId)
-        )
-        || (
-          request.resource.data.movementType in [
-            'manual_adjustment_in',
-            'manual_adjustment_out',
-            'damage',
-            'correction'
-          ]
-          && validAdminStockMovementCreate(companyId, movementId)
-        );
-
-      allow update, delete: if false;
+      allow list: if canReadCreatedDocument(companyId, resource.data);
+      allow write: if false;
     }
 
     match /companies/{companyId}/inventory_transfers/{transferId} {
-      allow get, list: if canReadSalesRepOwnedDoc(
-        companyId,
-        resource.data
-      );
-      allow create: if validInventoryTransferCreate(companyId, transferId);
-      allow update: if validInventoryTransferUpdate(companyId, transferId);
-      allow delete: if isActiveAdmin()
-        && isApprovedCompanyUser(companyId)
-        && resource.data.status == 'draft';
+      allow get, list: if canReadSalesRepDocument(companyId, resource.data);
+      allow create: if validTransferCreate(companyId, transferId);
+      allow update: if validTransferUpdate(companyId, transferId);
+      allow delete: if isAdmin(companyId) && resource.data.status == 'draft';
     }
 
     match /companies/{companyId}/rep_inventory_balances/{balanceId} {
-      // Invoice posting must be able to read a missing balance so it can
-      // report insufficient custody stock instead of failing with a rules
-      // error. Existing documents remain owner-scoped.
-      allow get: if isApprovedCompanyUser(companyId)
-        && (
-          !exists(
-            /databases/$(database)/documents/companies/$(companyId)/rep_inventory_balances/$(balanceId)
-          )
-          || canReadSalesRepOwnedDoc(companyId, resource.data)
-        );
-      allow list: if canReadSalesRepOwnedDoc(
-        companyId,
-        resource.data
-      );
-      allow create, update: if validRepInventoryBalanceWrite(
-        companyId,
-        balanceId
-      ) && request.resource.data.lastReferenceType == 'inventoryTransfer';
-      allow delete: if false;
+      allow get: if exists(
+          /databases/$(database)/documents/companies/$(companyId)/rep_inventory_balances/$(balanceId)
+        )
+        && canReadSalesRepDocument(companyId, resource.data);
+      allow list: if canReadSalesRepDocument(companyId, resource.data);
+      allow write: if false;
     }
 
     match /companies/{companyId}/rep_inventory_movements/{movementId} {
-      // Confirming an invoice first checks its deterministic movement ID for
-      // idempotency. Permit that read while the document does not yet exist;
-      // existing movements and all queries remain owner-scoped.
-      allow get: if isApprovedCompanyUser(companyId)
-        && (
-          !exists(
-            /databases/$(database)/documents/companies/$(companyId)/rep_inventory_movements/$(movementId)
-          )
-          || canReadSalesRepOwnedDoc(companyId, resource.data)
-        );
-      allow list: if canReadSalesRepOwnedDoc(
-        companyId,
-        resource.data
-      );
-      allow create: if validTransferRepInventoryMovement(
-          companyId,
-          movementId
-        );
-      allow update, delete: if false;
+      allow get: if exists(
+          /databases/$(database)/documents/companies/$(companyId)/rep_inventory_movements/$(movementId)
+        )
+        && canReadSalesRepDocument(companyId, resource.data);
+      allow list: if canReadSalesRepDocument(companyId, resource.data);
+      allow write: if false;
     }
 
     match /companies/{companyId}/counters/{counterId} {
-      allow get, list: if isApprovedCompanyUser(companyId);
+      allow read: if isApprovedCompanyUser(companyId);
       allow create: if validCounterWrite(companyId, counterId)
         && request.resource.data.lastNumber == 1;
       allow update: if validCounterWrite(companyId, counterId)
@@ -2383,25 +1091,24 @@ service cloud.firestore {
     }
 
     match /companies/{companyId}/settings/{settingsId} {
-      allow get: if settingsId == 'app'
-        && isApprovedCompanyUser(companyId);
+      allow get: if settingsId == 'app' && isApprovedCompanyUser(companyId);
       allow list: if false;
-      allow create, update: if validAppSettingsWrite(companyId, settingsId);
+      allow create, update: if validAppSettings(companyId, settingsId);
       allow delete: if false;
     }
 
-    // Business audit events are immutable server-owned records. Admin SDK
-    // bypasses rules; every client write is denied, including admin clients.
     match /companies/{companyId}/audit_events/{eventId} {
-      allow get, list: if isApprovedCompanyUser(companyId)
-        && isActiveAdmin();
-      allow create, update, delete: if false;
+      allow read: if isAdmin(companyId);
+      allow write: if false;
 
       match /details/{detailId} {
-        allow get, list: if isApprovedCompanyUser(companyId)
-          && isActiveAdmin();
-        allow create, update, delete: if false;
+        allow read: if isAdmin(companyId);
+        allow write: if false;
       }
+    }
+
+    match /companies/{companyId}/maintenance_locks/{lockId} {
+      allow read, write: if false;
     }
 
     match /{document=**} {

@@ -151,7 +151,7 @@ class _Header extends StatelessWidget {
                       label: Text(
                         (controller.openingBalance == null
                                 ? 'customers_add_opening_balance'
-                                : 'customers_view_opening_balance')
+                                : 'customers_edit_opening_balance')
                             .tr,
                       ),
                     ),
@@ -200,11 +200,18 @@ class _Header extends StatelessWidget {
 
     final existing = controller.openingBalance;
     if (existing != null) {
-      await showDialog<void>(
+      final updated = await showDialog<CustomerTransactionModel>(
         context: context,
-        builder: (_) =>
-            CustomerOpeningBalanceDetailsDialog(transaction: existing),
+        barrierDismissible: false,
+        builder: (_) => CustomerOpeningBalanceEditDialog(
+          customerName: customer.name,
+          transaction: existing,
+          onSubmit: controller.updateOpeningBalance,
+        ),
       );
+      if (updated != null && !controller.isClosed) {
+        controller.openingBalanceUpdateDialogCompleted(updated);
+      }
       return;
     }
 

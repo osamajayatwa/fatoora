@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:fatoora/core/data/firestore_query_pager.dart';
+import 'package:fatoora/core/firebase/trusted_callable_client.dart';
 import 'package:fatoora/core/settings/business_settings_defaults.dart';
 import 'package:fatoora/features/auth/data/models/app_user_model.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
@@ -10,7 +12,6 @@ import 'package:fatoora/features/rep_inventory/data/models/inventory_transfer_mo
 import 'package:fatoora/features/rep_inventory/data/models/rep_inventory_balance_model.dart';
 import 'package:fatoora/features/rep_inventory/data/models/rep_inventory_enums.dart';
 import 'package:fatoora/features/rep_inventory/data/models/rep_inventory_movement_model.dart';
-import 'package:fatoora/features/rep_inventory/data/services/rep_inventory_effect_calculator.dart';
 import 'package:fatoora/features/shared/business/business_user_context.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -46,9 +47,17 @@ class RepInventoryRepositoryException implements Exception {
 class RepInventoryRepository {
   RepInventoryRepository({
     FirebaseFirestore? firestore,
+    FirebaseFunctions? functions,
     FirebaseAuth? firebaseAuth,
     BusinessUserContextReader? contextReader,
+    TrustedCallableClient? trustedCallableClient,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _trustedCallableClient =
+           trustedCallableClient ??
+           TrustedCallableClient.forDefaultApp(
+             firebaseAuth: firebaseAuth,
+             functions: functions,
+           ),
        _contextReader =
            contextReader ??
            BusinessUserContextReader(
@@ -60,6 +69,7 @@ class RepInventoryRepository {
   static const String transferPrefix = 'TRN';
 
   final FirebaseFirestore _firestore;
+  final TrustedCallableClient _trustedCallableClient;
   final BusinessUserContextReader _contextReader;
 
   CollectionReference<Map<String, dynamic>> get _items =>
@@ -84,12 +94,6 @@ class RepInventoryRepository {
           .collection('companies')
           .doc(companyId)
           .collection('rep_inventory_movements');
-
-  CollectionReference<Map<String, dynamic>> _stockMovements(String companyId) =>
-      _firestore
-          .collection('companies')
-          .doc(companyId)
-          .collection('stock_movements');
 
   DocumentReference<Map<String, dynamic>> _counter(
     String companyId,
@@ -421,286 +425,39 @@ class RepInventoryRepository {
     return _run(() async {
       final user = await _requireAdmin(companyId);
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
-      late InventoryTransferModel confirmed;
-      await _firestore
-          .runTransaction((transaction) async {
-            final transferRef = _transfers(
-              resolvedCompanyId,
-            ).doc(transferId.trim());
-            final transferSnapshot = await transaction.get(transferRef);
-            if (!transferSnapshot.exists) {
-              throw const RepInventoryRepositoryException(
-                RepInventoryRepositoryError.notFound,
-              );
-            }
-            final transfer = InventoryTransferModel.fromFirestore(
-              transferSnapshot,
-            );
-            if (transfer.isConfirmed) {
-              throw const RepInventoryRepositoryException(
-                RepInventoryRepositoryError.alreadyConfirmed,
-              );
-            }
-            if (!transfer.isDraft) {
-              throw const RepInventoryRepositoryException(
-                RepInventoryRepositoryError.notEditable,
-              );
-            }
-            _validateInputLines(transfer.lines);
-            final itemSnapshots =
-                <String, DocumentSnapshot<Map<String, dynamic>>>{};
-            final balanceSnapshots =
-                <String, DocumentSnapshot<Map<String, dynamic>>>{};
-            final companyMovementSnapshots =
-                <String, DocumentSnapshot<Map<String, dynamic>>>{};
-            final repMovementSnapshots =
-                <String, DocumentSnapshot<Map<String, dynamic>>>{};
-            final repSnapshotFuture = transaction.get(
-              _users.doc(transfer.salesRepId),
-            );
-            final lineSnapshotsFuture = Future.wait(
-              transfer.lines.map((line) async {
-                final balanceId = RepInventoryBalanceModel.documentId(
-                  transfer.salesRepId,
-                  line.itemId,
-                );
-                final companyMovementId =
-                    '${transfer.id}_${line.itemId}_warehouse';
-                final repMovementId =
-                    '${transfer.id}_${transfer.salesRepId}_${line.itemId}';
-                final snapshots = await Future.wait([
-                  transaction.get(_items.doc(line.itemId)),
-                  transaction.get(_balances(resolvedCompanyId).doc(balanceId)),
-                  transaction.get(
-                    _stockMovements(resolvedCompanyId).doc(companyMovementId),
-                  ),
-                  transaction.get(
-                    _repMovements(resolvedCompanyId).doc(repMovementId),
-                  ),
-                ]);
-                itemSnapshots[line.itemId] = snapshots[0];
-                balanceSnapshots[line.itemId] = snapshots[1];
-                companyMovementSnapshots[line.itemId] = snapshots[2];
-                repMovementSnapshots[line.itemId] = snapshots[3];
-              }),
-            );
-            final repSnapshot = await repSnapshotFuture;
-            _validRep(repSnapshot, resolvedCompanyId);
-            await lineSnapshotsFuture;
-
-            final confirmedLines = <InventoryTransferLine>[];
-            final itemWrites =
-                <
-                  DocumentReference<Map<String, dynamic>>,
-                  Map<String, dynamic>
-                >{};
-            final balanceWrites =
-                <
-                  DocumentReference<Map<String, dynamic>>,
-                  Map<String, dynamic>
-                >{};
-            final companyMovementWrites =
-                <
-                  DocumentReference<Map<String, dynamic>>,
-                  Map<String, dynamic>
-                >{};
-            final repMovementWrites =
-                <
-                  DocumentReference<Map<String, dynamic>>,
-                  Map<String, dynamic>
-                >{};
-
-            for (final line in transfer.lines) {
-              final itemSnapshot = itemSnapshots[line.itemId];
-              final balanceSnapshot = balanceSnapshots[line.itemId];
-              final companyMovementSnapshot =
-                  companyMovementSnapshots[line.itemId];
-              final repMovementSnapshot = repMovementSnapshots[line.itemId];
-              if (itemSnapshot == null ||
-                  balanceSnapshot == null ||
-                  companyMovementSnapshot == null ||
-                  repMovementSnapshot == null) {
-                throw const RepInventoryRepositoryException(
-                  RepInventoryRepositoryError.invalidData,
-                );
-              }
-              final item = _trackedItem(itemSnapshot);
-              final repBefore = balanceSnapshot.exists
-                  ? RepInventoryBalanceModel.fromFirestore(
-                      balanceSnapshot,
-                    ).quantity
-                  : 0.0;
-              late RepInventoryEffect effect;
-              try {
-                effect = RepInventoryEffectCalculator.transfer(
-                  type: transfer.type,
-                  warehouseBefore: item.currentStock,
-                  repBefore: repBefore,
-                  quantity: line.quantity,
-                );
-              } on RepInventoryInsufficientWarehouseStock catch (error) {
-                throw RepInventoryRepositoryException(
-                  RepInventoryRepositoryError.insufficientWarehouseStock,
-                  error,
-                );
-              } on RepInventoryInsufficientRepStock catch (error) {
-                throw RepInventoryRepositoryException(
-                  RepInventoryRepositoryError.insufficientRepStock,
-                  error,
-                );
-              }
-
-              final companyMovementId =
-                  '${transfer.id}_${line.itemId}_warehouse';
-              final repMovementId =
-                  '${transfer.id}_${transfer.salesRepId}_${line.itemId}';
-              if (companyMovementSnapshot.exists ||
-                  repMovementSnapshot.exists) {
-                throw const RepInventoryRepositoryException(
-                  RepInventoryRepositoryError.alreadyConfirmed,
-                );
-              }
-              final itemRef = _items.doc(item.id);
-              final balanceRef = _balances(resolvedCompanyId).doc(
-                RepInventoryBalanceModel.documentId(
-                  transfer.salesRepId,
-                  item.id,
-                ),
-              );
-              final companyMovementRef = _stockMovements(
-                resolvedCompanyId,
-              ).doc(companyMovementId);
-              final repMovementRef = _repMovements(
-                resolvedCompanyId,
-              ).doc(repMovementId);
-              itemWrites[itemRef] = {
-                'currentStock': effect.warehouseAfter,
-                'inventoryUpdatedAt': FieldValue.serverTimestamp(),
-                'updatedAt': FieldValue.serverTimestamp(),
-                'lastInventoryReferenceType': 'inventoryTransfer',
-                'lastInventoryReferenceId': transfer.id,
-                'lastStockMovementId': companyMovementId,
-              };
-              balanceWrites[balanceRef] = {
-                'id': balanceRef.id,
-                'companyId': resolvedCompanyId,
-                'salesRepId': transfer.salesRepId,
-                'itemId': item.id,
-                'quantity': effect.repAfter,
-                'modelSnapshot': item.code,
-                'itemNameSnapshot': item.name,
-                'unitSnapshot': item.unit,
-                'createdAt': balanceSnapshot.exists
-                    ? (balanceSnapshot.data()?['createdAt'] ??
-                          FieldValue.serverTimestamp())
-                    : FieldValue.serverTimestamp(),
-                'updatedAt': FieldValue.serverTimestamp(),
-                'lastMovementId': repMovementId,
-                'lastReferenceType': 'inventoryTransfer',
-                'lastReferenceId': transfer.id,
-              };
-              final warehouseDirection =
-                  transfer.type == InventoryTransferType.warehouseToRep
-                  ? 'out'
-                  : 'in';
-              companyMovementWrites[companyMovementRef] = {
-                'id': companyMovementId,
-                'companyId': resolvedCompanyId,
-                'warehouseId': item.warehouseId.isEmpty
-                    ? ItemModel.defaultWarehouseId
-                    : item.warehouseId,
-                'itemId': item.id,
-                'itemName': item.name,
-                'itemCode': item.code,
-                'movementType': 'inventory_transfer',
-                'direction': warehouseDirection,
-                'quantity': line.quantity,
-                'quantityBefore': item.currentStock,
-                'quantityAfter': effect.warehouseAfter,
-                'referenceType': 'inventory_transfer',
-                'referenceId': transfer.id,
-                'referenceNumber': transfer.transferNumber,
-                'movementDate': FieldValue.serverTimestamp(),
-                'notes': transfer.notes,
-                'createdByUid': user.uid,
-                'createdByName': user.name,
-                'createdByRole': user.role,
-                'createdAt': FieldValue.serverTimestamp(),
-              };
-              final repDirection =
-                  transfer.type == InventoryTransferType.warehouseToRep
-                  ? RepInventoryDirection.inbound
-                  : RepInventoryDirection.outbound;
-              repMovementWrites[repMovementRef] = {
-                'id': repMovementId,
-                'companyId': resolvedCompanyId,
-                'salesRepId': transfer.salesRepId,
-                'salesRepNameSnapshot': transfer.salesRepNameSnapshot,
-                'itemId': item.id,
-                'modelSnapshot': item.code,
-                'itemNameSnapshot': item.name,
-                'unitSnapshot': item.unit,
-                'direction': repDirection.value,
-                'quantity': line.quantity,
-                'quantityBefore': repBefore,
-                'quantityAfter': effect.repAfter,
-                'reason': transfer.type == InventoryTransferType.warehouseToRep
-                    ? RepInventoryReason.warehouseDelivery.value
-                    : RepInventoryReason.warehouseReturn.value,
-                'referenceType':
-                    RepInventoryReferenceType.inventoryTransfer.value,
-                'referenceId': transfer.id,
-                'referenceNumber': transfer.transferNumber,
-                'transferType': transfer.type.value,
-                'createdByUid': user.uid,
-                'createdByName': user.name,
-                'createdAt': FieldValue.serverTimestamp(),
-              };
-              confirmedLines.add(
-                line.copyWith(
-                  warehouseQuantityBefore: item.currentStock,
-                  warehouseQuantityAfter: effect.warehouseAfter,
-                  repQuantityBefore: repBefore,
-                  repQuantityAfter: effect.repAfter,
-                  companyMovementId: companyMovementId,
-                  repMovementId: repMovementId,
-                ),
-              );
-            }
-
-            for (final entry in itemWrites.entries) {
-              transaction.update(entry.key, entry.value);
-            }
-            for (final entry in balanceWrites.entries) {
-              transaction.set(entry.key, entry.value);
-            }
-            for (final entry in companyMovementWrites.entries) {
-              transaction.set(entry.key, entry.value);
-            }
-            for (final entry in repMovementWrites.entries) {
-              transaction.set(entry.key, entry.value);
-            }
-            confirmed = transfer.copyWith(
-              status: InventoryTransferStatus.confirmed,
-              lines: confirmedLines,
-              confirmedByUid: user.uid,
-              confirmedByName: user.name,
-              confirmedAt: DateTime.now(),
-              updatedAt: DateTime.now(),
-            );
-            transaction.update(transferRef, {
-              'status': InventoryTransferStatus.confirmed.value,
-              'lines': confirmedLines
-                  .map((line) => line.toMap())
-                  .toList(growable: false),
-              'confirmedByUid': user.uid,
-              'confirmedByName': user.name,
-              'confirmedAt': FieldValue.serverTimestamp(),
-              'updatedAt': FieldValue.serverTimestamp(),
-              'effectsVersion': 1,
-            });
+      final normalizedTransferId = transferId.trim();
+      if (normalizedTransferId.isEmpty) {
+        throw const RepInventoryRepositoryException(
+          RepInventoryRepositoryError.notFound,
+        );
+      }
+      final result = await _trustedCallableClient
+          .callAuthenticated<Map<String, dynamic>>('confirmInventoryTransfer', {
+            'companyId': resolvedCompanyId,
+            'transferId': normalizedTransferId,
           })
           .timeout(const Duration(seconds: 30));
+      final confirmedId = result.data['transferId'] as String?;
+      if (confirmedId == null || confirmedId != normalizedTransferId) {
+        throw const RepInventoryRepositoryException(
+          RepInventoryRepositoryError.invalidData,
+        );
+      }
+      final snapshot = await _transfers(resolvedCompanyId)
+          .doc(confirmedId)
+          .get(const GetOptions(source: Source.server))
+          .timeout(const Duration(seconds: 20));
+      if (!snapshot.exists) {
+        throw const RepInventoryRepositoryException(
+          RepInventoryRepositoryError.notFound,
+        );
+      }
+      final confirmed = InventoryTransferModel.fromFirestore(snapshot);
+      if (!confirmed.isConfirmed) {
+        throw const RepInventoryRepositoryException(
+          RepInventoryRepositoryError.concurrentUpdate,
+        );
+      }
       return confirmed;
     });
   }
@@ -885,6 +642,8 @@ class RepInventoryRepository {
         RepInventoryRepositoryError.timeout,
         error,
       );
+    } on FirebaseFunctionsException catch (error) {
+      throw RepInventoryRepositoryException(_mapFunctionError(error), error);
     } on FirebaseException catch (error) {
       throw RepInventoryRepositoryException(switch (error.code) {
         'permission-denied' => RepInventoryRepositoryError.permissionDenied,
@@ -907,5 +666,39 @@ class RepInventoryRepository {
         error,
       );
     }
+  }
+
+  RepInventoryRepositoryError _mapFunctionError(
+    FirebaseFunctionsException error,
+  ) {
+    final details = error.details;
+    final reason = details is Map ? details['reason']?.toString() : null;
+    return switch (reason) {
+      'insufficient-warehouse-stock' =>
+        RepInventoryRepositoryError.insufficientWarehouseStock,
+      'insufficient-rep-stock' =>
+        RepInventoryRepositoryError.insufficientRepStock,
+      'invalid-representative' =>
+        RepInventoryRepositoryError.invalidRepresentative,
+      'inactive-representative' =>
+        RepInventoryRepositoryError.inactiveRepresentative,
+      'untracked-item' => RepInventoryRepositoryError.untrackedItem,
+      'invalid-quantity' => RepInventoryRepositoryError.invalidQuantity,
+      'duplicate-item' => RepInventoryRepositoryError.duplicateItem,
+      'not-editable' => RepInventoryRepositoryError.notEditable,
+      'already-confirmed' => RepInventoryRepositoryError.alreadyConfirmed,
+      'partial-posting' => RepInventoryRepositoryError.concurrentUpdate,
+      _ => switch (error.code) {
+        'permission-denied' => RepInventoryRepositoryError.permissionDenied,
+        'unauthenticated' => RepInventoryRepositoryError.unauthenticated,
+        'unavailable' => RepInventoryRepositoryError.unavailable,
+        'deadline-exceeded' => RepInventoryRepositoryError.timeout,
+        'not-found' => RepInventoryRepositoryError.notFound,
+        'aborted' => RepInventoryRepositoryError.concurrentUpdate,
+        'failed-precondition' => RepInventoryRepositoryError.notEditable,
+        'invalid-argument' => RepInventoryRepositoryError.invalidData,
+        _ => RepInventoryRepositoryError.unknown,
+      },
+    };
   }
 }

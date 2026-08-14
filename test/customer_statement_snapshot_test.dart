@@ -48,6 +48,36 @@ void main() {
     expect(snapshot.closingBalance, 17.5);
   });
 
+  test('opening balance adjustments preserve the signed ledger total', () {
+    final snapshot = CustomerStatementSnapshot.fromTransactions(
+      openingBalance: 0,
+      transactions: [
+        _transaction(
+          id: 'opening',
+          debit: 10,
+          balanceAfter: 10,
+          transactionType: 'opening_balance',
+        ),
+        _transaction(
+          id: 'credit-adjustment',
+          credit: 14,
+          balanceAfter: -4,
+          transactionType: 'opening_balance_adjustment',
+        ),
+        _transaction(
+          id: 'receivable-adjustment',
+          debit: 11,
+          balanceAfter: 7,
+          transactionType: 'opening_balance_adjustment',
+        ),
+      ],
+    );
+
+    expect(snapshot.totalDebit, 21);
+    expect(snapshot.totalCredit, 14);
+    expect(snapshot.closingBalance, 7);
+  });
+
   test('statement remains complete beyond the former 500-row cap', () {
     final transactions = List.generate(
       1200,
@@ -77,6 +107,7 @@ CustomerTransactionModel _transaction({
   double debit = 0,
   double credit = 0,
   required double balanceAfter,
+  String? transactionType,
 }) {
   final now = DateTime(2026, 6, 29);
   return CustomerTransactionModel(
@@ -84,7 +115,7 @@ CustomerTransactionModel _transaction({
     companyId: 'default_company',
     customerId: 'customer-1',
     customerName: 'Customer',
-    transactionType: debit > 0 ? 'invoice' : 'receipt',
+    transactionType: transactionType ?? (debit > 0 ? 'invoice' : 'receipt'),
     sourceCollection: debit > 0 ? 'invoices' : 'receipts',
     sourceId: id,
     sourceNumber: id,

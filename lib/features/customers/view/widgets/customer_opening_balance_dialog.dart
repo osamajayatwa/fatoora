@@ -260,6 +260,7 @@ class _CustomerOpeningBalanceDialogState
   }
 
   Future<void> _submit() async {
+    if (_submitting) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _submitting = true);
     CustomerTransactionModel? saved;
@@ -291,6 +292,379 @@ class _CustomerOpeningBalanceDialogState
         setState(() => _submitting = false);
       }
     }
+  }
+}
+
+class CustomerOpeningBalanceEditDialog extends StatefulWidget {
+  const CustomerOpeningBalanceEditDialog({
+    required this.customerName,
+    required this.transaction,
+    required this.onSubmit,
+    super.key,
+  });
+
+  final String customerName;
+  final CustomerTransactionModel transaction;
+  final Future<CustomerTransactionModel?> Function({
+    required CustomerOpeningBalanceType balanceType,
+    required double amount,
+    required String reason,
+  })
+  onSubmit;
+
+  @override
+  State<CustomerOpeningBalanceEditDialog> createState() =>
+      _CustomerOpeningBalanceEditDialogState();
+}
+
+class _CustomerOpeningBalanceEditDialogState
+    extends State<CustomerOpeningBalanceEditDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _amountController;
+  final _reasonController = TextEditingController();
+  late CustomerOpeningBalanceType _balanceType;
+  bool _submitting = false;
+
+  double get _oldSignedAmount {
+    if (widget.transaction.signedAmount != 0) {
+      return widget.transaction.signedAmount;
+    }
+    final type = CustomerOpeningBalanceType.fromValue(
+      widget.transaction.openingBalanceType,
+    );
+    return (type ?? CustomerOpeningBalanceType.customerOwes).balanceEffect(
+      widget.transaction.amount,
+    );
+  }
+
+  double? get _newSignedAmount {
+    final amount = double.tryParse(_amountController.text.trim());
+    if (amount == null || !amount.isFinite || amount <= 0) return null;
+    return _balanceType.balanceEffect(amount);
+  }
+
+  double? get _difference {
+    final newSigned = _newSignedAmount;
+    if (newSigned == null) return null;
+    return _round(newSigned - _oldSignedAmount);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _balanceType =
+        CustomerOpeningBalanceType.fromValue(
+          widget.transaction.openingBalanceType,
+        ) ??
+        (widget.transaction.signedAmount < 0
+            ? CustomerOpeningBalanceType.customerCredit
+            : CustomerOpeningBalanceType.customerOwes);
+    _amountController = TextEditingController(
+      text: _amountText(widget.transaction.amount),
+    );
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    return Dialog(
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: media.size.width < 520 ? 12 : 32,
+        vertical: 24,
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 560,
+          maxHeight: media.size.height - 48,
+        ),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(media.size.width < 520 ? 18 : 24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.edit_note_rounded,
+                      color: AppColor.primaryColor,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'customers_edit_opening_balance'.tr,
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            widget.customerName,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _submitting
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).closeButtonTooltip,
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColor.accentYellow.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColor.accentYellow.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Text(
+                    'customers_opening_balance_edit_warning'.tr,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                DropdownButtonFormField<CustomerOpeningBalanceType>(
+                  value: _balanceType,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: 'customers_opening_balance_type'.tr,
+                    prefixIcon: const Icon(Icons.swap_vert_rounded),
+                  ),
+                  items: CustomerOpeningBalanceType.values
+                      .map(
+                        (type) => DropdownMenuItem(
+                          value: type,
+                          child: Text(
+                            type == CustomerOpeningBalanceType.customerOwes
+                                ? 'customers_owes_us'.tr
+                                : 'customers_has_credit'.tr,
+                          ),
+                        ),
+                      )
+                      .toList(growable: false),
+                  onChanged: _submitting
+                      ? null
+                      : (value) {
+                          if (value != null) {
+                            setState(() => _balanceType = value);
+                          }
+                        },
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _amountController,
+                  enabled: !_submitting,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                  ],
+                  decoration: InputDecoration(
+                    labelText: 'customers_opening_balance_new_amount'.tr,
+                    prefixIcon: const Icon(Icons.payments_outlined),
+                    suffixText: 'JOD',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  validator: _validateAmount,
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _reasonController,
+                  enabled: !_submitting,
+                  minLines: 2,
+                  maxLines: 4,
+                  maxLength: 500,
+                  decoration: InputDecoration(
+                    labelText: 'customers_opening_balance_reason'.tr,
+                    hintText: 'customers_opening_balance_reason_hint'.tr,
+                    prefixIcon: const Icon(Icons.edit_note_outlined),
+                    alignLabelWithHint: true,
+                  ),
+                  validator: (value) => (value?.trim().isEmpty ?? true)
+                      ? 'customers_opening_balance_reason_required'.tr
+                      : null,
+                ),
+                const SizedBox(height: 4),
+                _OpeningBalanceChangeSummary(
+                  oldAmount: _oldSignedAmount,
+                  newAmount: _newSignedAmount,
+                  difference: _difference,
+                ),
+                const SizedBox(height: 16),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final narrow = constraints.maxWidth < 390;
+                    final cancel = OutlinedButton(
+                      onPressed: _submitting
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      child: Text('items_cancel'.tr),
+                    );
+                    final submit = FilledButton.icon(
+                      onPressed: _submitting ? null : _submit,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColor.primaryColor,
+                      ),
+                      icon: _submitting
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.save_outlined),
+                      label: Text('customers_save_opening_balance_change'.tr),
+                    );
+                    if (narrow) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [submit, const SizedBox(height: 10), cancel],
+                      );
+                    }
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        cancel,
+                        const SizedBox(width: 10),
+                        Flexible(child: submit),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String? _validateAmount(String? value) {
+    final normalized = value?.trim() ?? '';
+    final amount = double.tryParse(normalized);
+    if (amount == null ||
+        !amount.isFinite ||
+        amount <= 0 ||
+        !RegExp(r'^\d+(\.\d{1,3})?$').hasMatch(normalized) ||
+        (amount * 1000).round() <= 0 ||
+        amount > 999999999) {
+      return 'customers_opening_balance_amount_invalid'.tr;
+    }
+    if (_round(_balanceType.balanceEffect(amount) - _oldSignedAmount) == 0) {
+      return 'customers_opening_balance_no_change'.tr;
+    }
+    return null;
+  }
+
+  Future<void> _submit() async {
+    if (_submitting) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _submitting = true);
+    try {
+      final saved = await widget.onSubmit(
+        balanceType: _balanceType,
+        amount: double.parse(_amountController.text.trim()),
+        reason: _reasonController.text.trim(),
+      );
+      if (saved != null && mounted) Navigator.of(context).pop(saved);
+    } catch (_) {
+      if (mounted) {
+        Get.snackbar(
+          'customers'.tr,
+          'customers_opening_balance_update_error'.tr,
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColor.error,
+          colorText: AppColor.surface,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  static String _amountText(double value) {
+    final fixed = value.toStringAsFixed(3);
+    return fixed.replaceFirst(RegExp(r'\.?0+$'), '');
+  }
+
+  static double _round(double value) => (value * 1000).roundToDouble() / 1000;
+}
+
+class _OpeningBalanceChangeSummary extends StatelessWidget {
+  const _OpeningBalanceChangeSummary({
+    required this.oldAmount,
+    required this.newAmount,
+    required this.difference,
+  });
+
+  final double oldAmount;
+  final double? newAmount;
+  final double? difference;
+
+  @override
+  Widget build(BuildContext context) {
+    final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
+    String signed(double? value) {
+      if (value == null) return '—';
+      final prefix = value > 0
+          ? '+'
+          : value < 0
+          ? '-'
+          : '';
+      return '$prefix${currency.format(value.abs())}';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColor.primaryColor.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColor.primaryColor.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Column(
+        children: [
+          _OpeningBalanceDetailRow(
+            label: 'customers_opening_balance_old_value'.tr,
+            value: signed(oldAmount),
+          ),
+          _OpeningBalanceDetailRow(
+            label: 'customers_opening_balance_new_value'.tr,
+            value: signed(newAmount),
+          ),
+          _OpeningBalanceDetailRow(
+            label: 'customers_opening_balance_difference'.tr,
+            value: signed(difference),
+          ),
+        ],
+      ),
+    );
   }
 }
 

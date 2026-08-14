@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:fatoora/core/data/firestore_query_pager.dart';
+import 'package:fatoora/core/firebase/trusted_callable_client.dart';
 import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
@@ -48,8 +49,15 @@ class CustomerRepository {
     FirebaseFunctions? functions,
     FirebaseAuth? firebaseAuth,
     BusinessUserContextReader? contextReader,
+    TrustedCallableClient? trustedCallableClient,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
        _functions = functions ?? FirebaseFunctions.instance,
+       _trustedCallableClient =
+           trustedCallableClient ??
+           TrustedCallableClient.forDefaultApp(
+             firebaseAuth: firebaseAuth,
+             functions: functions,
+           ),
        _contextReader =
            contextReader ??
            BusinessUserContextReader(
@@ -59,6 +67,7 @@ class CustomerRepository {
 
   final FirebaseFirestore _firestore;
   final FirebaseFunctions _functions;
+  final TrustedCallableClient _trustedCallableClient;
   final BusinessUserContextReader _contextReader;
 
   CollectionReference<Map<String, dynamic>> _customers(String companyId) {
@@ -236,6 +245,53 @@ class CustomerRepository {
       final snapshot = await _transactions(
         resolvedCompanyId,
       ).doc(transactionId).get().timeout(const Duration(seconds: 20));
+      if (!snapshot.exists) {
+        throw const CustomerRepositoryException(
+          CustomerRepositoryError.notFound,
+        );
+      }
+      return CustomerTransactionModel.fromFirestore(snapshot);
+    });
+  }
+
+  Future<CustomerTransactionModel> updateOpeningBalance({
+    String companyId = AuthRepository.defaultCompanyId,
+    required String customerId,
+    required CustomerOpeningBalanceType balanceType,
+    required double amount,
+    required String reason,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      final idempotencyKey = _transactions(resolvedCompanyId).doc().id;
+      final result = await _trustedCallableClient
+          .callAuthenticated<Map<String, dynamic>>(
+            'updateCustomerOpeningBalance',
+            {
+              'companyId': resolvedCompanyId,
+              'customerId': customerId,
+              'idempotencyKey': idempotencyKey,
+              'openingBalanceType': balanceType.value,
+              'amount': amount,
+              'reason': reason.trim(),
+            },
+          )
+          .timeout(const Duration(seconds: 30));
+      final transactionId = result.data['transactionId'] as String?;
+      final adjustmentId = result.data['adjustmentTransactionId'] as String?;
+      if (transactionId == null ||
+          transactionId.isEmpty ||
+          adjustmentId == null ||
+          adjustmentId.isEmpty) {
+        throw const CustomerRepositoryException(
+          CustomerRepositoryError.invalidData,
+        );
+      }
+      final snapshot = await _transactions(resolvedCompanyId)
+          .doc(transactionId)
+          .get(const GetOptions(source: Source.server))
+          .timeout(const Duration(seconds: 20));
       if (!snapshot.exists) {
         throw const CustomerRepositoryException(
           CustomerRepositoryError.notFound,
@@ -447,6 +503,13 @@ class CustomerRepository {
       throw CustomerRepositoryException(_mapContextError(error.error), error);
     } on TimeoutException catch (error) {
       throw CustomerRepositoryException(CustomerRepositoryError.timeout, error);
+    } on FirebaseFunctionsException catch (error) {
+      final details = error.details;
+      final reason = details is Map ? details['reason']?.toString() : null;
+      final mapped = reason == 'idempotency-conflict'
+          ? CustomerRepositoryError.invalidData
+          : _mapFirebaseError(error.code);
+      throw CustomerRepositoryException(mapped, error);
     } on FirebaseException catch (error) {
       throw CustomerRepositoryException(_mapFirebaseError(error.code), error);
     } on FormatException catch (error) {

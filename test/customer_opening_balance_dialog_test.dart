@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fatoora/features/customers/data/models/customer_opening_balance.dart';
 import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
 import 'package:fatoora/features/customers/view/widgets/customer_opening_balance_dialog.dart';
 import 'package:flutter/material.dart';
@@ -188,6 +189,144 @@ void main() {
     expect(find.text('OPENING'), findsOneWidget);
     expect(find.text('Admin'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('edit dialog previews values and requires an adjustment reason', (
+    tester,
+  ) async {
+    var submissions = 0;
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Scaffold(
+          body: CustomerOpeningBalanceEditDialog(
+            customerName: 'Legacy Customer',
+            transaction: _openingTransaction(),
+            onSubmit:
+                ({
+                  required balanceType,
+                  required amount,
+                  required reason,
+                }) async {
+                  submissions++;
+                  return _openingTransaction();
+                },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('customers_opening_balance_old_value'), findsOneWidget);
+    expect(find.text('customers_opening_balance_new_value'), findsOneWidget);
+    expect(find.text('customers_opening_balance_difference'), findsOneWidget);
+    await tester.enterText(find.byType(TextFormField).first, '1200');
+    final saveButton = find.text('customers_save_opening_balance_change');
+    await tester.ensureVisible(saveButton);
+    await tester.pump();
+    await tester.tap(saveButton);
+    await tester.pump();
+
+    expect(submissions, 0);
+    expect(
+      find.text('customers_opening_balance_reason_required'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('edit dialog blocks duplicate submissions and resets loading', (
+    tester,
+  ) async {
+    var submissions = 0;
+    CustomerOpeningBalanceType? submittedType;
+    String? submittedReason;
+    final pending = Completer<CustomerTransactionModel?>();
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Scaffold(
+          body: CustomerOpeningBalanceEditDialog(
+            customerName: 'Legacy Customer',
+            transaction: _openingTransaction(),
+            onSubmit:
+                ({required balanceType, required amount, required reason}) {
+                  submissions++;
+                  submittedType = balanceType;
+                  submittedReason = reason;
+                  return pending.future;
+                },
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextFormField).first, '1200');
+    await tester.enterText(find.byType(TextFormField).last, 'Verified records');
+    final saveButton = find.text('customers_save_opening_balance_change');
+    await tester.ensureVisible(saveButton);
+    await tester.pump();
+    await tester.tap(saveButton);
+    await tester.pump();
+    await tester.tap(saveButton);
+    await tester.pump();
+
+    expect(submissions, 1);
+    expect(submittedType, CustomerOpeningBalanceType.customerOwes);
+    expect(submittedReason, 'Verified records');
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    pending.complete(null);
+    await tester.pumpAndSettle();
+    expect(find.byType(CustomerOpeningBalanceEditDialog), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  testWidgets('successful opening balance edit closes exactly once', (
+    tester,
+  ) async {
+    var submissions = 0;
+    CustomerTransactionModel? result;
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () async {
+                result = await showDialog<CustomerTransactionModel>(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => CustomerOpeningBalanceEditDialog(
+                    customerName: 'Legacy Customer',
+                    transaction: _openingTransaction(),
+                    onSubmit:
+                        ({
+                          required balanceType,
+                          required amount,
+                          required reason,
+                        }) async {
+                          submissions++;
+                          return _openingTransaction();
+                        },
+                  ),
+                );
+              },
+              child: const Text('Edit'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).first, '1200');
+    await tester.enterText(find.byType(TextFormField).last, 'Verified records');
+    final saveButton = find.text('customers_save_opening_balance_change');
+    await tester.ensureVisible(saveButton);
+    await tester.pump();
+    await tester.tap(saveButton);
+    await tester.pumpAndSettle();
+
+    expect(submissions, 1);
+    expect(result, isNotNull);
+    expect(find.byType(CustomerOpeningBalanceEditDialog), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 }
 
