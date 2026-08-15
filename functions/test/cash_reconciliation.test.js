@@ -43,6 +43,23 @@ test("company cash totals mixed IN and OUT movements", () => {
   });
 });
 
+test("company cash opening balance is accepted as full-history cash in", () => {
+  const plan = analyzeCashRecords({
+    companyId,
+    movements: [movement("company_cash_opening_balance", {
+      amount: 77.375,
+      movementType: "opening_balance",
+      sourceCollection: "cash_movements",
+      sourceId: "company_cash_opening_balance",
+      date: new Date("2026-07-30T00:00:00.000Z"),
+    })],
+  });
+
+  assert.equal(plan.issueCount, 0);
+  assert.equal(plan.validMovementCount, 1);
+  assert.equal(plan.accounts[0].calculatedBalance, 77.375);
+});
+
 test("multiple representative accounts remain isolated", () => {
   const plan = analyzeCashRecords({
     companyId,

@@ -988,6 +988,27 @@ test("clients cannot create arbitrary or partial settlement cash movements", asy
   );
 });
 
+test("even admins cannot directly write the company cash opening balance", async () => {
+  const db = authenticatedDb(adminUid);
+  await assertFails(
+    setDoc(
+      businessDoc(db, "cash_movements", "company_cash_opening_balance"),
+      cashMovementPayload("company_cash_opening_balance", {
+        type: "opening_balance",
+        movementType: "opening_balance",
+        cashAccount: "company_cash",
+        direction: "in",
+        amount: 100,
+      }),
+    ),
+  );
+  await assertFails(
+    updateDoc(businessDoc(db, "cash_balances", "company_cash"), {
+      amount: 100,
+    }),
+  );
+});
+
 test("clients cannot forge warehouse invoice or return stock deltas", async () => {
   const db = authenticatedDb(repAUid);
   const item = doc(db, "items", "item-a");

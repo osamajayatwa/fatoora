@@ -3,6 +3,8 @@ const Map<String, String> settingsEnglishTranslations = {
   'settings_company': 'Company settings',
   'settings_documents': 'Document settings',
   'settings_inventory': 'Inventory settings',
+  'settings_financial': 'Financial settings',
+  'settings_opening_balances': 'Opening balances',
   'settings_pdf': 'PDF settings',
   'settings_permissions': 'Sales rep permissions',
   'settings_jofotara': 'JoFotara status',
@@ -17,6 +19,10 @@ const Map<String, String> settingsEnglishTranslations = {
       'Invoice, receipt, quotation, and return numbering and defaults.',
   'settings_inventory_subtitle':
       'Stock defaults, tracking, and low-stock alerts.',
+  'settings_financial_subtitle':
+      'Manage controlled financial migration settings.',
+  'settings_opening_balances_subtitle':
+      'View or create the one-time company cash opening balance.',
   'settings_pdf_subtitle':
       'Logo, company details, language, footers, and default notes.',
   'settings_permissions_subtitle':
@@ -141,6 +147,8 @@ const Map<String, String> settingsArabicTranslations = {
   'settings_company': 'إعدادات الشركة',
   'settings_documents': 'إعدادات المستندات',
   'settings_inventory': 'إعدادات المخزون',
+  'settings_financial': 'الإعدادات المالية',
+  'settings_opening_balances': 'الأرصدة الافتتاحية',
   'settings_pdf': 'إعدادات PDF',
   'settings_permissions': 'صلاحيات مندوبي المبيعات',
   'settings_jofotara': 'حالة الفوترة الأردنية',
@@ -155,6 +163,10 @@ const Map<String, String> settingsArabicTranslations = {
       'ترقيم الفواتير وسندات القبض وعروض الأسعار والمرتجعات وإعداداتها الافتراضية.',
   'settings_inventory_subtitle':
       'إعدادات المخزون والتتبع وتنبيهات انخفاض الكمية.',
+  'settings_financial_subtitle':
+      'إدارة إعدادات الترحيل المالي الخاضعة للرقابة.',
+  'settings_opening_balances_subtitle':
+      'عرض أو إنشاء الرصيد الافتتاحي لمرة واحدة لكاش الشركة.',
   'settings_pdf_subtitle':
       'الشعار وبيانات الشركة واللغة والتذييلات والملاحظات الافتراضية.',
   'settings_permissions_subtitle':

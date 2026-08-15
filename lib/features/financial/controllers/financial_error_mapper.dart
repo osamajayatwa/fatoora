@@ -13,6 +13,7 @@ class FinancialErrorMapper {
       FinancialRepositoryError.permissionDenied => StatusRequest.unauthorized,
       FinancialRepositoryError.unavailable => StatusRequest.offlinefailure,
       FinancialRepositoryError.timeout => StatusRequest.timeout,
+      FinancialRepositoryError.alreadyExists ||
       FinancialRepositoryError.invalidData ||
       FinancialRepositoryError.unknown => StatusRequest.serverfailure,
     };
@@ -27,6 +28,8 @@ class FinancialErrorMapper {
       FinancialRepositoryError.permissionDenied => 'financial_permission_error',
       FinancialRepositoryError.unavailable => 'financial_offline_error',
       FinancialRepositoryError.timeout => 'financial_timeout_error',
+      FinancialRepositoryError.alreadyExists =>
+        'financial_company_cash_opening_balance_exists',
       FinancialRepositoryError.invalidData => 'financial_invalid_data',
       FinancialRepositoryError.unknown => fallback ?? 'financial_load_error',
     };

@@ -2,6 +2,7 @@ import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/settings/bindings/settings_dependencies.dart';
 import 'package:fatoora/features/financial/controllers/cash_movements_controller.dart';
+import 'package:fatoora/features/financial/controllers/company_cash_opening_balance_controller.dart';
 import 'package:fatoora/features/financial/controllers/receivables_controller.dart';
 import 'package:fatoora/features/financial/controllers/sales_rep_dashboard_controller.dart';
 import 'package:fatoora/features/financial/data/repositories/financial_repository.dart';
@@ -47,6 +48,19 @@ class CashMovementsBinding extends Bindings {
     registerFinancialDependencies();
     Get.lazyPut<CashMovementsController>(
       () => CashMovementsController(
+        repository: Get.find<FinancialRepository>(),
+        myServices: Get.find<MyServices>(),
+      ),
+    );
+  }
+}
+
+class CompanyCashOpeningBalanceBinding extends Bindings {
+  @override
+  void dependencies() {
+    registerFinancialDependencies();
+    Get.lazyPut<CompanyCashOpeningBalanceController>(
+      () => CompanyCashOpeningBalanceController(
         repository: Get.find<FinancialRepository>(),
         myServices: Get.find<MyServices>(),
       ),

@@ -10,6 +10,7 @@ const {
 const CASH_RECONCILIATION_SCHEMA_VERSION = 1;
 const CASH_RECONCILIATION_LOCK_ID = "cash_reconciliation";
 const supportedMovementTypes = new Set([
+  "opening_balance",
   "expense",
   "invoice_payment",
   "receipt",

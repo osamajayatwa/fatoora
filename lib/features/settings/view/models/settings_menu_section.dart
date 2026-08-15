@@ -40,6 +40,12 @@ const _adminSections = [
     route: AppRoute.inventorySettings,
   ),
   SettingsMenuSection(
+    titleKey: 'settings_financial',
+    subtitleKey: 'settings_financial_subtitle',
+    icon: Icons.account_balance_wallet_outlined,
+    route: AppRoute.financialSettings,
+  ),
+  SettingsMenuSection(
     titleKey: 'settings_pdf',
     subtitleKey: 'settings_pdf_subtitle',
     icon: Icons.picture_as_pdf_outlined,

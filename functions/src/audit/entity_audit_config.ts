@@ -90,7 +90,8 @@ export const ENTITY_CONFIGS: Record<string, EntityAuditConfig> = {
   ], AuditActions.data.changed, AuditActions.data.changed,
   AuditActions.data.changed, [], ["type"], false),
   cash_movements: config("cash_movement", "financial", [
-    "type", "cashAccount", "amount", "balanceBefore", "balanceAfter",
+    "type", "movementType", "direction", "cashAccount", "amount",
+    "balanceBefore", "balanceAfter", "effectiveDate",
     "salesRepId", "salesRepName", "sourceType", "sourceId", "operationId",
     "notes", ...commonActorFields,
   ], AuditActions.data.changed, AuditActions.data.changed,

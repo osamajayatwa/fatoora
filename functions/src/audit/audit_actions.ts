@@ -61,6 +61,9 @@ export const AuditActions = {
     created: "settlement.created", confirmed: "settlement.confirmed",
     cancelled: "settlement.cancelled",
   },
+  companyCash: {
+    openingBalanceCreated: "company_cash.opening_balance_created",
+  },
   settings: {
     updated: "settings.updated", prefixChanged: "document_prefix.changed",
     counterChanged: "numbering_counter.changed",

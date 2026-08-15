@@ -57,6 +57,43 @@ const Map<String, String> financialEnglishTranslations = {
   'financial_movement_adjustment': 'Cash adjustment',
   'financial_movement_invoice_payment': 'Invoice payment',
   'financial_movement_receipt': 'Receipt',
+  'financial_movement_opening_balance': 'Company cash opening balance',
+  'financial_company_cash_opening_balance_load_error':
+      'Unable to load the company cash opening balance.',
+  'financial_company_cash_opening_balance_not_created':
+      'No opening balance has been recorded',
+  'financial_company_cash_opening_balance_restricted':
+      'Only the designated migration account can create this opening balance.',
+  'financial_company_cash_opening_balance_migration': 'One-time cash migration',
+  'financial_company_cash_opening_balance_migration_notice':
+      'This creates a permanent company cash movement dated 30/07/2026. It cannot be edited or deleted.',
+  'financial_company_cash_opening_balance_date': 'Opening balance date',
+  'financial_company_cash_opening_balance_amount': 'Amount',
+  'financial_company_cash_opening_balance_note': 'Note (optional)',
+  'financial_company_cash_opening_balance_note_hint':
+      'Add a short migration reference or explanation.',
+  'financial_company_cash_opening_balance_invalid_amount':
+      'Enter an amount greater than zero.',
+  'financial_company_cash_opening_balance_create': 'Create opening balance',
+  'financial_company_cash_opening_balance_saving': 'Creating…',
+  'financial_company_cash_opening_balance_confirm_title':
+      'Confirm opening balance',
+  'financial_company_cash_opening_balance_confirm_message':
+      'This is a permanent one-time financial movement and cannot be edited or deleted. Continue?',
+  'financial_company_cash_opening_balance_confirm': 'Create permanently',
+  'financial_company_cash_opening_balance_created':
+      'Company cash opening balance created successfully.',
+  'financial_company_cash_opening_balance_create_error':
+      'Unable to create the company cash opening balance.',
+  'financial_company_cash_opening_balance_exists':
+      'A company cash opening balance already exists.',
+  'financial_company_cash_opening_balance_recorded': 'Opening balance recorded',
+  'financial_company_cash_opening_balance_read_only':
+      'This permanent financial movement is read-only and cannot be edited or deleted.',
+  'financial_company_cash_balance_before': 'Company cash before',
+  'financial_company_cash_balance_after': 'Company cash after',
+  'financial_company_cash_opening_balance_created_by': 'Created by',
+  'financial_company_cash_opening_balance_created_at': 'Created at',
 };
 
 const Map<String, String> financialArabicTranslations = {
@@ -117,4 +154,42 @@ const Map<String, String> financialArabicTranslations = {
   'financial_movement_adjustment': 'تعديل نقدي',
   'financial_movement_invoice_payment': 'دفعة فاتورة',
   'financial_movement_receipt': 'إيصال',
+  'financial_movement_opening_balance': 'الرصيد الافتتاحي لكاش الشركة',
+  'financial_company_cash_opening_balance_load_error':
+      'تعذر تحميل الرصيد الافتتاحي لكاش الشركة.',
+  'financial_company_cash_opening_balance_not_created':
+      'لم يتم تسجيل رصيد افتتاحي',
+  'financial_company_cash_opening_balance_restricted':
+      'يمكن لحساب الترحيل المحدد فقط إنشاء هذا الرصيد الافتتاحي.',
+  'financial_company_cash_opening_balance_migration': 'ترحيل نقدي لمرة واحدة',
+  'financial_company_cash_opening_balance_migration_notice':
+      'سيؤدي هذا إلى إنشاء حركة دائمة لكاش الشركة بتاريخ 30/07/2026، ولا يمكن تعديلها أو حذفها.',
+  'financial_company_cash_opening_balance_date': 'تاريخ الرصيد الافتتاحي',
+  'financial_company_cash_opening_balance_amount': 'المبلغ',
+  'financial_company_cash_opening_balance_note': 'ملاحظة (اختيارية)',
+  'financial_company_cash_opening_balance_note_hint':
+      'أضف مرجعاً مختصراً للترحيل أو توضيحاً.',
+  'financial_company_cash_opening_balance_invalid_amount':
+      'أدخل مبلغاً أكبر من صفر.',
+  'financial_company_cash_opening_balance_create': 'إنشاء الرصيد الافتتاحي',
+  'financial_company_cash_opening_balance_saving': 'جارٍ الإنشاء…',
+  'financial_company_cash_opening_balance_confirm_title':
+      'تأكيد الرصيد الافتتاحي',
+  'financial_company_cash_opening_balance_confirm_message':
+      'هذه حركة مالية دائمة لمرة واحدة ولا يمكن تعديلها أو حذفها. هل تريد المتابعة؟',
+  'financial_company_cash_opening_balance_confirm': 'إنشاء نهائي',
+  'financial_company_cash_opening_balance_created':
+      'تم إنشاء الرصيد الافتتاحي لكاش الشركة بنجاح.',
+  'financial_company_cash_opening_balance_create_error':
+      'تعذر إنشاء الرصيد الافتتاحي لكاش الشركة.',
+  'financial_company_cash_opening_balance_exists':
+      'يوجد رصيد افتتاحي لكاش الشركة بالفعل.',
+  'financial_company_cash_opening_balance_recorded':
+      'تم تسجيل الرصيد الافتتاحي',
+  'financial_company_cash_opening_balance_read_only':
+      'هذه الحركة المالية الدائمة للقراءة فقط ولا يمكن تعديلها أو حذفها.',
+  'financial_company_cash_balance_before': 'كاش الشركة قبل الحركة',
+  'financial_company_cash_balance_after': 'كاش الشركة بعد الحركة',
+  'financial_company_cash_opening_balance_created_by': 'أنشأه',
+  'financial_company_cash_opening_balance_created_at': 'تاريخ الإنشاء',
 };

@@ -5,6 +5,25 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('company cash', () {
+    test('company cash opening balance increases only company cash', () {
+      final totals = CashLedgerCalculator.calculate([
+        _movement(
+          id: 'company_cash_opening_balance',
+          type: 'opening_balance',
+          movementType: 'opening_balance',
+          role: AuthRepository.adminRole,
+          salesRepId: '',
+          direction: 'in',
+          amount: 125.5,
+          cashAccount: CashMovementModel.companyCashAccount,
+        ),
+      ]);
+
+      expect(totals.companyCash, 125.5);
+      expect(totals.repCashOutstanding, 0);
+      expect(totals.repCashOutstandingBySalesRep, isEmpty);
+    });
+
     test('admin cash invoice increases company cash only', () {
       final totals = CashLedgerCalculator.calculate([
         _movement(

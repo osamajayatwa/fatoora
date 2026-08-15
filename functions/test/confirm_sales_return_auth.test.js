@@ -36,6 +36,11 @@ const {
   recordCashSettlement,
 } = require("../lib/trusted/record_cash_settlement");
 const {
+  COMPANY_CASH_OPENING_BALANCE_EMAIL,
+  COMPANY_CASH_OPENING_BALANCE_UID,
+  postCompanyCashOpeningBalance,
+} = require("../lib/trusted/post_company_cash_opening_balance");
+const {
   updateCustomerOpeningBalance,
 } = require("../lib/trusted/update_opening_balance");
 
@@ -65,6 +70,7 @@ test("all trusted callables use the same v2 authentication pathway and options",
     createItem,
     createReceipt,
     postCustomerOpeningBalance,
+    postCompanyCashOpeningBalance,
     recordCashSettlement,
     updateCustomerOpeningBalance,
     updateCustomer,
@@ -89,6 +95,7 @@ test("all trusted callables use the same v2 authentication pathway and options",
     "expenses.ts",
     "inventory.ts",
     "post_opening_balance.ts",
+    "post_company_cash_opening_balance.ts",
     "record_cash_settlement.ts",
     "update_opening_balance.ts",
   ].map((fileName) => readFileSync(
@@ -104,6 +111,66 @@ test("all trusted callables use the same v2 authentication pathway and options",
     "utf8",
   );
   assert.match(commonSource, /invoker:\s*"public"/);
+});
+
+test("company cash opening callable rejects every non-designated identity without effects", async () => {
+  const companyId = "company-cash-opening-auth-denied";
+  const invocations = [
+    () => postCompanyCashOpeningBalance.run({
+      auth: {
+        uid: "another-admin",
+        token: {email: COMPANY_CASH_OPENING_BALANCE_EMAIL},
+      },
+      data: {companyId, amount: 10},
+    }),
+    () => postCompanyCashOpeningBalance.run({
+      auth: {
+        uid: COMPANY_CASH_OPENING_BALANCE_UID,
+        token: {email: "wrong@example.com"},
+      },
+      data: {companyId, amount: 10},
+    }),
+  ];
+  for (const invocation of invocations) {
+    await assert.rejects(invocation, (error) => error.code === "permission-denied");
+  }
+  assert.equal(
+    (await db.collection(`companies/${companyId}/cash_movements`).get()).size,
+    0,
+  );
+  assert.equal(
+    (await db.collection(`companies/${companyId}/cash_balances`).get()).size,
+    0,
+  );
+});
+
+test("designated token and approved stored profile can invoke the company cash opening callable", async () => {
+  const companyId = "company-cash-opening-auth-allowed";
+  await seedUser(COMPANY_CASH_OPENING_BALANCE_UID, "admin", companyId, {
+    email: COMPANY_CASH_OPENING_BALANCE_EMAIL,
+  });
+
+  const result = await postCompanyCashOpeningBalance.run({
+    auth: {
+      uid: COMPANY_CASH_OPENING_BALANCE_UID,
+      token: {email: COMPANY_CASH_OPENING_BALANCE_EMAIL},
+    },
+    data: {companyId, amount: 12.5, note: "Authorized migration"},
+  });
+
+  assert.equal(result.movementId, "company_cash_opening_balance");
+  assert.equal(result.balanceAfter, 12.5);
+  assert.equal(result.alreadyPosted, false);
+  const movement = (await db.doc(
+    `companies/${companyId}/cash_movements/company_cash_opening_balance`,
+  ).get()).data();
+  assert.equal(movement.createdByUid, COMPANY_CASH_OPENING_BALANCE_UID);
+  assert.equal(movement.amount, 12.5);
+  assert.equal(
+    (await db.doc(`companies/${companyId}/cash_balances/company_cash`).get())
+      .data().amount,
+    12.5,
+  );
 });
 
 test("unauthenticated receipt and expense calls create no effects", async () => {

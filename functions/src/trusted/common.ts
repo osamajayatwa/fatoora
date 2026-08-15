@@ -45,6 +45,7 @@ export function requireCallableUid(
 export interface TrustedUser {
   uid: string;
   name: string;
+  email: string;
   role: "admin" | "sales_rep";
   companyId: string;
 }
@@ -141,6 +142,7 @@ export async function requireTrustedUser(
   return {
     uid,
     name: optionalString(data.name) || optionalString(data.email) || uid,
+    email: optionalString(data.email),
     role,
     companyId,
   };

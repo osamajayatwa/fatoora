@@ -41,6 +41,13 @@ const {
   recordCashSettlementTransaction,
 } = require("../lib/trusted/record_cash_settlement");
 const {
+  COMPANY_CASH_OPENING_BALANCE_DATE,
+  COMPANY_CASH_OPENING_BALANCE_EMAIL,
+  COMPANY_CASH_OPENING_BALANCE_MOVEMENT_ID,
+  COMPANY_CASH_OPENING_BALANCE_UID,
+  postCompanyCashOpeningBalanceTransaction,
+} = require("../lib/trusted/post_company_cash_opening_balance");
+const {
   calculateInvoiceTotals,
   calculatePayment,
 } = require("../lib/trusted/totals");
@@ -52,6 +59,7 @@ const {
 } = require("../lib/submit_invoice_to_jofotara");
 const {
   CASH_RECONCILIATION_SCHEMA_VERSION,
+  buildCashReconciliationPlan,
   executeCashReconciliation,
 } = require("../scripts/cash_reconciliation_common");
 
@@ -1371,6 +1379,139 @@ test("settlement is atomic, concurrency-safe, replay-safe, and balance checked",
     {...input, amount: 41},
   ));
   assert.equal((await db.doc(`companies/${companyId}/cash_balances/rep_${repUid}`).get()).data().amount, 40);
+});
+
+test("company cash opening balance is atomic, unique, replay-safe, and reconciled", async () => {
+  const companyId = "trusted-company-cash-opening";
+  const otherAdminUid = "opening-other-admin";
+  await seedUser(
+    COMPANY_CASH_OPENING_BALANCE_UID,
+    "admin",
+    companyId,
+    {email: COMPANY_CASH_OPENING_BALANCE_EMAIL},
+  );
+  await seedUser(otherAdminUid, "admin", companyId, {
+    email: "other-admin@example.com",
+  });
+  await seedCashMovement(companyId, "opening-existing-receipt", {
+    amount: 20,
+  });
+  await db.doc(`companies/${companyId}/cash_balances/company_cash`).set({
+    id: "company_cash",
+    companyId,
+    cashAccount: "company_cash",
+    salesRepId: "",
+    amount: 20,
+    lastMovementId: "opening-existing-receipt",
+  });
+
+  const input = {amount: 100.125, note: "Migration opening cash"};
+  const results = await Promise.all([
+    retryTransientTransaction(() => postCompanyCashOpeningBalanceTransaction(
+      db,
+      COMPANY_CASH_OPENING_BALANCE_UID,
+      companyId,
+      input,
+    )),
+    retryTransientTransaction(() => postCompanyCashOpeningBalanceTransaction(
+      db,
+      COMPANY_CASH_OPENING_BALANCE_UID,
+      companyId,
+      input,
+    )),
+  ]);
+  assert.equal(results.filter((result) => result.alreadyPosted).length, 1);
+  assert.deepEqual(
+    results.map((result) => result.balanceAfter),
+    [120.125, 120.125],
+  );
+
+  const movementRef = db.doc(
+    `companies/${companyId}/cash_movements/${COMPANY_CASH_OPENING_BALANCE_MOVEMENT_ID}`,
+  );
+  const movement = (await movementRef.get()).data();
+  assert.equal(movement.type, "opening_balance");
+  assert.equal(movement.movementType, "opening_balance");
+  assert.equal(movement.direction, "in");
+  assert.equal(movement.cashAccount, "company_cash");
+  assert.equal(movement.amount, 100.125);
+  assert.equal(movement.notes, input.note);
+  assert.equal(movement.immutable, true);
+  assert.equal(
+    movement.effectiveDate.toMillis(),
+    COMPANY_CASH_OPENING_BALANCE_DATE.toMillis(),
+  );
+  assert.equal(movement.date.toMillis(), COMPANY_CASH_OPENING_BALANCE_DATE.toMillis());
+  assert.equal(movement.movementDate.toMillis(), COMPANY_CASH_OPENING_BALANCE_DATE.toMillis());
+  assert.equal(movement.balanceBefore, 20);
+  assert.equal(movement.balanceAfter, 120.125);
+  assert.equal(
+    (await db.doc(`companies/${companyId}/cash_balances/company_cash`).get())
+      .data().amount,
+    120.125,
+  );
+
+  const openingMovements = await db
+    .collection(`companies/${companyId}/cash_movements`)
+    .where("cashAccount", "==", "company_cash")
+    .where("movementType", "==", "opening_balance")
+    .get();
+  assert.equal(openingMovements.size, 1);
+
+  await assert.rejects(
+    () => postCompanyCashOpeningBalanceTransaction(
+      db,
+      COMPANY_CASH_OPENING_BALANCE_UID,
+      companyId,
+      {...input, amount: 101},
+    ),
+    (error) => error.code === "already-exists",
+  );
+  await assert.rejects(
+    () => postCompanyCashOpeningBalanceTransaction(
+      db,
+      otherAdminUid,
+      companyId,
+      input,
+    ),
+    (error) => error.code === "permission-denied",
+  );
+  await db.doc(`users/${COMPANY_CASH_OPENING_BALANCE_UID}`).update({
+    email: "wrong@example.com",
+  });
+  await assert.rejects(
+    () => postCompanyCashOpeningBalanceTransaction(
+      db,
+      COMPANY_CASH_OPENING_BALANCE_UID,
+      companyId,
+      input,
+    ),
+    (error) => error.code === "permission-denied",
+  );
+
+  const reconciliation = await buildCashReconciliationPlan({db, companyId});
+  assert.equal(reconciliation.issueCount, 0);
+  const companyCash = reconciliation.accounts.find(
+    (account) => account.documentId === "company_cash",
+  );
+  assert.equal(companyCash.calculatedBalance, 120.125);
+  assert.equal(companyCash.storedBalance, 120.125);
+  assert.equal(companyCash.difference, 0);
+
+  for (const collection of [
+    "customers",
+    "customer_transactions",
+    "invoices",
+    "receipts",
+    "sales_returns",
+    "stock_movements",
+    "rep_inventory_movements",
+  ]) {
+    const snapshot = await db.collection(
+      `companies/${companyId}/${collection}`,
+    ).get();
+    assert.equal(snapshot.size, 0, collection);
+  }
 });
 
 test("cash refund uses the original admin collection account, not assigned rep cash", async () => {

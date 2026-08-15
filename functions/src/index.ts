@@ -12,6 +12,7 @@ import {createReceipt} from "./trusted/create_receipt";
 import {approveExpense, createExpense} from "./trusted/expenses";
 import {adjustStock, createItem} from "./trusted/inventory";
 import {postCustomerOpeningBalance} from "./trusted/post_opening_balance";
+import {postCompanyCashOpeningBalance} from "./trusted/post_company_cash_opening_balance";
 import {recordCashSettlement} from "./trusted/record_cash_settlement";
 import {updateCustomerOpeningBalance} from "./trusted/update_opening_balance";
 
@@ -31,6 +32,7 @@ export {
   createItem,
   createReceipt,
   postCustomerOpeningBalance,
+  postCompanyCashOpeningBalance,
   recordCashSettlement,
   updateCustomerOpeningBalance,
   updateCustomer,

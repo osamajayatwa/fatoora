@@ -4,11 +4,13 @@ import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:fatoora/core/data/firestore_query_pager.dart';
+import 'package:fatoora/core/firebase/trusted_callable_client.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
 import 'package:fatoora/features/expenses/data/models/expense_model.dart';
 import 'package:fatoora/features/financial/data/models/cash_movement_model.dart';
+import 'package:fatoora/features/financial/data/models/company_cash_opening_balance_model.dart';
 import 'package:fatoora/features/financial/data/models/financial_dashboard_snapshot.dart';
 import 'package:fatoora/features/financial/data/services/cash_ledger_calculator.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
@@ -23,6 +25,7 @@ enum FinancialRepositoryError {
   permissionDenied,
   unavailable,
   timeout,
+  alreadyExists,
   invalidData,
   unknown,
 }
@@ -40,8 +43,14 @@ class FinancialRepository {
     FirebaseFunctions? functions,
     FirebaseAuth? firebaseAuth,
     BusinessUserContextReader? contextReader,
+    TrustedCallableClient? trustedCallableClient,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
-       _functions = functions ?? FirebaseFunctions.instance,
+       _trustedCallableClient =
+           trustedCallableClient ??
+           TrustedCallableClient.forDefaultApp(
+             firebaseAuth: firebaseAuth,
+             functions: functions,
+           ),
        _contextReader =
            contextReader ??
            BusinessUserContextReader(
@@ -50,7 +59,7 @@ class FinancialRepository {
            );
 
   final FirebaseFirestore _firestore;
-  final FirebaseFunctions _functions;
+  final TrustedCallableClient _trustedCallableClient;
   final BusinessUserContextReader _contextReader;
 
   CollectionReference<Map<String, dynamic>> _customers(String companyId) {
@@ -365,9 +374,8 @@ class FinancialRepository {
         );
       }
       final idempotencyKey = _cashMovements(resolvedCompanyId).doc().id;
-      await _functions
-          .httpsCallable('recordCashSettlement')
-          .call<void>({
+      await _trustedCallableClient
+          .callAuthenticated<void>('recordCashSettlement', {
             'companyId': resolvedCompanyId,
             'idempotencyKey': idempotencyKey,
             'salesRepId': salesRepId,
@@ -376,6 +384,62 @@ class FinancialRepository {
             'settlementDate': settlementDate.millisecondsSinceEpoch,
             'notes': notes,
           })
+          .timeout(const Duration(seconds: 30));
+    });
+  }
+
+  Future<CompanyCashOpeningBalanceModel?> getCompanyCashOpeningBalance({
+    String companyId = AuthRepository.defaultCompanyId,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      if (!user.isAdmin) {
+        throw const FinancialRepositoryException(
+          FinancialRepositoryError.permissionDenied,
+        );
+      }
+      final document = await _cashMovements(
+        resolvedCompanyId,
+      ).doc(CompanyCashOpeningBalanceModel.movementId).get();
+      if (!document.exists) return null;
+      final opening = CompanyCashOpeningBalanceModel.fromFirestore(document);
+      final data = document.data() ?? const <String, dynamic>{};
+      if (!opening.isValidOpeningBalance ||
+          opening.companyId != resolvedCompanyId ||
+          data['cashAccount'] != CashMovementModel.companyCashAccount ||
+          data['movementType'] != 'opening_balance' ||
+          data['type'] != 'opening_balance' ||
+          data['direction'] != 'in') {
+        throw const FinancialRepositoryException(
+          FinancialRepositoryError.invalidData,
+        );
+      }
+      return opening;
+    });
+  }
+
+  Future<void> postCompanyCashOpeningBalance({
+    String companyId = AuthRepository.defaultCompanyId,
+    required double amount,
+    String note = '',
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      if (!user.isAdmin ||
+          user.uid != CompanyCashOpeningBalanceModel.authorizedUid ||
+          user.email.trim().toLowerCase() !=
+              CompanyCashOpeningBalanceModel.authorizedEmail) {
+        throw const FinancialRepositoryException(
+          FinancialRepositoryError.permissionDenied,
+        );
+      }
+      await _trustedCallableClient
+          .callAuthenticated<Map<String, dynamic>>(
+            'postCompanyCashOpeningBalance',
+            {'companyId': resolvedCompanyId, 'amount': amount, 'note': note},
+          )
           .timeout(const Duration(seconds: 30));
     });
   }
@@ -891,7 +955,9 @@ class FinancialRepository {
       'unavailable' ||
       'deadline-exceeded' => FinancialRepositoryError.unavailable,
       'invalid-argument' ||
-      'failed-precondition' => FinancialRepositoryError.invalidData,
+      'failed-precondition' ||
+      'data-loss' => FinancialRepositoryError.invalidData,
+      'already-exists' => FinancialRepositoryError.alreadyExists,
       _ => FinancialRepositoryError.unknown,
     };
   }

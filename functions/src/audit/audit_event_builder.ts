@@ -59,8 +59,13 @@ export function buildAuditEvent(input: AuditBuildInput): AuditEvent | null {
     current.referenceType === "manual_adjustment";
   const isSettlementPrimary = input.config.entityType === "cash_movement" &&
     Boolean(current.settlementId) && current.cashAccount === "company_cash";
+  const isCompanyCashOpeningBalance =
+    input.config.entityType === "cash_movement" &&
+    current.cashAccount === "company_cash" &&
+    (current.movementType === "opening_balance" ||
+      current.type === "opening_balance");
   const isDerived = !input.config.visible && !isManualAdjustment &&
-    !isSettlementPrimary;
+    !isSettlementPrimary && !isCompanyCashOpeningBalance;
   const severity = severityFor(action, current);
 
   return {
@@ -155,6 +160,12 @@ function inferAction(
     if (config.entityType === "cash_movement" && after?.settlementId &&
         after?.cashAccount === "company_cash") {
       return AuditActions.settlement.confirmed;
+    }
+    if (config.entityType === "cash_movement" &&
+        after?.cashAccount === "company_cash" &&
+        (after?.movementType === "opening_balance" ||
+          after?.type === "opening_balance")) {
+      return AuditActions.companyCash.openingBalanceCreated;
     }
     if (config.entityType === "rep_inventory_movement") {
       const movement = stringValue(after?.movementType ?? after?.type)

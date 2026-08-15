@@ -143,3 +143,33 @@ test("opening balance and settings semantic actions are inferred", () => {
   });
   assert.equal(prefix.action, "document_prefix.changed");
 });
+
+test("company cash opening balance is a visible financial audit event", () => {
+  const event = buildAuditEvent({
+    ...base,
+    config: ENTITY_CONFIGS.cash_movements,
+    entityId: "company_cash_opening_balance",
+    entityPath:
+      "companies/default_company/cash_movements/company_cash_opening_balance",
+    after: {
+      id: "company_cash_opening_balance",
+      movementType: "opening_balance",
+      type: "opening_balance",
+      direction: "in",
+      cashAccount: "company_cash",
+      amount: 250,
+      balanceBefore: 0,
+      balanceAfter: 250,
+      effectiveDate: Timestamp.fromDate(new Date("2026-07-30T00:00:00.000Z")),
+      operationId: "company_cash_opening_balance",
+      createdByUid: "admin",
+      createdByName: "Admin",
+      createdByRole: "admin",
+    },
+  });
+
+  assert.equal(event.action, "company_cash.opening_balance_created");
+  assert.equal(event.displayInTimeline, true);
+  assert.equal(event.financialImpact.companyCashDelta, 250);
+  assert.equal(event.operationId, "company_cash_opening_balance");
+});
