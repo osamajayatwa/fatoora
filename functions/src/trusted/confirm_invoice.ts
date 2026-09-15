@@ -24,6 +24,8 @@ import {
   roundQuantity,
 } from "./common";
 import {applyCashChange, CashAccount} from "./cash_ledger";
+import {writeFinancialLedgerEntries} from "./financial_ledger";
+import {buildInvoiceFinancialLedgerEntries} from "./financial_ledger_mappings";
 import {
   TrustedInvoiceLine,
   calculateInvoiceTotals,
@@ -344,6 +346,24 @@ export async function confirmInvoiceTransaction(
       inventoryMovementIds: inventory.movementIds,
       updatedAt: FieldValue.serverTimestamp(),
     });
+    writeFinancialLedgerEntries(
+      transaction,
+      firestore,
+      buildInvoiceFinancialLedgerEntries({
+        companyId,
+        invoiceId,
+        invoiceNumber,
+        invoiceDate,
+        grandTotal: normalizedTotals.grandTotal,
+        initialCashAmount: payment.paidAmount,
+        initialCashAccount: cashAccount,
+        customerId,
+        customerName: optionalString(customer.name),
+        salesRepId,
+        salesRepName,
+        notes: optionalString(invoice.notes),
+      }),
+    );
     return {invoiceId, alreadyPosted: false};
   });
 }

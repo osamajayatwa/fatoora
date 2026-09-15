@@ -1,3 +1,4 @@
+const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { join } = require("node:path");
 const { after, before, beforeEach, test } = require("node:test");
@@ -13,6 +14,7 @@ const {
   doc,
   getDoc,
   getDocs,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -1544,6 +1546,7 @@ test("all posting, balance, reservation, audit, and lock paths fail closed", asy
     ["cash_movements", "forged-cash"],
     ["cash_balances", "forged-balance"],
     ["settlements", "forged-settlement"],
+    ["financial_ledger_entries", "forged-financial-ledger"],
     ["stock_movements", "forged-stock"],
     ["rep_inventory_balances", "forged-rep-balance"],
     ["rep_inventory_movements", "forged-rep-movement"],
@@ -1625,6 +1628,94 @@ test("audit events are admin-readable and immutable to every client", async () =
   ), {action: "forged"}));
   await assertFails(updateDoc(adminRef, {action: "forged"}));
   await assertFails(deleteDoc(adminRef));
+});
+
+test("financial ledger is admin-readable and immutable to every client", async () => {
+  const ledgerPath = (db) => doc(
+    db, "companies", companyId, "financial_ledger_entries", "entry-1",
+  );
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    await setDoc(ledgerPath(context.firestore()), {
+      id: "entry-1",
+      companyId,
+      salesRepId: repAUid,
+      occurredAt: new Date("2026-08-01T10:00:00.000Z"),
+      amount: 10,
+    });
+  });
+
+  await assertSucceeds(getDoc(ledgerPath(authenticatedDb(adminUid))));
+  await assertSucceeds(getDoc(ledgerPath(authenticatedDb(legacyAdminUid))));
+  await assertFails(getDoc(ledgerPath(authenticatedDb(repAUid))));
+  await assertFails(getDoc(ledgerPath(authenticatedDb(pendingUid))));
+  const adminRef = ledgerPath(authenticatedDb(adminUid));
+  await assertFails(updateDoc(adminRef, {amount: 99}));
+  await assertFails(deleteDoc(adminRef));
+});
+
+test("financial ledger reporting projections are backend-only", async () => {
+  const paths = [
+    ["financial_ledger_search_entries", "entry-1"],
+    ["financial_ledger_projection_states", "entry-1"],
+    ["financial_ledger_account_activity_states", "entry-1"],
+    ["financial_ledger_account_activity_metadata", "current"],
+    [
+      "financial_ledger_summary_scopes", "all", "query_keys", "v3-key",
+      "days", "2026-08-01",
+    ],
+    [
+      "financial_ledger_account_activity_scopes", "all", "accounts", "a-key",
+      "days", "2026-08-01_s00",
+    ],
+  ];
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    for (const path of paths) {
+      await setDoc(doc(context.firestore(), "companies", companyId, ...path), {
+        schemaVersion: 3,
+      });
+    }
+  });
+  for (const path of paths) {
+    const adminRef = doc(
+      authenticatedDb(adminUid),
+      "companies",
+      companyId,
+      ...path,
+    );
+    await assertFails(getDoc(adminRef));
+    await assertFails(setDoc(adminRef, {schemaVersion: 3}));
+    await assertFails(updateDoc(adminRef, {schemaVersion: 4}));
+    await assertFails(deleteDoc(adminRef));
+  }
+});
+
+test("admin ledger representative filter is evaluated in the Firestore query", async () => {
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    for (const [id, salesRepId] of [["entry-a", repAUid], ["entry-b", repBUid]]) {
+      await setDoc(businessDoc(db, "financial_ledger_entries", id), {
+        id,
+        companyId,
+        salesRepId,
+        queryKeys: ["all", "type=invoice_sale"],
+        occurredAt: new Date("2026-08-01T10:00:00.000Z"),
+        amount: 10,
+      });
+    }
+  });
+  const filtered = (db) => query(
+    collection(db, "companies", companyId, "financial_ledger_entries"),
+    where("queryKeys", "array-contains", "type=invoice_sale"),
+    where("salesRepId", "==", repAUid),
+    where("occurredAt", ">=", new Date("2026-08-01T00:00:00.000Z")),
+    where("occurredAt", "<=", new Date("2026-08-31T23:59:59.999Z")),
+    orderBy("occurredAt", "desc"),
+  );
+
+  const adminResult = await assertSucceeds(getDocs(filtered(authenticatedDb(adminUid))));
+  assert.equal(adminResult.docs.length, 1);
+  assert.equal(adminResult.docs[0].data().salesRepId, repAUid);
+  await assertFails(getDocs(filtered(authenticatedDb(repAUid))));
 });
 
 function authenticatedDb(uid) {

@@ -40,13 +40,15 @@ class EditItemScreen extends StatelessWidget {
                           color: AppColor.secondaryColor,
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          'items_edit'.tr,
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(
-                                color: AppColor.secondaryColor,
-                                fontWeight: FontWeight.w800,
-                              ),
+                        Expanded(
+                          child: Text(
+                            'items_edit'.tr,
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
+                                  color: AppColor.secondaryColor,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                          ),
                         ),
                       ],
                     ),

@@ -40,6 +40,8 @@ import 'package:fatoora/features/expenses/view/screens/expenses_list_screen.dart
 import 'package:fatoora/features/financial/bindings/financial_binding.dart';
 import 'package:fatoora/features/financial/view/screens/cash_movements_screen.dart';
 import 'package:fatoora/features/financial/view/screens/receivables_screen.dart';
+import 'package:fatoora/features/financial_ledger/bindings/financial_ledger_binding.dart';
+import 'package:fatoora/features/financial_ledger/view/screens/financial_ledger_screen.dart';
 import 'package:fatoora/features/items/binding/add_item_binding.dart';
 import 'package:fatoora/features/items/binding/edit_item_binding.dart';
 import 'package:fatoora/features/items/binding/item_details_binding.dart';
@@ -191,6 +193,12 @@ List<GetPage<dynamic>> routes = _guardRoutes([
     page: () => const CashMovementsScreen(),
     binding: CashMovementsBinding(),
     middlewares: [ApprovedUserMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.financialLedger,
+    page: () => const FinancialLedgerScreen(),
+    binding: FinancialLedgerBinding(),
+    middlewares: [AdminMiddleware()],
   ),
   GetPage(
     name: AppRoute.expenses,

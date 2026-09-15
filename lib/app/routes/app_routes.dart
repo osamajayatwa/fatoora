@@ -64,6 +64,7 @@ class AppRoute {
 
   static const String receivables = "/receivables";
   static const String cashMovements = "/cash-movements";
+  static const String financialLedger = "/admin/financial-ledger";
   static const String expenses = "/expenses";
   static const String createExpense = "/expenses/create";
   static const String expenseDetails = "/expenses/:expenseId";

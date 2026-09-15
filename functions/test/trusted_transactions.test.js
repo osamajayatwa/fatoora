@@ -55,6 +55,13 @@ const {
   readCashBalance,
 } = require("../lib/trusted/cash_ledger");
 const {
+  ledgerQueryKeyHash,
+} = require("../lib/trusted/financial_ledger");
+const {
+  ledgerSummaryShard,
+  reconcileFinancialLedgerProjection,
+} = require("../lib/trusted/financial_ledger_reporting");
+const {
   submitInvoiceToJoFotara,
 } = require("../lib/submit_invoice_to_jofotara");
 const {
@@ -1093,6 +1100,45 @@ test("concurrent invoice confirmations post totals and stock exactly once", asyn
   assert.equal(customer.currentBalance, 60);
   const movements = await db.collection(`companies/${companyId}/stock_movements`).get();
   assert.equal(movements.size, 1);
+  const ledgerRows = await db.collection(
+    `companies/${companyId}/financial_ledger_entries`,
+  ).get();
+  assert.equal(ledgerRows.size, 1);
+  const ledger = ledgerRows.docs[0].data();
+  assert.equal(ledger.schemaVersion, 3);
+  assert.equal(ledger.queryKeys.length, 24);
+  assert.ok(ledger.queryKeys.every((value) => /^v3:[A-Za-z0-9_-]{43}$/.test(value)));
+
+  await reconcileFinancialLedgerProjection(db, companyId, ledgerRows.docs[0].id);
+  await reconcileFinancialLedgerProjection(db, companyId, ledgerRows.docs[0].id);
+  const searchProjection = await db.doc(
+    `companies/${companyId}/financial_ledger_search_entries/${ledgerRows.docs[0].id}`,
+  ).get();
+  assert.equal(searchProjection.exists, true);
+  assert.ok(searchProjection.data().searchTokens.length <= 96);
+  assert.ok(searchProjection.data().searchTokens.every(
+    (value) => /^v3s:[A-Za-z0-9_-]{43}$/.test(value),
+  ));
+  const summary = (await db.doc(
+    `companies/${companyId}/financial_ledger_summary_scopes/all/` +
+    `query_keys/${ledgerQueryKeyHash("all")}/days/` +
+    `2026-08-05_${ledgerSummaryShard(ledgerRows.docs[0].id)}`,
+  ).get()).data();
+  assert.equal(summary.entryCount, 1);
+  assert.equal(summary.metricSales, 60);
+  assert.equal(summary.metricCreditSales, 60);
+
+  await searchProjection.ref.delete();
+  await reconcileFinancialLedgerProjection(db, companyId, ledgerRows.docs[0].id);
+  const repairedProjection = await searchProjection.ref.get();
+  const unchangedSummary = (await db.doc(
+    `companies/${companyId}/financial_ledger_summary_scopes/all/` +
+    `query_keys/${ledgerQueryKeyHash("all")}/days/` +
+    `2026-08-05_${ledgerSummaryShard(ledgerRows.docs[0].id)}`,
+  ).get()).data();
+  assert.equal(repairedProjection.exists, true);
+  assert.equal(unchangedSummary.entryCount, 1);
+  assert.equal(unchangedSummary.metricSales, 60);
 
   await db.doc(`companies/${companyId}/invoices/missing-item`).set({
     ...invoiceDraft({
@@ -1124,6 +1170,19 @@ test("concurrent invoice confirmations post totals and stock exactly once", asyn
     companyId,
     "invoice-a",
   ));
+  await ledgerRows.docs[0].ref.delete();
+  await reconcileFinancialLedgerProjection(db, companyId, ledgerRows.docs[0].id);
+  const removedProjection = await db.doc(
+    `companies/${companyId}/financial_ledger_search_entries/${ledgerRows.docs[0].id}`,
+  ).get();
+  const removedSummary = (await db.doc(
+    `companies/${companyId}/financial_ledger_summary_scopes/all/` +
+    `query_keys/${ledgerQueryKeyHash("all")}/days/` +
+    `2026-08-05_${ledgerSummaryShard(ledgerRows.docs[0].id)}`,
+  ).get()).data();
+  assert.equal(removedProjection.exists, false);
+  assert.equal(removedSummary.entryCount, 0);
+  assert.equal(removedSummary.metricSales, 0);
 });
 
 test("receipt allocates across more than 250 outstanding invoices", async () => {

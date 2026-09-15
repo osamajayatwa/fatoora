@@ -13,6 +13,8 @@ import {
   roundMoney,
   timestampFrom,
 } from "./common";
+import {writeFinancialLedgerEntries} from "./financial_ledger";
+import {buildCustomerOpeningFinancialLedgerEntry} from "./financial_ledger_mappings";
 
 interface OpeningBalanceRequest {
   companyId?: unknown;
@@ -138,6 +140,23 @@ export async function postOpeningBalanceTransaction(
       createdAt: FieldValue.serverTimestamp(),
       referenceId: transactionId,
     });
+    const salesRepId = user.role === "sales_rep" ? user.uid : "";
+    const salesRepName = user.role === "sales_rep" ? user.name : "";
+    writeFinancialLedgerEntries(transaction, firestore, [
+      buildCustomerOpeningFinancialLedgerEntry({
+        companyId,
+        transactionId,
+        transactionDate,
+        transactionType: "opening_balance",
+        openingBalanceType: type,
+        signedAmount: signed,
+        customerId,
+        customerName: optionalString(customer.name),
+        salesRepId,
+        salesRepName,
+        notes,
+      }),
+    ]);
     return {transactionId, balanceAfter: after, alreadyPosted: false};
   });
 }

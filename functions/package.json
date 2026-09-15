@@ -12,11 +12,15 @@
     "test:trusted": "npm run build && node --test test/trusted_transactions.test.js test/confirm_sales_return_auth.test.js",
     "test:maintenance": "node --test test/invoice_sales_rep_maintenance.test.js test/invoice_list_fields_maintenance.test.js test/cash_reconciliation.test.js",
     "test:audit": "npm run build && node --test test/audit.test.js",
+    "test:financial-ledger": "npm run build && node --test test/financial_ledger.test.js",
     "audit:invoice-sales-rep": "node scripts/audit_invoice_sales_rep.js",
     "backfill:invoice-sales-rep": "node scripts/backfill_invoice_sales_rep.js",
     "audit:invoice-list-fields": "node scripts/backfill_invoice_list_fields.js",
     "backfill:invoice-list-fields": "node scripts/backfill_invoice_list_fields.js --apply",
-    "reconcile:cash": "node scripts/reconcile_cash_balances.js"
+    "reconcile:cash": "node scripts/reconcile_cash_balances.js",
+    "rebuild:financial-ledger": "npm run build && node lib/maintenance/rebuild_financial_ledger.js",
+    "migrate:financial-ledger-query-keys": "npm run build && node lib/maintenance/migrate_financial_ledger_query_keys.js",
+    "rebuild:financial-ledger-account-activity": "npm run build && node lib/maintenance/rebuild_financial_ledger_account_activity.js"
   },
   "dependencies": {
     "firebase-admin": "^12.7.0",

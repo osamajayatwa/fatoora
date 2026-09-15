@@ -1,4 +1,4 @@
-import {FieldValue, Firestore, getFirestore} from "firebase-admin/firestore";
+import {FieldValue, Firestore, Timestamp, getFirestore} from "firebase-admin/firestore";
 import {HttpsError, onCall} from "firebase-functions/v2/https";
 import {
   TRUSTED_CALLABLE_OPTIONS,
@@ -14,6 +14,8 @@ import {
   requiredString,
   roundMoney,
 } from "./common";
+import {writeFinancialLedgerEntries} from "./financial_ledger";
+import {buildCustomerOpeningFinancialLedgerEntry} from "./financial_ledger_mappings";
 
 interface UpdateOpeningBalanceRequest {
   companyId?: unknown;
@@ -229,6 +231,23 @@ export async function updateOpeningBalanceTransaction(
       createdAt: FieldValue.serverTimestamp(),
       referenceId: transactionId,
     });
+    const salesRepId = user.role === "sales_rep" ? user.uid : "";
+    const salesRepName = user.role === "sales_rep" ? user.name : "";
+    writeFinancialLedgerEntries(transaction, firestore, [
+      buildCustomerOpeningFinancialLedgerEntry({
+        companyId,
+        transactionId: adjustmentTransactionId,
+        transactionDate: Timestamp.now(),
+        transactionType: "opening_balance_adjustment",
+        openingBalanceType: newType,
+        signedAmount: difference,
+        customerId,
+        customerName: optionalString(customer.name),
+        salesRepId,
+        salesRepName,
+        notes: reason,
+      }),
+    ]);
     return {
       transactionId,
       adjustmentTransactionId,

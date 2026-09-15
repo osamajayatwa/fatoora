@@ -1,4 +1,4 @@
-import {FieldValue, Firestore, getFirestore} from "firebase-admin/firestore";
+import {FieldValue, Firestore, Timestamp, getFirestore} from "firebase-admin/firestore";
 import {HttpsError, onCall} from "firebase-functions/v2/https";
 import {
   TRUSTED_CALLABLE_OPTIONS,
@@ -15,6 +15,8 @@ import {
   timestampFrom,
 } from "./common";
 import {applyCashChange} from "./cash_ledger";
+import {writeFinancialLedgerEntries} from "./financial_ledger";
+import {buildExpenseFinancialLedgerEntry} from "./financial_ledger_mappings";
 
 const categories = new Set([
   "fuel", "parking", "maintenance", "delivery", "meals", "office",
@@ -168,6 +170,19 @@ export async function createExpenseTransaction(
         actorName: user.name,
         actorRole: user.role,
       }));
+      writeFinancialLedgerEntries(transaction, firestore, [
+        buildExpenseFinancialLedgerEntry({
+          companyId,
+          expenseId,
+          expenseDate,
+          amount,
+          fundingSource: "company_cash",
+          description: description || category,
+          salesRepId: "",
+          salesRepName: "",
+          notes: description,
+        }),
+      ]);
     }
     return {expenseId, alreadyPosted: false};
   });
@@ -195,6 +210,10 @@ export async function approveExpenseTransaction(
       throw new HttpsError("failed-precondition", "Expense is not pending.");
     }
     if (expense.fundingSource === "personal_cash") {
+      const salesRepId = requiredString(expense.salesRepId, "salesRepId");
+      const salesRepName = optionalString(expense.salesRepName);
+      const amount = roundMoney(typeof expense.amount === "number" ? expense.amount : 0);
+      if (amount <= 0) throw new HttpsError("data-loss", "Expense amount is invalid.");
       transaction.update(expenseRef, {
         status: "approved",
         cashMovementId: "",
@@ -204,6 +223,21 @@ export async function approveExpenseTransaction(
         approvedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
+      writeFinancialLedgerEntries(transaction, firestore, [
+        buildExpenseFinancialLedgerEntry({
+          companyId,
+          expenseId,
+          expenseDate: expense.expenseDate instanceof Timestamp
+            ? expense.expenseDate
+            : Timestamp.now(),
+          amount,
+          fundingSource: "personal_cash",
+          description: optionalString(expense.description) || optionalString(expense.notes),
+          salesRepId,
+          salesRepName,
+          notes: optionalString(expense.description) || optionalString(expense.notes),
+        }),
+      ]);
       return {expenseId, alreadyPosted: false};
     }
     if (expense.fundingSource !== "rep_collected_cash") {
@@ -253,6 +287,21 @@ export async function approveExpenseTransaction(
       approvedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
+    writeFinancialLedgerEntries(transaction, firestore, [
+      buildExpenseFinancialLedgerEntry({
+        companyId,
+        expenseId,
+        expenseDate: expense.expenseDate instanceof Timestamp
+          ? expense.expenseDate
+          : Timestamp.now(),
+        amount,
+        fundingSource: "rep_collected_cash",
+        description: optionalString(expense.description) || optionalString(expense.notes),
+        salesRepId,
+        salesRepName: optionalString(expense.salesRepName),
+        notes: optionalString(expense.description) || optionalString(expense.notes),
+      }),
+    ]);
     return {expenseId, alreadyPosted: false};
   });
 }

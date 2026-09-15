@@ -8,6 +8,74 @@ Production access requires Application Default Credentials, for example:
 gcloud auth application-default login
 ```
 
+## Migrate financial-ledger projections to schema v3
+
+This targeted migration is read-only by default. It scans only
+`companies/{companyId}/financial_ledger_entries`, validates every `queryKeys`
+array, reconstructs the compact SHA-256 schema-v3 base-filter keys, plans the
+derived search/daily-summary projection, and prints before/after composite-index
+size estimates. It does not rebuild the ledger or read financial source
+collections:
+
+```powershell
+npm --prefix functions run migrate:financial-ledger-query-keys -- `
+  --project=fatoora-6b192 `
+  --company=default_company
+```
+
+Apply mode updates exactly two fields on the main ledger row: `queryKeys` and
+`schemaVersion`. Search, summary, and reconciliation-state writes are confined
+to derived reporting collections. The process is idempotent, uses document
+update-time preconditions, blocks invalid documents, and requires exact
+project/company confirmation plus a write ceiling:
+
+```powershell
+npm --prefix functions run migrate:financial-ledger-query-keys -- `
+  --project=fatoora-6b192 `
+  --company=default_company `
+  --apply `
+  --confirm-project=fatoora-6b192 `
+  --confirm-company=default_company `
+  --max-writes=500
+```
+
+Do not run apply mode until the matching Functions writer/client change, the
+four compact main indexes, the two search indexes, and all array-field
+single-field exemptions have been reviewed and scheduled as one controlled
+rollout.
+
+## Rebuild the derived financial ledger
+
+The ledger rebuild is read-only by default. It pages through posted invoices,
+receipts, expenses, returns, settlements, and opening-balance sources, then
+prints counts, totals, missing ownership, conflicts, and stale derived rows.
+It never guesses a representative from `createdByUid` and never deletes stale
+ledger rows:
+
+```powershell
+npm --prefix functions run rebuild:financial-ledger -- `
+  --project=fatoora-6b192 `
+  --company=default_company
+```
+
+Review and archive a clean dry-run before apply mode. Apply uses deterministic
+document IDs and batches of at most 400 writes. Exact project/company
+confirmation is mandatory, reconciliation errors block writes, and the default
+write ceiling is 500:
+
+```powershell
+npm --prefix functions run rebuild:financial-ledger -- `
+  --project=fatoora-6b192 `
+  --company=default_company `
+  --apply `
+  --confirm-project=fatoora-6b192 `
+  --confirm-company=default_company `
+  --max-writes=500
+```
+
+Do not run apply mode until the Functions code, Firestore rules, and ledger
+indexes from the same release have been deployed and verified.
+
 ## Reconcile materialized cash balances
 
 Cash reconciliation is read-only by default. It scans every `cash_movements`
@@ -107,6 +175,34 @@ The limitation is that a movement posted by an admin for a rep-assigned invoice
 is admin-owned and is not visible to that rep. If rep-facing stock history is
 added later, new stock movements should persist immutable `salesRepId` and
 rules/queries should migrate to that field. No schema change is required now.
+
+## Rebuild Financial Ledger account activity
+
+This reporting-only maintenance command is dry-run by default. It reads
+`financial_ledger_entries` and proposes writes only to the new account activity
+state/scope projection:
+
+```powershell
+npm --prefix functions run rebuild:financial-ledger-account-activity -- `
+  --project=<project-id> `
+  --company=<company-id>
+```
+
+Apply mode must use the reviewed project and company values and remains bounded
+by the conservative maximum-write estimate. Do not run apply against production
+without an approved dry-run:
+
+```powershell
+npm --prefix functions run rebuild:financial-ledger-account-activity -- `
+  --project=<project-id> `
+  --company=<company-id> `
+  --apply `
+  --confirm-project=<project-id> `
+  --confirm-company=<company-id> `
+  --max-writes=5000
+```
+
+The command does not write ledger entries or source business documents.
 
 ## Firestore deployment and verification
 

@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const {createHash} = require("node:crypto");
 const {readFileSync} = require("node:fs");
 const {join} = require("node:path");
 const {after, before, test} = require("node:test");
@@ -43,6 +44,13 @@ const {
 const {
   updateCustomerOpeningBalance,
 } = require("../lib/trusted/update_opening_balance");
+const {
+  getFinancialLedgerSummary,
+  searchFinancialLedger,
+} = require("../lib/trusted/financial_ledger_reporting");
+const {
+  getFinancialLedgerOpeningBalances,
+} = require("../lib/trusted/financial_ledger_account_reporting");
 
 const projectId = "fatoora-return-auth-test";
 const app = initializeApp({projectId});
@@ -69,9 +77,12 @@ test("all trusted callables use the same v2 authentication pathway and options",
     createExpense,
     createItem,
     createReceipt,
+    getFinancialLedgerOpeningBalances,
+    getFinancialLedgerSummary,
     postCustomerOpeningBalance,
     postCompanyCashOpeningBalance,
     recordCashSettlement,
+    searchFinancialLedger,
     updateCustomerOpeningBalance,
     updateCustomer,
   ];
@@ -93,6 +104,8 @@ test("all trusted callables use the same v2 authentication pathway and options",
     "create_receipt.ts",
     "customer_profiles.ts",
     "expenses.ts",
+    "financial_ledger_account_reporting.ts",
+    "financial_ledger_reporting.ts",
     "inventory.ts",
     "post_opening_balance.ts",
     "post_company_cash_opening_balance.ts",
@@ -111,6 +124,88 @@ test("all trusted callables use the same v2 authentication pathway and options",
     "utf8",
   );
   assert.match(commonSource, /invoker:\s*"public"/);
+});
+
+test("opening-balance API is admin-only, readiness-guarded, and strictly before cutoff", async () => {
+  const companyId = "ledger-opening-api";
+  const adminUid = "ledger-opening-admin";
+  const repUid = "ledger-opening-rep";
+  const accountKey = "company_cash";
+  await seedUser(adminUid, "admin", companyId);
+  await seedUser(repUid, "sales_rep", companyId);
+  const request = {
+    auth: {uid: adminUid},
+    data: {
+      companyId,
+      accountKeys: [accountKey],
+      salesRepId: "",
+      fromInclusive: new Date("2026-08-05T09:00:00.000Z").getTime(),
+    },
+  };
+
+  await assert.rejects(
+    getFinancialLedgerOpeningBalances.run(request),
+    (error) => error.code === "failed-precondition",
+  );
+  await assert.rejects(
+    getFinancialLedgerOpeningBalances.run({
+      ...request,
+      auth: {uid: repUid},
+    }),
+    (error) => error.code === "permission-denied",
+  );
+
+  await db.doc(
+    `companies/${companyId}/financial_ledger_account_activity_metadata/current`,
+  ).set({projectionVersion: 1, status: "ready"});
+  const accountHash = `a_${createHash("sha256")
+    .update(accountKey, "utf8").digest("base64url")}`;
+  const accountPath =
+    `companies/${companyId}/financial_ledger_account_activity_scopes/all/` +
+    `accounts/${accountHash}`;
+  const aggregate = (debitTotal, creditTotal) => ({
+    projectionVersion: 1,
+    accountKey,
+    accountType: "cash",
+    accountName: "Cash",
+    debitTotal,
+    creditTotal,
+  });
+  await Promise.all([
+    db.doc(`${accountPath}/months/2026-07_s00`).set(aggregate(100, 20)),
+    db.doc(`${accountPath}/days/2026-08-04_s00`).set(aggregate(10, 5)),
+    db.doc(`${accountPath}/postings/${postingId(
+      "2026-08-05", Timestamp.fromDate(new Date("2026-08-05T08:00:00.000Z")), "old",
+    )}`).set({
+      projectionVersion: 1,
+      accountKey,
+      accountType: "cash",
+      accountName: "Cash",
+      debit: 3,
+      credit: 1,
+    }),
+    db.doc(`${accountPath}/postings/${postingId(
+      "2026-08-05", Timestamp.fromDate(new Date("2026-08-05T10:00:00.000Z")), "new",
+    )}`).set({
+      projectionVersion: 1,
+      accountKey,
+      accountType: "cash",
+      accountName: "Cash",
+      debit: 100,
+      credit: 0,
+    }),
+  ]);
+
+  const response = await getFinancialLedgerOpeningBalances.run(request);
+  assert.equal(response.projectionVersion, 1);
+  assert.deepEqual(response.openings, [{
+    accountKey,
+    accountType: "cash",
+    accountName: "Cash",
+    debit: 113,
+    credit: 26,
+    balance: 87,
+  }]);
 });
 
 test("company cash opening callable rejects every non-designated identity without effects", async () => {
@@ -421,6 +516,11 @@ async function seedUser(uid, role, companyId, overrides = {}) {
     approvalStatus: "approved",
     ...overrides,
   });
+}
+
+function postingId(dayKey, timestamp, suffix) {
+  return `${dayKey}_${String(timestamp.seconds).padStart(12, "0")}_` +
+    `${String(timestamp.nanoseconds).padStart(9, "0")}_${suffix}`;
 }
 
 async function invokeReturn(fixture, uid, returnId) {

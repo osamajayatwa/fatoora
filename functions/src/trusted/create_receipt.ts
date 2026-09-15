@@ -26,6 +26,13 @@ import {
   timestampFrom,
 } from "./common";
 import {applyCashChange, CashAccount} from "./cash_ledger";
+import {writeFinancialLedgerEntries} from "./financial_ledger";
+import {
+  buildReceiptFinancialLedgerEntries,
+  receiptAllocationGroups,
+} from "./financial_ledger_mappings";
+
+export {receiptAllocationGroups} from "./financial_ledger_mappings";
 
 interface ReceiptRequest {
   companyId?: unknown;
@@ -162,8 +169,18 @@ export async function createReceiptTransaction(
       throw new HttpsError("data-loss", "Receipt cash movement already exists without receipt.");
     }
 
-    const salesRepId = user.uid;
-    const salesRepName = user.name;
+    const allocationGroups = receiptAllocationGroups(
+      allocation.entries,
+      allocation.unallocated,
+      user.role === "sales_rep" ? user.uid : "",
+      user.role === "sales_rep" ? user.name : "",
+    );
+    const assignedGroups = allocationGroups.filter((entry) => entry.salesRepId);
+    const salesRepIds = [...new Set(assignedGroups.map((entry) => entry.salesRepId))];
+    const salesRepId = assignedGroups.length === 1 && allocationGroups.length === 1
+      ? assignedGroups[0].salesRepId
+      : "";
+    const salesRepName = salesRepId ? assignedGroups[0].salesRepName : "";
     const cashAccount: CashAccount = user.role === "admin" ? "company_cash" : "rep_cash";
     const cashBalance = paymentMethod === "cash"
       ? await applyCashChange(
@@ -223,6 +240,7 @@ export async function createReceiptTransaction(
       notes: optionalString(input.notes),
       salesRepId,
       salesRepName,
+      salesRepIds,
       createdByUid: user.uid,
       createdByName: user.name,
       createdByRole: user.role,
@@ -295,6 +313,24 @@ export async function createReceiptTransaction(
         createdAt: FieldValue.serverTimestamp(),
       });
     }
+    writeFinancialLedgerEntries(
+      transaction,
+      firestore,
+      buildReceiptFinancialLedgerEntries({
+        companyId,
+        receiptId,
+        receiptNumber: numberAllocation.number,
+        receiptDate,
+        paymentMethod,
+        cashAccount,
+        cashAccountSalesRepId: user.uid,
+        cashAccountSalesRepName: user.name,
+        customerId,
+        customerName: optionalString(customer.name),
+        notes: optionalString(input.notes),
+        groups: allocationGroups,
+      }),
+    );
     return {
       receiptId,
       receiptNumber: numberAllocation.number,

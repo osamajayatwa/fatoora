@@ -15,6 +15,15 @@ import {postCustomerOpeningBalance} from "./trusted/post_opening_balance";
 import {postCompanyCashOpeningBalance} from "./trusted/post_company_cash_opening_balance";
 import {recordCashSettlement} from "./trusted/record_cash_settlement";
 import {updateCustomerOpeningBalance} from "./trusted/update_opening_balance";
+import {
+  getFinancialLedgerSummary,
+  projectFinancialLedgerEntry,
+  searchFinancialLedger,
+} from "./trusted/financial_ledger_reporting";
+import {
+  getFinancialLedgerOpeningBalances,
+  projectFinancialLedgerAccountActivity,
+} from "./trusted/financial_ledger_account_reporting";
 
 initializeApp();
 
@@ -31,9 +40,14 @@ export {
   createExpense,
   createItem,
   createReceipt,
+  getFinancialLedgerOpeningBalances,
+  getFinancialLedgerSummary,
   postCustomerOpeningBalance,
   postCompanyCashOpeningBalance,
   recordCashSettlement,
+  projectFinancialLedgerEntry,
+  projectFinancialLedgerAccountActivity,
+  searchFinancialLedger,
   updateCustomerOpeningBalance,
   updateCustomer,
 };

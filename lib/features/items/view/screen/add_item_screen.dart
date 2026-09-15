@@ -88,11 +88,14 @@ class _ItemFormPage extends StatelessWidget {
                     color: AppColor.secondaryColor,
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: AppColor.secondaryColor,
-                      fontWeight: FontWeight.w800,
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            color: AppColor.secondaryColor,
+                            fontWeight: FontWeight.w800,
+                          ),
                     ),
                   ),
                 ],

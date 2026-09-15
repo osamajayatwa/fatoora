@@ -29,6 +29,8 @@ import {
   timestampFrom,
 } from "./common";
 import {applyCashChange, CashAccount} from "./cash_ledger";
+import {writeFinancialLedgerEntries} from "./financial_ledger";
+import {buildSalesReturnFinancialLedgerEntries} from "./financial_ledger_mappings";
 
 interface ReturnRequest {
   companyId?: unknown;
@@ -417,6 +419,24 @@ export async function confirmSalesReturnTransaction(
       createdAt: existing?.createdAt ?? FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
+    const ledgerEntries = buildSalesReturnFinancialLedgerEntries({
+      companyId,
+      returnId,
+      returnNumber,
+      returnDate,
+      grandTotal: totals.grandTotal,
+      cashRefundAmount,
+      refundType,
+      refundCashAccount: refundSource?.account ?? "",
+      refundCashSalesRepId: refundSource?.salesRepId ?? "",
+      customerId,
+      customerName: optionalString(customer.name),
+      salesRepId,
+      salesRepName,
+      quantity: roundQuantity(lines.reduce((sum, line) => sum + line.returnedQuantity, 0)),
+      reason,
+    });
+    writeFinancialLedgerEntries(transaction, firestore, ledgerEntries);
     return {returnId, returnNumber, alreadyPosted: false};
   });
 }

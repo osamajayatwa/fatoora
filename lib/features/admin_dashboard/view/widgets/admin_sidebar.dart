@@ -47,6 +47,11 @@ class AdminSidebar extends StatelessWidget {
       Icons.account_balance_wallet_outlined,
       AppRoute.cashMovements,
     ),
+    _SidebarItem(
+      'financial_ledger',
+      Icons.menu_book_outlined,
+      AppRoute.financialLedger,
+    ),
     _SidebarItem('expenses', Icons.receipt_long_outlined, AppRoute.expenses),
     _SidebarItem(
       'dashboard_customers',

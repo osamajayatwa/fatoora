@@ -72,6 +72,9 @@ class ItemsScreen extends StatelessWidget {
                                 builder: (context, sliverConstraints) {
                                   final width =
                                       sliverConstraints.crossAxisExtent;
+                                  final textScale = MediaQuery.textScalerOf(
+                                    context,
+                                  ).scale(1);
                                   final columns = width >= 1050
                                       ? 3
                                       : width >= 650
@@ -96,7 +99,10 @@ class ItemsScreen extends StatelessWidget {
                                           crossAxisCount: columns,
                                           crossAxisSpacing: 16,
                                           mainAxisSpacing: 16,
-                                          mainAxisExtent: 238,
+                                          mainAxisExtent:
+                                              238 +
+                                              ((textScale - 1).clamp(0, 1) *
+                                                  88),
                                         ),
                                   );
                                 },
@@ -150,11 +156,13 @@ class _ItemsHeader extends StatelessWidget {
               color: AppColor.secondaryColor,
             ),
             const SizedBox(width: 8),
-            Text(
-              'items_title'.tr,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: AppColor.secondaryColor,
-                fontWeight: FontWeight.w800,
+            Expanded(
+              child: Text(
+                'items_title'.tr,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: AppColor.secondaryColor,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ],

@@ -1419,7 +1419,79 @@
         { "fieldPath": "searchKeywords", "arrayConfig": "CONTAINS" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "financial_ledger_entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "queryKeys", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "occurredAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "financial_ledger_entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "queryKeys", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "occurredAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "financial_ledger_entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "queryKeys", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "salesRepId", "order": "ASCENDING" },
+        { "fieldPath": "occurredAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "financial_ledger_entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "queryKeys", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "salesRepId", "order": "ASCENDING" },
+        { "fieldPath": "occurredAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "financial_ledger_search_entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "searchTokens", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "occurredAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "financial_ledger_search_entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "searchTokens", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "salesRepId", "order": "ASCENDING" },
+        { "fieldPath": "occurredAt", "order": "DESCENDING" }
+      ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "financial_ledger_entries",
+      "fieldPath": "queryKeys",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "financial_ledger_search_entries",
+      "fieldPath": "searchTokens",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "financial_ledger_search_entries",
+      "fieldPath": "queryKeys",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "financial_ledger_projection_states",
+      "fieldPath": "queryKeys",
+      "indexes": []
+    }
+  ]
 }

@@ -99,6 +99,7 @@ class _StatsGrid extends StatelessWidget {
     final stats = Get.find<AdminDashboardController>().stats;
     return LayoutBuilder(
       builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
         final columns = constraints.maxWidth >= 1200
             ? 5
             : constraints.maxWidth >= 820
@@ -116,7 +117,7 @@ class _StatsGrid extends StatelessWidget {
               .map(
                 (stat) => SizedBox(
                   width: width,
-                  height: 190,
+                  height: 190 + ((textScale - 1).clamp(0, 1) * 72),
                   child: DashboardStatCard(stat: stat),
                 ),
               )
@@ -142,14 +143,15 @@ class _ResponsivePair extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < 880) {
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        if (constraints.maxWidth < 880 || textScale > 1.3) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [first, const SizedBox(height: 18), second],
           );
         }
         return SizedBox(
-          height: desktopHeight,
+          height: desktopHeight + ((textScale - 1).clamp(0, .3) * 160),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

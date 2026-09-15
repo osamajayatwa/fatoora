@@ -1040,6 +1040,35 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /companies/{companyId}/financial_ledger_entries/{entryId} {
+      allow read: if isAdmin(companyId);
+      allow write: if false;
+    }
+
+    match /companies/{companyId}/financial_ledger_search_entries/{entryId} {
+      allow read, write: if false;
+    }
+
+    match /companies/{companyId}/financial_ledger_projection_states/{entryId} {
+      allow read, write: if false;
+    }
+
+    match /companies/{companyId}/financial_ledger_summary_scopes/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /companies/{companyId}/financial_ledger_account_activity_states/{entryId} {
+      allow read, write: if false;
+    }
+
+    match /companies/{companyId}/financial_ledger_account_activity_metadata/{metadataId} {
+      allow read, write: if false;
+    }
+
+    match /companies/{companyId}/financial_ledger_account_activity_scopes/{document=**} {
+      allow read, write: if false;
+    }
+
     match /companies/{companyId}/stock_movements/{movementId} {
       allow get: if isApprovedCompanyUser(companyId)
         && (

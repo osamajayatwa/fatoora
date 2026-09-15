@@ -13,6 +13,8 @@ import {
   roundMoney,
 } from "./common";
 import {applyCashChange} from "./cash_ledger";
+import {writeFinancialLedgerEntries} from "./financial_ledger";
+import {buildCompanyCashOpeningFinancialLedgerEntry} from "./financial_ledger_mappings";
 
 export const COMPANY_CASH_OPENING_BALANCE_UID =
   "Ku5x8xXv1BhJQ0yQkVXtYtYOjQn1";
@@ -217,6 +219,16 @@ export async function postCompanyCashOpeningBalanceTransaction(
       createdByRole: user.role,
       createdAt: FieldValue.serverTimestamp(),
     });
+    writeFinancialLedgerEntries(transaction, firestore, [
+      buildCompanyCashOpeningFinancialLedgerEntry({
+        companyId,
+        movementId: movementRef.id,
+        effectiveDate: COMPANY_CASH_OPENING_BALANCE_DATE,
+        amount,
+        referenceNumber,
+        notes: note,
+      }),
+    ]);
     return {
       movementId: movementRef.id,
       balanceAfter: cashChange.after,

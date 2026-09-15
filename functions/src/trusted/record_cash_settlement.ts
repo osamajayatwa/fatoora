@@ -15,6 +15,8 @@ import {
   timestampFrom,
 } from "./common";
 import {readCashBalance, writeCashBalance} from "./cash_ledger";
+import {writeFinancialLedgerEntries} from "./financial_ledger";
+import {buildSettlementFinancialLedgerEntry} from "./financial_ledger_mappings";
 
 interface SettlementRequest {
   companyId?: unknown;
@@ -194,6 +196,18 @@ export async function recordCashSettlementTransaction(
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
+    writeFinancialLedgerEntries(transaction, firestore, [
+      buildSettlementFinancialLedgerEntry({
+        companyId,
+        settlementId,
+        settlementNumber: referenceNumber,
+        settlementDate: date,
+        amount,
+        salesRepId,
+        salesRepName,
+        notes: optionalString(input.notes),
+      }),
+    ]);
     return {settlementId, alreadyPosted: false};
   });
 }

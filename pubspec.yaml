@@ -32,6 +32,7 @@ dependencies:
   connectivity_plus: ^6.0.5
   web_socket_channel: ^3.0.3
   intl: ^0.20.1
+  crypto: ^3.0.7
 
   # Notifications
   flutter_local_notifications: ^18.0.1
@@ -39,6 +40,8 @@ dependencies:
   # Documents and files
   pdf: ^3.11.1
   printing: ^5.13.4
+  excel: ^4.0.6
+  file_saver: ^0.3.1
 
   # UI
   flutter_animate: ^4.5.2
