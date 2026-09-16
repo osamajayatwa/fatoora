@@ -1,302 +1,516 @@
-import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/app/routes/app_routes.dart';
+import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/constants/imageassests.dart';
 import 'package:fatoora/core/localization/changelocal.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
-import 'package:glassmorphism_ui/glassmorphism_ui.dart';
+
+const _canvasColor = Color(0xFFFAF8F5);
+const _inkColor = Color(0xFF241F20);
+const _mutedInkColor = Color(0xFF746D6F);
+const _dividerColor = Color(0xFFE3DEDA);
 
 class Language extends GetView<LocaleController> {
   const Language({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final media = MediaQuery.of(context);
-    final height = media.size.height;
-    final width = media.size.width;
-    final isPortrait = media.orientation == Orientation.portrait;
-    final panelWidth = (isPortrait ? width * .9 : width * .72)
-        .clamp(280.0, 680.0)
-        .toDouble();
-    final panelHeight = (height - 32).clamp(260.0, 720.0).toDouble();
-    final contentPadding = (panelWidth * .07).clamp(16.0, 42.0).toDouble();
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: Stack(
-        children: [
-          // 🩸 Gradient background based on theme colors
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 800),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [colorScheme.primary, AppColor.primaryDark],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-          ),
+      backgroundColor: _canvasColor,
+      body: _OnboardingCanvas(
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 700;
+              final horizontalPadding = constraints.maxWidth < 360
+                  ? 18.0
+                  : isWide
+                  ? 52.0
+                  : 26.0;
+              final verticalPadding = constraints.maxHeight < 650 ? 18.0 : 34.0;
 
-          // 🌫️ Soft overlay highlight
-          Positioned.fill(
-            child: DecoratedBox(
+              final brand = _LanguageBrand(compact: !isWide);
+              final selector = _LanguageSelector(controller: controller);
+              final content = isWide
+                  ? Row(
+                      key: const Key('language_wide_layout'),
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(child: brand),
+                        const SizedBox(width: 42),
+                        Container(width: 1, height: 300, color: _dividerColor),
+                        const SizedBox(width: 54),
+                        Expanded(child: selector),
+                      ],
+                    )
+                  : Column(
+                      key: const Key('language_compact_layout'),
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        brand,
+                        const SizedBox(height: 30),
+                        const Divider(color: _dividerColor, height: 1),
+                        const SizedBox(height: 30),
+                        selector,
+                      ],
+                    );
+
+              final visibleContent = media.disableAnimations
+                  ? content
+                  : content
+                        .animate()
+                        .fadeIn(duration: 360.ms, curve: Curves.easeOut)
+                        .slideY(
+                          begin: .018,
+                          duration: 420.ms,
+                          curve: Curves.easeOutCubic,
+                        );
+
+              return SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                padding: EdgeInsets.symmetric(
+                  horizontal: horizontalPadding,
+                  vertical: verticalPadding,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - (verticalPadding * 2),
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1080),
+                      child: visibleContent,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OnboardingCanvas extends StatelessWidget {
+  const _OnboardingCanvas({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const ColoredBox(color: _canvasColor),
+        PositionedDirectional(
+          top: 0,
+          bottom: 0,
+          start: 0,
+          child: Container(width: 6, color: AppColor.primaryColor),
+        ),
+        PositionedDirectional(
+          top: -150,
+          end: -150,
+          child: IgnorePointer(
+            child: Container(
+              width: 360,
+              height: 360,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.18),
-                    Colors.transparent,
-                  ],
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColor.primaryColor.withValues(alpha: .09),
+                  width: 54,
                 ),
               ),
             ),
           ),
+        ),
+        PositionedDirectional(
+          bottom: -120,
+          start: -75,
+          child: IgnorePointer(
+            child: Container(
+              width: 250,
+              height: 250,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColor.secondaryColor.withValues(alpha: .045),
+                  width: 38,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const PositionedDirectional(
+          top: 40,
+          start: 34,
+          child: IgnorePointer(child: _AccentDots()),
+        ),
+        const PositionedDirectional(
+          bottom: 42,
+          end: 38,
+          child: IgnorePointer(child: _BrandLines()),
+        ),
+        child,
+      ],
+    );
+  }
+}
 
-          // 🧊 Glass container
-          Center(
-            child:
-                GlassContainer(
-                      height: panelHeight,
-                      width: panelWidth,
-                      blur: 25,
-                      color: colorScheme.surface.withValues(alpha: 0.05),
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.white.withValues(alpha: 0.1),
-                          Colors.white.withValues(alpha: 0.05),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        width: 1,
-                      ),
-                      shadowStrength: 6,
-                      shadowColor: Colors.white.withValues(alpha: 0.2),
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: contentPadding,
-                          vertical: (height * .05).clamp(16.0, 36.0).toDouble(),
-                        ),
-                        child: SingleChildScrollView(
-                          physics: const BouncingScrollPhysics(),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _buildTitle(panelWidth, colorScheme),
-                              SizedBox(
-                                height: (height * .05)
-                                    .clamp(18.0, 34.0)
-                                    .toDouble(),
-                              ),
-                              _buildLanguageOptions(panelWidth, colorScheme),
-                              SizedBox(
-                                height: (height * .06)
-                                    .clamp(20.0, 40.0)
-                                    .toDouble(),
-                              ),
-                              _buildContinueButton(panelWidth, colorScheme),
-                            ],
-                          ),
-                        ),
-                      ),
-                    )
-                    .animate()
-                    .fadeIn(duration: 600.ms)
-                    .scale(begin: const Offset(0.9, 0.9)),
+class _AccentDots extends StatelessWidget {
+  const _AccentDots();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 40,
+      child: Wrap(
+        spacing: 9,
+        runSpacing: 9,
+        children: List.generate(
+          9,
+          (_) => Container(
+            width: 4,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColor.primaryColor.withValues(alpha: .2),
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BrandLines extends StatelessWidget {
+  const _BrandLines();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Container(
+          width: 58,
+          height: 2,
+          color: AppColor.primaryColor.withValues(alpha: .28),
+        ),
+        const SizedBox(height: 7),
+        Container(
+          width: 36,
+          height: 2,
+          color: AppColor.secondaryColor.withValues(alpha: .22),
+        ),
+      ],
+    );
+  }
+}
+
+class _LanguageBrand extends StatelessWidget {
+  const _LanguageBrand({required this.compact});
+
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final alignment = compact
+        ? CrossAxisAlignment.center
+        : CrossAxisAlignment.start;
+    final textAlign = compact ? TextAlign.center : TextAlign.start;
+
+    return Semantics(
+      header: true,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: alignment,
+        children: [
+          SizedBox(
+            width: compact ? 170 : 250,
+            height: compact ? 116 : 165,
+            child: Image.asset(
+              ImageAssest.logo,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.medium,
+            ),
+          ),
+          SizedBox(height: compact ? 14 : 24),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 28, height: 3, color: AppColor.primaryColor),
+              const SizedBox(width: 10),
+              Text(
+                'FATOORA',
+                style: textTheme.labelLarge?.copyWith(
+                  color: _mutedInkColor,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 2.8,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Sales system'.tr,
+            textAlign: textAlign,
+            style: textTheme.headlineLarge?.copyWith(
+              color: _inkColor,
+              fontWeight: FontWeight.w800,
+              height: 1.15,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  'Safe & Reliable'.tr,
+                  textAlign: textAlign,
+                  style: textTheme.titleMedium?.copyWith(
+                    color: _mutedInkColor,
+                    fontWeight: FontWeight.w500,
+                    height: 1.45,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(width: 28, height: 3, color: AppColor.primaryColor),
+            ],
           ),
         ],
       ),
     );
   }
+}
 
-  // 🔹 Title section
-  Widget _buildTitle(double width, ColorScheme colorScheme) {
-    return Column(
-      children: [
-        Icon(
-          Icons.language_rounded,
-          size: (width * .15).clamp(48.0, 86.0).toDouble(),
-          color: Colors.white,
-        ),
-        const SizedBox(height: 12),
-        Text(
-          "Choose Language".tr,
-          style: TextStyle(
-            fontSize: (width * .065).clamp(24.0, 38.0).toDouble(),
-            color: Colors.white,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.2,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 5),
-        Text(
-          "Select your preferred language".tr,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.9),
-            fontSize: (width * .035).clamp(14.0, 20.0).toDouble(),
-            fontWeight: FontWeight.w400,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    ).animate().fadeIn(delay: 150.ms).slideY(begin: -0.1);
-  }
+class _LanguageSelector extends StatelessWidget {
+  const _LanguageSelector({required this.controller});
 
-  // 🔹 Language list
-  Widget _buildLanguageOptions(double width, ColorScheme colorScheme) {
-    return Column(
-      children: [
-        _buildLanguageOption(
-          langCode: "en",
-          label: "English",
-          flag: "🇬🇧",
-          description: "International English",
-          delay: 250,
-          colorScheme: colorScheme,
-        ),
-        SizedBox(height: (width * .05).clamp(14.0, 28.0).toDouble()),
-        _buildLanguageOption(
-          langCode: "ar",
-          label: "العربية",
-          flag: "🇸🇦",
-          description: "اللغة العربية",
-          isRTL: true,
-          delay: 350,
-          colorScheme: colorScheme,
-        ),
-      ],
+  final LocaleController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return KeyedSubtree(
+      key: const Key('language_selection_panel'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'LANGUAGE  /  اللغة',
+            style: textTheme.labelMedium?.copyWith(
+              color: AppColor.primaryColor,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Choose Language'.tr,
+            style: textTheme.headlineSmall?.copyWith(
+              color: _inkColor,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Select your preferred language'.tr,
+            style: textTheme.bodyLarge?.copyWith(
+              color: _mutedInkColor,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 26),
+          const Divider(color: _dividerColor, height: 1),
+          Obx(
+            () => _LanguageRow(
+              key: const Key('language_option_en'),
+              code: 'en',
+              monogram: 'EN',
+              title: 'English',
+              subtitle: 'English (International)',
+              textDirection: TextDirection.ltr,
+              selected: controller.activeLang.value == 'en',
+              onTap: () => controller.changeLang('en'),
+            ),
+          ),
+          const Divider(color: _dividerColor, height: 1),
+          Obx(
+            () => _LanguageRow(
+              key: const Key('language_option_ar'),
+              code: 'ar',
+              monogram: 'ع',
+              title: 'العربية',
+              subtitle: 'اللغة العربية',
+              textDirection: TextDirection.rtl,
+              selected: controller.activeLang.value == 'ar',
+              onTap: () => controller.changeLang('ar'),
+            ),
+          ),
+          const Divider(color: _dividerColor, height: 1),
+          const SizedBox(height: 28),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: _ContinueButton(controller: controller),
+          ),
+        ],
+      ),
     );
   }
+}
 
-  // 🔹 Single language option
-  Widget _buildLanguageOption({
-    required String langCode,
-    required String label,
-    required String flag,
-    required String description,
-    required ColorScheme colorScheme,
-    bool isRTL = false,
-    int delay = 0,
-  }) {
-    final controller = Get.find<LocaleController>();
-    return Obx(
-      () => AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        margin: const EdgeInsets.symmetric(vertical: 5),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        decoration: BoxDecoration(
-          color: controller.activeLang.value == langCode
-              ? Colors.white.withValues(alpha: 0.25)
-              : Colors.white.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: controller.activeLang.value == langCode
-                ? Colors.white.withValues(alpha: 0.8)
-                : Colors.transparent,
-            width: 1.2,
-          ),
-          boxShadow: controller.activeLang.value == langCode
-              ? [
-                  BoxShadow(
-                    color: Colors.white.withValues(alpha: 0.3),
-                    blurRadius: 10,
-                    spreadRadius: 1,
-                  ),
-                ]
-              : [],
-        ),
-        child: ListTile(
-          onTap: () => controller.changeLang(langCode),
-          leading: Text(flag, style: const TextStyle(fontSize: 34)),
-          title: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
-            textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
-          ),
-          subtitle: Text(
-            description,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.9),
-              fontSize: 14,
-            ),
-            textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
-          ),
-          trailing: controller.activeLang.value == langCode
-              ? const Icon(Icons.check_circle_rounded, color: Colors.white)
-              : null,
-        ),
-      ).animate().fadeIn(delay: delay.ms).slideX(begin: 0.15),
-    );
-  }
+class _LanguageRow extends StatelessWidget {
+  const _LanguageRow({
+    super.key,
+    required this.code,
+    required this.monogram,
+    required this.title,
+    required this.subtitle,
+    required this.textDirection,
+    required this.selected,
+    required this.onTap,
+  });
 
-  // 🔹 Continue button
-  Widget _buildContinueButton(double width, ColorScheme colorScheme) {
-    final MyServices myServices = Get.find();
+  final String code;
+  final String monogram;
+  final String title;
+  final String subtitle;
+  final TextDirection textDirection;
+  final bool selected;
+  final VoidCallback onTap;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: ElevatedButton(
-        onPressed: () {
-          myServices.sharedPreferences.setString(
-            "lang",
-            controller.activeLang.value,
-          );
-          Get.toNamed(AppRoute.splash);
-        },
-        style: ElevatedButton.styleFrom(
-          elevation: 8,
-          backgroundColor: colorScheme.surface,
-          shadowColor: Colors.white.withValues(alpha: 0.4),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-          ),
-          padding: EdgeInsets.symmetric(
-            horizontal: (width * .15).clamp(20.0, 56.0).toDouble(),
-            vertical: (width * .04).clamp(12.0, 20.0).toDouble(),
-          ),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final responsiveFontSize = (constraints.maxWidth * 0.05)
-                .clamp(14.0, 22.0)
-                .toDouble();
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
 
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+    return Semantics(
+      button: true,
+      selected: selected,
+      excludeSemantics: true,
+      label: '$title. $subtitle',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          hoverColor: AppColor.primaryColor.withValues(alpha: .035),
+          focusColor: AppColor.primaryColor.withValues(alpha: .05),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Row(
               children: [
-                Icon(
-                  Icons.arrow_forward_rounded,
-                  color: colorScheme.primary,
-                  size: responsiveFontSize * 1.1,
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: 4,
+                  height: 52,
+                  color: selected ? AppColor.primaryColor : Colors.transparent,
                 ),
-                SizedBox(width: constraints.maxWidth * 0.015),
-                Text(
-                  "Continue".tr,
-                  style: TextStyle(
-                    color: colorScheme.primary,
-                    fontSize: responsiveFontSize,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.1,
+                const SizedBox(width: 16),
+                SizedBox(
+                  width: 48,
+                  child: Text(
+                    monogram,
+                    textAlign: TextAlign.center,
+                    textDirection: textDirection,
+                    style: textTheme.titleLarge?.copyWith(
+                      color: selected ? AppColor.primaryColor : _mutedInkColor,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Directionality(
+                    textDirection: textDirection,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: textTheme.titleMedium?.copyWith(
+                            color: _inkColor,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          subtitle,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: _mutedInkColor,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 160),
+                  child: selected
+                      ? const Icon(
+                          Icons.check_rounded,
+                          key: ValueKey('selected'),
+                          color: AppColor.primaryColor,
+                        )
+                      : Icon(
+                          Icons.arrow_forward_rounded,
+                          key: ValueKey('$code-unselected'),
+                          color: _mutedInkColor.withValues(alpha: .55),
+                        ),
                 ),
               ],
-            );
-          },
+            ),
+          ),
         ),
-      ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.15),
+      ),
+    );
+  }
+}
+
+class _ContinueButton extends StatelessWidget {
+  const _ContinueButton({required this.controller});
+
+  final LocaleController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.icon(
+      key: const Key('language_continue_button'),
+      onPressed: () {
+        final services = Get.find<MyServices>();
+        services.sharedPreferences.setString(
+          'lang',
+          controller.activeLang.value,
+        );
+        Get.toNamed(AppRoute.splash);
+      },
+      style: FilledButton.styleFrom(
+        backgroundColor: AppColor.primaryColor,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      iconAlignment: IconAlignment.end,
+      icon: const Icon(Icons.arrow_forward_rounded, size: 21),
+      label: Text(
+        'Continue'.tr,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
     );
   }
 }
