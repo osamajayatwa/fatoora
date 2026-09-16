@@ -5,6 +5,7 @@ import 'package:fatoora/core/widgets/responsive_data_table_card.dart';
 import 'package:fatoora/core/widgets/responsive_picker_sheet.dart';
 import 'package:fatoora/features/admin_dashboard/model/admin_dashboard_models.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/quick_actions_sheet.dart';
+import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
@@ -218,6 +219,80 @@ void main() {
 
     expect(find.byType(Scrollbar), findsOneWidget);
     expect(find.byType(SingleChildScrollView), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final direction in [TextDirection.ltr, TextDirection.rtl]) {
+    testWidgets(
+      'business page header stacks safely at 320px and 2x text in $direction',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(320, 640));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        await tester.pumpWidget(
+          GetMaterialApp(
+            theme: AppTheme.light(fontFamily: 'Cairo'),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(2)),
+              child: child!,
+            ),
+            home: Directionality(
+              textDirection: direction,
+              child: Scaffold(
+                body: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: BusinessPageHeader(
+                      title: 'Long accounting page title',
+                      subtitle:
+                          'A detailed subtitle that may wrap onto two lines',
+                      trailing: BusinessPrimaryActionButton(
+                        label: 'Create a new record',
+                        icon: Icons.add_rounded,
+                        onPressed: () {},
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(BusinessPageHeader), findsOneWidget);
+        expect(find.byType(BusinessPrimaryActionButton), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets('shared loading and empty states use consistent controls', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      GetMaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(
+          body: Column(
+            children: [
+              const BusinessEmptyState(
+                icon: Icons.receipt_long_outlined,
+                title: 'Nothing here',
+                message: 'Try changing the filters',
+              ),
+              BusinessLoadMoreButton(loading: true, onPressed: () {}),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Nothing here'), findsOneWidget);
+    expect(find.text('Try changing the filters'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

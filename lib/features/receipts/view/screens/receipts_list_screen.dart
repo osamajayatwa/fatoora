@@ -2,6 +2,7 @@ import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/receipts/controllers/receipts_list_controller.dart';
 import 'package:fatoora/features/receipts/data/models/receipt_model.dart';
+import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -47,6 +48,13 @@ class ReceiptsListScreen extends StatelessWidget {
                               _ReceiptCards(controller: controller)
                             else
                               _ReceiptTable(controller: controller),
+                            if (controller.hasMore) ...[
+                              const SizedBox(height: 16),
+                              BusinessLoadMoreButton(
+                                loading: controller.isLoadingMore,
+                                onPressed: controller.loadMoreReceipts,
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -69,41 +77,15 @@ class _ReceiptsHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact =
-        MediaQuery.sizeOf(context).width < 620 ||
-        MediaQuery.textScalerOf(context).scale(1) > 1.3;
-    final title = Text(
-      'receipts'.tr,
-      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-        color: AppColor.secondaryColor,
-        fontWeight: FontWeight.w900,
-      ),
-    );
-    final action = controller.canCreateReceipt
-        ? FilledButton.icon(
-            onPressed: controller.openCreateReceipt,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColor.primaryColor,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            ),
-            icon: const Icon(Icons.add_rounded),
-            label: Text('create_receipt'.tr),
-          )
-        : null;
-    if (compact) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          title,
-          if (action != null) ...[const SizedBox(height: 12), action],
-        ],
-      );
-    }
-    return Row(
-      children: [
-        Expanded(child: title),
-        if (action != null) ...[const SizedBox(width: 16), action],
-      ],
+    return BusinessPageHeader(
+      title: 'receipts'.tr,
+      trailing: controller.canCreateReceipt
+          ? BusinessPrimaryActionButton(
+              onPressed: controller.openCreateReceipt,
+              icon: Icons.add_rounded,
+              label: 'create_receipt'.tr,
+            )
+          : null,
     );
   }
 }
@@ -389,37 +371,9 @@ class _EmptyReceipts extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      color: AppColor.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFE4E8EF)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 58, horizontal: 20),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.receipt_long_outlined,
-              size: 42,
-              color: AppColor.primaryColor,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              hasFilters
-                  ? 'receipts_no_search_results'.tr
-                  : 'receipts_empty'.tr,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColor.secondaryColor,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return BusinessEmptyState(
+      icon: Icons.receipt_long_outlined,
+      title: hasFilters ? 'receipts_no_search_results'.tr : 'receipts_empty'.tr,
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:fatoora/features/quotations/controllers/quotations_list_controll
 import 'package:fatoora/features/quotations/data/models/quotation_model.dart';
 import 'package:fatoora/features/quotations/data/models/quotation_status.dart';
 import 'package:fatoora/features/quotations/view/widgets/quotation_status_chip.dart';
+import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -51,25 +52,9 @@ class QuotationsListScreen extends StatelessWidget {
                           if (controller.quotations.isNotEmpty &&
                               controller.hasMore) ...[
                             const SizedBox(height: 18),
-                            Center(
-                              child: FilledButton.tonalIcon(
-                                onPressed: controller.isLoadingMore
-                                    ? null
-                                    : controller.loadMoreQuotations,
-                                icon: controller.isLoadingMore
-                                    ? const SizedBox.square(
-                                        dimension: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Icon(Icons.expand_more_rounded),
-                                label: Text(
-                                  controller.isLoadingMore
-                                      ? 'loading_more_records'.tr
-                                      : 'load_more_records'.tr,
-                                ),
-                              ),
+                            BusinessLoadMoreButton(
+                              loading: controller.isLoadingMore,
+                              onPressed: controller.loadMoreQuotations,
                             ),
                           ],
                         ],
@@ -93,39 +78,15 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = Text(
-      'quotations'.tr,
-      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-        color: AppColor.secondaryColor,
-        fontWeight: FontWeight.w900,
-      ),
-    );
-    final action = controller.canCreateQuotation
-        ? FilledButton.icon(
-            onPressed: controller.openCreateQuotation,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColor.primaryColor,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            ),
-            icon: const Icon(Icons.add_rounded),
-            label: Text('create_quotation'.tr),
-          )
-        : null;
-    if (MediaQuery.sizeOf(context).width < 620 ||
-        MediaQuery.textScalerOf(context).scale(1) > 1.3) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          title,
-          if (action != null) ...[const SizedBox(height: 12), action],
-        ],
-      );
-    }
-    return Row(
-      children: [
-        Expanded(child: title),
-        if (action != null) action,
-      ],
+    return BusinessPageHeader(
+      title: 'quotations'.tr,
+      trailing: controller.canCreateQuotation
+          ? BusinessPrimaryActionButton(
+              onPressed: controller.openCreateQuotation,
+              icon: Icons.add_rounded,
+              label: 'create_quotation'.tr,
+            )
+          : null,
     );
   }
 }
@@ -372,35 +333,9 @@ class _EmptyQuotations extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      color: AppColor.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFE4E8EF)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 58, horizontal: 20),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.request_quote_outlined,
-              size: 42,
-              color: AppColor.primaryColor,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              hasFilters ? 'no_search_results'.tr : 'no_quotations_found'.tr,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColor.secondaryColor,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return BusinessEmptyState(
+      icon: Icons.request_quote_outlined,
+      title: hasFilters ? 'no_search_results'.tr : 'no_quotations_found'.tr,
     );
   }
 }

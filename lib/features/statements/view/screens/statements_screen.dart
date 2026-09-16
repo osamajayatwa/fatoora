@@ -3,6 +3,7 @@ import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/widgets/responsive_data_table_card.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
+import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:fatoora/features/statements/controllers/statements_controller.dart';
 import 'package:flutter/material.dart';
@@ -70,58 +71,22 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final titleWidth = constraints.maxWidth < 760
-            ? constraints.maxWidth
-            : constraints.maxWidth - 190;
-        return DashboardCard(
-          child: Wrap(
-            spacing: 18,
-            runSpacing: 12,
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              SizedBox(
-                width: titleWidth.clamp(240.0, 680.0).toDouble(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'dashboard_account_statement'.tr,
-                      softWrap: true,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            color: context.appText,
-                            fontWeight: FontWeight.w900,
-                          ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      (controller.isAdmin
-                              ? 'statements_admin_scope'
-                              : 'statements_user_scope')
-                          .tr,
-                      softWrap: true,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: context.appMutedText,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Chip(
-                avatar: const Icon(Icons.people_alt_outlined, size: 18),
-                label: Text(
-                  'statements_customer_count'.trParams({
-                    'count': controller.customers.length.toString(),
-                  }),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+    return BusinessPageHeader(
+      title: 'dashboard_account_statement'.tr,
+      subtitle:
+          (controller.isAdmin
+                  ? 'statements_admin_scope'
+                  : 'statements_user_scope')
+              .tr,
+      stretchTrailingOnCompact: false,
+      trailing: Chip(
+        avatar: const Icon(Icons.people_alt_outlined, size: 18),
+        label: Text(
+          'statements_customer_count'.trParams({
+            'count': controller.customers.length.toString(),
+          }),
+        ),
+      ),
     );
   }
 }
@@ -362,25 +327,10 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DashboardCard(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 34),
-        child: Column(
-          children: [
-            Icon(Icons.article_outlined, size: 46, color: context.appMutedText),
-            const SizedBox(height: 12),
-            Text(
-              (searching ? 'statements_no_search_results' : 'statements_empty')
-                  .tr,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: context.appText,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return BusinessEmptyState(
+      icon: Icons.article_outlined,
+      title:
+          (searching ? 'statements_no_search_results' : 'statements_empty').tr,
     );
   }
 }

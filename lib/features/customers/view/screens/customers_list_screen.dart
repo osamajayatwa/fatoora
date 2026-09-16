@@ -4,6 +4,7 @@ import 'package:fatoora/core/widgets/responsive_data_table_card.dart';
 import 'package:fatoora/features/customers/controllers/customers_controller.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
+import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -48,6 +49,13 @@ class CustomersListScreen extends StatelessWidget {
                             _CustomerCards(controller: controller)
                           else
                             _CustomerTable(controller: controller),
+                          if (controller.hasMore) ...[
+                            const SizedBox(height: 16),
+                            BusinessLoadMoreButton(
+                              loading: controller.isLoadingMore,
+                              onPressed: controller.loadMoreCustomers,
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -69,41 +77,15 @@ class _CustomersHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact =
-        MediaQuery.sizeOf(context).width < 620 ||
-        MediaQuery.textScalerOf(context).scale(1) > 1.3;
-    final title = Text(
-      'customers'.tr,
-      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-        color: AppColor.secondaryColor,
-        fontWeight: FontWeight.w900,
-      ),
-    );
-    final action = controller.canCreateCustomer
-        ? FilledButton.icon(
-            onPressed: controller.openCreateCustomer,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColor.primaryColor,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            ),
-            icon: const Icon(Icons.person_add_alt_1_outlined),
-            label: Text('customers_add'.tr),
-          )
-        : null;
-    if (compact) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          title,
-          if (action != null) ...[const SizedBox(height: 12), action],
-        ],
-      );
-    }
-    return Row(
-      children: [
-        Expanded(child: title),
-        if (action != null) ...[const SizedBox(width: 16), action],
-      ],
+    return BusinessPageHeader(
+      title: 'customers'.tr,
+      trailing: controller.canCreateCustomer
+          ? BusinessPrimaryActionButton(
+              onPressed: controller.openCreateCustomer,
+              icon: Icons.person_add_alt_1_outlined,
+              label: 'customers_add'.tr,
+            )
+          : null,
     );
   }
 }
@@ -321,26 +303,11 @@ class _EmptyCustomers extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DashboardCard(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 36),
-        child: Column(
-          children: [
-            Icon(Icons.people_alt_outlined, size: 44, color: AppColor.grey),
-            const SizedBox(height: 12),
-            Text(
-              searching
-                  ? 'customers_no_search_results'.tr
-                  : 'customers_empty'.tr,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColor.secondaryColor,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return BusinessEmptyState(
+      icon: Icons.people_alt_outlined,
+      title: searching
+          ? 'customers_no_search_results'.tr
+          : 'customers_empty'.tr,
     );
   }
 }

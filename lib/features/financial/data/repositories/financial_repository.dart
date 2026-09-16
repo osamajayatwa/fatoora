@@ -119,33 +119,41 @@ class FinancialRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
-      final customers = await _fetchCustomers(resolvedCompanyId, user);
-      final invoices = await _fetchInvoices(
-        resolvedCompanyId,
-        user,
-        fromDate: fromDate,
-        toDate: toDate,
-      );
-      final receipts = await _fetchReceipts(
-        resolvedCompanyId,
-        user,
-        fromDate: fromDate,
-        toDate: toDate,
-      );
-      final salesReturns = await _fetchSalesReturns(
-        resolvedCompanyId,
-        user,
-        fromDate: fromDate,
-        toDate: toDate,
-      );
+      final results = await Future.wait<Object>([
+        _fetchCustomers(resolvedCompanyId, user),
+        _fetchInvoices(
+          resolvedCompanyId,
+          user,
+          fromDate: fromDate,
+          toDate: toDate,
+        ),
+        _fetchReceipts(
+          resolvedCompanyId,
+          user,
+          fromDate: fromDate,
+          toDate: toDate,
+        ),
+        _fetchSalesReturns(
+          resolvedCompanyId,
+          user,
+          fromDate: fromDate,
+          toDate: toDate,
+        ),
+        _fetchCashMovements(resolvedCompanyId, user),
+        _fetchExpenses(resolvedCompanyId, user),
+      ]);
+      final customers = results[0] as List<CustomerModel>;
+      final invoices = results[1] as List<InvoiceModel>;
+      final receipts = results[2] as List<ReceiptModel>;
+      final salesReturns = results[3] as List<SalesReturnModel>;
+      final cashMovements = results[4] as List<CashMovementModel>;
+      final expenses = results[5] as List<ExpenseModel>;
       final originalInvoicePaymentTypes =
           await _fetchOriginalInvoicePaymentTypes(
             resolvedCompanyId,
             invoices,
             salesReturns,
           );
-      final cashMovements = await _fetchCashMovements(resolvedCompanyId, user);
-      final expenses = await _fetchExpenses(resolvedCompanyId, user);
       final cashLedger = CashLedgerCalculator.calculate(cashMovements);
       final companyCash = user.isAdmin ? cashLedger.companyCash : 0.0;
       final repCashOutstanding = cashLedger.repCashOutstanding;
@@ -571,13 +579,28 @@ class FinancialRepository {
         .where((id) => id.isNotEmpty && !paymentTypes.containsKey(id))
         .toSet();
     final ids = missingIds.toList(growable: false);
-    for (var start = 0; start < ids.length; start += 30) {
-      final chunk = ids.sublist(start, math.min(start + 30, ids.length));
-      final snapshots = await _invoices(companyId)
-          .where(FieldPath.documentId, whereIn: chunk)
-          .get()
-          .timeout(const Duration(seconds: 20));
-      for (final snapshot in snapshots.docs) {
+    const maximumConcurrentQueries = 6;
+    for (
+      var windowStart = 0;
+      windowStart < ids.length;
+      windowStart += 30 * maximumConcurrentQueries
+    ) {
+      final windowEnd = math.min(
+        windowStart + (30 * maximumConcurrentQueries),
+        ids.length,
+      );
+      final queries = <Future<QuerySnapshot<Map<String, dynamic>>>>[];
+      for (var start = windowStart; start < windowEnd; start += 30) {
+        final chunk = ids.sublist(start, math.min(start + 30, windowEnd));
+        queries.add(
+          _invoices(companyId)
+              .where(FieldPath.documentId, whereIn: chunk)
+              .get()
+              .timeout(const Duration(seconds: 20)),
+        );
+      }
+      final snapshots = await Future.wait(queries);
+      for (final snapshot in snapshots.expand((result) => result.docs)) {
         final invoice = InvoiceModel.fromFirestore(snapshot);
         paymentTypes[invoice.id] = invoice.paymentType;
       }

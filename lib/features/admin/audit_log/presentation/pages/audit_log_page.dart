@@ -1,10 +1,10 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
-import 'package:fatoora/core/widgets/fatoora_app_bar.dart';
 import 'package:fatoora/features/admin/audit_log/controllers/audit_log_controller.dart';
 import 'package:fatoora/features/admin/audit_log/data/models/audit_event_model.dart';
 import 'package:fatoora/features/admin/audit_log/presentation/widgets/audit_event_details.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/admin_dashboard_shell.dart';
+import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -14,22 +14,15 @@ class AuditLogPage extends GetView<AuditLogController> {
 
   @override
   Widget build(BuildContext context) => AdminDashboardShell(
-    child: Scaffold(
-      backgroundColor: context.appBackground,
-      appBar: FatooraAppBar(
-        title: 'audit_log_title'.tr,
-        subtitle: 'audit_log_description'.tr,
-      ),
-      body: GetBuilder<AuditLogController>(
-        builder: (controller) => HandilingDataView(
-          statusrequest: controller.statusRequest,
-          onRetry: controller.load,
-          errorMessage: controller.statusRequest.name == 'unauthorized'
-              ? 'audit_admin_only'.tr
-              : 'audit_load_failed'.tr,
-          retryLabel: 'retry'.tr,
-          widget: _AuditLogBody(controller: controller),
-        ),
+    child: GetBuilder<AuditLogController>(
+      builder: (controller) => HandilingDataView(
+        statusrequest: controller.statusRequest,
+        onRetry: controller.load,
+        errorMessage: controller.statusRequest.name == 'unauthorized'
+            ? 'audit_admin_only'.tr
+            : 'audit_load_failed'.tr,
+        retryLabel: 'retry'.tr,
+        widget: _AuditLogBody(controller: controller),
       ),
     ),
   );
@@ -48,6 +41,11 @@ class _AuditLogBody extends StatelessWidget {
         child: ListView(
           padding: EdgeInsets.all(compact ? 14 : 24),
           children: [
+            BusinessPageHeader(
+              title: 'audit_log_title'.tr,
+              subtitle: 'audit_log_description'.tr,
+            ),
+            const SizedBox(height: 18),
             _SummaryCards(controller: controller),
             const SizedBox(height: 18),
             _FilterToolbar(controller: controller, compact: compact),
@@ -71,19 +69,9 @@ class _AuditLogBody extends StatelessWidget {
               ),
             if (controller.hasMore) ...[
               const SizedBox(height: 18),
-              Center(
-                child: OutlinedButton.icon(
-                  onPressed: controller.loadingMore
-                      ? null
-                      : controller.loadMore,
-                  icon: controller.loadingMore
-                      ? const SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.expand_more_rounded),
-                  label: Text('audit_load_more'.tr),
-                ),
+              BusinessLoadMoreButton(
+                loading: controller.loadingMore,
+                onPressed: controller.loadMore,
               ),
             ],
           ],
@@ -461,21 +449,9 @@ class _StatusBadges extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 64),
-      child: Column(
-        children: [
-          Icon(
-            Icons.history_toggle_off_rounded,
-            size: 54,
-            color: context.appMutedText,
-          ),
-          const SizedBox(height: 12),
-          Text('audit_no_events'.tr),
-        ],
-      ),
-    ),
+  Widget build(BuildContext context) => BusinessEmptyState(
+    icon: Icons.history_toggle_off_rounded,
+    title: 'audit_no_events'.tr,
   );
 }
 

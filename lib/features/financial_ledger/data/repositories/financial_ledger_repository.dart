@@ -270,15 +270,13 @@ class FinancialLedgerRepository {
   ) async {
     final result = <String, Map<String, dynamic>>{};
     final orderedIds = ids.toList()..sort();
-    for (var offset = 0; offset < orderedIds.length; offset += 20) {
-      final batch = orderedIds.skip(offset).take(20);
-      final snapshots = await Future.wait(
-        batch.map((id) => collection.doc(id).get()),
-      );
-      for (final snapshot in snapshots) {
-        if (snapshot.exists) {
-          result[snapshot.id] = snapshot.data() ?? const <String, dynamic>{};
-        }
+    for (var offset = 0; offset < orderedIds.length; offset += 30) {
+      final batch = orderedIds.skip(offset).take(30).toList(growable: false);
+      final snapshot = await collection
+          .where(FieldPath.documentId, whereIn: batch)
+          .get();
+      for (final document in snapshot.docs) {
+        result[document.id] = document.data();
       }
     }
     return result;

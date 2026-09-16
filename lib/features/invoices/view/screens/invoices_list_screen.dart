@@ -12,6 +12,7 @@ import 'package:fatoora/features/invoices/view/widgets/invoice_filter_bar.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_search_bar.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_status_chip.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_type_chip.dart';
+import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -97,25 +98,9 @@ class InvoicesListScreen extends StatelessWidget {
                               _InvoicesTable(controller: controller),
                             if (controller.hasMore) ...[
                               const SizedBox(height: 18),
-                              Center(
-                                child: FilledButton.tonalIcon(
-                                  onPressed: controller.isLoadingMore
-                                      ? null
-                                      : controller.loadMoreInvoices,
-                                  icon: controller.isLoadingMore
-                                      ? const SizedBox.square(
-                                          dimension: 18,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : const Icon(Icons.expand_more_rounded),
-                                  label: Text(
-                                    controller.isLoadingMore
-                                        ? 'loading_more_records'.tr
-                                        : 'load_more_records'.tr,
-                                  ),
-                                ),
+                              BusinessLoadMoreButton(
+                                loading: controller.isLoadingMore,
+                                onPressed: controller.loadMoreInvoices,
                               ),
                             ],
                           ],
@@ -140,41 +125,13 @@ class _InvoicesHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = Text(
-      'invoices'.tr,
-      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-        color: AppColor.secondaryColor,
-        fontWeight: FontWeight.w900,
+    return BusinessPageHeader(
+      title: 'invoices'.tr,
+      trailing: BusinessPrimaryActionButton(
+        onPressed: controller.openCreateInvoice,
+        icon: Icons.add_rounded,
+        label: 'create_invoice'.tr,
       ),
-    );
-    final action = FilledButton.icon(
-      onPressed: controller.openCreateInvoice,
-      style: FilledButton.styleFrom(
-        backgroundColor: AppColor.primaryColor,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      ),
-      icon: const Icon(Icons.add_rounded),
-      label: Text('create_invoice'.tr),
-    );
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final textScale = MediaQuery.textScalerOf(context).scale(1);
-        final compact = constraints.maxWidth < 620 || textScale > 1.3;
-        if (compact) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [title, const SizedBox(height: 12), action],
-          );
-        }
-        return Row(
-          children: [
-            Expanded(child: title),
-            const SizedBox(width: 16),
-            action,
-          ],
-        );
-      },
     );
   }
 }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/core/settings/business_permission_resolver.dart';
@@ -33,6 +34,9 @@ class ReceiptsListController extends GetxController {
   String searchText = '';
   DateTime? fromDate;
   DateTime? toDate;
+  bool isLoadingMore = false;
+  bool hasMore = false;
+  FirestorePageCursor? _pageCursor;
   Timer? _searchDebounce;
   int _loadGeneration = 0;
   String _appliedSearchText = '';
@@ -58,19 +62,26 @@ class ReceiptsListController extends GetxController {
     final generation = ++_loadGeneration;
     final requestedSearch = serverSearchTerm(searchText);
     statusRequest = StatusRequest.loading;
+    _pageCursor = null;
+    hasMore = false;
     loadErrorMessageKey = 'receipts_load_error';
     update();
     try {
-      final resolvedPermissions = await _permissionResolver.resolve(companyId);
-      final loadedReceipts = await _repository.fetchReceipts(
-        companyId: companyId,
-        searchText: requestedSearch,
-        fromDate: fromDate,
-        toDate: toDate,
-      );
+      final results = await Future.wait<Object>([
+        _permissionResolver.resolve(companyId),
+        _repository.fetchReceiptsPage(
+          companyId: companyId,
+          searchText: requestedSearch,
+          fromDate: fromDate,
+          toDate: toDate,
+        ),
+      ]);
       if (generation != _loadGeneration) return;
-      permissions = resolvedPermissions;
-      receipts = loadedReceipts;
+      permissions = results[0] as EffectiveBusinessPermissions;
+      final page = results[1] as FirestorePage<ReceiptModel>;
+      receipts = page.items;
+      _pageCursor = page.cursor;
+      hasMore = page.hasMore;
       _appliedSearchText = requestedSearch;
       statusRequest = StatusRequest.success;
     } catch (error) {
@@ -86,6 +97,32 @@ class ReceiptsListController extends GetxController {
   }
 
   Future<void> refreshReceipts() => loadReceipts();
+
+  Future<void> loadMoreReceipts() async {
+    if (isLoadingMore || !hasMore || _pageCursor == null) return;
+    isLoadingMore = true;
+    final generation = _loadGeneration;
+    update();
+    try {
+      final page = await _repository.fetchReceiptsPage(
+        companyId: companyId,
+        searchText: serverSearchTerm(searchText),
+        fromDate: fromDate,
+        toDate: toDate,
+        after: _pageCursor,
+      );
+      if (generation != _loadGeneration) return;
+      receipts = [...receipts, ...page.items];
+      _pageCursor = page.cursor;
+      hasMore = page.hasMore;
+    } catch (error) {
+      if (generation != _loadGeneration) return;
+      _showError(ReceiptErrorMapper.messageKey(error));
+    } finally {
+      isLoadingMore = false;
+      if (!isClosed) update();
+    }
+  }
 
   void onSearchChanged(String value) {
     searchText = value;

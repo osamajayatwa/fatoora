@@ -177,6 +177,62 @@ class SalesReturnRepository {
     });
   }
 
+  Future<FirestorePage<SalesReturnModel>> fetchSalesReturnsPage({
+    String companyId = AuthRepository.defaultCompanyId,
+    SalesReturnStatus? status,
+    String searchText = '',
+    DateTime? fromDate,
+    DateTime? toDate,
+    FirestorePageCursor? after,
+    int pageSize = 50,
+  }) async {
+    if (searchText.trim().isNotEmpty) {
+      final items = await fetchSalesReturns(
+        companyId: companyId,
+        status: status,
+        searchText: searchText,
+        fromDate: fromDate,
+        toDate: toDate,
+      );
+      return FirestorePage<SalesReturnModel>(
+        items: items,
+        cursor: null,
+        hasMore: false,
+      );
+    }
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      Query<Map<String, dynamic>> query = _returns(resolvedCompanyId);
+      if (user.isSalesRep) {
+        query = query.where('salesRepId', isEqualTo: user.uid);
+      }
+      if (status != null) {
+        query = query.where('status', isEqualTo: status.value);
+      }
+      if (fromDate != null) {
+        query = query.where(
+          'returnDate',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfDay(fromDate)),
+        );
+      }
+      if (toDate != null) {
+        query = query.where(
+          'returnDate',
+          isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(toDate)),
+        );
+      }
+      return query
+          .orderBy('returnDate', descending: true)
+          .orderBy(FieldPath.documentId, descending: true)
+          .getPage(
+            decode: SalesReturnModel.fromFirestore,
+            after: after,
+            pageSize: pageSize,
+          );
+    });
+  }
+
   Future<SalesReturnModel?> getSalesReturnById({
     String companyId = AuthRepository.defaultCompanyId,
     required String returnId,

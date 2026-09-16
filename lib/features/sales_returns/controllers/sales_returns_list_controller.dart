@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/features/sales_returns/controllers/sales_return_error_mapper.dart';
@@ -28,6 +29,9 @@ class SalesReturnsListController extends GetxController {
   List<SalesReturnModel> salesReturns = const [];
   SalesReturnStatus? statusFilter;
   String searchText = '';
+  bool isLoadingMore = false;
+  bool hasMore = false;
+  FirestorePageCursor? _pageCursor;
   Timer? _searchDebounce;
   int _loadGeneration = 0;
   String _appliedSearchText = '';
@@ -48,16 +52,20 @@ class SalesReturnsListController extends GetxController {
     final generation = ++_loadGeneration;
     final requestedSearch = serverSearchTerm(searchText);
     statusRequest = StatusRequest.loading;
+    _pageCursor = null;
+    hasMore = false;
     loadErrorMessageKey = 'sales_returns_load_error';
     update();
     try {
-      final loadedReturns = await _repository.fetchSalesReturns(
+      final page = await _repository.fetchSalesReturnsPage(
         companyId: companyId,
         status: statusFilter,
         searchText: requestedSearch,
       );
       if (generation != _loadGeneration) return;
-      salesReturns = loadedReturns;
+      salesReturns = page.items;
+      _pageCursor = page.cursor;
+      hasMore = page.hasMore;
       _appliedSearchText = requestedSearch;
       statusRequest = StatusRequest.success;
     } catch (error) {
@@ -73,6 +81,31 @@ class SalesReturnsListController extends GetxController {
   }
 
   Future<void> refreshSalesReturns() => loadSalesReturns();
+
+  Future<void> loadMoreSalesReturns() async {
+    if (isLoadingMore || !hasMore || _pageCursor == null) return;
+    isLoadingMore = true;
+    final generation = _loadGeneration;
+    update();
+    try {
+      final page = await _repository.fetchSalesReturnsPage(
+        companyId: companyId,
+        status: statusFilter,
+        searchText: serverSearchTerm(searchText),
+        after: _pageCursor,
+      );
+      if (generation != _loadGeneration) return;
+      salesReturns = [...salesReturns, ...page.items];
+      _pageCursor = page.cursor;
+      hasMore = page.hasMore;
+    } catch (error) {
+      if (generation != _loadGeneration) return;
+      _showError(SalesReturnErrorMapper.messageKey(error));
+    } finally {
+      isLoadingMore = false;
+      if (!isClosed) update();
+    }
+  }
 
   void onSearchChanged(String value) {
     searchText = value;

@@ -5,6 +5,7 @@ import 'package:fatoora/features/sales_returns/controllers/sales_returns_list_co
 import 'package:fatoora/features/sales_returns/data/models/sales_return_enums.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_model.dart';
 import 'package:fatoora/features/sales_returns/view/widgets/sales_return_status_chip.dart';
+import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -41,19 +42,9 @@ class SalesReturnsListScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text(
-                            'sales_returns'.tr,
-                            style: Theme.of(context).textTheme.headlineSmall
-                                ?.copyWith(
-                                  color: AppColor.secondaryColor,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'sales_returns_subtitle'.tr,
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(color: AppColor.grey),
+                          BusinessPageHeader(
+                            title: 'sales_returns'.tr,
+                            subtitle: 'sales_returns_subtitle'.tr,
                           ),
                           const SizedBox(height: 18),
                           _Filters(controller: controller),
@@ -64,6 +55,13 @@ class SalesReturnsListScreen extends StatelessWidget {
                             _ReturnCards(controller: controller)
                           else
                             _ReturnTable(controller: controller),
+                          if (controller.hasMore) ...[
+                            const SizedBox(height: 16),
+                            BusinessLoadMoreButton(
+                              loading: controller.isLoadingMore,
+                              onPressed: controller.loadMoreSalesReturns,
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -398,37 +396,11 @@ class _EmptyReturns extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      color: AppColor.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFE4E8EF)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 58, horizontal: 20),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.assignment_return_outlined,
-              size: 42,
-              color: AppColor.primaryColor,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              hasFilters
-                  ? 'sales_returns_no_search_results'.tr
-                  : 'no_returns_found'.tr,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColor.secondaryColor,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return BusinessEmptyState(
+      icon: Icons.assignment_return_outlined,
+      title: hasFilters
+          ? 'sales_returns_no_search_results'.tr
+          : 'no_returns_found'.tr,
     );
   }
 }

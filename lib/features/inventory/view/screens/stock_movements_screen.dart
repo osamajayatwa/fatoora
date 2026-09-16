@@ -3,6 +3,7 @@ import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/admin_dashboard_shell.dart';
 import 'package:fatoora/features/inventory/controllers/stock_movements_controller.dart';
 import 'package:fatoora/features/inventory/data/models/stock_movement_model.dart';
+import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -33,19 +34,15 @@ class StockMovementsScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        'stock_movements'.tr,
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(
-                              color: AppColor.secondaryColor,
-                              fontWeight: FontWeight.w800,
-                            ),
-                      ),
+                      BusinessPageHeader(title: 'stock_movements'.tr),
                       const SizedBox(height: 16),
                       _MovementFilters(controller: controller),
                       const SizedBox(height: 16),
                       if (controller.movements.isEmpty)
-                        Center(child: Text('inventory_no_movements'.tr))
+                        BusinessEmptyState(
+                          icon: Icons.swap_vert_circle_outlined,
+                          title: 'inventory_no_movements'.tr,
+                        )
                       else
                         _MovementList(movements: controller.movements),
                     ],

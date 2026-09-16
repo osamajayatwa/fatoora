@@ -6,6 +6,7 @@ import 'package:fatoora/core/widgets/responsive_data_table_card.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/financial/controllers/receivables_controller.dart';
 import 'package:fatoora/features/financial/data/models/financial_dashboard_snapshot.dart';
+import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -70,28 +71,6 @@ class _ReceivablesHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
-    final compact =
-        MediaQuery.sizeOf(context).width < 680 ||
-        MediaQuery.textScalerOf(context).scale(1) > 1.3;
-    final title = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'financial_receivables'.tr,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            color: AppColor.secondaryColor,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'financial_receivables_subtitle'.tr,
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: AppColor.grey),
-        ),
-      ],
-    );
     final controls = Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -128,30 +107,22 @@ class _ReceivablesHeader extends StatelessWidget {
     );
 
     return DashboardCard(
-      child: compact
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                title,
-                const SizedBox(height: 16),
-                _TotalReceivable(
-                  value: currency.format(controller.snapshot.totalReceivables),
-                ),
-                const SizedBox(height: 12),
-                controls,
-              ],
-            )
-          : Row(
-              children: [
-                Expanded(child: title),
-                const SizedBox(width: 16),
-                _TotalReceivable(
-                  value: currency.format(controller.snapshot.totalReceivables),
-                ),
-                const SizedBox(width: 16),
-                controls,
-              ],
+      child: BusinessPageHeader(
+        title: 'financial_receivables'.tr,
+        subtitle: 'financial_receivables_subtitle'.tr,
+        stretchTrailingOnCompact: false,
+        trailing: Wrap(
+          spacing: 16,
+          runSpacing: 12,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            _TotalReceivable(
+              value: currency.format(controller.snapshot.totalReceivables),
             ),
+            controls,
+          ],
+        ),
+      ),
     );
   }
 }
@@ -371,28 +342,9 @@ class _EmptyReceivables extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DashboardCard(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 36),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.account_balance_wallet_outlined,
-              size: 44,
-              color: AppColor.grey,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'financial_no_receivables'.tr,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColor.secondaryColor,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return BusinessEmptyState(
+      icon: Icons.account_balance_wallet_outlined,
+      title: 'financial_no_receivables'.tr,
     );
   }
 }

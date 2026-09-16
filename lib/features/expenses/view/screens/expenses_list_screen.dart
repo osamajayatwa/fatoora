@@ -3,6 +3,7 @@ import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/expenses/controllers/expenses_list_controller.dart';
 import 'package:fatoora/features/expenses/data/models/expense_model.dart';
+import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -67,54 +68,15 @@ class _ExpensesHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact =
-        MediaQuery.sizeOf(context).width < 650 ||
-        MediaQuery.textScalerOf(context).scale(1) > 1.3;
-    final title = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          controller.isAdmin ? 'expenses'.tr : 'my_expenses'.tr,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            color: AppColor.secondaryColor,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          controller.isAdmin
-              ? 'expenses_admin_subtitle'.tr
-              : 'expenses_rep_subtitle'.tr,
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: AppColor.grey),
-        ),
-      ],
-    );
-    final action = FilledButton.icon(
-      onPressed: controller.openCreateExpense,
-      style: FilledButton.styleFrom(
-        backgroundColor: AppColor.primaryColor,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      ),
-      icon: const Icon(Icons.add_rounded),
-      label: Text('expense_new'.tr),
-    );
-    if (compact) {
-      return DashboardCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [title, const SizedBox(height: 14), action],
-        ),
-      );
-    }
-    return DashboardCard(
-      child: Row(
-        children: [
-          Expanded(child: title),
-          const SizedBox(width: 16),
-          action,
-        ],
+    return BusinessPageHeader(
+      title: controller.isAdmin ? 'expenses'.tr : 'my_expenses'.tr,
+      subtitle: controller.isAdmin
+          ? 'expenses_admin_subtitle'.tr
+          : 'expenses_rep_subtitle'.tr,
+      trailing: BusinessPrimaryActionButton(
+        onPressed: controller.openCreateExpense,
+        icon: Icons.add_rounded,
+        label: 'expense_new'.tr,
       ),
     );
   }
@@ -473,28 +435,9 @@ class _EmptyExpenses extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DashboardCard(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 36),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.receipt_long_outlined,
-              size: 44,
-              color: AppColor.grey,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              hasFilters ? 'expenses_empty_filtered'.tr : 'expenses_empty'.tr,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColor.secondaryColor,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return BusinessEmptyState(
+      icon: Icons.receipt_long_outlined,
+      title: hasFilters ? 'expenses_empty_filtered'.tr : 'expenses_empty'.tr,
     );
   }
 }

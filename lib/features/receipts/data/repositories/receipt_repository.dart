@@ -109,6 +109,57 @@ class ReceiptRepository {
     });
   }
 
+  Future<FirestorePage<ReceiptModel>> fetchReceiptsPage({
+    String companyId = AuthRepository.defaultCompanyId,
+    DateTime? fromDate,
+    DateTime? toDate,
+    String searchText = '',
+    FirestorePageCursor? after,
+    int pageSize = 50,
+  }) async {
+    if (searchText.trim().isNotEmpty) {
+      final items = await fetchReceipts(
+        companyId: companyId,
+        fromDate: fromDate,
+        toDate: toDate,
+        searchText: searchText,
+      );
+      return FirestorePage<ReceiptModel>(
+        items: items,
+        cursor: null,
+        hasMore: false,
+      );
+    }
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      Query<Map<String, dynamic>> query = _receipts(resolvedCompanyId);
+      if (user.isSalesRep) {
+        query = query.where('salesRepId', isEqualTo: user.uid);
+      }
+      if (fromDate != null) {
+        query = query.where(
+          'receiptDate',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfDay(fromDate)),
+        );
+      }
+      if (toDate != null) {
+        query = query.where(
+          'receiptDate',
+          isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(toDate)),
+        );
+      }
+      return query
+          .orderBy('receiptDate', descending: true)
+          .orderBy(FieldPath.documentId, descending: true)
+          .getPage(
+            decode: ReceiptModel.fromFirestore,
+            after: after,
+            pageSize: pageSize,
+          );
+    });
+  }
+
   Future<ReceiptModel?> getReceiptById({
     String companyId = AuthRepository.defaultCompanyId,
     required String receiptId,

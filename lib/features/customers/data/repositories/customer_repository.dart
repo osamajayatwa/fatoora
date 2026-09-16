@@ -118,6 +118,36 @@ class CustomerRepository {
     });
   }
 
+  Future<FirestorePage<CustomerModel>> fetchCustomersPage({
+    String companyId = AuthRepository.defaultCompanyId,
+    String searchText = '',
+    bool activeOnly = true,
+    FirestorePageCursor? after,
+    int pageSize = 50,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      Query<Map<String, dynamic>> query = _customers(resolvedCompanyId);
+      if (activeOnly) query = query.where('active', isEqualTo: true);
+      if (user.isSalesRep) {
+        query = query.where('createdByUid', isEqualTo: user.uid);
+      }
+      final normalizedSearch = CustomerModel.normalizeText(searchText);
+      if (normalizedSearch.isNotEmpty) {
+        query = query.where('searchKeywords', arrayContains: normalizedSearch);
+      }
+      return query
+          .orderBy('nameLower')
+          .orderBy(FieldPath.documentId)
+          .getPage(
+            decode: CustomerModel.fromFirestore,
+            after: after,
+            pageSize: pageSize,
+          );
+    });
+  }
+
   Future<CustomerModel> getCustomer({
     String companyId = AuthRepository.defaultCompanyId,
     required String customerId,
@@ -349,8 +379,19 @@ class CustomerRepository {
       }
       final existing = CustomerModel.fromFirestore(snapshot);
       _requireCanAccessCustomer(user, existing);
-      await document
-          .update({'active': active, 'updatedAt': FieldValue.serverTimestamp()})
+      await _functions
+          .httpsCallable('updateCustomer')
+          .call<Map<String, dynamic>>({
+            'companyId': resolvedCompanyId,
+            'customerId': customerId,
+            'name': existing.name,
+            'phone': existing.phone,
+            'addressText': existing.addressText,
+            'city': existing.city,
+            'area': existing.area,
+            'notes': existing.notes,
+            'active': active,
+          })
           .timeout(const Duration(seconds: 20));
     });
   }

@@ -4,6 +4,7 @@ import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dar
 import 'package:fatoora/features/financial/controllers/cash_movements_controller.dart';
 import 'package:fatoora/features/financial/data/models/cash_movement_model.dart';
 import 'package:fatoora/features/financial/data/models/financial_dashboard_snapshot.dart';
+import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -72,9 +73,6 @@ class _CashHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact =
-        MediaQuery.sizeOf(context).width < 760 ||
-        MediaQuery.textScalerOf(context).scale(1) > 1.3;
     final controls = Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -121,42 +119,16 @@ class _CashHeader extends StatelessWidget {
       ],
     );
 
-    final title = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'financial_cash'.tr,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            color: AppColor.secondaryColor,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'financial_cash_subtitle'.tr,
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: AppColor.grey),
-        ),
-      ],
-    );
-
     return DashboardCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          compact
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [title, const SizedBox(height: 12), controls],
-                )
-              : Row(
-                  children: [
-                    Expanded(child: title),
-                    const SizedBox(width: 16),
-                    controls,
-                  ],
-                ),
+          BusinessPageHeader(
+            title: 'financial_cash'.tr,
+            subtitle: 'financial_cash_subtitle'.tr,
+            trailing: controls,
+            stretchTrailingOnCompact: false,
+          ),
           const SizedBox(height: 18),
           _CashSummaryGrid(
             snapshot: controller.snapshot,
@@ -468,24 +440,9 @@ class _EmptyCashMovements extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DashboardCard(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 36),
-        child: Column(
-          children: [
-            const Icon(Icons.payments_outlined, size: 44, color: AppColor.grey),
-            const SizedBox(height: 12),
-            Text(
-              'financial_no_cash_movements'.tr,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColor.secondaryColor,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return BusinessEmptyState(
+      icon: Icons.payments_outlined,
+      title: 'financial_no_cash_movements'.tr,
     );
   }
 }

@@ -277,6 +277,20 @@ test("customer profiles normalize and reserve phones server-side under concurren
   assert.equal(updated.name, "Rep customer updated");
   assert.equal(updated.phoneNormalized, "0770000000");
   assert.equal(updated.currentBalance, 0);
+  await updateCustomerTransaction(
+    db,
+    repUid,
+    companyId,
+    repCustomer.customerId,
+    {...profile, name: "Rep customer updated", phone: "+962 77 000 0000", active: false},
+  );
+  const deactivated = (await db.doc(
+    `companies/${companyId}/customers/${repCustomer.customerId}`,
+  ).get()).data();
+  assert.equal(deactivated.active, false);
+  assert.equal(deactivated.currentBalance, 0);
+  assert.equal(deactivated.totalSales, 0);
+  assert.equal(deactivated.totalPaid, 0);
   assert.equal((await db.doc(
     `companies/${companyId}/customer_phone_reservations/0780000000`,
   ).get()).exists, false);
@@ -288,7 +302,12 @@ test("customer profiles normalize and reserve phones server-side under concurren
     repUid,
     companyId,
     repCustomer.customerId,
-    {...profile, name: "Rep customer updated", phone: "+962 77 000 0000"},
+    {
+      ...profile,
+      name: "Rep customer updated",
+      phone: "+962 77 000 0000",
+      active: false,
+    },
   );
   assert.equal((await db.doc(
     `companies/${companyId}/customer_phone_reservations/0770000000`,

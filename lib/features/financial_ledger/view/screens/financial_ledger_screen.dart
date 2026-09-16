@@ -3,6 +3,7 @@ import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/financial_ledger/controllers/financial_ledger_controller.dart';
 import 'package:fatoora/features/financial_ledger/data/models/financial_ledger_entry.dart';
+import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -67,58 +68,25 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DashboardCard(
-      child: Wrap(
-        spacing: 16,
-        runSpacing: 14,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        alignment: WrapAlignment.spaceBetween,
+    return BusinessPageHeader(
+      title: 'financial_ledger'.tr,
+      subtitle: 'ledger_subtitle'.tr,
+      stretchTrailingOnCompact: false,
+      trailing: Wrap(
+        spacing: 8,
+        runSpacing: 8,
         children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 650),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'financial_ledger'.tr,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: AppColor.secondaryColor,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  'ledger_subtitle'.tr,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: AppColor.grey),
-                ),
-              ],
-            ),
+          BusinessSecondaryActionButton(
+            onPressed: controller.copyFilteredRows,
+            loading: controller.isCopying,
+            icon: Icons.content_copy_rounded,
+            label: 'ledger_copy_tsv'.tr,
           ),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              OutlinedButton.icon(
-                onPressed: controller.isCopying
-                    ? null
-                    : controller.copyFilteredRows,
-                icon: controller.isCopying
-                    ? const _ButtonLoader()
-                    : const Icon(Icons.content_copy_rounded),
-                label: Text('ledger_copy_tsv'.tr),
-              ),
-              FilledButton.icon(
-                onPressed: controller.isExporting
-                    ? null
-                    : controller.exportAccountingReport,
-                icon: controller.isExporting
-                    ? const _ButtonLoader(color: Colors.white)
-                    : const Icon(Icons.download_rounded),
-                label: Text('ledger_export_accounting_report'.tr),
-              ),
-            ],
+          BusinessPrimaryActionButton(
+            onPressed: controller.exportAccountingReport,
+            loading: controller.isExporting,
+            icon: Icons.download_rounded,
+            label: 'ledger_export_accounting_report'.tr,
           ),
         ],
       ),
@@ -127,15 +95,13 @@ class _Header extends StatelessWidget {
 }
 
 class _ButtonLoader extends StatelessWidget {
-  const _ButtonLoader({this.color});
-
-  final Color? color;
+  const _ButtonLoader();
 
   @override
   Widget build(BuildContext context) => SizedBox(
     width: 16,
     height: 16,
-    child: CircularProgressIndicator(strokeWidth: 2, color: color),
+    child: const CircularProgressIndicator(strokeWidth: 2),
   );
 }
 
@@ -813,24 +779,9 @@ class _EmptyLedger extends StatelessWidget {
   const _EmptyLedger();
 
   @override
-  Widget build(BuildContext context) => DashboardCard(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 44),
-      child: Column(
-        children: [
-          const Icon(Icons.menu_book_outlined, size: 48, color: AppColor.grey),
-          const SizedBox(height: 12),
-          Text(
-            'ledger_empty'.tr,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppColor.secondaryColor,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    ),
+  Widget build(BuildContext context) => BusinessEmptyState(
+    icon: Icons.menu_book_outlined,
+    title: 'ledger_empty'.tr,
   );
 }
 

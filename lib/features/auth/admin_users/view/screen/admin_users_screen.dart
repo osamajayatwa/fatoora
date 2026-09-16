@@ -2,6 +2,7 @@ import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/auth/admin_users/controller/admin_users_controller.dart';
 import 'package:fatoora/features/auth/data/models/app_user_model.dart';
+import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -101,45 +102,14 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact =
-        MediaQuery.sizeOf(context).width < 650 ||
-        MediaQuery.textScalerOf(context).scale(1) > 1.3;
-    final title = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'admin_users'.tr,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            color: AppColor.secondaryColor,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'admin_users_subtitle'.tr,
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: AppColor.grey),
-        ),
-      ],
-    );
-    final refresh = OutlinedButton.icon(
-      onPressed: controller.loadUsers,
-      icon: const Icon(Icons.refresh_rounded),
-      label: Text('dashboard_refresh'.tr),
-    );
-    if (compact) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [title, const SizedBox(height: 12), refresh],
-      );
-    }
-    return Row(
-      children: [
-        Expanded(child: title),
-        const SizedBox(width: 16),
-        refresh,
-      ],
+    return BusinessPageHeader(
+      title: 'admin_users'.tr,
+      subtitle: 'admin_users_subtitle'.tr,
+      trailing: BusinessSecondaryActionButton(
+        onPressed: controller.loadUsers,
+        icon: Icons.refresh_rounded,
+        label: 'dashboard_refresh'.tr,
+      ),
     );
   }
 }
@@ -570,35 +540,9 @@ class _EmptyUsers extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      color: AppColor.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFE4E8EF)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 58, horizontal: 20),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.manage_accounts_outlined,
-              size: 42,
-              color: AppColor.primaryColor,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              messageKey.tr,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColor.secondaryColor,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return BusinessEmptyState(
+      icon: Icons.manage_accounts_outlined,
+      title: messageKey.tr,
     );
   }
 }
