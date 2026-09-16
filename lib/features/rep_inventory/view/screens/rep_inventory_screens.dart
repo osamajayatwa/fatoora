@@ -202,12 +202,20 @@ class InventoryTransfersScreen extends StatelessWidget {
                 _ResponsiveSearchHeader(
                   search: TextField(
                     controller: controller.searchController,
+                    onChanged: controller.onSearchChanged,
+                    onSubmitted: (_) => controller.submitSearch(),
+                    textInputAction: TextInputAction.search,
                     decoration: InputDecoration(
                       hintText: 'rep_inventory_search'.tr,
                       prefixIcon: const Icon(Icons.search),
+                      suffixIcon: controller.searchText.isEmpty
+                          ? null
+                          : IconButton(
+                              onPressed: controller.clearSearch,
+                              icon: const Icon(Icons.close_rounded),
+                            ),
                       border: const OutlineInputBorder(),
                     ),
-                    onSubmitted: (_) => controller.load(),
                   ),
                   action: FilledButton.icon(
                     onPressed: controller.create,
@@ -490,23 +498,27 @@ class InventoryTransferFormScreen extends StatelessWidget {
                 ...controller.lines.map(
                   (line) => Card(
                     child: ListTile(
-                      title: Text(line.itemNameSnapshot),
+                      title: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(line.itemNameSnapshot),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${_quantity(line.quantity)} ${line.unitSnapshot}',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
                       subtitle: Text(
                         '${line.modelSnapshot} · '
                         '${'rep_inventory_available'.tr}: '
                         '${_quantity(controller.type == InventoryTransferType.warehouseToRep ? controller.items.where((item) => item.id == line.itemId).map((item) => item.currentStock).firstOrNull ?? 0 : controller.repQuantities[line.itemId] ?? 0)}',
                       ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '${_quantity(line.quantity)} ${line.unitSnapshot}',
-                          ),
-                          IconButton(
-                            onPressed: () => controller.removeLine(line.itemId),
-                            icon: const Icon(Icons.delete_outline),
-                          ),
-                        ],
+                      trailing: IconButton(
+                        tooltip: 'delete'.tr,
+                        onPressed: () => controller.removeLine(line.itemId),
+                        icon: const Icon(Icons.delete_outline),
                       ),
                     ),
                   ),
@@ -988,7 +1000,9 @@ class _ItemMeta extends StatelessWidget {
       children: [
         Icon(icon, size: 14),
         const SizedBox(width: 4),
-        Text(text, style: Theme.of(context).textTheme.bodySmall),
+        Flexible(
+          child: Text(text, style: Theme.of(context).textTheme.bodySmall),
+        ),
       ],
     ),
   );
@@ -1011,7 +1025,8 @@ class _ResponsiveHeader extends StatelessWidget {
     if (action == null) return titleWidget;
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < 520) {
+        if (constraints.maxWidth < 520 ||
+            MediaQuery.textScalerOf(context).scale(1) > 1.3) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -1042,7 +1057,8 @@ class _ResponsiveSearchHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      if (constraints.maxWidth < 520) {
+      if (constraints.maxWidth < 520 ||
+          MediaQuery.textScalerOf(context).scale(1) > 1.3) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [search, const SizedBox(height: 10), action],

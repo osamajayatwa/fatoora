@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/inventory/controllers/inventory_error_mapper.dart';
 import 'package:fatoora/features/inventory/data/models/stock_movement_model.dart';
@@ -27,6 +28,8 @@ class StockMovementsController extends GetxController {
   String movementType = '';
   String searchText = '';
   Timer? _debounce;
+  int _loadGeneration = 0;
+  String _appliedSearchText = '';
 
   String get companyId {
     final cached =
@@ -45,18 +48,25 @@ class StockMovementsController extends GetxController {
   }
 
   Future<void> loadMovements() async {
+    _debounce?.cancel();
+    final generation = ++_loadGeneration;
+    final requestedSearch = serverSearchTerm(searchText);
     statusRequest = StatusRequest.loading;
     loadErrorMessageKey = 'inventory_load_error';
     update();
     try {
-      movements = await _repository.fetchStockMovements(
+      final loadedMovements = await _repository.fetchStockMovements(
         companyId: companyId,
         itemId: itemId,
         movementType: movementType,
-        searchText: searchText,
+        searchText: requestedSearch,
       );
+      if (generation != _loadGeneration) return;
+      movements = loadedMovements;
+      _appliedSearchText = requestedSearch;
       statusRequest = StatusRequest.success;
     } catch (error) {
+      if (generation != _loadGeneration) return;
       statusRequest = InventoryErrorMapper.status(error);
       loadErrorMessageKey = InventoryErrorMapper.messageKey(
         error,
@@ -69,10 +79,37 @@ class StockMovementsController extends GetxController {
   void onSearchChanged(String value) {
     searchText = value;
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 350), loadMovements);
+    _loadGeneration++;
+    update();
+    if (serverSearchTerm(value).isEmpty) {
+      if (_appliedSearchText.isNotEmpty ||
+          statusRequest != StatusRequest.success) {
+        loadMovements();
+      }
+      return;
+    }
+    _debounce = Timer(serverSearchDebounce, loadMovements);
+  }
+
+  void submitSearch() {
+    _debounce?.cancel();
+    if (serverSearchTerm(searchText).isEmpty &&
+        _appliedSearchText.isEmpty &&
+        statusRequest == StatusRequest.success) {
+      return;
+    }
+    loadMovements();
+  }
+
+  void clearSearch() {
+    _debounce?.cancel();
+    searchText = '';
+    searchController.clear();
+    loadMovements();
   }
 
   void setMovementType(String value) {
+    _debounce?.cancel();
     movementType = value;
     loadMovements();
   }

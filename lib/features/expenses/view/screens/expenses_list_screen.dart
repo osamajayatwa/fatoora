@@ -67,7 +67,9 @@ class _ExpensesHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 650;
+    final compact =
+        MediaQuery.sizeOf(context).width < 650 ||
+        MediaQuery.textScalerOf(context).scale(1) > 1.3;
     final title = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -233,93 +235,110 @@ class _ExpenseFilters extends StatelessWidget {
   Widget build(BuildContext context) {
     return DashboardCard(
       padding: const EdgeInsets.all(14),
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          SizedBox(
-            width: 300,
-            child: TextField(
-              controller: controller.searchController,
-              onChanged: controller.onSearchChanged,
-              decoration: InputDecoration(
-                hintText: 'expenses_search_hint'.tr,
-                prefixIcon: const Icon(Icons.search_rounded),
-                border: const OutlineInputBorder(),
-              ),
-            ),
-          ),
-          SizedBox(
-            width: 220,
-            child: DropdownButtonFormField<ExpenseStatus?>(
-              value: controller.statusFilter,
-              decoration: InputDecoration(
-                labelText: 'expense_status'.tr,
-                border: const OutlineInputBorder(),
-              ),
-              items: [
-                DropdownMenuItem<ExpenseStatus?>(
-                  value: null,
-                  child: Text('all'.tr),
-                ),
-                for (final status in ExpenseStatus.values)
-                  DropdownMenuItem<ExpenseStatus?>(
-                    value: status,
-                    child: Text(status.labelKey.tr),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stacked =
+              constraints.maxWidth < 620 ||
+              MediaQuery.textScalerOf(context).scale(1) > 1.3;
+          double width(double preferred) =>
+              stacked ? constraints.maxWidth : preferred;
+          return Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SizedBox(
+                width: width(300),
+                child: TextField(
+                  controller: controller.searchController,
+                  onChanged: controller.onSearchChanged,
+                  onSubmitted: (_) => controller.submitSearch(),
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    hintText: 'expenses_search_hint'.tr,
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: controller.searchText.isEmpty
+                        ? null
+                        : IconButton(
+                            onPressed: controller.clearSearch,
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                    border: const OutlineInputBorder(),
                   ),
-              ],
-              onChanged: controller.setStatusFilter,
-            ),
-          ),
-          SizedBox(
-            width: 230,
-            child: DropdownButtonFormField<ExpenseCategory?>(
-              value: controller.categoryFilter,
-              decoration: InputDecoration(
-                labelText: 'expense_category'.tr,
-                border: const OutlineInputBorder(),
-              ),
-              items: [
-                DropdownMenuItem<ExpenseCategory?>(
-                  value: null,
-                  child: Text('all'.tr),
                 ),
-                for (final category in ExpenseCategory.values)
-                  DropdownMenuItem<ExpenseCategory?>(
-                    value: category,
-                    child: Text(category.labelKey.tr),
+              ),
+              SizedBox(
+                width: width(220),
+                child: DropdownButtonFormField<ExpenseStatus?>(
+                  value: controller.statusFilter,
+                  decoration: InputDecoration(
+                    labelText: 'expense_status'.tr,
+                    border: const OutlineInputBorder(),
                   ),
-              ],
-              onChanged: controller.setCategoryFilter,
-            ),
-          ),
-          OutlinedButton.icon(
-            onPressed: () async {
-              final range = await showDateRangePicker(
-                context: context,
-                firstDate: DateTime(2020),
-                lastDate: DateTime.now().add(const Duration(days: 365)),
-                initialDateRange:
-                    controller.fromDate != null && controller.toDate != null
-                    ? DateTimeRange(
-                        start: controller.fromDate!,
-                        end: controller.toDate!,
-                      )
-                    : null,
-              );
-              controller.setDateRange(range);
-            },
-            icon: const Icon(Icons.date_range_outlined),
-            label: Text('financial_filter_dates'.tr),
-          ),
-          if (controller.hasFilters)
-            TextButton.icon(
-              onPressed: controller.clearFilters,
-              icon: const Icon(Icons.close_rounded),
-              label: Text('financial_clear_dates'.tr),
-            ),
-        ],
+                  items: [
+                    DropdownMenuItem<ExpenseStatus?>(
+                      value: null,
+                      child: Text('all'.tr),
+                    ),
+                    for (final status in ExpenseStatus.values)
+                      DropdownMenuItem<ExpenseStatus?>(
+                        value: status,
+                        child: Text(status.labelKey.tr),
+                      ),
+                  ],
+                  onChanged: controller.setStatusFilter,
+                ),
+              ),
+              SizedBox(
+                width: width(230),
+                child: DropdownButtonFormField<ExpenseCategory?>(
+                  value: controller.categoryFilter,
+                  decoration: InputDecoration(
+                    labelText: 'expense_category'.tr,
+                    border: const OutlineInputBorder(),
+                  ),
+                  items: [
+                    DropdownMenuItem<ExpenseCategory?>(
+                      value: null,
+                      child: Text('all'.tr),
+                    ),
+                    for (final category in ExpenseCategory.values)
+                      DropdownMenuItem<ExpenseCategory?>(
+                        value: category,
+                        child: Text(category.labelKey.tr),
+                      ),
+                  ],
+                  onChanged: controller.setCategoryFilter,
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final range = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                    initialDateRange:
+                        controller.fromDate != null && controller.toDate != null
+                        ? DateTimeRange(
+                            start: controller.fromDate!,
+                            end: controller.toDate!,
+                          )
+                        : null,
+                  );
+                  controller.setDateRange(range);
+                },
+                icon: const Icon(Icons.date_range_outlined),
+                label: Text('financial_filter_dates'.tr),
+              ),
+              if (controller.hasFilters)
+                TextButton.icon(
+                  onPressed: controller.clearFilters,
+                  icon: const Icon(Icons.close_rounded),
+                  label: Text('financial_clear_dates'.tr),
+                ),
+            ],
+          );
+        },
       ),
     );
   }

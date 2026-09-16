@@ -69,7 +69,9 @@ class _ReceiptsHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 620;
+    final compact =
+        MediaQuery.sizeOf(context).width < 620 ||
+        MediaQuery.textScalerOf(context).scale(1) > 1.3;
     final title = Text(
       'receipts'.tr,
       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -128,9 +130,17 @@ class _ReceiptFilters extends StatelessWidget {
               child: TextField(
                 controller: controller.searchController,
                 onChanged: controller.onSearchChanged,
+                onSubmitted: (_) => controller.submitSearch(),
+                textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
                   hintText: 'receipts_search_hint'.tr,
                   prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: controller.searchText.isEmpty
+                      ? null
+                      : IconButton(
+                          onPressed: controller.clearSearch,
+                          icon: const Icon(Icons.close_rounded),
+                        ),
                   filled: true,
                   fillColor: AppColor.surface,
                   border: OutlineInputBorder(

@@ -219,31 +219,44 @@ class _Summary extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'ledger_filtered_summary'.tr,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColor.secondaryColor,
-                    fontWeight: FontWeight.w900,
-                  ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final title = Text(
+                'ledger_filtered_summary'.tr,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: AppColor.secondaryColor,
+                  fontWeight: FontWeight.w900,
                 ),
-              ),
-              Text(
+              );
+              final count = Text(
                 '${summary.entryCount} ${'ledger_entries'.tr}',
                 style: Theme.of(
                   context,
                 ).textTheme.labelLarge?.copyWith(color: AppColor.grey),
-              ),
-            ],
+              );
+              if (constraints.maxWidth < 520 ||
+                  MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [title, const SizedBox(height: 6), count],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: title),
+                  const SizedBox(width: 12),
+                  count,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 13),
           LayoutBuilder(
             builder: (context, constraints) {
-              final width = constraints.maxWidth >= 900
+              final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+              final width = !largeText && constraints.maxWidth >= 900
                   ? (constraints.maxWidth - 30) / 4
-                  : constraints.maxWidth >= 560
+                  : !largeText && constraints.maxWidth >= 560
                   ? (constraints.maxWidth - 10) / 2
                   : constraints.maxWidth;
               return Wrap(
@@ -304,8 +317,6 @@ class _SummaryCard extends StatelessWidget {
               children: [
                 Text(
                   data.labelKey.tr,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(
                     context,
                   ).textTheme.labelSmall?.copyWith(color: AppColor.grey),
@@ -313,8 +324,6 @@ class _SummaryCard extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   currency.format(data.value),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     color: data.color,
                     fontWeight: FontWeight.w900,
@@ -338,19 +347,25 @@ class _Filters extends StatelessWidget {
   Widget build(BuildContext context) {
     final filters = controller.filters;
     return DashboardCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Wrap(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stacked =
+              constraints.maxWidth < 620 ||
+              MediaQuery.textScalerOf(context).scale(1) > 1.3;
+          double width(double preferred) =>
+              stacked ? constraints.maxWidth : preferred;
+          return Wrap(
             spacing: 10,
             runSpacing: 10,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               SizedBox(
-                width: 300,
+                width: width(300),
                 child: TextField(
                   controller: controller.searchController,
                   onChanged: controller.onSearchChanged,
+                  onSubmitted: (_) => controller.submitSearch(),
+                  textInputAction: TextInputAction.search,
                   decoration: InputDecoration(
                     labelText: 'ledger_search'.tr,
                     hintText: 'ledger_search_hint'.tr,
@@ -358,12 +373,18 @@ class _Filters extends StatelessWidget {
                         ? 'ledger_search_min'.tr
                         : null,
                     prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: controller.searchController.text.isEmpty
+                        ? null
+                        : IconButton(
+                            onPressed: controller.clearSearch,
+                            icon: const Icon(Icons.close_rounded),
+                          ),
                     border: const OutlineInputBorder(),
                   ),
                 ),
               ),
               _FilterDropdown(
-                width: 215,
+                width: width(215),
                 label: 'ledger_movement_type'.tr,
                 value: filters.type,
                 items: const [
@@ -382,14 +403,14 @@ class _Filters extends StatelessWidget {
                 onChanged: controller.setType,
               ),
               _OptionDropdown(
-                width: 250,
+                width: width(250),
                 label: 'ledger_account'.tr,
                 value: filters.accountKey,
                 options: controller.accountOptions,
                 onChanged: controller.setAccount,
               ),
               _OptionDropdown(
-                width: 240,
+                width: width(240),
                 label: 'ledger_customer'.tr,
                 value: filters.customerId,
                 options: [
@@ -399,7 +420,7 @@ class _Filters extends StatelessWidget {
                 onChanged: controller.setCustomer,
               ),
               _OptionDropdown(
-                width: 240,
+                width: width(240),
                 label: 'ledger_sales_rep'.tr,
                 value: filters.salesRepId,
                 options: [
@@ -409,7 +430,7 @@ class _Filters extends StatelessWidget {
                 onChanged: controller.setSalesRep,
               ),
               _FilterDropdown(
-                width: 210,
+                width: width(210),
                 label: 'ledger_payment_method'.tr,
                 value: filters.paymentMethod,
                 items: const [
@@ -452,8 +473,8 @@ class _Filters extends StatelessWidget {
                 label: Text('ledger_reset_filters'.tr),
               ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -679,26 +700,44 @@ class _LedgerCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      entry.effectiveDescription,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: AppColor.secondaryColor,
-                        fontWeight: FontWeight.w900,
-                      ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final description = Text(
+                    entry.effectiveDescription,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: AppColor.secondaryColor,
+                      fontWeight: FontWeight.w900,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
+                  );
+                  final amount = Text(
                     money.format(entry.amount),
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       color: AppColor.primaryColor,
                       fontWeight: FontWeight.w900,
                     ),
-                  ),
-                ],
+                  );
+                  if (constraints.maxWidth < 440 ||
+                      MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        description,
+                        const SizedBox(height: 5),
+                        Align(
+                          alignment: AlignmentDirectional.centerEnd,
+                          child: amount,
+                        ),
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: description),
+                      const SizedBox(width: 12),
+                      amount,
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 7),
               Text(

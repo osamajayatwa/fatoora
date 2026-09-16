@@ -1,7 +1,6 @@
 const Map<String, String> invoicesEnglishTranslations = {
   'invoices': 'Invoices',
   'create_invoice': 'Create invoice',
-  'choose_invoice_type': 'Choose invoice type',
   'regular_invoice': 'Regular invoice',
   'internal_invoice': 'Internal invoice',
   'electronic_invoice': 'Electronic invoice',
@@ -146,6 +145,7 @@ const Map<String, String> invoicesEnglishTranslations = {
       'Invoice date sorting is required while a date range is active.',
   'created_by': 'Created by',
   'actions': 'Actions',
+  'convert_to_tax_invoice': 'Convert to Tax Invoice',
   'select_customer': 'Select customer',
   'customer_snapshot': 'Customer snapshot',
   'city': 'City',
@@ -164,7 +164,6 @@ const Map<String, String> invoicesEnglishTranslations = {
 const Map<String, String> invoicesArabicTranslations = {
   'invoices': 'الفواتير',
   'create_invoice': 'إنشاء فاتورة',
-  'choose_invoice_type': 'اختر نوع الفاتورة',
   'regular_invoice': 'فاتورة عادية',
   'internal_invoice': 'فاتورة داخلية',
   'electronic_invoice': 'فاتورة إلكترونية',
@@ -306,6 +305,7 @@ const Map<String, String> invoicesArabicTranslations = {
       'يلزم الترتيب حسب تاريخ الفاتورة عند تفعيل نطاق التاريخ.',
   'created_by': 'أنشأها',
   'actions': 'الإجراءات',
+  'convert_to_tax_invoice': 'تحويل إلى فاتورة ضريبية',
   'select_customer': 'اختيار العميل',
   'customer_snapshot': 'نسخة بيانات العميل',
   'city': 'المدينة',

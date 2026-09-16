@@ -111,7 +111,8 @@ class _Header extends StatelessWidget {
             label: Text('create_quotation'.tr),
           )
         : null;
-    if (MediaQuery.sizeOf(context).width < 620) {
+    if (MediaQuery.sizeOf(context).width < 620 ||
+        MediaQuery.textScalerOf(context).scale(1) > 1.3) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -151,9 +152,17 @@ class _Filters extends StatelessWidget {
               child: TextField(
                 controller: controller.searchController,
                 onChanged: controller.onSearchChanged,
+                onSubmitted: (_) => controller.submitSearch(),
+                textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
                   hintText: 'search_quotations'.tr,
                   prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: controller.searchText.isEmpty
+                      ? null
+                      : IconButton(
+                          onPressed: controller.clearSearch,
+                          icon: const Icon(Icons.close_rounded),
+                        ),
                   filled: true,
                   fillColor: AppColor.surface,
                   border: OutlineInputBorder(

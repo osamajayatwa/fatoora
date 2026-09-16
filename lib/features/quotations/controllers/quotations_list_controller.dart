@@ -5,6 +5,7 @@ import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/quotations/controllers/quotation_error_mapper.dart';
@@ -38,6 +39,7 @@ class QuotationsListController extends GetxController {
   bool hasMore = false;
   FirestorePageCursor? _pageCursor;
   int _loadGeneration = 0;
+  String _appliedSearchText = '';
   EffectiveBusinessPermissions permissions =
       EffectiveBusinessPermissions.denied;
 
@@ -55,7 +57,9 @@ class QuotationsListController extends GetxController {
   }
 
   Future<void> loadQuotations() async {
+    _searchDebounce?.cancel();
     final generation = ++_loadGeneration;
+    final requestedSearch = serverSearchTerm(searchText);
     statusRequest = StatusRequest.loading;
     _pageCursor = null;
     hasMore = false;
@@ -66,10 +70,11 @@ class QuotationsListController extends GetxController {
       final page = await _repository.fetchQuotationsPage(
         companyId: companyId,
         status: statusFilter,
-        searchText: searchText,
+        searchText: requestedSearch,
       );
       if (generation != _loadGeneration) return;
       quotations = page.items;
+      _appliedSearchText = requestedSearch;
       _pageCursor = page.cursor;
       hasMore = page.hasMore;
       statusRequest = StatusRequest.success;
@@ -96,7 +101,7 @@ class QuotationsListController extends GetxController {
       final page = await _repository.fetchQuotationsPage(
         companyId: companyId,
         status: statusFilter,
-        searchText: searchText,
+        searchText: serverSearchTerm(searchText),
         after: _pageCursor,
       );
       if (generation != _loadGeneration) return;
@@ -115,8 +120,33 @@ class QuotationsListController extends GetxController {
   void onSearchChanged(String value) {
     searchText = value;
     _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 350), loadQuotations);
+    _loadGeneration++;
     update();
+    if (serverSearchTerm(value).isEmpty) {
+      if (_appliedSearchText.isNotEmpty ||
+          statusRequest != StatusRequest.success) {
+        loadQuotations();
+      }
+      return;
+    }
+    _searchDebounce = Timer(serverSearchDebounce, loadQuotations);
+  }
+
+  void submitSearch() {
+    _searchDebounce?.cancel();
+    if (serverSearchTerm(searchText).isEmpty &&
+        _appliedSearchText.isEmpty &&
+        statusRequest == StatusRequest.success) {
+      return;
+    }
+    loadQuotations();
+  }
+
+  void clearSearch() {
+    _searchDebounce?.cancel();
+    searchText = '';
+    searchController.clear();
+    loadQuotations();
   }
 
   void setStatusFilter(QuotationStatus? value) {
@@ -125,6 +155,7 @@ class QuotationsListController extends GetxController {
   }
 
   void clearFilters() {
+    _searchDebounce?.cancel();
     statusFilter = null;
     searchText = '';
     searchController.clear();

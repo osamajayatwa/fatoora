@@ -66,27 +66,35 @@ class CustomerFormScreen extends StatelessWidget {
                           maxLines: 2,
                         ),
                         const SizedBox(height: 14),
-                        Wrap(
-                          spacing: 14,
-                          runSpacing: 14,
-                          children: [
-                            SizedBox(
-                              width: 260,
-                              child: _Field(
-                                controller: controller.cityController,
-                                label: 'city'.tr,
-                                icon: Icons.location_city_outlined,
-                              ),
-                            ),
-                            SizedBox(
-                              width: 260,
-                              child: _Field(
-                                controller: controller.areaController,
-                                label: 'customers_area'.tr,
-                                icon: Icons.place_outlined,
-                              ),
-                            ),
-                          ],
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final stacked = constraints.maxWidth < 580;
+                            final fieldWidth = stacked
+                                ? constraints.maxWidth
+                                : (constraints.maxWidth - 14) / 2;
+                            return Wrap(
+                              spacing: 14,
+                              runSpacing: 14,
+                              children: [
+                                SizedBox(
+                                  width: fieldWidth,
+                                  child: _Field(
+                                    controller: controller.cityController,
+                                    label: 'city'.tr,
+                                    icon: Icons.location_city_outlined,
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: fieldWidth,
+                                  child: _Field(
+                                    controller: controller.areaController,
+                                    label: 'customers_area'.tr,
+                                    icon: Icons.place_outlined,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 14),
                         _Field(

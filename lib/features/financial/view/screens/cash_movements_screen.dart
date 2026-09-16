@@ -72,7 +72,9 @@ class _CashHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 760;
+    final compact =
+        MediaQuery.sizeOf(context).width < 760 ||
+        MediaQuery.textScalerOf(context).scale(1) > 1.3;
     final controls = Wrap(
       spacing: 8,
       runSpacing: 8,

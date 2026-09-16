@@ -56,26 +56,45 @@ class ReceiptFormScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'receipts_current_balance'.trParams({
-                                    'amount':
-                                        (controller.customer?.currentBalance ??
-                                                0)
-                                            .toStringAsFixed(3),
-                                  }),
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(color: AppColor.grey),
-                                ),
-                              ),
-                              TextButton.icon(
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final balance = Text(
+                                'receipts_current_balance'.trParams({
+                                  'amount':
+                                      (controller.customer?.currentBalance ?? 0)
+                                          .toStringAsFixed(3),
+                                }),
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: AppColor.grey),
+                              );
+                              final action = TextButton.icon(
                                 onPressed: controller.useFullBalance,
                                 icon: const Icon(Icons.done_all_rounded),
                                 label: Text('receipts_pay_full_balance'.tr),
-                              ),
-                            ],
+                              );
+                              if (constraints.maxWidth < 520 ||
+                                  MediaQuery.textScalerOf(context).scale(1) >
+                                      1.3) {
+                                return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    balance,
+                                    const SizedBox(height: 4),
+                                    Align(
+                                      alignment: AlignmentDirectional.centerEnd,
+                                      child: action,
+                                    ),
+                                  ],
+                                );
+                              }
+                              return Row(
+                                children: [
+                                  Expanded(child: balance),
+                                  action,
+                                ],
+                              );
+                            },
                           ),
                           const SizedBox(height: 16),
                           _PaymentMethodSelector(controller: controller),

@@ -133,6 +133,10 @@ class CustomerFormController extends GetxController {
               area: areaController.text,
               notes: notesController.text,
             );
+      if (returningCustomer) {
+        await _navigateAfterSave(customer);
+        return;
+      }
       _showSuccess(
         isEditMode
             ? 'customers_updated_successfully'

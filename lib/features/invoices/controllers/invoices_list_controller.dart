@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:fatoora/core/class/statusrequest.dart';
-import 'package:fatoora/core/constants/app_feature_flags.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_context.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_error_mapper.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
@@ -13,7 +13,6 @@ import 'package:fatoora/features/invoices/data/models/invoice_list_query.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/invoices/data/repositories/invoice_repository.dart';
 import 'package:fatoora/features/invoices/data/services/invoice_pdf_service.dart';
-import 'package:fatoora/features/invoices/view/widgets/invoice_type_picker_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:printing/printing.dart';
@@ -50,6 +49,7 @@ class InvoicesListController extends GetxController {
   FirestorePageCursor? _pageCursor;
   int _loadGeneration = 0;
   Timer? _searchDebounce;
+  String _appliedSearchText = '';
 
   String get companyId {
     final args = InvoiceContext.arguments(Get.arguments);
@@ -77,7 +77,9 @@ class InvoicesListController extends GetxController {
   }
 
   Future<void> loadInvoices() async {
+    _searchDebounce?.cancel();
     final generation = ++_loadGeneration;
+    final requestedSearch = serverSearchTerm(searchText);
     final resolvedCompanyId = companyId;
     if (resolvedCompanyId.isEmpty) {
       statusRequest = StatusRequest.unauthorized;
@@ -102,7 +104,7 @@ class InvoicesListController extends GetxController {
         customerId: customerFilter?.id,
         fromDate: fromDate,
         toDate: toDate,
-        searchText: searchText,
+        searchText: requestedSearch,
         sortField: sortField,
         sortDirection: sortDirection,
       );
@@ -110,6 +112,7 @@ class InvoicesListController extends GetxController {
       _pageCursor = page.cursor;
       hasMore = page.hasMore;
       invoices = page.items;
+      _appliedSearchText = requestedSearch;
       statusRequest = StatusRequest.success;
     } catch (error) {
       if (generation != _loadGeneration) return;
@@ -141,7 +144,7 @@ class InvoicesListController extends GetxController {
         customerId: customerFilter?.id,
         fromDate: fromDate,
         toDate: toDate,
-        searchText: searchText,
+        searchText: serverSearchTerm(searchText),
         sortField: sortField,
         sortDirection: sortDirection,
         after: _pageCursor,
@@ -161,9 +164,27 @@ class InvoicesListController extends GetxController {
 
   void onSearchChanged(String value) {
     searchText = value;
-    update();
     _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 350), loadInvoices);
+    _loadGeneration++;
+    update();
+    if (serverSearchTerm(value).isEmpty) {
+      if (_appliedSearchText.isNotEmpty ||
+          statusRequest != StatusRequest.success) {
+        loadInvoices();
+      }
+      return;
+    }
+    _searchDebounce = Timer(serverSearchDebounce, loadInvoices);
+  }
+
+  void submitSearch() {
+    _searchDebounce?.cancel();
+    if (serverSearchTerm(searchText).isEmpty &&
+        _appliedSearchText.isEmpty &&
+        statusRequest == StatusRequest.success) {
+      return;
+    }
+    loadInvoices();
   }
 
   void clearSearch() {
@@ -209,7 +230,7 @@ class InvoicesListController extends GetxController {
   ) {
     return _repository.getInvoiceCustomerFilterOptions(
       companyId: companyId,
-      searchText: searchText,
+      searchText: serverSearchTerm(searchText),
     );
   }
 
@@ -218,7 +239,7 @@ class InvoicesListController extends GetxController {
   ) {
     return _repository.getInvoiceSalesRepFilterOptions(
       companyId: companyId,
-      searchText: searchText,
+      searchText: serverSearchTerm(searchText),
     );
   }
 
@@ -265,36 +286,13 @@ class InvoicesListController extends GetxController {
     loadInvoices();
   }
 
-  void openInvoiceTypePicker() {
-    Get.bottomSheet<void>(
-      InvoiceTypePickerSheet(
-        onRegularSelected: () {
-          Get.back<void>();
-          openCreateForm(InvoiceType.regular);
-        },
-        onElectronicSelected: AppFeatureFlags.jofotaraEnabled
-            ? () {
-                Get.back<void>();
-                openCreateForm(InvoiceType.electronic);
-              }
-            : null,
-        onElectronicDisabledTap: () => _showInfo(
-          'electronic_invoice'.tr,
-          'tax_integration_disabled_body'.tr,
-        ),
-      ),
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-    );
-  }
-
-  Future<void> openCreateForm(InvoiceType type) async {
+  Future<void> openCreateInvoice() async {
     final changed = await Get.toNamed(
       AppRoute.invoiceForm,
       arguments: {
         'mode': 'create',
         'companyId': companyId,
-        'invoiceType': type.value,
+        'invoiceType': InvoiceType.regular.value,
       },
     );
     if (changed == true) await loadInvoices();

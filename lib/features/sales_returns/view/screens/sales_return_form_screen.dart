@@ -378,28 +378,34 @@ class _Totals extends StatelessWidget {
   Widget build(BuildContext context) {
     final money = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
     return DashboardCard(
-      child: Align(
-        alignment: AlignmentDirectional.centerEnd,
-        child: SizedBox(
-          width: 290,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _TotalRow(
-                label: 'subtotal'.tr,
-                value: money.format(controller.subtotal),
-              ),
-              _TotalRow(
-                label: 'tax'.tr,
-                value: money.format(controller.totalTax),
-              ),
-              const Divider(height: 22),
-              _TotalRow(
-                label: 'grand_total'.tr,
-                value: money.format(controller.grandTotal),
-                bold: true,
-              ),
-            ],
+      child: LayoutBuilder(
+        builder: (context, constraints) => Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: SizedBox(
+            width:
+                constraints.maxWidth < 560 ||
+                    MediaQuery.textScalerOf(context).scale(1) > 1.3
+                ? constraints.maxWidth
+                : 290,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _TotalRow(
+                  label: 'subtotal'.tr,
+                  value: money.format(controller.subtotal),
+                ),
+                _TotalRow(
+                  label: 'tax'.tr,
+                  value: money.format(controller.totalTax),
+                ),
+                const Divider(height: 22),
+                _TotalRow(
+                  label: 'grand_total'.tr,
+                  value: money.format(controller.grandTotal),
+                  bold: true,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -490,16 +496,27 @@ class _TotalRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final valueText = Text(
+      value,
+      style: TextStyle(
+        color: AppColor.secondaryColor,
+        fontWeight: bold ? FontWeight.w900 : FontWeight.w700,
+      ),
+    );
+    if (MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(label),
+          const SizedBox(height: 3),
+          Align(alignment: AlignmentDirectional.centerEnd, child: valueText),
+        ],
+      );
+    }
     return Row(
       children: [
         Expanded(child: Text(label)),
-        Text(
-          value,
-          style: TextStyle(
-            color: AppColor.secondaryColor,
-            fontWeight: bold ? FontWeight.w900 : FontWeight.w700,
-          ),
-        ),
+        valueText,
       ],
     );
   }

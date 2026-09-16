@@ -8,6 +8,7 @@ import 'package:fatoora/features/invoices/data/models/invoice_list_query.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/invoices/data/repositories/invoice_repository.dart';
 import 'package:fatoora/features/invoices/view/screens/invoices_list_screen.dart';
+import 'package:fatoora/features/invoices/view/widgets/invoice_actions_menu.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -28,30 +29,40 @@ void main() {
 
     expect(find.byType(InvoiceCard), findsNWidgets(_invoices.length));
     expect(find.byType(DataTable), findsNothing);
-    expect(find.byIcon(Icons.picture_as_pdf_outlined), findsNothing);
+    expect(find.byType(InvoiceActionsMenu), findsNWidgets(_invoices.length));
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'invoice list shows accessible View and PDF actions at 1024 web width',
-    (tester) async {
-      await _pumpInvoiceList(tester, const Size(1024, 800));
+  testWidgets('invoice cards support Arabic at 320px with 2x text', (
+    tester,
+  ) async {
+    await _pumpInvoiceList(
+      tester,
+      const Size(320, 640),
+      locale: const Locale('ar'),
+      textScale: 2,
+    );
 
-      expect(find.byType(DataTable), findsOneWidget);
-      expect(find.byType(InvoiceCard), findsNothing);
-      expect(
-        find.byTooltip('invoice_details'),
-        findsNWidgets(_invoices.length),
-      );
-      expect(find.byTooltip('print_export'), findsNWidgets(_invoices.length));
-      _expectFinderInsideViewport(
-        tester,
-        find.byTooltip('print_export').first,
-        viewportWidth: 1024,
-      );
-      expect(tester.takeException(), isNull);
-    },
-  );
+    expect(find.byType(InvoiceCard), findsNWidgets(_invoices.length));
+    expect(find.byType(DataTable), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('invoice list uses compact action menus at 1024 web width', (
+    tester,
+  ) async {
+    await _pumpInvoiceList(tester, const Size(1024, 800));
+
+    expect(find.byType(DataTable), findsOneWidget);
+    expect(find.byType(InvoiceCard), findsNothing);
+    expect(find.byType(InvoiceActionsMenu), findsNWidgets(_invoices.length));
+    _expectFinderInsideViewport(
+      tester,
+      find.byType(InvoiceActionsMenu).first,
+      viewportWidth: 1024,
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('invoice list uses full table columns at wide web width', (
     tester,
@@ -61,10 +72,10 @@ void main() {
     expect(find.byType(DataTable), findsOneWidget);
     expect(find.text('return_status'), findsWidgets);
     expect(find.text('sales_rep'), findsWidgets);
-    expect(find.byTooltip('print_export'), findsNWidgets(_invoices.length));
+    expect(find.byType(InvoiceActionsMenu), findsNWidgets(_invoices.length));
     _expectFinderInsideViewport(
       tester,
-      find.byTooltip('print_export').last,
+      find.byType(InvoiceActionsMenu).last,
       viewportWidth: 1536,
     );
     expect(tester.takeException(), isNull);
@@ -76,11 +87,10 @@ void main() {
     await _pumpInvoiceList(tester, const Size(1366, 850));
 
     expect(find.byType(DataTable), findsOneWidget);
-    expect(find.byTooltip('invoice_details'), findsNWidgets(_invoices.length));
-    expect(find.byTooltip('print_export'), findsNWidgets(_invoices.length));
+    expect(find.byType(InvoiceActionsMenu), findsNWidgets(_invoices.length));
     _expectFinderInsideViewport(
       tester,
-      find.byTooltip('print_export').last,
+      find.byType(InvoiceActionsMenu).last,
       viewportWidth: 1366,
     );
     expect(tester.takeException(), isNull);
@@ -97,7 +107,7 @@ void main() {
 
     expect(find.byType(DataTable), findsOneWidget);
     expect(find.text('شركة مضخات المياه المتقدمة'), findsOneWidget);
-    expect(find.byTooltip('print_export'), findsNWidgets(_invoices.length));
+    expect(find.byType(InvoiceActionsMenu), findsNWidgets(_invoices.length));
     expect(tester.takeException(), isNull);
   });
 }
@@ -106,6 +116,7 @@ Future<void> _pumpInvoiceList(
   WidgetTester tester,
   Size size, {
   Locale locale = const Locale('en'),
+  double textScale = 1,
 }) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -130,7 +141,16 @@ Future<void> _pumpInvoiceList(
   Get.put<InvoicesListController>(controller);
 
   await tester.pumpWidget(
-    GetMaterialApp(locale: locale, home: const InvoicesListScreen()),
+    GetMaterialApp(
+      locale: locale,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(textScale)),
+        child: child!,
+      ),
+      home: const InvoicesListScreen(),
+    ),
   );
   await tester.pumpAndSettle();
 }

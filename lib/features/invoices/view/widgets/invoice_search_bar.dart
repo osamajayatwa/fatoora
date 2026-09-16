@@ -7,11 +7,13 @@ class InvoiceSearchBar extends StatelessWidget {
     super.key,
     required this.controller,
     required this.onChanged,
+    required this.onSubmitted,
     required this.onClear,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final ValueChanged<String> onSubmitted;
   final VoidCallback onClear;
 
   @override
@@ -19,6 +21,8 @@ class InvoiceSearchBar extends StatelessWidget {
     return TextField(
       controller: controller,
       onChanged: onChanged,
+      onSubmitted: onSubmitted,
+      textInputAction: TextInputAction.search,
       decoration: InputDecoration(
         hintText: 'search_invoices'.tr,
         prefixIcon: const Icon(Icons.search_rounded),

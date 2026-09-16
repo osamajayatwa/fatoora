@@ -85,53 +85,72 @@ class _Filters extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        SizedBox(
-          width: 320,
-          child: TextField(
-            controller: controller.searchController,
-            onChanged: controller.onSearchChanged,
-            decoration: InputDecoration(
-              hintText: 'sales_returns_search_hint'.tr,
-              prefixIcon: const Icon(Icons.search_rounded),
-              filled: true,
-              fillColor: AppColor.surface,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stacked =
+            constraints.maxWidth < 560 ||
+            MediaQuery.textScalerOf(context).scale(1) > 1.3;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            SizedBox(
+              width: stacked ? constraints.maxWidth : 320,
+              child: TextField(
+                controller: controller.searchController,
+                onChanged: controller.onSearchChanged,
+                onSubmitted: (_) => controller.submitSearch(),
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  hintText: 'sales_returns_search_hint'.tr,
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: controller.searchText.isEmpty
+                      ? null
+                      : IconButton(
+                          onPressed: controller.clearSearch,
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                  filled: true,
+                  fillColor: AppColor.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-        DropdownButtonHideUnderline(
-          child: DropdownButton<SalesReturnStatus?>(
-            value: controller.statusFilter,
-            hint: Text('status'.tr),
-            borderRadius: BorderRadius.circular(14),
-            items: [
-              DropdownMenuItem<SalesReturnStatus?>(
-                value: null,
-                child: Text('all'.tr),
-              ),
-              for (final status in SalesReturnStatus.values)
-                DropdownMenuItem<SalesReturnStatus?>(
-                  value: status,
-                  child: Text('sales_return_status_${status.value}'.tr),
+            SizedBox(
+              width: stacked ? constraints.maxWidth : null,
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<SalesReturnStatus?>(
+                  isExpanded: stacked,
+                  value: controller.statusFilter,
+                  hint: Text('status'.tr),
+                  borderRadius: BorderRadius.circular(14),
+                  items: [
+                    DropdownMenuItem<SalesReturnStatus?>(
+                      value: null,
+                      child: Text('all'.tr),
+                    ),
+                    for (final status in SalesReturnStatus.values)
+                      DropdownMenuItem<SalesReturnStatus?>(
+                        value: status,
+                        child: Text('sales_return_status_${status.value}'.tr),
+                      ),
+                  ],
+                  onChanged: controller.setStatusFilter,
                 ),
-            ],
-            onChanged: controller.setStatusFilter,
-          ),
-        ),
-        if (controller.hasFilters)
-          TextButton.icon(
-            onPressed: controller.clearFilters,
-            icon: const Icon(Icons.close_rounded),
-            label: Text('clear_filters'.tr),
-          ),
-      ],
+              ),
+            ),
+            if (controller.hasFilters)
+              TextButton.icon(
+                onPressed: controller.clearFilters,
+                icon: const Icon(Icons.close_rounded),
+                label: Text('clear_filters'.tr),
+              ),
+          ],
+        );
+      },
     );
   }
 }

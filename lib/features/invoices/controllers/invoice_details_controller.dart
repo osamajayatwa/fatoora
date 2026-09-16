@@ -1,5 +1,4 @@
 import 'package:fatoora/core/class/statusrequest.dart';
-import 'package:fatoora/core/constants/app_feature_flags.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/services/services.dart';
@@ -33,17 +32,11 @@ class InvoiceDetailsController extends GetxController
   String companyId = '';
   String invoiceId = '';
   InvoiceModel? invoice;
-  bool isSubmitting = false;
   bool isPrinting = false;
   EffectiveBusinessPermissions permissions =
       EffectiveBusinessPermissions.denied;
 
   bool get canEdit => invoice?.canEdit ?? false;
-  bool get canSubmit =>
-      AppFeatureFlags.jofotaraEnabled &&
-      invoice?.invoiceType == InvoiceType.electronic &&
-      (invoice?.invoiceStatus == InvoiceStatus.draft ||
-          invoice?.invoiceStatus == InvoiceStatus.rejected);
   bool get canCreateSalesReturn =>
       permissions.createReturns &&
       invoice?.invoiceStatus == InvoiceStatus.confirmed &&
@@ -134,28 +127,6 @@ class InvoiceDetailsController extends GetxController
     if (changed == true) await loadInvoice();
   }
 
-  Future<void> submitElectronicInvoicePlaceholder() async {
-    final current = invoice;
-    if (current == null || !canSubmit || isSubmitting) return;
-    isSubmitting = true;
-    update();
-    try {
-      await _repository.submitElectronicInvoicePlaceholder(
-        companyId: current.companyId,
-        invoiceId: current.id,
-      );
-      _showSuccess('submission_success');
-      await loadInvoice();
-    } catch (error) {
-      _showError(
-        InvoiceErrorMapper.messageKey(error, fallback: 'submission_failed'),
-      );
-    } finally {
-      isSubmitting = false;
-      if (!isClosed) update();
-    }
-  }
-
   Future<void> printInvoicePdf() async {
     final current = invoice;
     if (current == null || isPrinting) return;
@@ -176,16 +147,6 @@ class InvoiceDetailsController extends GetxController
 
   Future<void> requestBack() {
     return leaveInvoicePage(fallbackRoute: AppRoute.invoices, result: true);
-  }
-
-  void _showSuccess(String messageKey) {
-    Get.snackbar(
-      'invoices'.tr,
-      messageKey.tr,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: AppColor.success,
-      colorText: AppColor.surface,
-    );
   }
 
   void _showError(String messageKey) {

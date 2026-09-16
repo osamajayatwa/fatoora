@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/services/services.dart';
@@ -146,6 +148,128 @@ void main() {
     expect(controller.sortField, InvoiceSortField.invoiceDate);
   });
 
+  testWidgets(
+    'invoice server search follows debounce, minimum, Enter, and clear',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'companyId': 'default_company',
+        'role': 'admin',
+        'uid': 'admin-1',
+        'name': 'Admin',
+        'approvalStatus': 'approved',
+        'active': true,
+      });
+      final services = await MyServices().init();
+      final repository = _CapturingInvoiceRepository(
+        InvoiceModel.fromMap(const {}, id: 'invoice'),
+      );
+      final controller = InvoicesListController(
+        repository: repository,
+        myServices: services,
+      )..statusRequest = StatusRequest.success;
+      addTearDown(controller.onClose);
+
+      controller.onSearchChanged('a');
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(repository.calls, isEmpty);
+
+      controller.onSearchChanged('ac');
+      await tester.pump(const Duration(milliseconds: 449));
+      expect(repository.calls, isEmpty);
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump();
+      expect(repository.calls.single.searchText, 'ac');
+
+      controller.onSearchChanged('acme');
+      controller.submitSearch();
+      await tester.pump();
+      expect(repository.calls.last.searchText, 'acme');
+      expect(repository.calls, hasLength(2));
+
+      controller.clearSearch();
+      await tester.pump();
+      expect(repository.calls.last.searchText, '');
+      expect(controller.invoices, isNotEmpty);
+    },
+  );
+
+  testWidgets('create invoice opens the form directly as a regular invoice', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'companyId': 'default_company',
+      'role': 'admin',
+      'uid': 'admin-1',
+      'name': 'Admin',
+      'approvalStatus': 'approved',
+      'active': true,
+    });
+    final services = await MyServices().init();
+    final controller = InvoicesListController(
+      repository: _CapturingInvoiceRepository(
+        InvoiceModel.fromMap(const {}, id: 'invoice'),
+      ),
+      myServices: services,
+    );
+    addTearDown(controller.onClose);
+    Map<dynamic, dynamic>? receivedArguments;
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: const SizedBox.shrink(),
+        getPages: [
+          GetPage(
+            name: AppRoute.invoiceForm,
+            page: () {
+              receivedArguments = Get.arguments as Map<dynamic, dynamic>?;
+              return const SizedBox.shrink();
+            },
+          ),
+        ],
+      ),
+    );
+
+    final navigation = controller.openCreateInvoice();
+    await tester.pumpAndSettle();
+    expect(Get.currentRoute, AppRoute.invoiceForm);
+    expect(receivedArguments?['mode'], 'create');
+    expect(receivedArguments?['invoiceType'], InvoiceType.regular.value);
+
+    Get.back(result: false);
+    await tester.pumpAndSettle();
+    await navigation;
+  });
+
+  test('older invoice search response cannot replace a newer result', () async {
+    SharedPreferences.setMockInitialValues({
+      'companyId': 'default_company',
+      'role': 'admin',
+      'uid': 'admin-1',
+      'name': 'Admin',
+      'approvalStatus': 'approved',
+      'active': true,
+    });
+    final services = await MyServices().init();
+    final repository = _DelayedInvoiceRepository();
+    final controller = InvoicesListController(
+      repository: repository,
+      myServices: services,
+    );
+    addTearDown(controller.onClose);
+
+    controller.searchText = 'older';
+    final olderLoad = controller.loadInvoices();
+    controller.searchText = 'newer';
+    final newerLoad = controller.loadInvoices();
+
+    repository.complete('newer', 'newer-result');
+    await newerLoad;
+    expect(controller.invoices.single.id, 'newer-result');
+
+    repository.complete('older', 'older-result');
+    await olderLoad;
+    expect(controller.invoices.single.id, 'newer-result');
+  });
+
   test('index manifest covers every filter/sort direction and search sort', () {
     final manifest =
         jsonDecode(File('firestore.indexes.json').readAsStringSync())
@@ -255,6 +379,7 @@ class _CapturingInvoiceRepository implements InvoiceRepository {
 
   final InvoiceModel resultInvoice;
   _InvoicePageCall? lastCall;
+  final List<_InvoicePageCall> calls = [];
 
   @override
   Future<FirestorePage<InvoiceModel>> getInvoicesPage({
@@ -273,7 +398,7 @@ class _CapturingInvoiceRepository implements InvoiceRepository {
     FirestorePageCursor? after,
     int pageSize = 50,
   }) async {
-    lastCall = _InvoicePageCall(
+    final call = _InvoicePageCall(
       companyId: companyId,
       type: type,
       status: status,
@@ -287,7 +412,48 @@ class _CapturingInvoiceRepository implements InvoiceRepository {
       sortField: sortField,
       sortDirection: sortDirection,
     );
+    lastCall = call;
+    calls.add(call);
     return FirestorePage(items: [resultInvoice], cursor: null, hasMore: false);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _DelayedInvoiceRepository implements InvoiceRepository {
+  final Map<String, Completer<FirestorePage<InvoiceModel>>> _pending = {};
+
+  void complete(String searchText, String invoiceId) {
+    _pending[searchText]!.complete(
+      FirestorePage(
+        items: [InvoiceModel.fromMap(const {}, id: invoiceId)],
+        cursor: null,
+        hasMore: false,
+      ),
+    );
+  }
+
+  @override
+  Future<FirestorePage<InvoiceModel>> getInvoicesPage({
+    required String companyId,
+    InvoiceType? type,
+    InvoiceStatus? status,
+    PaymentStatus? paymentStatus,
+    InvoiceReturnStatus? returnStatus,
+    String? salesRepId,
+    String? customerId,
+    DateTime? fromDate,
+    DateTime? toDate,
+    String? searchText,
+    InvoiceSortField sortField = InvoiceSortField.invoiceDate,
+    InvoiceSortDirection sortDirection = InvoiceSortDirection.descending,
+    FirestorePageCursor? after,
+    int pageSize = 50,
+  }) {
+    final completer = Completer<FirestorePage<InvoiceModel>>();
+    _pending[searchText ?? ''] = completer;
+    return completer.future;
   }
 
   @override

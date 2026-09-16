@@ -7,6 +7,7 @@ import 'package:fatoora/features/invoices/controllers/invoices_list_controller.d
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/invoices/view/widgets/empty_invoices_widget.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_card.dart';
+import 'package:fatoora/features/invoices/view/widgets/invoice_actions_menu.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_filter_bar.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_search_bar.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_status_chip.dart';
@@ -51,6 +52,7 @@ class InvoicesListScreen extends StatelessWidget {
                             InvoiceSearchBar(
                               controller: controller.searchController,
                               onChanged: controller.onSearchChanged,
+                              onSubmitted: (_) => controller.submitSearch(),
                               onClear: controller.clearSearch,
                             ),
                             const SizedBox(height: 14),
@@ -138,7 +140,6 @@ class _InvoicesHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 620;
     final title = Text(
       'invoices'.tr,
       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -147,7 +148,7 @@ class _InvoicesHeader extends StatelessWidget {
       ),
     );
     final action = FilledButton.icon(
-      onPressed: controller.openInvoiceTypePicker,
+      onPressed: controller.openCreateInvoice,
       style: FilledButton.styleFrom(
         backgroundColor: AppColor.primaryColor,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -156,18 +157,24 @@ class _InvoicesHeader extends StatelessWidget {
       label: Text('create_invoice'.tr),
     );
 
-    if (compact) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [title, const SizedBox(height: 12), action],
-      );
-    }
-    return Row(
-      children: [
-        Expanded(child: title),
-        const SizedBox(width: 16),
-        action,
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final compact = constraints.maxWidth < 620 || textScale > 1.3;
+        if (compact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [title, const SizedBox(height: 12), action],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: title),
+            const SizedBox(width: 16),
+            action,
+          ],
+        );
+      },
     );
   }
 }
@@ -360,7 +367,18 @@ class _InvoicesTableState extends State<_InvoicesTable> {
         DataCell(
           _BoundedCell(invoice.salesRepName, width: mode.createdByWidth),
         ),
-      DataCell(_TableActions(controller: widget.controller, invoice: invoice)),
+      DataCell(
+        InvoiceActionsMenu(
+          showView: true,
+          showDelete: true,
+          canEdit: invoice.canEdit,
+          canDelete: invoice.canDelete,
+          onView: () => widget.controller.openDetails(invoice),
+          onEdit: () => widget.controller.editInvoice(invoice),
+          onDelete: () => widget.controller.deleteDraftInvoice(invoice),
+          onPrint: () => widget.controller.printInvoicePdf(invoice),
+        ),
+      ),
     ];
   }
 }
@@ -411,70 +429,6 @@ class _BoundedCell extends StatelessWidget {
     );
     if (text.isEmpty) return child;
     return Tooltip(message: text, child: child);
-  }
-}
-
-enum _InvoiceRowAction { edit, delete }
-
-class _TableActions extends StatelessWidget {
-  const _TableActions({required this.controller, required this.invoice});
-
-  final InvoicesListController controller;
-  final InvoiceModel invoice;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 144,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            tooltip: 'invoice_details'.tr,
-            onPressed: () => controller.openDetails(invoice),
-            icon: const Icon(Icons.visibility_outlined),
-            color: AppColor.secondaryColor,
-          ),
-          IconButton(
-            tooltip: 'print_export'.tr,
-            onPressed: () => controller.printInvoicePdf(invoice),
-            icon: const Icon(Icons.picture_as_pdf_outlined),
-            color: AppColor.primaryColor,
-          ),
-          PopupMenuButton<_InvoiceRowAction>(
-            tooltip: 'actions'.tr,
-            onSelected: (action) {
-              switch (action) {
-                case _InvoiceRowAction.edit:
-                  controller.editInvoice(invoice);
-                case _InvoiceRowAction.delete:
-                  controller.deleteDraftInvoice(invoice);
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: _InvoiceRowAction.edit,
-                enabled: invoice.canEdit,
-                child: ListTile(
-                  dense: true,
-                  leading: const Icon(Icons.edit_outlined),
-                  title: Text('edit_invoice'.tr),
-                ),
-              ),
-              PopupMenuItem(
-                value: _InvoiceRowAction.delete,
-                enabled: invoice.canDelete,
-                child: ListTile(
-                  dense: true,
-                  leading: const Icon(Icons.delete_outline_rounded),
-                  title: Text('delete_invoice'.tr),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 }
 

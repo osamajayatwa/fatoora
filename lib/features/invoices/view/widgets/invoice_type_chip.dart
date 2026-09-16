@@ -28,11 +28,13 @@ class InvoiceTypeChip extends StatelessWidget {
             color: color,
           ),
           const SizedBox(width: 6),
-          Text(
-            (electronic ? 'electronic_invoice' : 'regular_invoice').tr,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
+          Flexible(
+            child: Text(
+              (electronic ? 'electronic_invoice' : 'regular_invoice').tr,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],

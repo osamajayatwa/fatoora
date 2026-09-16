@@ -18,6 +18,11 @@ class Language extends GetView<LocaleController> {
     final height = media.size.height;
     final width = media.size.width;
     final isPortrait = media.orientation == Orientation.portrait;
+    final panelWidth = (isPortrait ? width * .9 : width * .72)
+        .clamp(280.0, 680.0)
+        .toDouble();
+    final panelHeight = (height - 32).clamp(260.0, 720.0).toDouble();
+    final contentPadding = (panelWidth * .07).clamp(16.0, 42.0).toDouble();
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -55,8 +60,8 @@ class Language extends GetView<LocaleController> {
           Center(
             child:
                 GlassContainer(
-                      height: isPortrait ? height * 0.7 : height * 0.8,
-                      width: isPortrait ? width * 0.9 : width * 0.6,
+                      height: panelHeight,
+                      width: panelWidth,
                       blur: 25,
                       color: colorScheme.surface.withValues(alpha: 0.05),
                       gradient: LinearGradient(
@@ -76,19 +81,27 @@ class Language extends GetView<LocaleController> {
                       shadowColor: Colors.white.withValues(alpha: 0.2),
                       child: Padding(
                         padding: EdgeInsets.symmetric(
-                          horizontal: width * 0.07,
-                          vertical: height * 0.05,
+                          horizontal: contentPadding,
+                          vertical: (height * .05).clamp(16.0, 36.0).toDouble(),
                         ),
                         child: SingleChildScrollView(
                           physics: const BouncingScrollPhysics(),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              _buildTitle(width, colorScheme),
-                              SizedBox(height: height * 0.05),
-                              _buildLanguageOptions(width, colorScheme),
-                              SizedBox(height: height * 0.06),
-                              _buildContinueButton(width, colorScheme),
+                              _buildTitle(panelWidth, colorScheme),
+                              SizedBox(
+                                height: (height * .05)
+                                    .clamp(18.0, 34.0)
+                                    .toDouble(),
+                              ),
+                              _buildLanguageOptions(panelWidth, colorScheme),
+                              SizedBox(
+                                height: (height * .06)
+                                    .clamp(20.0, 40.0)
+                                    .toDouble(),
+                              ),
+                              _buildContinueButton(panelWidth, colorScheme),
                             ],
                           ),
                         ),
@@ -107,12 +120,16 @@ class Language extends GetView<LocaleController> {
   Widget _buildTitle(double width, ColorScheme colorScheme) {
     return Column(
       children: [
-        Icon(Icons.language_rounded, size: width * 0.15, color: Colors.white),
+        Icon(
+          Icons.language_rounded,
+          size: (width * .15).clamp(48.0, 86.0).toDouble(),
+          color: Colors.white,
+        ),
         const SizedBox(height: 12),
         Text(
           "Choose Language".tr,
           style: TextStyle(
-            fontSize: width * 0.065,
+            fontSize: (width * .065).clamp(24.0, 38.0).toDouble(),
             color: Colors.white,
             fontWeight: FontWeight.w900,
             letterSpacing: 1.2,
@@ -124,7 +141,7 @@ class Language extends GetView<LocaleController> {
           "Select your preferred language".tr,
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.9),
-            fontSize: width * 0.035,
+            fontSize: (width * .035).clamp(14.0, 20.0).toDouble(),
             fontWeight: FontWeight.w400,
           ),
           textAlign: TextAlign.center,
@@ -145,7 +162,7 @@ class Language extends GetView<LocaleController> {
           delay: 250,
           colorScheme: colorScheme,
         ),
-        SizedBox(height: width * 0.05),
+        SizedBox(height: (width * .05).clamp(14.0, 28.0).toDouble()),
         _buildLanguageOption(
           langCode: "ar",
           label: "العربية",
@@ -247,16 +264,15 @@ class Language extends GetView<LocaleController> {
             borderRadius: BorderRadius.circular(22),
           ),
           padding: EdgeInsets.symmetric(
-            horizontal: width * 0.15,
-            vertical: width * 0.04,
+            horizontal: (width * .15).clamp(20.0, 56.0).toDouble(),
+            vertical: (width * .04).clamp(12.0, 20.0).toDouble(),
           ),
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            double responsiveFontSize = (constraints.maxWidth * 0.05).clamp(
-              14,
-              22,
-            );
+            final responsiveFontSize = (constraints.maxWidth * 0.05)
+                .clamp(14.0, 22.0)
+                .toDouble();
 
             return Row(
               mainAxisAlignment: MainAxisAlignment.center,

@@ -4,6 +4,7 @@ import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/features/sales_returns/controllers/sales_return_error_mapper.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_enums.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_model.dart';
@@ -28,6 +29,8 @@ class SalesReturnsListController extends GetxController {
   SalesReturnStatus? statusFilter;
   String searchText = '';
   Timer? _searchDebounce;
+  int _loadGeneration = 0;
+  String _appliedSearchText = '';
 
   String get companyId =>
       _myServices.sharedPreferences.getString('companyId') ?? 'default_company';
@@ -41,17 +44,24 @@ class SalesReturnsListController extends GetxController {
   }
 
   Future<void> loadSalesReturns() async {
+    _searchDebounce?.cancel();
+    final generation = ++_loadGeneration;
+    final requestedSearch = serverSearchTerm(searchText);
     statusRequest = StatusRequest.loading;
     loadErrorMessageKey = 'sales_returns_load_error';
     update();
     try {
-      salesReturns = await _repository.fetchSalesReturns(
+      final loadedReturns = await _repository.fetchSalesReturns(
         companyId: companyId,
         status: statusFilter,
-        searchText: searchText,
+        searchText: requestedSearch,
       );
+      if (generation != _loadGeneration) return;
+      salesReturns = loadedReturns;
+      _appliedSearchText = requestedSearch;
       statusRequest = StatusRequest.success;
     } catch (error) {
+      if (generation != _loadGeneration) return;
       statusRequest = SalesReturnErrorMapper.status(error);
       loadErrorMessageKey = SalesReturnErrorMapper.messageKey(
         error,
@@ -67,11 +77,33 @@ class SalesReturnsListController extends GetxController {
   void onSearchChanged(String value) {
     searchText = value;
     _searchDebounce?.cancel();
-    _searchDebounce = Timer(
-      const Duration(milliseconds: 350),
-      loadSalesReturns,
-    );
+    _loadGeneration++;
     update();
+    if (serverSearchTerm(value).isEmpty) {
+      if (_appliedSearchText.isNotEmpty ||
+          statusRequest != StatusRequest.success) {
+        loadSalesReturns();
+      }
+      return;
+    }
+    _searchDebounce = Timer(serverSearchDebounce, loadSalesReturns);
+  }
+
+  void submitSearch() {
+    _searchDebounce?.cancel();
+    if (serverSearchTerm(searchText).isEmpty &&
+        _appliedSearchText.isEmpty &&
+        statusRequest == StatusRequest.success) {
+      return;
+    }
+    loadSalesReturns();
+  }
+
+  void clearSearch() {
+    _searchDebounce?.cancel();
+    searchText = '';
+    searchController.clear();
+    loadSalesReturns();
   }
 
   void setStatusFilter(SalesReturnStatus? value) {
@@ -80,6 +112,7 @@ class SalesReturnsListController extends GetxController {
   }
 
   void clearFilters() {
+    _searchDebounce?.cancel();
     statusFilter = null;
     searchText = '';
     searchController.clear();

@@ -4,6 +4,7 @@ import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/controllers/customer_error_mapper.dart';
@@ -31,6 +32,8 @@ class CustomersController extends GetxController {
   String searchText = '';
   String loadErrorMessageKey = 'customers_load_error';
   Timer? _searchDebounce;
+  int _loadGeneration = 0;
+  String _appliedSearchText = '';
   EffectiveBusinessPermissions permissions =
       EffectiveBusinessPermissions.denied;
 
@@ -48,17 +51,25 @@ class CustomersController extends GetxController {
   }
 
   Future<void> loadCustomers() async {
+    _searchDebounce?.cancel();
+    final generation = ++_loadGeneration;
+    final requestedSearch = serverSearchTerm(searchText);
     statusRequest = StatusRequest.loading;
     loadErrorMessageKey = 'customers_load_error';
     update();
     try {
-      permissions = await _permissionResolver.resolve(companyId);
-      customers = await _repository.fetchCustomers(
+      final resolvedPermissions = await _permissionResolver.resolve(companyId);
+      final loadedCustomers = await _repository.fetchCustomers(
         companyId: companyId,
-        searchText: searchText,
+        searchText: requestedSearch,
       );
+      if (generation != _loadGeneration) return;
+      permissions = resolvedPermissions;
+      customers = loadedCustomers;
+      _appliedSearchText = requestedSearch;
       statusRequest = StatusRequest.success;
     } catch (error) {
+      if (generation != _loadGeneration) return;
       statusRequest = CustomerErrorMapper.status(error);
       loadErrorMessageKey = CustomerErrorMapper.messageKey(
         error,
@@ -73,12 +84,31 @@ class CustomersController extends GetxController {
 
   void onSearchChanged(String value) {
     searchText = value;
-    update();
     _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 350), loadCustomers);
+    _loadGeneration++;
+    update();
+    if (serverSearchTerm(value).isEmpty) {
+      if (_appliedSearchText.isNotEmpty ||
+          statusRequest != StatusRequest.success) {
+        loadCustomers();
+      }
+      return;
+    }
+    _searchDebounce = Timer(serverSearchDebounce, loadCustomers);
+  }
+
+  void submitSearch() {
+    _searchDebounce?.cancel();
+    if (serverSearchTerm(searchText).isEmpty &&
+        _appliedSearchText.isEmpty &&
+        statusRequest == StatusRequest.success) {
+      return;
+    }
+    loadCustomers();
   }
 
   void clearSearch() {
+    _searchDebounce?.cancel();
     searchText = '';
     searchController.clear();
     loadCustomers();

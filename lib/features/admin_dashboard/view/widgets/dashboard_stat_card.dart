@@ -51,7 +51,6 @@ class DashboardStatCard extends StatelessWidget {
           const Spacer(),
           Text(
             stat.value,
-            maxLines: 1,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               color: context.appText,
               fontWeight: FontWeight.w800,
@@ -73,11 +72,13 @@ class DashboardStatCard extends StatelessWidget {
                 color: AppColor.success,
               ),
               const SizedBox(width: 4),
-              Text(
-                stat.change,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: AppColor.success,
-                  fontWeight: FontWeight.w700,
+              Flexible(
+                child: Text(
+                  stat.change,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: AppColor.success,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               const SizedBox(width: 5),

@@ -224,92 +224,105 @@ class _InvoiceDetailsCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 14,
-            runSpacing: 14,
-            children: [
-              SizedBox(
-                width: 260,
-                child: TextFormField(
-                  controller: controller.invoiceNumberController,
-                  readOnly: controller.readOnly,
-                  decoration: InputDecoration(
-                    labelText: 'invoice_number'.tr,
-                    prefixIcon: const Icon(Icons.tag_rounded),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked =
+                  constraints.maxWidth < 620 ||
+                  MediaQuery.textScalerOf(context).scale(1) > 1.3;
+              double width(double preferred) =>
+                  stacked ? constraints.maxWidth : preferred;
+              return Wrap(
+                spacing: 14,
+                runSpacing: 14,
+                children: [
+                  SizedBox(
+                    width: width(260),
+                    child: TextFormField(
+                      controller: controller.invoiceNumberController,
+                      readOnly: controller.readOnly,
+                      decoration: InputDecoration(
+                        labelText: 'invoice_number'.tr,
+                        prefixIcon: const Icon(Icons.tag_rounded),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                          ? 'invoice_number_required'.tr
+                          : null,
                     ),
                   ),
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'invoice_number_required'.tr
-                      : null,
-                ),
-              ),
-              SizedBox(
-                width: 240,
-                child: OutlinedButton.icon(
-                  onPressed: controller.readOnly
-                      ? null
-                      : () async {
-                          final selected = await showDatePicker(
-                            context: context,
-                            initialDate: controller.invoiceDate,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(DateTime.now().year + 2),
-                          );
-                          if (selected != null) {
-                            controller.setInvoiceDate(selected);
-                          }
-                        },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColor.secondaryColor,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 18,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  icon: const Icon(Icons.calendar_today_outlined, size: 18),
-                  label: Text(
-                    '${'invoice_date'.tr}: ${DateFormat.yMMMd().format(controller.invoiceDate)}',
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: 240,
-                child: OutlinedButton.icon(
-                  onPressed: controller.readOnly
-                      ? null
-                      : () async {
-                          final selected = await showDatePicker(
-                            context: context,
-                            initialDate: controller.dueDate,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(DateTime.now().year + 2),
-                          );
-                          if (selected != null) {
-                            controller.setDueDate(selected);
-                          }
-                        },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColor.secondaryColor,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 18,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                  SizedBox(
+                    width: width(240),
+                    child: OutlinedButton.icon(
+                      onPressed: controller.readOnly
+                          ? null
+                          : () async {
+                              final selected = await showDatePicker(
+                                context: context,
+                                initialDate: controller.invoiceDate,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(DateTime.now().year + 2),
+                              );
+                              if (selected != null) {
+                                controller.setInvoiceDate(selected);
+                              }
+                            },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColor.secondaryColor,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 18,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: const Icon(Icons.calendar_today_outlined, size: 18),
+                      label: Text(
+                        '${'invoice_date'.tr}: ${DateFormat.yMMMd().format(controller.invoiceDate)}',
+                      ),
                     ),
                   ),
-                  icon: const Icon(Icons.event_available_outlined, size: 18),
-                  label: Text(
-                    '${'invoice_due_date'.tr}: ${DateFormat.yMMMd().format(controller.dueDate)}',
+                  SizedBox(
+                    width: width(240),
+                    child: OutlinedButton.icon(
+                      onPressed: controller.readOnly
+                          ? null
+                          : () async {
+                              final selected = await showDatePicker(
+                                context: context,
+                                initialDate: controller.dueDate,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(DateTime.now().year + 2),
+                              );
+                              if (selected != null) {
+                                controller.setDueDate(selected);
+                              }
+                            },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColor.secondaryColor,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 18,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: const Icon(
+                        Icons.event_available_outlined,
+                        size: 18,
+                      ),
+                      label: Text(
+                        '${'invoice_due_date'.tr}: ${DateFormat.yMMMd().format(controller.dueDate)}',
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ],
+                ],
+              );
+            },
           ),
         ],
       ),

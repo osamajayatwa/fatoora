@@ -117,7 +117,7 @@ class _StatsGrid extends StatelessWidget {
               .map(
                 (stat) => SizedBox(
                   width: width,
-                  height: 190 + ((textScale - 1).clamp(0, 1) * 72),
+                  height: 190 + ((textScale - 1).clamp(0, 1).toDouble() * 72),
                   child: DashboardStatCard(stat: stat),
                 ),
               )
@@ -151,7 +151,8 @@ class _ResponsivePair extends StatelessWidget {
           );
         }
         return SizedBox(
-          height: desktopHeight + ((textScale - 1).clamp(0, .3) * 160),
+          height:
+              desktopHeight + ((textScale - 1).clamp(0, .3).toDouble() * 160),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

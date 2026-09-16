@@ -69,7 +69,9 @@ class _CustomersHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 620;
+    final compact =
+        MediaQuery.sizeOf(context).width < 620 ||
+        MediaQuery.textScalerOf(context).scale(1) > 1.3;
     final title = Text(
       'customers'.tr,
       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -116,6 +118,8 @@ class _CustomerSearch extends StatelessWidget {
     return TextField(
       controller: controller.searchController,
       onChanged: controller.onSearchChanged,
+      onSubmitted: (_) => controller.submitSearch(),
+      textInputAction: TextInputAction.search,
       decoration: InputDecoration(
         hintText: 'customers_search_hint'.tr,
         prefixIcon: const Icon(Icons.search_rounded),

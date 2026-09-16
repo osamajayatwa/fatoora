@@ -52,6 +52,9 @@ build/
 .env
 .env.*
 !functions/.env.example
+config/firebase/staging.android.json
+config/firebase/staging.web.json
+config/firebase/staging.windows.json
 
 # =========================
 # Firebase

@@ -69,51 +69,73 @@ class _DetailsHeader extends StatelessWidget {
     final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
     final statusColor = _statusColor(expense.status);
     return DashboardCard(
-      child: Row(
-        children: [
-          IconButton.filledTonal(
-            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-            onPressed: () => Get.back(result: true),
-            icon: Icon(
-              Directionality.of(context) == ui.TextDirection.rtl
-                  ? Icons.arrow_forward_rounded
-                  : Icons.arrow_back_rounded,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _categoryLabel(expense).tr,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: AppColor.secondaryColor,
-                    fontWeight: FontWeight.w900,
-                  ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stacked =
+              constraints.maxWidth < 520 ||
+              MediaQuery.textScalerOf(context).scale(1) > 1.3;
+          final identity = Row(
+            children: [
+              IconButton.filledTonal(
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                onPressed: () => Get.back(result: true),
+                icon: Icon(
+                  Directionality.of(context) == ui.TextDirection.rtl
+                      ? Icons.arrow_forward_rounded
+                      : Icons.arrow_back_rounded,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  expense.status.labelKey.tr,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: statusColor,
-                    fontWeight: FontWeight.w800,
-                  ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _categoryLabel(expense).tr,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            color: AppColor.secondaryColor,
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      expense.status.labelKey.tr,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: statusColor,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
+              ),
+            ],
+          );
+          final amount = Text(
             currency.format(expense.amount),
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               color: AppColor.error,
               fontWeight: FontWeight.w900,
             ),
-          ),
-        ],
+          );
+          if (stacked) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                identity,
+                const SizedBox(height: 12),
+                Align(alignment: AlignmentDirectional.centerEnd, child: amount),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: identity),
+              const SizedBox(width: 12),
+              amount,
+            ],
+          );
+        },
       ),
     );
   }
@@ -167,29 +189,37 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 9),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 210,
-            child: Text(
-              labelKey.tr,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColor.grey),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final label = Text(
+            labelKey.tr,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColor.grey),
+          );
+          final detail = Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppColor.secondaryColor,
+              fontWeight: FontWeight.w700,
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              value,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColor.secondaryColor,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
+          );
+          if (constraints.maxWidth < 560 ||
+              MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [label, const SizedBox(height: 4), detail],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: 210, child: label),
+              const SizedBox(width: 12),
+              Expanded(child: detail),
+            ],
+          );
+        },
       ),
     );
   }

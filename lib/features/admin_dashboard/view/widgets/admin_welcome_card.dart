@@ -144,11 +144,13 @@ class _WelcomeMetric extends StatelessWidget {
         children: [
           Icon(icon, size: 17, color: Colors.white),
           const SizedBox(width: 8),
-          Text(
-            '$label  $value',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
+          Flexible(
+            child: Text(
+              '$label  $value',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],

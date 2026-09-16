@@ -86,9 +86,17 @@ class _MovementFilters extends StatelessWidget {
           child: TextField(
             controller: controller.searchController,
             onChanged: controller.onSearchChanged,
+            onSubmitted: (_) => controller.submitSearch(),
+            textInputAction: TextInputAction.search,
             decoration: InputDecoration(
               hintText: 'stock_movement_search'.tr,
               prefixIcon: const Icon(Icons.search_rounded),
+              suffixIcon: controller.searchText.isEmpty
+                  ? null
+                  : IconButton(
+                      onPressed: controller.clearSearch,
+                      icon: const Icon(Icons.close_rounded),
+                    ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
               ),

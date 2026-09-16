@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/features/auth/data/models/app_user_model.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/items/data/models/item_model.dart';
@@ -211,6 +214,10 @@ class InventoryTransfersController extends GetxController
   DateTime? fromDate;
   DateTime? toDate;
   String errorKey = 'rep_inventory_error_unknown';
+  String searchText = '';
+  Timer? _searchDebounce;
+  int _loadGeneration = 0;
+  String _appliedSearchText = '';
 
   @override
   void onReady() {
@@ -219,6 +226,9 @@ class InventoryTransfersController extends GetxController
   }
 
   Future<void> load() async {
+    _searchDebounce?.cancel();
+    final generation = ++_loadGeneration;
+    final requestedSearch = serverSearchTerm(searchText);
     statusRequest = StatusRequest.loading;
     update();
     try {
@@ -232,17 +242,21 @@ class InventoryTransfersController extends GetxController
           selectedSalesRepId = '';
         }
       }
-      transfers = await _repository.fetchTransfers(
+      final loadedTransfers = await _repository.fetchTransfers(
         companyId: companyId,
         salesRepId: selectedSalesRepId,
         status: statusFilter,
         type: typeFilter,
         fromDate: fromDate,
         toDate: toDate,
-        searchText: searchController.text,
+        searchText: requestedSearch,
       );
+      if (generation != _loadGeneration) return;
+      transfers = loadedTransfers;
+      _appliedSearchText = requestedSearch;
       statusRequest = StatusRequest.success;
     } catch (error) {
+      if (generation != _loadGeneration) return;
       statusRequest = StatusRequest.failure;
       errorKey = inventoryErrorMessage(error);
     }
@@ -254,6 +268,38 @@ class InventoryTransfersController extends GetxController
     arguments: {'transferId': transfer.id},
   );
   void create() => Get.toNamed(AppRoute.repInventoryTransferForm);
+
+  void onSearchChanged(String value) {
+    searchText = value;
+    _searchDebounce?.cancel();
+    _loadGeneration++;
+    update();
+    if (serverSearchTerm(value).isEmpty) {
+      if (_appliedSearchText.isNotEmpty ||
+          statusRequest != StatusRequest.success) {
+        load();
+      }
+      return;
+    }
+    _searchDebounce = Timer(serverSearchDebounce, load);
+  }
+
+  void submitSearch() {
+    _searchDebounce?.cancel();
+    if (serverSearchTerm(searchText).isEmpty &&
+        _appliedSearchText.isEmpty &&
+        statusRequest == StatusRequest.success) {
+      return;
+    }
+    load();
+  }
+
+  void clearSearch() {
+    _searchDebounce?.cancel();
+    searchText = '';
+    searchController.clear();
+    load();
+  }
 
   Future<void> selectDateRange(BuildContext context) async {
     final now = DateTime.now();
@@ -272,6 +318,7 @@ class InventoryTransfersController extends GetxController
   }
 
   void clearFilters() {
+    _searchDebounce?.cancel();
     selectedSalesRepId = '';
     statusFilter = null;
     typeFilter = null;
@@ -282,6 +329,7 @@ class InventoryTransfersController extends GetxController
 
   @override
   void onClose() {
+    _searchDebounce?.cancel();
     searchController.dispose();
     super.onClose();
   }

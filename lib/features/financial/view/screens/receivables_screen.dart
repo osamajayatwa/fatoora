@@ -70,7 +70,9 @@ class _ReceivablesHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
-    final compact = MediaQuery.sizeOf(context).width < 680;
+    final compact =
+        MediaQuery.sizeOf(context).width < 680 ||
+        MediaQuery.textScalerOf(context).scale(1) > 1.3;
     final title = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

@@ -5,6 +5,7 @@ import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/financial_ledger/data/models/financial_ledger_entry.dart';
 import 'package:fatoora/features/financial_ledger/data/models/financial_ledger_filters.dart';
@@ -43,14 +44,14 @@ class FinancialLedgerController extends GetxController {
   bool isExporting = false;
   bool isCopying = false;
   Timer? _searchDebounce;
+  int _loadGeneration = 0;
 
   String get companyId =>
       _myServices.sharedPreferences.getString('companyId') ??
       AuthRepository.defaultCompanyId;
 
   bool get searchTooShort {
-    final length = normalizeLedgerSearch(searchController.text).length;
-    return length == 1;
+    return serverSearchIsTooShort(normalizeLedgerSearch(searchController.text));
   }
 
   List<LedgerFilterOption> get accountOptions {
@@ -95,15 +96,22 @@ class FinancialLedgerController extends GetxController {
   }
 
   Future<void> loadInitial() async {
+    _searchDebounce?.cancel();
+    final generation = ++_loadGeneration;
+    final requestedFilters = filters;
     statusRequest = StatusRequest.loading;
     loadErrorMessageKey = 'ledger_load_error';
     update();
     try {
       final results = await Future.wait<Object>([
-        _repository.fetchPage(companyId: companyId, filters: filters),
-        _repository.fetchSummary(companyId: companyId, filters: filters),
+        _repository.fetchPage(companyId: companyId, filters: requestedFilters),
+        _repository.fetchSummary(
+          companyId: companyId,
+          filters: requestedFilters,
+        ),
         _repository.fetchLookups(companyId),
       ]);
+      if (generation != _loadGeneration) return;
       final page = results[0] as FinancialLedgerPage;
       entries = page.entries;
       _cursor = page.cursor;
@@ -112,6 +120,7 @@ class FinancialLedgerController extends GetxController {
       lookups = results[2] as FinancialLedgerLookups;
       statusRequest = StatusRequest.success;
     } catch (error) {
+      if (generation != _loadGeneration) return;
       statusRequest = _statusFor(error);
       loadErrorMessageKey = _messageFor(error);
     }
@@ -123,6 +132,7 @@ class FinancialLedgerController extends GetxController {
   Future<void> loadMore() async {
     if (isLoadingMore || !hasMore || _cursor == null) return;
     isLoadingMore = true;
+    final generation = _loadGeneration;
     update();
     try {
       final page = await _repository.fetchPage(
@@ -130,10 +140,12 @@ class FinancialLedgerController extends GetxController {
         filters: filters,
         after: _cursor,
       );
+      if (generation != _loadGeneration) return;
       entries = [...entries, ...page.entries];
       _cursor = page.cursor;
       hasMore = page.hasMore;
     } catch (error) {
+      if (generation != _loadGeneration) return;
       _showError(_messageFor(error));
     } finally {
       isLoadingMore = false;
@@ -143,26 +155,47 @@ class FinancialLedgerController extends GetxController {
 
   void onSearchChanged(String value) {
     _searchDebounce?.cancel();
+    _loadGeneration++;
     update();
     final normalized = normalizeLedgerSearch(value);
-    if (normalized.length == 1) {
+    if (serverSearchTerm(normalized).isEmpty) {
       if (filters.search.isNotEmpty) {
         filters = filters.copyWith(search: '');
+        loadInitial();
+      } else if (statusRequest != StatusRequest.success) {
         loadInitial();
       }
       return;
     }
-    if (normalized.isEmpty) {
-      if (filters.search.isNotEmpty) {
-        filters = filters.copyWith(search: '');
-        loadInitial();
-      }
-      return;
-    }
-    _searchDebounce = Timer(const Duration(milliseconds: 450), () {
+    _searchDebounce = Timer(serverSearchDebounce, () {
       filters = filters.copyWith(search: normalized);
       loadInitial();
     });
+  }
+
+  void submitSearch() {
+    _searchDebounce?.cancel();
+    final normalized = normalizeLedgerSearch(searchController.text);
+    if (serverSearchTerm(normalized).isEmpty) {
+      if (filters.search.isNotEmpty) {
+        filters = filters.copyWith(search: '');
+        loadInitial();
+      }
+      return;
+    }
+    filters = filters.copyWith(search: normalized);
+    loadInitial();
+  }
+
+  void clearSearch() {
+    _searchDebounce?.cancel();
+    searchController.clear();
+    if (filters.search.isEmpty && statusRequest == StatusRequest.success) {
+      update();
+      return;
+    }
+    filters = filters.copyWith(search: '');
+    loadInitial();
   }
 
   void setType(String? value) =>

@@ -101,7 +101,9 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 650;
+    final compact =
+        MediaQuery.sizeOf(context).width < 650 ||
+        MediaQuery.textScalerOf(context).scale(1) > 1.3;
     final title = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

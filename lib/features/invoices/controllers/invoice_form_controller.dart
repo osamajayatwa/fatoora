@@ -128,7 +128,9 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
         : InvoiceContext.readString(args, 'mode').isEmpty
         ? 'create'
         : InvoiceContext.readString(args, 'mode');
-    invoiceType = invoiceTypeFromValue(args['invoiceType']);
+    invoiceType = isCreateMode
+        ? InvoiceType.regular
+        : invoiceTypeFromValue(args['invoiceType']);
 
     if (companyId.isEmpty) {
       statusRequest = StatusRequest.unauthorized;

@@ -29,7 +29,7 @@ class FatooraAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? profileLabel;
 
   @override
-  Size get preferredSize => Size.fromHeight(subtitle == null ? 68 : 78);
+  Size get preferredSize => Size.fromHeight(subtitle == null ? 76 : 92);
 
   @override
   Widget build(BuildContext context) {

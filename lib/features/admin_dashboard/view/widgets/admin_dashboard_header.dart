@@ -21,8 +21,9 @@ class AdminDashboardHeader extends StatelessWidget {
     final controller = Get.find<AdminDashboardController>();
     final localeController = Get.find<LocaleController>();
     final scheme = Theme.of(context).colorScheme;
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
     return Container(
-      height: 82,
+      height: 82 + ((textScale - 1).clamp(0, 1).toDouble() * 28),
       padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 24),
       decoration: BoxDecoration(
         color: context.appSurface,
@@ -46,6 +47,7 @@ class AdminDashboardHeader extends StatelessWidget {
             Expanded(
               child: Text(
                 'fatoora'.tr,
+                textAlign: TextAlign.start,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: context.appText,
                   fontWeight: FontWeight.w800,

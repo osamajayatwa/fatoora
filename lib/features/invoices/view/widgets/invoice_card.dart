@@ -1,7 +1,7 @@
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
-import 'package:fatoora/features/invoices/view/widgets/invoice_action_buttons.dart';
+import 'package:fatoora/features/invoices/view/widgets/invoice_actions_menu.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_status_chip.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_type_chip.dart';
 import 'package:flutter/material.dart';
@@ -96,7 +96,9 @@ class InvoiceCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  InvoiceActionButtons(
+                  InvoiceActionsMenu(
+                    showView: true,
+                    showDelete: true,
                     canEdit: invoice.canEdit,
                     canDelete: invoice.canDelete,
                     onView: onView,
@@ -133,7 +135,9 @@ class _InfoPill extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: AppColor.grey),
           const SizedBox(width: 6),
-          Text(label, style: Theme.of(context).textTheme.labelSmall),
+          Flexible(
+            child: Text(label, style: Theme.of(context).textTheme.labelSmall),
+          ),
         ],
       ),
     );

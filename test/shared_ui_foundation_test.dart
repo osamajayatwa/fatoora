@@ -2,6 +2,7 @@ import 'package:fatoora/core/constants/app.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/widgets/fatoora_app_bar.dart';
 import 'package:fatoora/core/widgets/responsive_data_table_card.dart';
+import 'package:fatoora/core/widgets/responsive_picker_sheet.dart';
 import 'package:fatoora/features/admin_dashboard/model/admin_dashboard_models.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/quick_actions_sheet.dart';
 import 'package:flutter/material.dart';
@@ -122,6 +123,49 @@ void main() {
     expect(wentBack, isTrue);
   });
 
+  for (final direction in [TextDirection.ltr, TextDirection.rtl]) {
+    testWidgets(
+      'unified app bar remains usable at 320px and 2x text in $direction',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(320, 480));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light(fontFamily: 'Cairo'),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(2)),
+              child: child!,
+            ),
+            home: Directionality(
+              textDirection: direction,
+              child: Scaffold(
+                appBar: FatooraAppBar(
+                  title: direction == TextDirection.rtl
+                      ? 'عنوان محاسبي طويل للاختبار'
+                      : 'Long accounting screen title',
+                  subtitle: direction == TextDirection.rtl
+                      ? 'تفاصيل إضافية طويلة'
+                      : 'Additional long details',
+                  showBackButton: true,
+                  actions: const [
+                    IconButton(onPressed: null, icon: Icon(Icons.refresh)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(FatooraAppBar), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets('responsive data table card exposes horizontal scrolling', (
     tester,
   ) async {
@@ -176,4 +220,54 @@ void main() {
     expect(find.byType(SingleChildScrollView), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'picker sheet scrolls instead of overflowing in keyboard-height viewport',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(412, 240));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(412, 240),
+              textScaler: TextScaler.linear(2),
+            ),
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Scaffold(
+                body: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: SizedBox(
+                    height: 142,
+                    child: ResponsivePickerSheet(
+                      header: const Text('اختيار عنصر من القائمة'),
+                      search: const TextField(
+                        decoration: InputDecoration(labelText: 'بحث'),
+                      ),
+                      body: ListView(
+                        children: const [
+                          ListTile(title: Text('العنصر الأول')),
+                          ListTile(title: Text('العنصر الثاني')),
+                        ],
+                      ),
+                      footer: const OutlinedButton(
+                        onPressed: null,
+                        child: Text('إضافة عنصر جديد'),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(ResponsivePickerSheet), findsOneWidget);
+      expect(find.byType(ListView), findsWidgets);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

@@ -241,69 +241,81 @@ class _DetailsCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 14,
-            runSpacing: 14,
-            children: [
-              SizedBox(
-                width: 260,
-                child: TextFormField(
-                  controller: controller.quotationNumberController,
-                  readOnly: true,
-                  decoration: InputDecoration(
-                    labelText: 'quotation_number'.tr,
-                    prefixIcon: const Icon(Icons.tag_rounded),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked =
+                  constraints.maxWidth < 620 ||
+                  MediaQuery.textScalerOf(context).scale(1) > 1.3;
+              double width(double preferred) =>
+                  stacked ? constraints.maxWidth : preferred;
+              return Wrap(
+                spacing: 14,
+                runSpacing: 14,
+                children: [
+                  SizedBox(
+                    width: width(260),
+                    child: TextFormField(
+                      controller: controller.quotationNumberController,
+                      readOnly: true,
+                      decoration: InputDecoration(
+                        labelText: 'quotation_number'.tr,
+                        prefixIcon: const Icon(Icons.tag_rounded),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              SizedBox(
-                width: 250,
-                child: OutlinedButton.icon(
-                  onPressed: controller.readOnly
-                      ? null
-                      : () async {
-                          final selected = await showDatePicker(
-                            context: context,
-                            initialDate: controller.quotationDate,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(DateTime.now().year + 2),
-                          );
-                          if (selected != null) {
-                            controller.setQuotationDate(selected);
-                          }
-                        },
-                  icon: const Icon(Icons.calendar_today_outlined, size: 18),
-                  label: Text(
-                    '${'quotation_date'.tr}: ${DateFormat.yMMMd().format(controller.quotationDate)}',
+                  SizedBox(
+                    width: width(250),
+                    child: OutlinedButton.icon(
+                      onPressed: controller.readOnly
+                          ? null
+                          : () async {
+                              final selected = await showDatePicker(
+                                context: context,
+                                initialDate: controller.quotationDate,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(DateTime.now().year + 2),
+                              );
+                              if (selected != null) {
+                                controller.setQuotationDate(selected);
+                              }
+                            },
+                      icon: const Icon(Icons.calendar_today_outlined, size: 18),
+                      label: Text(
+                        '${'quotation_date'.tr}: ${DateFormat.yMMMd().format(controller.quotationDate)}',
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              SizedBox(
-                width: 250,
-                child: OutlinedButton.icon(
-                  onPressed: controller.readOnly
-                      ? null
-                      : () async {
-                          final selected = await showDatePicker(
-                            context: context,
-                            initialDate: controller.validUntil,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(DateTime.now().year + 2),
-                          );
-                          if (selected != null) {
-                            controller.setValidUntil(selected);
-                          }
-                        },
-                  icon: const Icon(Icons.event_available_outlined, size: 18),
-                  label: Text(
-                    '${'valid_until'.tr}: ${DateFormat.yMMMd().format(controller.validUntil)}',
+                  SizedBox(
+                    width: width(250),
+                    child: OutlinedButton.icon(
+                      onPressed: controller.readOnly
+                          ? null
+                          : () async {
+                              final selected = await showDatePicker(
+                                context: context,
+                                initialDate: controller.validUntil,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(DateTime.now().year + 2),
+                              );
+                              if (selected != null) {
+                                controller.setValidUntil(selected);
+                              }
+                            },
+                      icon: const Icon(
+                        Icons.event_available_outlined,
+                        size: 18,
+                      ),
+                      label: Text(
+                        '${'valid_until'.tr}: ${DateFormat.yMMMd().format(controller.validUntil)}',
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ],
+                ],
+              );
+            },
           ),
         ],
       ),

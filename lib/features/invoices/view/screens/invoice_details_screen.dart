@@ -4,6 +4,7 @@ import 'package:fatoora/features/invoices/controllers/invoice_details_controller
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/invoices/view/widgets/customer_snapshot_card.dart';
+import 'package:fatoora/features/invoices/view/widgets/invoice_actions_menu.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_items_table.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_status_chip.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_totals_card.dart';
@@ -74,10 +75,7 @@ class _DetailsPage extends StatelessWidget {
                 builder: (context, constraints) {
                   final wide = constraints.maxWidth >= 980;
                   final left = _LeftColumn(invoice: invoice);
-                  final right = _RightColumn(
-                    controller: controller,
-                    invoice: invoice,
-                  );
+                  final right = _RightColumn(invoice: invoice);
                   if (!wide) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -112,7 +110,9 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 620;
+        final compact =
+            constraints.maxWidth < 620 ||
+            MediaQuery.textScalerOf(context).scale(1) > 1.3;
         final leading = IconButton(
           onPressed: controller.requestBack,
           icon: Icon(
@@ -148,18 +148,15 @@ class _Header extends StatelessWidget {
           children: [
             InvoiceTypeChip(type: invoice.invoiceType),
             InvoiceStatusChip(status: invoice.invoiceStatus),
-            OutlinedButton.icon(
-              onPressed: controller.isPrinting
-                  ? null
-                  : controller.printInvoicePdf,
-              icon: controller.isPrinting
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.picture_as_pdf_outlined),
-              label: Text('print_export'.tr),
+            InvoiceActionsMenu(
+              compact: false,
+              showCreateSalesReturn: true,
+              canEdit: controller.canEdit,
+              canCreateSalesReturn: controller.canCreateSalesReturn,
+              canPrint: !controller.isPrinting,
+              onEdit: controller.editInvoice,
+              onCreateSalesReturn: controller.createSalesReturn,
+              onPrint: controller.printInvoicePdf,
             ),
           ],
         );
@@ -228,9 +225,8 @@ class _LeftColumn extends StatelessWidget {
 }
 
 class _RightColumn extends StatelessWidget {
-  const _RightColumn({required this.controller, required this.invoice});
+  const _RightColumn({required this.invoice});
 
-  final InvoiceDetailsController controller;
   final InvoiceModel invoice;
 
   @override
@@ -246,57 +242,6 @@ class _RightColumn extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         _PaymentCard(invoice: invoice),
-        const SizedBox(height: 18),
-        DashboardCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              FilledButton.icon(
-                onPressed: controller.canEdit ? controller.editInvoice : null,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColor.primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                icon: const Icon(Icons.edit_outlined),
-                label: Text('edit_invoice'.tr),
-              ),
-              if (controller.canCreateSalesReturn) ...[
-                const SizedBox(height: 10),
-                FilledButton.icon(
-                  onPressed: controller.createSalesReturn,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColor.tertiaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  icon: const Icon(Icons.assignment_return_outlined),
-                  label: Text('create_sales_return'.tr),
-                ),
-              ],
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: controller.isPrinting
-                    ? null
-                    : controller.printInvoicePdf,
-                icon: const Icon(Icons.print_outlined),
-                label: Text('print_export'.tr),
-              ),
-              if (controller.canSubmit) ...[
-                const SizedBox(height: 10),
-                FilledButton.icon(
-                  onPressed: controller.isSubmitting
-                      ? null
-                      : controller.submitElectronicInvoicePlaceholder,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColor.secondaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  icon: const Icon(Icons.cloud_upload_outlined),
-                  label: Text('submit_to_jofotara'.tr),
-                ),
-              ],
-            ],
-          ),
-        ),
       ],
     );
   }

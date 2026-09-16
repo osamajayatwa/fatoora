@@ -4,6 +4,7 @@ import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/expenses/controllers/expense_error_mapper.dart';
 import 'package:fatoora/features/expenses/data/models/expense_model.dart';
@@ -31,6 +32,8 @@ class ExpensesListController extends GetxController {
   DateTime? fromDate;
   DateTime? toDate;
   Timer? _searchDebounce;
+  int _loadGeneration = 0;
+  String _appliedSearchText = '';
 
   String get companyId =>
       _myServices.sharedPreferences.getString('companyId') ??
@@ -73,20 +76,27 @@ class ExpensesListController extends GetxController {
   }
 
   Future<void> loadExpenses() async {
+    _searchDebounce?.cancel();
+    final generation = ++_loadGeneration;
+    final requestedSearch = serverSearchTerm(searchText);
     statusRequest = StatusRequest.loading;
     loadErrorMessageKey = 'expenses_load_error';
     update();
     try {
-      expenses = await _repository.fetchExpenses(
+      final loadedExpenses = await _repository.fetchExpenses(
         companyId: companyId,
-        searchText: searchText,
+        searchText: requestedSearch,
         status: statusFilter,
         category: categoryFilter,
         fromDate: fromDate,
         toDate: toDate,
       );
+      if (generation != _loadGeneration) return;
+      expenses = loadedExpenses;
+      _appliedSearchText = requestedSearch;
       statusRequest = StatusRequest.success;
     } catch (error) {
+      if (generation != _loadGeneration) return;
       statusRequest = ExpenseErrorMapper.status(error);
       loadErrorMessageKey = ExpenseErrorMapper.messageKey(
         error,
@@ -101,9 +111,34 @@ class ExpensesListController extends GetxController {
 
   void onSearchChanged(String value) {
     searchText = value;
-    update();
     _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 350), loadExpenses);
+    _loadGeneration++;
+    update();
+    if (serverSearchTerm(value).isEmpty) {
+      if (_appliedSearchText.isNotEmpty ||
+          statusRequest != StatusRequest.success) {
+        loadExpenses();
+      }
+      return;
+    }
+    _searchDebounce = Timer(serverSearchDebounce, loadExpenses);
+  }
+
+  void submitSearch() {
+    _searchDebounce?.cancel();
+    if (serverSearchTerm(searchText).isEmpty &&
+        _appliedSearchText.isEmpty &&
+        statusRequest == StatusRequest.success) {
+      return;
+    }
+    loadExpenses();
+  }
+
+  void clearSearch() {
+    _searchDebounce?.cancel();
+    searchText = '';
+    searchController.clear();
+    loadExpenses();
   }
 
   void setStatusFilter(ExpenseStatus? value) {
@@ -123,6 +158,7 @@ class ExpensesListController extends GetxController {
   }
 
   void clearFilters() {
+    _searchDebounce?.cancel();
     searchText = '';
     searchController.clear();
     statusFilter = null;

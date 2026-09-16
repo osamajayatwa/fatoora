@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_list_query.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -38,6 +39,7 @@ class _InvoiceFilterOptionPickerState extends State<InvoiceFilterOptionPicker> {
   bool _loading = true;
   bool _failed = false;
   List<InvoiceFilterOption> _options = const [];
+  String _appliedSearchText = '';
 
   @override
   void initState() {
@@ -46,16 +48,19 @@ class _InvoiceFilterOptionPickerState extends State<InvoiceFilterOptionPicker> {
   }
 
   Future<void> _load(String searchText) async {
+    _debounce?.cancel();
     final generation = ++_requestGeneration;
+    final requestedSearch = serverSearchTerm(searchText);
     setState(() {
       _loading = true;
       _failed = false;
     });
     try {
-      final options = await widget.loadOptions(searchText);
+      final options = await widget.loadOptions(requestedSearch);
       if (!mounted || generation != _requestGeneration) return;
       setState(() {
         _options = options;
+        _appliedSearchText = requestedSearch;
         _loading = false;
       });
     } catch (_) {
@@ -70,7 +75,31 @@ class _InvoiceFilterOptionPickerState extends State<InvoiceFilterOptionPicker> {
 
   void _onSearchChanged(String value) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () => _load(value));
+    _requestGeneration++;
+    setState(() {});
+    if (serverSearchTerm(value).isEmpty) {
+      if (_appliedSearchText.isNotEmpty || _loading) _load('');
+      return;
+    }
+    _debounce = Timer(serverSearchDebounce, () => _load(value));
+  }
+
+  void _submitSearch() {
+    _debounce?.cancel();
+    final value = _searchController.text;
+    if (serverSearchTerm(value).isEmpty &&
+        _appliedSearchText.isEmpty &&
+        !_loading) {
+      return;
+    }
+    _load(value);
+  }
+
+  void _clearSearch() {
+    _debounce?.cancel();
+    _requestGeneration++;
+    _searchController.clear();
+    _load('');
   }
 
   void _select(InvoiceFilterOption? option) {
@@ -118,9 +147,17 @@ class _InvoiceFilterOptionPickerState extends State<InvoiceFilterOptionPicker> {
                 controller: _searchController,
                 autofocus: false,
                 onChanged: _onSearchChanged,
+                onSubmitted: (_) => _submitSearch(),
+                textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
                   hintText: widget.searchHint,
                   prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: _searchController.text.isEmpty
+                      ? null
+                      : IconButton(
+                          onPressed: _clearSearch,
+                          icon: const Icon(Icons.close_rounded),
+                        ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),

@@ -101,7 +101,9 @@ class ItemsScreen extends StatelessWidget {
                                           mainAxisSpacing: 16,
                                           mainAxisExtent:
                                               238 +
-                                              ((textScale - 1).clamp(0, 1) *
+                                              ((textScale - 1)
+                                                      .clamp(0, 1)
+                                                      .toDouble() *
                                                   88),
                                         ),
                                   );

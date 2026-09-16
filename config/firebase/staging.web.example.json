@@ -1,0 +1,11 @@
+{
+  "FATOORA_ENV": "staging",
+  "FIREBASE_PROJECT_ID": "replace-with-staging-project-id",
+  "FIREBASE_PROJECT_ID_CONFIRM": "replace-with-staging-project-id",
+  "FIREBASE_API_KEY": "replace-with-staging-web-api-key",
+  "FIREBASE_APP_ID": "replace-with-staging-web-app-id",
+  "FIREBASE_MESSAGING_SENDER_ID": "replace-with-staging-sender-id",
+  "FIREBASE_STORAGE_BUCKET": "replace-with-staging-storage-bucket",
+  "FIREBASE_AUTH_DOMAIN": "replace-with-staging-project-id.firebaseapp.com",
+  "FIREBASE_MEASUREMENT_ID": ""
+}

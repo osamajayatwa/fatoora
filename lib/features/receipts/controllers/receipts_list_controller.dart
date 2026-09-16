@@ -4,6 +4,7 @@ import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/receipts/controllers/receipt_error_mapper.dart';
@@ -33,6 +34,8 @@ class ReceiptsListController extends GetxController {
   DateTime? fromDate;
   DateTime? toDate;
   Timer? _searchDebounce;
+  int _loadGeneration = 0;
+  String _appliedSearchText = '';
   EffectiveBusinessPermissions permissions =
       EffectiveBusinessPermissions.denied;
 
@@ -51,19 +54,27 @@ class ReceiptsListController extends GetxController {
   }
 
   Future<void> loadReceipts() async {
+    _searchDebounce?.cancel();
+    final generation = ++_loadGeneration;
+    final requestedSearch = serverSearchTerm(searchText);
     statusRequest = StatusRequest.loading;
     loadErrorMessageKey = 'receipts_load_error';
     update();
     try {
-      permissions = await _permissionResolver.resolve(companyId);
-      receipts = await _repository.fetchReceipts(
+      final resolvedPermissions = await _permissionResolver.resolve(companyId);
+      final loadedReceipts = await _repository.fetchReceipts(
         companyId: companyId,
-        searchText: searchText,
+        searchText: requestedSearch,
         fromDate: fromDate,
         toDate: toDate,
       );
+      if (generation != _loadGeneration) return;
+      permissions = resolvedPermissions;
+      receipts = loadedReceipts;
+      _appliedSearchText = requestedSearch;
       statusRequest = StatusRequest.success;
     } catch (error) {
+      if (generation != _loadGeneration) return;
       statusRequest = ReceiptErrorMapper.status(error);
       loadErrorMessageKey = ReceiptErrorMapper.messageKey(
         error,
@@ -78,9 +89,34 @@ class ReceiptsListController extends GetxController {
 
   void onSearchChanged(String value) {
     searchText = value;
-    update();
     _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 350), loadReceipts);
+    _loadGeneration++;
+    update();
+    if (serverSearchTerm(value).isEmpty) {
+      if (_appliedSearchText.isNotEmpty ||
+          statusRequest != StatusRequest.success) {
+        loadReceipts();
+      }
+      return;
+    }
+    _searchDebounce = Timer(serverSearchDebounce, loadReceipts);
+  }
+
+  void submitSearch() {
+    _searchDebounce?.cancel();
+    if (serverSearchTerm(searchText).isEmpty &&
+        _appliedSearchText.isEmpty &&
+        statusRequest == StatusRequest.success) {
+      return;
+    }
+    loadReceipts();
+  }
+
+  void clearSearch() {
+    _searchDebounce?.cancel();
+    searchText = '';
+    searchController.clear();
+    loadReceipts();
   }
 
   void setDateRange(DateTimeRange? range) {
@@ -90,6 +126,7 @@ class ReceiptsListController extends GetxController {
   }
 
   void clearFilters() {
+    _searchDebounce?.cancel();
     fromDate = null;
     toDate = null;
     searchText = '';

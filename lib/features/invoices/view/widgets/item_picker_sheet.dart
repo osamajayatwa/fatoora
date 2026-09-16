@@ -1,6 +1,7 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/widgets/responsive_picker_sheet.dart';
 import 'package:fatoora/features/items/binding/items_binding.dart';
 import 'package:fatoora/features/items/data/models/item_model.dart';
 import 'package:fatoora/features/items/data/repositories/item_repository.dart';
@@ -84,120 +85,90 @@ class _InvoiceItemPickerSheetState extends State<InvoiceItemPickerSheet> {
   @override
   Widget build(BuildContext context) {
     final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
-    return Material(
-      color: AppColor.surface,
-      borderRadius: BorderRadius.circular(18),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            18,
-            18,
-            18,
-            MediaQuery.viewInsetsOf(context).bottom + 18,
+    final visibleItems = _visibleItems;
+    return ResponsivePickerSheet(
+      header: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'items_title'.tr,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: AppColor.secondaryColor,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'items_title'.tr,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppColor.secondaryColor,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: Get.back<void>,
-                    icon: const Icon(Icons.close_rounded),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _searchController,
-                onChanged: (value) => setState(() => _searchText = value),
-                decoration: InputDecoration(
-                  hintText: 'items_search'.tr,
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.sizeOf(context).height * 0.58,
-                ),
-                child: HandilingDataView(
-                  statusrequest: _statusRequest,
-                  errorMessage: _errorMessage.tr,
-                  retryLabel: 'items_retry'.tr,
-                  onRetry: _loadItems,
-                  widget: _visibleItems.isEmpty
-                      ? Center(child: Text('items_empty'.tr))
-                      : ListView.separated(
-                          shrinkWrap: true,
-                          itemBuilder: (context, index) {
-                            final item = _visibleItems[index];
-                            return ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: const CircleAvatar(
-                                backgroundColor: Color(0xFFF4F6FA),
-                                child: Icon(Icons.inventory_2_outlined),
-                              ),
-                              title: Text(item.name),
-                              subtitle: Text(
-                                [
-                                  item.code,
-                                  item.unit,
-                                  '${item.taxRate}% ${'tax'.tr}',
-                                  item.trackStock
-                                      ? '${'current_stock'.tr}: ${NumberFormat('#,##0.###').format(item.currentStock)}'
-                                      : 'track_stock_disabled'.tr,
-                                ].where((value) => value.isNotEmpty).join(' / '),
-                              ),
-                              trailing: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(currency.format(item.price)),
-                                  if (item.trackStock)
-                                    Text(
-                                      item.isOutOfStock
-                                          ? 'out_of_stock'.tr
-                                          : item.isLowStock
-                                          ? 'low_stock'.tr
-                                          : 'available_quantity'.tr,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelSmall
-                                          ?.copyWith(
-                                            color: item.isOutOfStock
-                                                ? AppColor.error
-                                                : item.isLowStock
-                                                ? const Color(0xFFFFA43A)
-                                                : AppColor.success,
-                                          ),
-                                    ),
-                                ],
-                              ),
-                              onTap: () => Get.back<ItemModel>(result: item),
-                            );
-                          },
-                          separatorBuilder: (_, _) => const Divider(height: 1),
-                          itemCount: _visibleItems.length,
-                        ),
-                ),
-              ),
-            ],
+          IconButton(
+            onPressed: Get.back<void>,
+            icon: const Icon(Icons.close_rounded),
           ),
+        ],
+      ),
+      search: TextField(
+        controller: _searchController,
+        onChanged: (value) => setState(() => _searchText = value),
+        decoration: InputDecoration(
+          hintText: 'items_search'.tr,
+          prefixIcon: const Icon(Icons.search_rounded),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
         ),
+      ),
+      body: HandilingDataView(
+        statusrequest: _statusRequest,
+        errorMessage: _errorMessage.tr,
+        retryLabel: 'items_retry'.tr,
+        onRetry: _loadItems,
+        widget: visibleItems.isEmpty
+            ? Center(child: Text('items_empty'.tr))
+            : ListView.separated(
+                itemBuilder: (context, index) {
+                  final item = visibleItems[index];
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const CircleAvatar(
+                      backgroundColor: Color(0xFFF4F6FA),
+                      child: Icon(Icons.inventory_2_outlined),
+                    ),
+                    title: Text(item.name),
+                    subtitle: Text(
+                      [
+                        item.code,
+                        item.unit,
+                        '${item.taxRate}% ${'tax'.tr}',
+                        item.trackStock
+                            ? '${'current_stock'.tr}: ${NumberFormat('#,##0.###').format(item.currentStock)}'
+                            : 'track_stock_disabled'.tr,
+                      ].where((value) => value.isNotEmpty).join(' / '),
+                    ),
+                    trailing: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(currency.format(item.price)),
+                        if (item.trackStock)
+                          Text(
+                            item.isOutOfStock
+                                ? 'out_of_stock'.tr
+                                : item.isLowStock
+                                ? 'low_stock'.tr
+                                : 'available_quantity'.tr,
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: item.isOutOfStock
+                                      ? AppColor.error
+                                      : item.isLowStock
+                                      ? const Color(0xFFFFA43A)
+                                      : AppColor.success,
+                                ),
+                          ),
+                      ],
+                    ),
+                    onTap: () => Get.back<ItemModel>(result: item),
+                  );
+                },
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemCount: visibleItems.length,
+              ),
       ),
     );
   }

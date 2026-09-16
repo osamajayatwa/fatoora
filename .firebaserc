@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "fatoora-6b192"
+    "default": "fatoora-6b192",
+    "production": "fatoora-6b192",
+    "test": "demo-fatoora-test"
   }
 }
