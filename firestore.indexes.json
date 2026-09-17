@@ -32,6 +32,17 @@
       ]
     },
     {
+      "collectionGroup": "items",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "active", "order": "ASCENDING" },
+        { "fieldPath": "deleted", "order": "ASCENDING" },
+        { "fieldPath": "trackStock", "order": "ASCENDING" },
+        { "fieldPath": "currentStock", "order": "ASCENDING" },
+        { "fieldPath": "inventoryValue", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "stock_movements",
       "queryScope": "COLLECTION",
       "fields": [
@@ -483,9 +494,26 @@
       "collectionGroup": "customers",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "active", "order": "ASCENDING" },
+        { "fieldPath": "currentBalance", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "customers",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "createdByUid", "order": "ASCENDING" },
         { "fieldPath": "active", "order": "ASCENDING" },
         { "fieldPath": "currentBalance", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "customers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdByUid", "order": "ASCENDING" },
+        { "fieldPath": "active", "order": "ASCENDING" },
+        { "fieldPath": "currentBalance", "order": "ASCENDING" }
       ]
     },
     {

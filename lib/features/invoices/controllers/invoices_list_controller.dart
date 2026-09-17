@@ -13,6 +13,8 @@ import 'package:fatoora/features/invoices/data/models/invoice_list_query.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/invoices/data/repositories/invoice_repository.dart';
 import 'package:fatoora/features/invoices/data/services/invoice_pdf_service.dart';
+import 'package:file_saver/file_saver.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:printing/printing.dart';
@@ -361,21 +363,35 @@ class InvoicesListController extends GetxController {
   }
 
   Future<void> printInvoicePdf(InvoiceModel invoice) async {
-    if (isPrinting) return;
-    isPrinting = true;
-    update();
-    try {
-      await Printing.layoutPdf(
-        name: '${invoice.invoiceNumber}.pdf',
-        onLayout: (_) => InvoicePdfService.build(invoice),
+  if (isPrinting) return;
+
+  isPrinting = true;
+  update();
+
+  try {
+    final bytes = await InvoicePdfService.build(invoice);
+    final fileName = invoice.invoiceNumber;
+
+    if (kIsWeb) {
+      await FileSaver.instance.saveFile(
+        name: fileName,
+        bytes: bytes,
+        fileExtension: 'pdf',
+        mimeType: MimeType.pdf,
       );
-    } catch (_) {
-      _showError('invoice_pdf_error');
-    } finally {
-      isPrinting = false;
-      if (!isClosed) update();
+    } else {
+      await Printing.layoutPdf(
+        name: '$fileName.pdf',
+        onLayout: (_) async => bytes,
+      );
     }
+  } catch (_) {
+    _showError('invoice_pdf_error');
+  } finally {
+    isPrinting = false;
+    if (!isClosed) update();
   }
+}
 
   void _showSuccess(String messageKey) {
     Get.snackbar(

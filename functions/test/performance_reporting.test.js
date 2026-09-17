@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
 const path = require("node:path");
 const {test} = require("node:test");
 
@@ -195,4 +196,25 @@ test("index manifest covers every dashboard aggregate query", () => {
     "cashAccount:ASCENDING",
     "amount:ASCENDING",
   ]);
+  expectIndex("customers", [
+    "active:ASCENDING",
+    "currentBalance:ASCENDING",
+  ]);
+  expectIndex("customers", [
+    "createdByUid:ASCENDING",
+    "active:ASCENDING",
+    "currentBalance:ASCENDING",
+  ]);
+});
+
+test("item reporting backfill handles legacy unscoped items only explicitly", () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, "../scripts/backfill_item_search_fields.js"),
+    "utf8",
+  );
+  assert.match(source, /args\.has\("include-legacy-unscoped"\)/);
+  assert.match(source, /legacyUnscopedDocuments/);
+  assert.match(source, /includedLegacyUnscoped/);
+  assert.match(source, /confirm-project/);
+  assert.match(source, /confirm-company/);
 });

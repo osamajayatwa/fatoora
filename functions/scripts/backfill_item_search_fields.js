@@ -40,9 +40,13 @@ async function main() {
   const projectId = String(args.get("project") || "").trim();
   const companyId = String(args.get("company") || "").trim();
   const apply = args.has("apply");
+  const includeLegacyUnscoped = args.has("include-legacy-unscoped");
   const maxWrites = Number(args.get("max-writes") || 5000);
   if (!projectId || !companyId || !Number.isInteger(maxWrites) || maxWrites < 1) {
-    throw new Error("Use --project=<id> --company=<id> [--apply] [--max-writes=<n>].");
+    throw new Error(
+      "Use --project=<id> --company=<id> [--include-legacy-unscoped] " +
+      "[--apply] [--max-writes=<n>].",
+    );
   }
   if (apply && (args.get("confirm-project") !== projectId ||
       args.get("confirm-company") !== companyId)) {
@@ -51,10 +55,19 @@ async function main() {
 
   initializeApp({credential: applicationDefault(), projectId});
   const firestore = getFirestore();
-  const snapshot = await firestore.collection("items")
-    .where("companyId", "==", companyId)
-    .get();
-  const changes = snapshot.docs.map((document) => {
+  const snapshot = await firestore.collection("items").get();
+  const scopedDocuments = snapshot.docs.filter((document) =>
+    normalize(document.data().companyId) === normalize(companyId));
+  const legacyUnscopedDocuments = snapshot.docs.filter((document) =>
+    !normalize(document.data().companyId));
+  const foreignCompanyDocuments = snapshot.docs.filter((document) => {
+    const documentCompanyId = normalize(document.data().companyId);
+    return documentCompanyId && documentCompanyId !== normalize(companyId);
+  });
+  const selectedDocuments = includeLegacyUnscoped
+    ? [...scopedDocuments, ...legacyUnscopedDocuments]
+    : scopedDocuments;
+  const changes = selectedDocuments.map((document) => {
     const data = document.data();
     const stock = Number.isFinite(data.currentStock) ? data.currentStock : 0;
     const minimum = Number.isFinite(data.minStock) ? data.minStock : 0;
@@ -75,7 +88,7 @@ async function main() {
         stock <= minimum ? "low" : "ok",
     };
   }).filter((next, index) => {
-    const data = snapshot.docs[index].data();
+    const data = selectedDocuments[index].data();
     return data.nameLower !== next.nameLower ||
       JSON.stringify(data.searchKeywords || []) !== JSON.stringify(next.searchKeywords) ||
       data.inventoryValue !== next.inventoryValue ||
@@ -86,6 +99,11 @@ async function main() {
     projectId,
     companyId,
     scannedItems: snapshot.size,
+    scopedItems: scopedDocuments.length,
+    legacyUnscopedItems: legacyUnscopedDocuments.length,
+    includedLegacyUnscoped: includeLegacyUnscoped,
+    foreignCompanyItems: foreignCompanyDocuments.length,
+    selectedItems: selectedDocuments.length,
     plannedWrites: changes.length,
     maxWrites,
   };
