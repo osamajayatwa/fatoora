@@ -1,4 +1,5 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:flutter/material.dart';
 
 class AdminLoginGradientButton extends StatelessWidget {
@@ -37,7 +38,7 @@ class AdminLoginGradientButton extends StatelessWidget {
           child: isLoading
               ? const SizedBox.square(
                   dimension: 22,
-                  child: CircularProgressIndicator(
+                  child: FatooraProgressIndicator(
                     strokeWidth: 2.5,
                     color: AppColor.surface,
                   ),

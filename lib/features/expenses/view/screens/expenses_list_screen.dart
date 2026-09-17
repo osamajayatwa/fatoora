@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/expenses/controllers/expenses_list_controller.dart';
 import 'package:fatoora/features/expenses/data/models/expense_model.dart';
@@ -52,7 +53,7 @@ class ExpensesListScreen extends StatelessWidget {
                               padding: const EdgeInsets.only(top: 8),
                               child: Center(
                                 child: controller.isLoadingMore
-                                    ? const CircularProgressIndicator()
+                                    ? const FatooraProgressIndicator()
                                     : OutlinedButton.icon(
                                         onPressed: controller.loadMoreExpenses,
                                         icon: const Icon(

@@ -1,4 +1,5 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion.dart';
 import 'package:flutter/material.dart';
 
 class SalesRepDashboardSurface extends StatelessWidget {
@@ -134,37 +135,40 @@ class _SalesRepInteractiveCardState extends State<SalesRepInteractiveCard> {
         onExit: (_) => setState(() => _hovered = false),
         child: FocusableActionDetector(
           onShowFocusHighlight: (value) => setState(() => _focused = value),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            curve: Curves.easeOut,
-            transform: Matrix4.translationValues(0, highlighted ? -2 : 0, 0),
+          child: DecoratedBox(
             decoration: BoxDecoration(
-              color: widget.tint ?? scheme.surface,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: highlighted
-                    ? (widget.borderColor ?? scheme.primary)
-                    : (widget.borderColor ?? context.appBorder),
-                width: widget.borderColor == null || highlighted ? 1 : 1.2,
-              ),
               boxShadow: [
                 BoxShadow(
-                  color: scheme.shadow.withValues(
-                    alpha: highlighted ? 0.075 : 0.025,
-                  ),
-                  blurRadius: highlighted ? 18 : 12,
+                  color: scheme.shadow.withValues(alpha: 0.025),
+                  blurRadius: 12,
                   offset: const Offset(0, 5),
                 ),
               ],
             ),
-            child: Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(18),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: widget.onTap,
+            child: AnimatedContainer(
+              duration: FatooraMotion.resolve(context, FatooraMotion.quick),
+              curve: FatooraMotion.enterCurve,
+              transform: Matrix4.translationValues(0, highlighted ? -2 : 0, 0),
+              decoration: BoxDecoration(
+                color: widget.tint ?? scheme.surface,
                 borderRadius: BorderRadius.circular(18),
-                child: Padding(padding: widget.padding, child: widget.child),
+                border: Border.all(
+                  color: highlighted
+                      ? (widget.borderColor ?? scheme.primary)
+                      : (widget.borderColor ?? context.appBorder),
+                  width: widget.borderColor == null || highlighted ? 1 : 1.2,
+                ),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(18),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: widget.onTap,
+                  borderRadius: BorderRadius.circular(18),
+                  child: Padding(padding: widget.padding, child: widget.child),
+                ),
               ),
             ),
           ),

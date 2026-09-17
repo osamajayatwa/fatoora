@@ -1,4 +1,5 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/settings/controllers/user_preferences_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -73,7 +74,7 @@ class AppPreferencesForm extends StatelessWidget {
               icon: controller.isSavingPreferences
                   ? const SizedBox.square(
                       dimension: 18,
-                      child: CircularProgressIndicator(
+                      child: FatooraProgressIndicator(
                         strokeWidth: 2,
                         color: Colors.white,
                       ),

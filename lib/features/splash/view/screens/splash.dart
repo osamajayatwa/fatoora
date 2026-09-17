@@ -1,8 +1,9 @@
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/constants/imageassests.dart';
+import 'package:fatoora/core/motion/fatoora_motion.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 
 const _canvasColor = Color(0xFFFAF8F5);
@@ -15,8 +16,6 @@ class SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-
     return Scaffold(
       backgroundColor: _canvasColor,
       body: _OnboardingCanvas(
@@ -57,16 +56,10 @@ class SplashScreen extends StatelessWidget {
                       ],
                     );
 
-              final visibleContent = media.disableAnimations
-                  ? content
-                  : content
-                        .animate()
-                        .fadeIn(duration: 360.ms, curve: Curves.easeOut)
-                        .slideY(
-                          begin: .018,
-                          duration: 420.ms,
-                          curve: Curves.easeOutCubic,
-                        );
+              final visibleContent = FatooraMotionReveal(
+                duration: FatooraMotion.deliberate,
+                child: content,
+              );
 
               return SingleChildScrollView(
                 physics: const ClampingScrollPhysics(),

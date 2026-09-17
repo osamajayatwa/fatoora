@@ -4,6 +4,8 @@ import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/core/widgets/responsive_picker_sheet.dart';
@@ -22,7 +24,7 @@ Future<CustomerModel?> showCustomerPicker(BuildContext context) {
   final content = const CustomerPickerSheet();
   final wide = MediaQuery.sizeOf(context).width >= 760;
   if (wide) {
-    return Get.dialog<CustomerModel>(
+    return showFatooraGetDialog<CustomerModel>(
       Dialog(
         insetPadding: const EdgeInsets.all(24),
         child: ConstrainedBox(
@@ -32,7 +34,7 @@ Future<CustomerModel?> showCustomerPicker(BuildContext context) {
       ),
     );
   }
-  return Get.bottomSheet<CustomerModel>(
+  return showFatooraGetBottomSheet<CustomerModel>(
     content,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
@@ -243,7 +245,7 @@ class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
                   if (index == _customers.length) {
                     return const Padding(
                       padding: EdgeInsets.all(16),
-                      child: Center(child: CircularProgressIndicator()),
+                      child: Center(child: FatooraProgressIndicator()),
                     );
                   }
                   final customer = _customers[index];

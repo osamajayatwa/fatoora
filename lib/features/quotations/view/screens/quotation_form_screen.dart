@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/customers/view/widgets/customer_picker_sheet.dart';
 import 'package:fatoora/features/invoices/view/widgets/customer_snapshot_card.dart';
@@ -196,7 +197,7 @@ class _SideColumn extends StatelessWidget {
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: FatooraProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.save_outlined),
                 label: Text('save_draft'.tr),

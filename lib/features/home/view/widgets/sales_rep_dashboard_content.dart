@@ -1,6 +1,8 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/financial/controllers/sales_rep_dashboard_controller.dart';
 import 'package:fatoora/features/home/view/widgets/sales_rep_dashboard_actions.dart';
 import 'package:fatoora/features/home/view/widgets/sales_rep_dashboard_header.dart';
@@ -41,10 +43,9 @@ class SalesRepDashboardBody extends StatelessWidget {
         widget: const SizedBox.shrink(),
       ),
     };
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 180),
-      switchInCurve: Curves.easeOut,
-      switchOutCurve: Curves.easeIn,
+    return FatooraMotionSwitcher(
+      duration: FatooraMotion.standard,
+      reverseDuration: FatooraMotion.quick,
       child: child,
     );
   }

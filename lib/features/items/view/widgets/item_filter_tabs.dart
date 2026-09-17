@@ -1,4 +1,5 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion.dart';
 import 'package:fatoora/features/items/controller/items_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -34,7 +35,8 @@ class ItemFilterTabs extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             onTap: () => onChanged(filter),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
+              duration: FatooraMotion.resolve(context, FatooraMotion.standard),
+              curve: FatooraMotion.enterCurve,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: selected ? AppColor.surface : Colors.transparent,

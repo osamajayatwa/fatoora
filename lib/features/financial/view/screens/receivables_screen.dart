@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/core/widgets/responsive_data_table_card.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/financial/controllers/receivables_controller.dart';
@@ -59,7 +60,7 @@ class ReceivablesScreen extends StatelessWidget {
                                 icon: controller.isLoadingMore
                                     ? const SizedBox.square(
                                         dimension: 18,
-                                        child: CircularProgressIndicator(
+                                        child: FatooraProgressIndicator(
                                           strokeWidth: 2,
                                         ),
                                       )

@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/sales_returns/controllers/sales_return_details_controller.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_enums.dart';
@@ -80,7 +81,7 @@ class _Details extends StatelessWidget {
                         ? const SizedBox(
                             width: 16,
                             height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: FatooraProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.picture_as_pdf_outlined),
                     label: Text('export_pdf'.tr),
@@ -134,7 +135,7 @@ class _Details extends StatelessWidget {
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(
+                            child: FatooraProgressIndicator(
                               strokeWidth: 2,
                               color: AppColor.surface,
                             ),

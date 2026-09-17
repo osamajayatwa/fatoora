@@ -1,4 +1,5 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:flutter/material.dart';
 
 class ItemActionButton extends StatelessWidget {
@@ -29,7 +30,7 @@ class ItemActionButton extends StatelessWidget {
           SizedBox(
             width: 18,
             height: 18,
-            child: CircularProgressIndicator(
+            child: FatooraProgressIndicator(
               strokeWidth: 2,
               color: outlined ? color : Colors.white,
             ),

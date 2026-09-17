@@ -1,6 +1,8 @@
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/financial/controllers/company_cash_opening_balance_controller.dart';
 import 'package:fatoora/features/financial/data/models/company_cash_opening_balance_model.dart';
 import 'package:fatoora/features/settings/view/widgets/settings_section_card.dart';
@@ -135,7 +137,7 @@ class _OpeningBalanceCreation extends StatelessWidget {
               icon: controller.isSaving
                   ? const SizedBox.square(
                       dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: FatooraProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.add_card_rounded),
               label: Text(
@@ -155,7 +157,7 @@ class _OpeningBalanceCreation extends StatelessWidget {
     CompanyCashOpeningBalanceController controller,
   ) async {
     if (!(controller.formKey.currentState?.validate() ?? false)) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showFatooraDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('financial_company_cash_opening_balance_confirm_title'.tr),

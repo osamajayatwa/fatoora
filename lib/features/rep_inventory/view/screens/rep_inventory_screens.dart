@@ -1,5 +1,7 @@
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/items/data/models/item_model.dart';
 import 'package:fatoora/features/rep_inventory/controllers/rep_inventory_controllers.dart';
 import 'package:fatoora/features/rep_inventory/data/models/inventory_transfer_model.dart';
@@ -378,7 +380,7 @@ class InventoryTransfersScreen extends StatelessWidget {
                     child: controller.isLoadingMore
                         ? const Padding(
                             padding: EdgeInsets.all(16),
-                            child: CircularProgressIndicator(),
+                            child: FatooraProgressIndicator(),
                           )
                         : OutlinedButton.icon(
                             onPressed: controller.loadMore,
@@ -564,7 +566,7 @@ class InventoryTransferFormScreen extends StatelessWidget {
                     icon: controller.isConfirming
                         ? const SizedBox.square(
                             dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: FatooraProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.check),
                     label: Text('rep_inventory_confirm'.tr),
@@ -670,16 +672,28 @@ class InventoryTransferDetailsScreen extends StatelessWidget {
                                 label: Text('rep_inventory_cancel'.tr),
                               ),
                               TextButton.icon(
-                                onPressed: () => Get.defaultDialog<void>(
-                                  title: 'rep_inventory_delete_draft'.tr,
-                                  middleText:
+                                onPressed: () => showFatooraGetDialog<void>(
+                                  AlertDialog(
+                                    title: Text(
+                                      'rep_inventory_delete_draft'.tr,
+                                    ),
+                                    content: Text(
                                       'rep_inventory_delete_draft_message'.tr,
-                                  textCancel: 'cancel'.tr,
-                                  textConfirm: 'delete'.tr,
-                                  onConfirm: () {
-                                    Get.back<void>();
-                                    controller.deleteDraft();
-                                  },
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: Get.back<void>,
+                                        child: Text('cancel'.tr),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () {
+                                          Get.back<void>();
+                                          controller.deleteDraft();
+                                        },
+                                        child: Text('delete'.tr),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                                 icon: const Icon(Icons.delete_outline),
                                 label: Text('delete'.tr),
@@ -691,7 +705,7 @@ class InventoryTransferDetailsScreen extends StatelessWidget {
                                 icon: controller.isConfirming
                                     ? const SizedBox.square(
                                         dimension: 18,
-                                        child: CircularProgressIndicator(
+                                        child: FatooraProgressIndicator(
                                           strokeWidth: 2,
                                         ),
                                       )
@@ -725,7 +739,7 @@ class _SearchableItemPicker extends StatelessWidget {
 
   Future<void> _openPicker(BuildContext context) async {
     FocusScope.of(context).unfocus();
-    final selected = await showModalBottomSheet<ItemModel>(
+    final selected = await showFatooraModalBottomSheet<ItemModel>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
@@ -1104,7 +1118,7 @@ class _LoadState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (status == StatusRequest.loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: FatooraProgressIndicator());
     }
     if (status != StatusRequest.success) {
       return Center(

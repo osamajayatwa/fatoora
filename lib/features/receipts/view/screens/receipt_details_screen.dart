@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/receipts/controllers/receipt_details_controller.dart';
 import 'package:fatoora/features/receipts/data/models/receipt_model.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
@@ -106,7 +107,7 @@ class _ReceiptDetails extends StatelessWidget {
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(
+                                child: FatooraProgressIndicator(
                                   strokeWidth: 2,
                                 ),
                               )

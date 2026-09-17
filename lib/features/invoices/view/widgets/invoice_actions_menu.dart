@@ -1,4 +1,5 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -52,6 +53,11 @@ class InvoiceActionsMenu extends StatelessWidget {
     final menu = PopupMenuButton<_InvoiceMenuAction>(
       tooltip: 'actions'.tr,
       position: PopupMenuPosition.under,
+      popUpAnimationStyle: FatooraMotion.overlayStyle(
+        context,
+        duration: FatooraMotion.standard,
+        reverseDuration: FatooraMotion.quick,
+      ),
       onSelected: _onSelected,
       itemBuilder: _buildItems,
       icon: compact ? const Icon(Icons.more_vert_rounded) : null,

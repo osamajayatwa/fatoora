@@ -4,6 +4,7 @@ import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/localization/changelocal.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/features/admin_dashboard/model/admin_dashboard_models.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
@@ -409,7 +410,7 @@ class AdminDashboardController extends GetxController {
 
   Future<void> confirmLogout() async {
     if (isLoggingOut) return;
-    final confirmed = await Get.dialog<bool>(
+    final confirmed = await showFatooraGetDialog<bool>(
       AlertDialog(
         title: Text('dashboard_logout'.tr),
         content: Text('dashboard_logout_confirmation'.tr),

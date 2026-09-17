@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/admin_dashboard/controller/admin_dashboard_controller.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/admin_welcome_card.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_alerts_card.dart';
@@ -37,7 +38,7 @@ class AdminDashboardContent extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const AdminWelcomeCard(),
+                    const FatooraMotionReveal(child: AdminWelcomeCard()),
                     const SizedBox(height: 22),
                     if (MediaQuery.sizeOf(context).width < 600) ...[
                       TextField(
@@ -52,7 +53,7 @@ class AdminDashboardContent extends StatelessWidget {
                       ),
                       const SizedBox(height: 18),
                     ],
-                    _StatsGrid(),
+                    const FatooraMotionReveal(child: _StatsGrid()),
                     const SizedBox(height: 18),
                     _ResponsivePair(
                       desktopHeight: 420,

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_list_query.dart';
 import 'package:flutter/material.dart';
@@ -174,7 +175,7 @@ class _InvoiceFilterOptionPickerState extends State<InvoiceFilterOptionPicker> {
 
   Widget _buildResults() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: FatooraProgressIndicator());
     }
     if (_failed) {
       return Center(

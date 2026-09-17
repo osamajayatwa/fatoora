@@ -1,4 +1,5 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/auth/approval/controller/approval_status_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -107,7 +108,7 @@ class ApprovalStatusScaffold extends StatelessWidget {
                                 ? const SizedBox(
                                     width: 18,
                                     height: 18,
-                                    child: CircularProgressIndicator(
+                                    child: FatooraProgressIndicator(
                                       strokeWidth: 2,
                                       color: AppColor.surface,
                                     ),

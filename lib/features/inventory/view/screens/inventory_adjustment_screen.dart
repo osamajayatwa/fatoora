@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/admin_dashboard_shell.dart';
 import 'package:fatoora/features/inventory/controllers/inventory_adjustment_controller.dart';
 import 'package:fatoora/features/invoices/view/widgets/item_picker_sheet.dart';
@@ -169,7 +170,7 @@ class _AdjustmentForm extends StatelessWidget {
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(
+                    child: FatooraProgressIndicator(
                       strokeWidth: 2,
                       color: AppColor.surface,
                     ),

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
 import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/services/services.dart';
@@ -326,7 +327,7 @@ class InvoicesListController extends GetxController {
 
   Future<void> deleteDraftInvoice(InvoiceModel invoice) async {
     if (!invoice.canDelete || isDeleting) return;
-    final confirmed = await Get.dialog<bool>(
+    final confirmed = await showFatooraGetDialog<bool>(
       AlertDialog(
         title: Text('delete_invoice'.tr),
         content: Text('delete_invoice_confirmation'.tr),

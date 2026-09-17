@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 
 class StartupErrorApp extends StatefulWidget {
   const StartupErrorApp({required this.onRetry, super.key});
@@ -56,7 +57,7 @@ class _StartupErrorAppState extends State<StartupErrorApp> {
                             icon: _retrying
                                 ? const SizedBox.square(
                                     dimension: 18,
-                                    child: CircularProgressIndicator(
+                                    child: FatooraProgressIndicator(
                                       strokeWidth: 2,
                                     ),
                                   )

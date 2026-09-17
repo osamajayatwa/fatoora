@@ -1,4 +1,5 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion.dart';
 import 'package:flutter/material.dart';
 
 class AppTheme {
@@ -162,6 +163,7 @@ class AppTheme {
           disabledBackgroundColor: AppColor.primaryColor.withValues(alpha: .35),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           shape: buttonShape,
+          animationDuration: FatooraMotion.quick,
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -172,6 +174,7 @@ class AppTheme {
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           shape: buttonShape,
+          animationDuration: FatooraMotion.quick,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -180,12 +183,14 @@ class AppTheme {
           side: BorderSide(color: scheme.outlineVariant),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           shape: buttonShape,
+          animationDuration: FatooraMotion.quick,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: scheme.primary,
           shape: buttonShape,
+          animationDuration: FatooraMotion.quick,
         ),
       ),
       iconTheme: IconThemeData(color: scheme.onSurfaceVariant),

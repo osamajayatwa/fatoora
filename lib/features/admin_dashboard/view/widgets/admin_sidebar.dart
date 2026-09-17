@@ -1,4 +1,5 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/localization/changelocal.dart';
 import 'package:fatoora/features/admin_dashboard/controller/admin_dashboard_controller.dart';
@@ -352,7 +353,7 @@ class _SidebarTile extends StatelessWidget {
                 SizedBox(
                   width: 21,
                   height: 21,
-                  child: CircularProgressIndicator(
+                  child: FatooraProgressIndicator(
                     strokeWidth: 2,
                     color: foreground,
                   ),

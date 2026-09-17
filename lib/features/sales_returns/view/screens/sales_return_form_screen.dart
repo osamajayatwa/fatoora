@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/sales_returns/controllers/sales_return_form_controller.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_enums.dart';
@@ -428,7 +429,7 @@ class _Actions extends StatelessWidget {
               ? const SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: FatooraProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.save_outlined),
           label: Text('save_return_draft'.tr),

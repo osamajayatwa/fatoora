@@ -1,5 +1,7 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/auth/admin_users/controller/admin_users_controller.dart';
 import 'package:fatoora/features/auth/data/models/app_user_model.dart';
 import 'package:fatoora/features/shared/business/business_page_widgets.dart';
@@ -375,7 +377,7 @@ class _UserActions extends StatelessWidget {
       return const SizedBox(
         width: 22,
         height: 22,
-        child: CircularProgressIndicator(strokeWidth: 2),
+        child: FatooraProgressIndicator(strokeWidth: 2),
       );
     }
     if (pending) {
@@ -555,7 +557,7 @@ Future<void> _showEditDialog(
   final nameController = TextEditingController(text: user.name);
   final phoneController = TextEditingController(text: user.phone);
   try {
-    final saved = await Get.dialog<bool>(
+    final saved = await showFatooraGetDialog<bool>(
       AlertDialog(
         title: Text(
           (user.isAdmin

@@ -2,6 +2,8 @@ import 'dart:ui' as ui;
 
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/expenses/controllers/expense_details_controller.dart';
 import 'package:fatoora/features/expenses/data/models/expense_model.dart';
@@ -256,7 +258,7 @@ class _DecisionCard extends StatelessWidget {
                 ? const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(
+                    child: FatooraProgressIndicator(
                       strokeWidth: 2,
                       color: AppColor.surface,
                     ),
@@ -275,7 +277,7 @@ Future<void> _showRejectDialog(
   ExpenseDetailsController controller,
 ) async {
   final reasonController = TextEditingController();
-  final result = await Get.dialog<String>(
+  final result = await showFatooraGetDialog<String>(
     AlertDialog(
       title: Text('expense_reject'.tr),
       content: TextField(

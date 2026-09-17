@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/features/items/data/models/item_model.dart';
 import 'package:fatoora/features/items/data/repositories/item_repository.dart';
@@ -206,7 +207,7 @@ class EditItemController extends GetxController with ItemPageNavigation {
       await _leaveEditPage();
       return;
     }
-    final discard = await Get.dialog<bool>(
+    final discard = await showFatooraGetDialog<bool>(
       AlertDialog(
         title: Text('items_unsaved_title'.tr),
         content: Text('items_unsaved_message'.tr),

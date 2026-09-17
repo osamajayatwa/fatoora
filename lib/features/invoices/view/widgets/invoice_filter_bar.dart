@@ -1,4 +1,5 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_list_query.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_filter_option_picker.dart';
@@ -422,7 +423,7 @@ class InvoiceFilterBar extends StatelessWidget {
     required InvoiceFilterOptionLoader loader,
     required ValueChanged<InvoiceFilterOption?> onSelected,
   }) {
-    showModalBottomSheet<void>(
+    showFatooraModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,

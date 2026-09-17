@@ -1,4 +1,5 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -233,7 +234,7 @@ class ItemForm extends StatelessWidget {
                         ? const SizedBox(
                             width: 19,
                             height: 19,
-                            child: CircularProgressIndicator(
+                            child: FatooraProgressIndicator(
                               strokeWidth: 2,
                               color: Colors.white,
                             ),

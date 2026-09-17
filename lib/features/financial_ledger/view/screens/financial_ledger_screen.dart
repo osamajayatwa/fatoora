@@ -1,4 +1,5 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/financial_ledger/controllers/financial_ledger_controller.dart';
@@ -101,7 +102,7 @@ class _ButtonLoader extends StatelessWidget {
   Widget build(BuildContext context) => SizedBox(
     width: 16,
     height: 16,
-    child: const CircularProgressIndicator(strokeWidth: 2),
+    child: const FatooraProgressIndicator(strokeWidth: 2),
   );
 }
 

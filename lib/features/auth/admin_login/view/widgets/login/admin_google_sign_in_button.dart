@@ -1,4 +1,5 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/core/constants/imageassests.dart';
 import 'package:flutter/material.dart';
 
@@ -32,7 +33,7 @@ class AdminGoogleSignInButton extends StatelessWidget {
         child: isLoading
             ? const SizedBox.square(
                 dimension: 22,
-                child: CircularProgressIndicator(
+                child: FatooraProgressIndicator(
                   strokeWidth: 2.5,
                   color: AppColor.primaryColor,
                 ),

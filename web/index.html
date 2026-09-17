@@ -33,6 +33,43 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <!--
+    firebase_core_web 2.24.1 imports registered Firebase modules in parallel.
+    WebKit can expose firebase-app.js before it has finished evaluating, which
+    makes Firebase.initializeApp() fail intermittently on iOS browsers. Load
+    the supported SDK's core module first, then its registered components.
+
+    Remove this preload after upgrading to firebase_core_web 3.10.0 or newer,
+    where the same ordering is handled by FlutterFire itself.
+  -->
+  <script type="module">
+    const firebaseSdkBase =
+      'https://www.gstatic.com/firebasejs/11.9.1';
+
+    try {
+      const core = await import(`${firebaseSdkBase}/firebase-app.js`);
+      const [auth, firestore, functions, messaging] = await Promise.all([
+        import(`${firebaseSdkBase}/firebase-auth.js`),
+        import(`${firebaseSdkBase}/firebase-firestore.js`),
+        import(`${firebaseSdkBase}/firebase-functions.js`),
+        import(`${firebaseSdkBase}/firebase-messaging.js`),
+      ]);
+
+      window.firebase_core = core;
+      window.firebase_auth = auth;
+      window.firebase_firestore = firestore;
+      window.firebase_functions = functions;
+      window.firebase_messaging = messaging;
+    } catch (error) {
+      // Preserve FlutterFire's built-in loader as a fallback if preloading
+      // fails because the CDN is temporarily unavailable.
+      console.warn('Firebase SDK preload failed; using FlutterFire fallback.', error);
+    }
+
+    const flutterBootstrap = document.createElement('script');
+    flutterBootstrap.src = 'flutter_bootstrap.js';
+    flutterBootstrap.async = true;
+    document.body.appendChild(flutterBootstrap);
+  </script>
 </body>
 </html>

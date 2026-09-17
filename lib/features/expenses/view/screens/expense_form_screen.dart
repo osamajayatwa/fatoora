@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/expenses/controllers/expense_form_controller.dart';
 import 'package:fatoora/features/expenses/data/models/expense_model.dart';
@@ -101,7 +102,7 @@ class ExpenseFormScreen extends StatelessWidget {
                               ? const SizedBox(
                                   width: 18,
                                   height: 18,
-                                  child: CircularProgressIndicator(
+                                  child: FatooraProgressIndicator(
                                     strokeWidth: 2,
                                     color: AppColor.surface,
                                   ),

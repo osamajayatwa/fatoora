@@ -1,4 +1,5 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/settings/controllers/admin_settings_controller.dart';
 import 'package:fatoora/features/settings/controllers/settings_controller.dart';
 import 'package:fatoora/features/settings/view/widgets/company_settings_form.dart';
@@ -112,7 +113,7 @@ class _AdminEditableSettingsScreen extends StatelessWidget {
                   icon: controller.isSaving
                       ? const SizedBox.square(
                           dimension: 18,
-                          child: CircularProgressIndicator(
+                          child: FatooraProgressIndicator(
                             strokeWidth: 2,
                             color: Colors.white,
                           ),

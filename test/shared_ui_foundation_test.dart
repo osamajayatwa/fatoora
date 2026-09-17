@@ -289,6 +289,7 @@ void main() {
         ),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Nothing here'), findsOneWidget);
     expect(find.text('Try changing the filters'), findsOneWidget);

@@ -1,4 +1,6 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/settings/controllers/settings_controller.dart';
 import 'package:fatoora/features/settings/controllers/user_preferences_controller.dart';
 import 'package:fatoora/features/settings/view/widgets/app_preferences_form.dart';
@@ -90,7 +92,7 @@ class _AccountContent extends StatelessWidget {
             icon: controller.isLoggingOut
                 ? const SizedBox.square(
                     dimension: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: FatooraProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.logout_rounded),
             label: Text('settings_logout'.tr),
@@ -101,7 +103,7 @@ class _AccountContent extends StatelessWidget {
   }
 
   Future<void> _confirmLogout(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showFatooraDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('settings_logout'.tr),

@@ -1,4 +1,5 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/customers/data/models/customer_opening_balance.dart';
 import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
 import 'package:flutter/material.dart';
@@ -215,7 +216,7 @@ class _CustomerOpeningBalanceDialogState
                       icon: _submitting
                           ? const SizedBox.square(
                               dimension: 18,
-                              child: CircularProgressIndicator(
+                              child: FatooraProgressIndicator(
                                 strokeWidth: 2,
                                 color: Colors.white,
                               ),
@@ -532,7 +533,7 @@ class _CustomerOpeningBalanceEditDialogState
                       icon: _submitting
                           ? const SizedBox.square(
                               dimension: 18,
-                              child: CircularProgressIndicator(
+                              child: FatooraProgressIndicator(
                                 strokeWidth: 2,
                                 color: Colors.white,
                               ),

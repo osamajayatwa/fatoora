@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
 import 'package:fatoora/features/admin/audit_log/controllers/audit_log_controller.dart';
 import 'package:fatoora/features/admin/audit_log/data/models/audit_event_model.dart';
 import 'package:fatoora/features/admin/audit_log/presentation/widgets/audit_event_details.dart';
@@ -85,7 +86,7 @@ class _AuditLogBody extends StatelessWidget {
     if (!context.mounted) return;
     final wide = MediaQuery.sizeOf(context).width >= 900;
     if (wide) {
-      await showDialog<void>(
+      await showFatooraDialog<void>(
         context: context,
         builder: (_) => Dialog(
           alignment: AlignmentDirectional.centerEnd,
@@ -98,7 +99,7 @@ class _AuditLogBody extends StatelessWidget {
         ),
       );
     } else {
-      await showModalBottomSheet<void>(
+      await showFatooraModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
         useSafeArea: true,

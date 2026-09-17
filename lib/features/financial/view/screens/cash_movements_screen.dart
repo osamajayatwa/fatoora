@@ -1,5 +1,7 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/financial/controllers/cash_movements_controller.dart';
 import 'package:fatoora/features/financial/data/models/cash_movement_model.dart';
@@ -62,7 +64,7 @@ class CashMovementsScreen extends StatelessWidget {
                                 icon: controller.isLoadingMore
                                     ? const SizedBox.square(
                                         dimension: 18,
-                                        child: CircularProgressIndicator(
+                                        child: FatooraProgressIndicator(
                                           strokeWidth: 2,
                                         ),
                                       )
@@ -130,7 +132,7 @@ class _CashHeader extends StatelessWidget {
               ? const SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: FatooraProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.picture_as_pdf_outlined),
           label: Text('export_pdf'.tr),
@@ -475,7 +477,7 @@ Future<void> _showSettlementDialog(
     text: rep.amount.toStringAsFixed(3),
   );
   final notesController = TextEditingController();
-  final result = await Get.dialog<bool>(
+  final result = await showFatooraGetDialog<bool>(
     AlertDialog(
       title: Text('financial_cash_settlement'.tr),
       content: Column(

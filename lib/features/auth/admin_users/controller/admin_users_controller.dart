@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/features/auth/data/models/app_user_model.dart';
 import 'package:fatoora/features/auth/data/repositories/admin_auth_repository.dart';
@@ -206,7 +207,7 @@ class AdminUsersController extends GetxController {
     required String bodyKey,
     bool danger = false,
   }) async {
-    final result = await Get.dialog<bool>(
+    final result = await showFatooraGetDialog<bool>(
       AlertDialog(
         title: Text(titleKey.tr),
         content: Text(bodyKey.tr),

@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/items/controller/items_controller.dart';
 import 'package:fatoora/features/items/view/widgets/item_card.dart';
 import 'package:fatoora/features/items/view/widgets/item_empty_state.dart';
@@ -116,7 +117,7 @@ class ItemsScreen extends StatelessWidget {
                               child: Padding(
                                 padding: EdgeInsets.all(20),
                                 child: Center(
-                                  child: CircularProgressIndicator(),
+                                  child: FatooraProgressIndicator(),
                                 ),
                               ),
                             ),

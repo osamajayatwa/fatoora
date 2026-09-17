@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/core/widgets/responsive_data_table_card.dart';
 import 'package:fatoora/features/customers/controllers/customer_statement_controller.dart';
 import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
@@ -165,7 +166,7 @@ class _StatementBody extends StatelessWidget {
                     icon: controller.isLoadingMore
                         ? const SizedBox.square(
                             dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: FatooraProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.expand_more_rounded),
                     label: Text('load_more_records'.tr),

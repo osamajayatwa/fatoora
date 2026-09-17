@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
 import 'package:fatoora/features/customers/controllers/customer_details_controller.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/customers/data/models/customer_opening_balance.dart';
@@ -200,7 +201,7 @@ class _Header extends StatelessWidget {
 
     final existing = controller.openingBalance;
     if (existing != null) {
-      final updated = await showDialog<CustomerTransactionModel>(
+      final updated = await showFatooraDialog<CustomerTransactionModel>(
         context: context,
         barrierDismissible: false,
         builder: (_) => CustomerOpeningBalanceEditDialog(
@@ -215,7 +216,7 @@ class _Header extends StatelessWidget {
       return;
     }
 
-    final saved = await showDialog<CustomerTransactionModel>(
+    final saved = await showFatooraDialog<CustomerTransactionModel>(
       context: context,
       barrierDismissible: false,
       builder: (_) => CustomerOpeningBalanceDialog(
@@ -375,7 +376,7 @@ class _OpeningBalanceCard extends StatelessWidget {
             ],
           );
           final action = OutlinedButton.icon(
-            onPressed: () => showDialog<void>(
+            onPressed: () => showFatooraDialog<void>(
               context: context,
               builder: (_) =>
                   CustomerOpeningBalanceDetailsDialog(transaction: transaction),

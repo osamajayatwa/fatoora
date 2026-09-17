@@ -1,4 +1,5 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/widgets/responsive_data_table_card.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
@@ -55,7 +56,7 @@ class StatementsScreen extends StatelessWidget {
                               padding: const EdgeInsets.only(top: 16),
                               child: Center(
                                 child: controller.isLoadingMore
-                                    ? const CircularProgressIndicator()
+                                    ? const FatooraProgressIndicator()
                                     : OutlinedButton.icon(
                                         onPressed: controller.loadMore,
                                         icon: const Icon(

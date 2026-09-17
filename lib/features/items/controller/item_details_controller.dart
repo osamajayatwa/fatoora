@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/features/items/data/models/item_model.dart';
 import 'package:fatoora/features/items/data/repositories/item_repository.dart';
@@ -176,7 +177,7 @@ class ItemDetailsController extends GetxController with ItemPageNavigation {
     required String message,
     required bool danger,
   }) async =>
-      await Get.dialog<bool>(
+      await showFatooraGetDialog<bool>(
         AlertDialog(
           title: Text(title),
           content: Text(message),

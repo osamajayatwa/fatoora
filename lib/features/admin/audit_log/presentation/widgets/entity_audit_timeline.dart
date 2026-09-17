@@ -2,6 +2,7 @@ import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/admin/audit_log/data/models/audit_event_model.dart';
 import 'package:fatoora/features/admin/audit_log/data/repositories/audit_log_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
@@ -30,7 +31,7 @@ class EntityAuditTimeline extends StatelessWidget {
       ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: FatooraProgressIndicator());
         }
         final events = snapshot.data ?? const [];
         if (events.isEmpty) return Text('audit_no_entity_events'.tr);

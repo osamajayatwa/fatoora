@@ -2,6 +2,8 @@ import 'package:fatoora/app/bindings/initial_binding.dart';
 import 'package:fatoora/app/routes/app_pages.dart';
 import 'package:fatoora/core/localization/changelocal.dart';
 import 'package:fatoora/core/localization/translation.dart';
+import 'package:fatoora/core/motion/fatoora_motion.dart';
+import 'package:fatoora/core/motion/fatoora_page_transition.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -21,6 +23,8 @@ class MyApp extends StatelessWidget {
         theme: localeController.lightTheme,
         darkTheme: localeController.darkTheme,
         themeMode: localeController.themeMode,
+        customTransition: FatooraPageTransition(),
+        transitionDuration: FatooraMotion.page,
         initialBinding: InitialBindings(),
         getPages: routes,
         unknownRoute: unknownRoute,

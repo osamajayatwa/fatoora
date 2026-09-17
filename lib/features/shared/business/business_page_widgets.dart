@@ -1,4 +1,6 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -74,7 +76,9 @@ class BusinessPageHeader extends StatelessWidget {
         );
       },
     );
-    return contained ? DashboardCard(child: content) : content;
+    return FatooraMotionReveal(
+      child: contained ? DashboardCard(child: content) : content,
+    );
   }
 }
 
@@ -100,15 +104,17 @@ class BusinessPrimaryActionButton extends StatelessWidget {
         backgroundColor: AppColor.primaryColor,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
-      icon: loading
-          ? const SizedBox.square(
-              dimension: 18,
-              child: CircularProgressIndicator(
+      icon: FatooraMotionSwitcher(
+        duration: FatooraMotion.quick,
+        child: loading
+            ? const FatooraProgressIndicator(
+                key: ValueKey('loading'),
+                size: 18,
                 strokeWidth: 2,
                 color: Colors.white,
-              ),
-            )
-          : Icon(icon),
+              )
+            : Icon(icon, key: const ValueKey('ready')),
+      ),
       label: Text(label),
     );
   }
@@ -135,12 +141,16 @@ class BusinessSecondaryActionButton extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
-      icon: loading
-          ? const SizedBox.square(
-              dimension: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : Icon(icon),
+      icon: FatooraMotionSwitcher(
+        duration: FatooraMotion.quick,
+        child: loading
+            ? const FatooraProgressIndicator(
+                key: ValueKey('loading'),
+                size: 18,
+                strokeWidth: 2,
+              )
+            : Icon(icon, key: const ValueKey('ready')),
+      ),
       label: Text(label),
     );
   }
@@ -161,12 +171,16 @@ class BusinessLoadMoreButton extends StatelessWidget {
     return Center(
       child: FilledButton.tonalIcon(
         onPressed: loading ? null : onPressed,
-        icon: loading
-            ? const SizedBox.square(
-                dimension: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.expand_more_rounded),
+        icon: FatooraMotionSwitcher(
+          duration: FatooraMotion.quick,
+          child: loading
+              ? const FatooraProgressIndicator(
+                  key: ValueKey('loading'),
+                  size: 18,
+                  strokeWidth: 2,
+                )
+              : const Icon(Icons.expand_more_rounded, key: ValueKey('ready')),
+        ),
         label: Text(
           loading ? 'loading_more_records'.tr : 'load_more_records'.tr,
         ),
@@ -222,6 +236,9 @@ class BusinessEmptyState extends StatelessWidget {
         ],
       ),
     );
-    return contained ? DashboardCard(child: content) : content;
+    return FatooraMotionReveal(
+      scale: true,
+      child: contained ? DashboardCard(child: content) : content,
+    );
   }
 }

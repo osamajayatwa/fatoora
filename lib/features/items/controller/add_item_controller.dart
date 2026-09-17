@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/core/settings/business_settings_defaults.dart';
@@ -190,7 +191,7 @@ class AddItemController extends GetxController with ItemPageNavigation {
   }
 
   Future<bool> _confirmDiscard() async =>
-      await Get.dialog<bool>(
+      await showFatooraGetDialog<bool>(
         AlertDialog(
           title: Text('items_unsaved_title'.tr),
           content: Text('items_unsaved_message'.tr),

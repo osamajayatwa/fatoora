@@ -1,4 +1,5 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
 import 'package:fatoora/features/admin_dashboard/model/admin_dashboard_models.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -49,7 +50,7 @@ class QuickActionsSheet extends StatelessWidget {
     required List<DashboardQuickAction> actions,
     required ValueChanged<String> onSelected,
   }) {
-    return showModalBottomSheet<void>(
+    return showFatooraModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,

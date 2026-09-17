@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/customers/controllers/customer_form_controller.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
@@ -125,7 +126,7 @@ class CustomerFormScreen extends StatelessWidget {
                               ? const SizedBox(
                                   width: 18,
                                   height: 18,
-                                  child: CircularProgressIndicator(
+                                  child: FatooraProgressIndicator(
                                     strokeWidth: 2,
                                     color: AppColor.surface,
                                   ),

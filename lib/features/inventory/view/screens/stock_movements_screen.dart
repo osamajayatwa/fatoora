@@ -1,4 +1,5 @@
 import 'package:fatoora/core/class/handilingdataview.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/admin_dashboard_shell.dart';
 import 'package:fatoora/features/inventory/controllers/stock_movements_controller.dart';
@@ -49,7 +50,7 @@ class StockMovementsScreen extends StatelessWidget {
                         const SizedBox(height: 12),
                         Center(
                           child: controller.isLoadingMore
-                              ? const CircularProgressIndicator()
+                              ? const FatooraProgressIndicator()
                               : OutlinedButton.icon(
                                   onPressed: controller.loadMore,
                                   icon: const Icon(Icons.expand_more_rounded),
