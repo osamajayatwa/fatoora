@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
+import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/core/widgets/responsive_picker_sheet.dart';
 import 'package:fatoora/features/items/binding/items_binding.dart';
 import 'package:fatoora/features/items/data/models/item_model.dart';
@@ -41,51 +45,96 @@ class InvoiceItemPickerSheet extends StatefulWidget {
 class _InvoiceItemPickerSheetState extends State<InvoiceItemPickerSheet> {
   final ItemRepository _repository = Get.find<ItemRepository>();
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   StatusRequest _statusRequest = StatusRequest.loading;
   List<ItemModel> _items = const [];
   String _errorMessage = 'items_load_error';
   String _searchText = '';
-
-  List<ItemModel> get _visibleItems {
-    final query = _searchText.trim().toLowerCase();
-    return _items.where((item) {
-      if (!item.active || item.deleted) return false;
-      if (query.isEmpty) return true;
-      return item.name.toLowerCase().contains(query) ||
-          item.code.toLowerCase().contains(query) ||
-          item.description.toLowerCase().contains(query);
-    }).toList();
-  }
+  String _appliedSearch = '';
+  FirestorePageCursor? _cursor;
+  Timer? _debounce;
+  bool _hasMore = false;
+  bool _isLoadingMore = false;
+  int _generation = 0;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadItems();
   }
 
-  Future<void> _loadItems() async {
-    setState(() => _statusRequest = StatusRequest.loading);
-    try {
-      final items = await _repository.fetchItems();
-      if (!mounted) return;
+  Future<void> _loadItems({bool append = false}) async {
+    if (append && (_isLoadingMore || !_hasMore || _cursor == null)) return;
+    final generation = append ? _generation : ++_generation;
+    final requestedSearch = serverSearchTerm(_searchText);
+    if (append) {
+      setState(() => _isLoadingMore = true);
+    } else {
       setState(() {
-        _items = items;
+        _statusRequest = StatusRequest.loading;
+        _cursor = null;
+        _hasMore = false;
+      });
+    }
+    try {
+      final page = await _repository.fetchItemsPage(
+        searchText: requestedSearch,
+        active: true,
+        orderField: 'nameLower',
+        descending: false,
+        after: append ? _cursor : null,
+        pageSize: 30,
+      );
+      if (!mounted || generation != _generation) return;
+      setState(() {
+        _items = append ? [..._items, ...page.items] : page.items;
+        _cursor = page.cursor;
+        _hasMore = page.hasMore;
+        _appliedSearch = requestedSearch;
         _statusRequest = StatusRequest.success;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       setState(() {
-        _statusRequest = StatusRequest.serverfailure;
+        if (!append) _statusRequest = StatusRequest.serverfailure;
         _errorMessage = 'items_load_error';
       });
+    } finally {
+      if (mounted && generation == _generation && _isLoadingMore) {
+        setState(() => _isLoadingMore = false);
+      }
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    _searchText = value;
+    _debounce?.cancel();
+    _generation++;
+    final next = serverSearchTerm(value);
+    if (next.isEmpty) {
+      if (_appliedSearch.isNotEmpty) _loadItems();
+      return;
+    }
+    _debounce = Timer(serverSearchDebounce, _loadItems);
+  }
+
+  void _submitSearch(String _) {
+    _debounce?.cancel();
+    _loadItems();
+  }
+
+  void _onScroll() {
+    if (_scrollController.hasClients &&
+        _scrollController.position.extentAfter < 350) {
+      _loadItems(append: true);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
-    final visibleItems = _visibleItems;
     return ResponsivePickerSheet(
       header: Row(
         children: [
@@ -106,7 +155,9 @@ class _InvoiceItemPickerSheetState extends State<InvoiceItemPickerSheet> {
       ),
       search: TextField(
         controller: _searchController,
-        onChanged: (value) => setState(() => _searchText = value),
+        onChanged: _onSearchChanged,
+        onSubmitted: _submitSearch,
+        textInputAction: TextInputAction.search,
         decoration: InputDecoration(
           hintText: 'items_search'.tr,
           prefixIcon: const Icon(Icons.search_rounded),
@@ -118,11 +169,18 @@ class _InvoiceItemPickerSheetState extends State<InvoiceItemPickerSheet> {
         errorMessage: _errorMessage.tr,
         retryLabel: 'items_retry'.tr,
         onRetry: _loadItems,
-        widget: visibleItems.isEmpty
+        widget: _items.isEmpty
             ? Center(child: Text('items_empty'.tr))
             : ListView.separated(
+                controller: _scrollController,
                 itemBuilder: (context, index) {
-                  final item = visibleItems[index];
+                  if (index == _items.length) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  final item = _items[index];
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const CircleAvatar(
@@ -167,7 +225,7 @@ class _InvoiceItemPickerSheetState extends State<InvoiceItemPickerSheet> {
                   );
                 },
                 separatorBuilder: (_, _) => const Divider(height: 1),
-                itemCount: visibleItems.length,
+                itemCount: _items.length + (_isLoadingMore ? 1 : 0),
               ),
       ),
     );
@@ -175,6 +233,10 @@ class _InvoiceItemPickerSheetState extends State<InvoiceItemPickerSheet> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
     _searchController.dispose();
     super.dispose();
   }

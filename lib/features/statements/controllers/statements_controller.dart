@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
+import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/controllers/customer_error_mapper.dart';
@@ -23,8 +27,13 @@ class StatementsController extends GetxController {
   StatusRequest statusRequest = StatusRequest.loading;
   String loadErrorMessageKey = 'statements_load_error';
   List<CustomerModel> customers = const [];
-  List<CustomerModel> _allCustomers = const [];
   String searchText = '';
+  FirestorePageCursor? _pageCursor;
+  bool hasMore = false;
+  bool isLoadingMore = false;
+  Timer? _searchDebounce;
+  int _loadGeneration = 0;
+  String _appliedSearch = '';
 
   String get companyId =>
       _myServices.sharedPreferences.getString('companyId') ??
@@ -41,12 +50,24 @@ class StatementsController extends GetxController {
   }
 
   Future<void> loadCustomers() async {
+    _searchDebounce?.cancel();
+    final generation = ++_loadGeneration;
+    final requestedSearch = serverSearchTerm(searchText);
     statusRequest = StatusRequest.loading;
+    _pageCursor = null;
+    hasMore = false;
     loadErrorMessageKey = 'statements_load_error';
     update();
     try {
-      _allCustomers = await _repository.fetchCustomers(companyId: companyId);
-      _applySearch();
+      final page = await _repository.fetchCustomersPage(
+        companyId: companyId,
+        searchText: requestedSearch,
+      );
+      if (generation != _loadGeneration) return;
+      customers = page.items;
+      _pageCursor = page.cursor;
+      hasMore = page.hasMore;
+      _appliedSearch = requestedSearch;
       statusRequest = StatusRequest.success;
     } catch (error) {
       statusRequest = CustomerErrorMapper.status(error);
@@ -63,37 +84,52 @@ class StatementsController extends GetxController {
 
   void onSearchChanged(String value) {
     searchText = value;
-    _applySearch();
+    _searchDebounce?.cancel();
+    _loadGeneration++;
     update();
+    if (serverSearchTerm(value).isEmpty) {
+      if (_appliedSearch.isNotEmpty || statusRequest != StatusRequest.success) {
+        loadCustomers();
+      }
+      return;
+    }
+    _searchDebounce = Timer(serverSearchDebounce, loadCustomers);
+  }
+
+  void submitSearch() {
+    _searchDebounce?.cancel();
+    loadCustomers();
   }
 
   void clearSearch() {
     searchText = '';
     searchController.clear();
-    _applySearch();
-    update();
+    loadCustomers();
   }
 
-  void _applySearch() {
-    final query = CustomerModel.normalizeText(searchText);
-    if (query.isEmpty) {
-      customers = _allCustomers;
-      return;
+  Future<void> loadMore() async {
+    if (isLoadingMore || !hasMore || _pageCursor == null) return;
+    isLoadingMore = true;
+    final generation = _loadGeneration;
+    update();
+    try {
+      final page = await _repository.fetchCustomersPage(
+        companyId: companyId,
+        searchText: serverSearchTerm(searchText),
+        after: _pageCursor,
+      );
+      if (generation != _loadGeneration) return;
+      customers = [...customers, ...page.items];
+      _pageCursor = page.cursor;
+      hasMore = page.hasMore;
+    } catch (error) {
+      if (generation == _loadGeneration) {
+        _showError(CustomerErrorMapper.messageKey(error));
+      }
+    } finally {
+      isLoadingMore = false;
+      if (!isClosed) update();
     }
-    customers = _allCustomers
-        .where((customer) {
-          final values = [
-            customer.name,
-            customer.phone,
-            customer.city,
-            customer.area,
-            customer.addressText,
-          ];
-          return values.any(
-            (value) => CustomerModel.normalizeText(value).contains(query),
-          );
-        })
-        .toList(growable: false);
   }
 
   void openStatement(CustomerModel customer) {
@@ -123,6 +159,7 @@ class StatementsController extends GetxController {
 
   @override
   void onClose() {
+    _searchDebounce?.cancel();
     searchController.dispose();
     super.onClose();
   }

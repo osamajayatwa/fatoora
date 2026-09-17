@@ -35,6 +35,7 @@ class ItemsScreen extends StatelessWidget {
                     builder: (context, constraints) {
                       final padding = constraints.maxWidth < 600 ? 14.0 : 24.0;
                       return CustomScrollView(
+                        controller: controller.scrollController,
                         physics: const AlwaysScrollableScrollPhysics(),
                         slivers: [
                           SliverPadding(
@@ -110,6 +111,15 @@ class ItemsScreen extends StatelessWidget {
                                 },
                               ),
                             ),
+                          if (controller.isLoadingMore)
+                            const SliverToBoxAdapter(
+                              child: Padding(
+                                padding: EdgeInsets.all(20),
+                                child: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              ),
+                            ),
                         ],
                       );
                     },
@@ -176,6 +186,7 @@ class _ItemsHeader extends StatelessWidget {
             final search = ItemSearchBar(
               controller: controller.searchController,
               onChanged: controller.onSearchChanged,
+              onSubmitted: (_) => controller.submitSearch(),
             );
             final sort = _SortDropdown(
               value: controller.sort,

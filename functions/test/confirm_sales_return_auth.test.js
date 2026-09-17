@@ -49,8 +49,13 @@ const {
   searchFinancialLedger,
 } = require("../lib/trusted/financial_ledger_reporting");
 const {
+  getCashOpeningBalance,
   getFinancialLedgerOpeningBalances,
+  getReceivableBalances,
 } = require("../lib/trusted/financial_ledger_account_reporting");
+const {
+  getDashboardSnapshot,
+} = require("../lib/trusted/dashboard_reporting");
 
 const projectId = "fatoora-return-auth-test";
 const app = initializeApp({projectId});
@@ -77,8 +82,11 @@ test("all trusted callables use the same v2 authentication pathway and options",
     createExpense,
     createItem,
     createReceipt,
+    getCashOpeningBalance,
+    getDashboardSnapshot,
     getFinancialLedgerOpeningBalances,
     getFinancialLedgerSummary,
+    getReceivableBalances,
     postCustomerOpeningBalance,
     postCompanyCashOpeningBalance,
     recordCashSettlement,
@@ -103,6 +111,7 @@ test("all trusted callables use the same v2 authentication pathway and options",
     "confirm_sales_return.ts",
     "create_receipt.ts",
     "customer_profiles.ts",
+    "dashboard_reporting.ts",
     "expenses.ts",
     "financial_ledger_account_reporting.ts",
     "financial_ledger_reporting.ts",

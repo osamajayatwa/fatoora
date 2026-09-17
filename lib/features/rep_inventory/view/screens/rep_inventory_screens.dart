@@ -373,6 +373,19 @@ class InventoryTransfersScreen extends StatelessWidget {
                       onTap: () => controller.open(transfer),
                     ),
                   ),
+                if (controller.hasMore || controller.isLoadingMore)
+                  Center(
+                    child: controller.isLoadingMore
+                        ? const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: CircularProgressIndicator(),
+                          )
+                        : OutlinedButton.icon(
+                            onPressed: controller.loadMore,
+                            icon: const Icon(Icons.expand_more_rounded),
+                            label: Text('load_more_records'.tr),
+                          ),
+                  ),
               ],
             ),
           ),

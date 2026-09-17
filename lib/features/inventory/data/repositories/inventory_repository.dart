@@ -70,43 +70,38 @@ class InventoryRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
-      final items = await _fetchItems();
-      final trackedItems = items
-          .where((item) => item.active && !item.deleted && item.trackStock)
-          .toList(growable: false);
-      final movements = await fetchStockMovements(
-        companyId: resolvedCompanyId,
-        pageSize: 20,
-      );
-      final lowStockItems =
-          trackedItems
-              .where(
-                (item) =>
-                    item.currentStock > 0 && item.currentStock <= item.minStock,
-              )
-              .toList(growable: false)
-            ..sort((a, b) => a.currentStock.compareTo(b.currentStock));
-      final outOfStockCount = trackedItems
-          .where((item) => item.currentStock <= 0)
-          .length;
+      final tracked = _items
+          .where('deleted', isEqualTo: false)
+          .where('active', isEqualTo: true)
+          .where('trackStock', isEqualTo: true);
+      final results = await Future.wait<Object>([
+        tracked
+            .aggregate(count(), sum('currentStock'), sum('inventoryValue'))
+            .get(),
+        tracked.where('stockStatus', isEqualTo: 'low').count().get(),
+        tracked.where('stockStatus', isEqualTo: 'out').count().get(),
+        tracked
+            .where('stockStatus', isEqualTo: 'low')
+            .orderBy('currentStock')
+            .limit(8)
+            .get(),
+        fetchStockMovementsPage(companyId: resolvedCompanyId, pageSize: 20),
+      ]);
+      final totals = results[0] as AggregateQuerySnapshot;
+      final lowCount = (results[1] as AggregateQuerySnapshot).count ?? 0;
+      final outCount = (results[2] as AggregateQuerySnapshot).count ?? 0;
+      final lowSnapshot = results[3] as QuerySnapshot<Map<String, dynamic>>;
+      final movementPage = results[4] as FirestorePage<StockMovementModel>;
       return InventoryDashboardSnapshot(
-        trackedItemCount: trackedItems.length,
-        totalStockQuantity: _round(
-          trackedItems.fold<double>(
-            0,
-            (total, item) => total + item.currentStock,
-          ),
-        ),
-        lowStockCount: lowStockItems.length,
-        outOfStockCount: outOfStockCount,
-        inventoryValue: _round(
-          trackedItems.fold<double>(
-            0,
-            (total, item) => total + (item.currentStock * item.costPrice),
-          ),
-        ),
-        recentMovements: movements.take(20).toList(growable: false),
-        lowStockItems: lowStockItems.take(8).toList(growable: false),
+        trackedItemCount: totals.count ?? 0,
+        totalStockQuantity: _round(totals.getSum('currentStock') ?? 0),
+        lowStockCount: lowCount,
+        outOfStockCount: outCount,
+        inventoryValue: _round(totals.getSum('inventoryValue') ?? 0),
+        recentMovements: movementPage.items,
+        lowStockItems: lowSnapshot.docs
+            .map(ItemModel.fromFirestore)
+            .toList(growable: false),
       );
     });
   }
@@ -170,6 +165,53 @@ class InventoryRepository {
     });
   }
 
+  Future<FirestorePage<StockMovementModel>> fetchStockMovementsPage({
+    String companyId = AuthRepository.defaultCompanyId,
+    String itemId = '',
+    String movementType = '',
+    String searchText = '',
+    DateTime? fromDate,
+    DateTime? toDate,
+    FirestorePageCursor? after,
+    int pageSize = 40,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      Query<Map<String, dynamic>> query = _stockMovements(resolvedCompanyId);
+      if (itemId.trim().isNotEmpty) {
+        query = query.where('itemId', isEqualTo: itemId.trim());
+      }
+      if (movementType.trim().isNotEmpty) {
+        query = query.where('movementType', isEqualTo: movementType.trim());
+      }
+      final search = searchText.trim().toLowerCase();
+      if (search.isNotEmpty) {
+        query = query.where('searchKeywords', arrayContains: search);
+      }
+      if (fromDate != null) {
+        query = query.where(
+          'movementDate',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfDay(fromDate)),
+        );
+      }
+      if (toDate != null) {
+        query = query.where(
+          'movementDate',
+          isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(toDate)),
+        );
+      }
+      return query
+          .orderBy('movementDate', descending: true)
+          .orderBy(FieldPath.documentId, descending: true)
+          .getPage(
+            decode: StockMovementModel.fromFirestore,
+            after: after,
+            pageSize: pageSize,
+          );
+    });
+  }
+
   Future<void> adjustStock({
     String companyId = AuthRepository.defaultCompanyId,
     required String itemId,
@@ -204,14 +246,6 @@ class InventoryRepository {
           })
           .timeout(const Duration(seconds: 30));
     });
-  }
-
-  Future<List<ItemModel>> _fetchItems() async {
-    final documents = await _items
-        .where('deleted', isEqualTo: false)
-        .orderBy(FieldPath.documentId)
-        .getAllPages();
-    return documents.map(ItemModel.fromFirestore).toList(growable: false);
   }
 
   String _normalizeAdjustmentType(String value) {

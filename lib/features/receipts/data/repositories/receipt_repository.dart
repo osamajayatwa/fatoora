@@ -117,25 +117,16 @@ class ReceiptRepository {
     FirestorePageCursor? after,
     int pageSize = 50,
   }) async {
-    if (searchText.trim().isNotEmpty) {
-      final items = await fetchReceipts(
-        companyId: companyId,
-        fromDate: fromDate,
-        toDate: toDate,
-        searchText: searchText,
-      );
-      return FirestorePage<ReceiptModel>(
-        items: items,
-        cursor: null,
-        hasMore: false,
-      );
-    }
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
       Query<Map<String, dynamic>> query = _receipts(resolvedCompanyId);
       if (user.isSalesRep) {
         query = query.where('salesRepId', isEqualTo: user.uid);
+      }
+      final normalizedSearch = searchText.trim().toLowerCase();
+      if (normalizedSearch.isNotEmpty) {
+        query = query.where('searchKeywords', arrayContains: normalizedSearch);
       }
       if (fromDate != null) {
         query = query.where(

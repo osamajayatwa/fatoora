@@ -45,6 +45,7 @@ class FinancialLedgerController extends GetxController {
   bool isCopying = false;
   Timer? _searchDebounce;
   int _loadGeneration = 0;
+  bool _lookupsLoaded = false;
 
   String get companyId =>
       _myServices.sharedPreferences.getString('companyId') ??
@@ -109,7 +110,9 @@ class FinancialLedgerController extends GetxController {
           companyId: companyId,
           filters: requestedFilters,
         ),
-        _repository.fetchLookups(companyId),
+        _lookupsLoaded
+            ? Future<FinancialLedgerLookups>.value(lookups)
+            : _repository.fetchLookups(companyId),
       ]);
       if (generation != _loadGeneration) return;
       final page = results[0] as FinancialLedgerPage;
@@ -118,6 +121,7 @@ class FinancialLedgerController extends GetxController {
       hasMore = page.hasMore;
       summary = results[1] as FinancialLedgerSummary;
       lookups = results[2] as FinancialLedgerLookups;
+      _lookupsLoaded = true;
       statusRequest = StatusRequest.success;
     } catch (error) {
       if (generation != _loadGeneration) return;

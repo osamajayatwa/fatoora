@@ -45,6 +45,18 @@ class StockMovementsScreen extends StatelessWidget {
                         )
                       else
                         _MovementList(movements: controller.movements),
+                      if (controller.hasMore || controller.isLoadingMore) ...[
+                        const SizedBox(height: 12),
+                        Center(
+                          child: controller.isLoadingMore
+                              ? const CircularProgressIndicator()
+                              : OutlinedButton.icon(
+                                  onPressed: controller.loadMore,
+                                  icon: const Icon(Icons.expand_more_rounded),
+                                  label: Text('load_more_records'.tr),
+                                ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

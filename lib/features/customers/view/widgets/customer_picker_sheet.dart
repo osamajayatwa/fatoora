@@ -4,6 +4,7 @@ import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/core/widgets/responsive_picker_sheet.dart';
 import 'package:fatoora/core/services/services.dart';
@@ -51,6 +52,7 @@ class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
       Get.find<BusinessPermissionResolver>();
   final MyServices _myServices = Get.find<MyServices>();
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   StatusRequest _statusRequest = StatusRequest.loading;
   List<CustomerModel> _customers = const [];
@@ -61,6 +63,9 @@ class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
   Timer? _searchDebounce;
   EffectiveBusinessPermissions _permissions =
       EffectiveBusinessPermissions.denied;
+  FirestorePageCursor? _pageCursor;
+  bool _hasMore = false;
+  bool _isLoadingMore = false;
 
   String get _companyId =>
       _myServices.sharedPreferences.getString('companyId') ??
@@ -69,30 +74,42 @@ class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadCustomers();
   }
 
-  Future<void> _loadCustomers() async {
+  Future<void> _loadCustomers({bool append = false}) async {
+    if (append && (_isLoadingMore || !_hasMore || _pageCursor == null)) return;
     _searchDebounce?.cancel();
-    final generation = ++_requestGeneration;
+    final generation = append ? _requestGeneration : ++_requestGeneration;
     final requestedSearch = serverSearchTerm(_searchText);
     setState(() {
-      _statusRequest = StatusRequest.loading;
-      _errorMessageKey = 'customers_load_error';
+      if (append) {
+        _isLoadingMore = true;
+      } else {
+        _statusRequest = StatusRequest.loading;
+        _errorMessageKey = 'customers_load_error';
+        _pageCursor = null;
+        _hasMore = false;
+      }
     });
     try {
       final values = await Future.wait<Object>([
-        _repository.fetchCustomers(
+        _repository.fetchCustomersPage(
           companyId: _companyId,
           searchText: requestedSearch,
+          after: append ? _pageCursor : null,
+          pageSize: 30,
         ),
         _permissionResolver.resolve(_companyId),
       ]);
-      final customers = values[0] as List<CustomerModel>;
+      final page = values[0] as FirestorePage<CustomerModel>;
       final permissions = values[1] as EffectiveBusinessPermissions;
       if (!mounted || generation != _requestGeneration) return;
       setState(() {
-        _customers = customers;
+        _customers = append ? [..._customers, ...page.items] : page.items;
+        _pageCursor = page.cursor;
+        _hasMore = page.hasMore;
         _permissions = permissions;
         _appliedSearchText = requestedSearch;
         _statusRequest = StatusRequest.success;
@@ -100,12 +117,23 @@ class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
     } catch (error) {
       if (!mounted || generation != _requestGeneration) return;
       setState(() {
-        _statusRequest = CustomerErrorMapper.status(error);
+        if (!append) _statusRequest = CustomerErrorMapper.status(error);
         _errorMessageKey = CustomerErrorMapper.messageKey(
           error,
           fallback: 'customers_load_error',
         );
       });
+    } finally {
+      if (mounted && generation == _requestGeneration && _isLoadingMore) {
+        setState(() => _isLoadingMore = false);
+      }
+    }
+  }
+
+  void _onScroll() {
+    if (_scrollController.hasClients &&
+        _scrollController.position.extentAfter < 350) {
+      _loadCustomers(append: true);
     }
   }
 
@@ -210,7 +238,14 @@ class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
                 onAdd: _permissions.createCustomers ? _addCustomer : null,
               )
             : ListView.separated(
+                controller: _scrollController,
                 itemBuilder: (context, index) {
+                  if (index == _customers.length) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
                   final customer = _customers[index];
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -231,7 +266,7 @@ class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
                   );
                 },
                 separatorBuilder: (_, _) => const Divider(height: 1),
-                itemCount: _customers.length,
+                itemCount: _customers.length + (_isLoadingMore ? 1 : 0),
               ),
       ),
       footer: _permissions.createCustomers
@@ -247,6 +282,9 @@ class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
     _searchController.dispose();
     super.dispose();
   }

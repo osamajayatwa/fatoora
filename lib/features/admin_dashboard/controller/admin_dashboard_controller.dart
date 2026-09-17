@@ -297,18 +297,22 @@ class AdminDashboardController extends GetxController {
       _debugLog('companyId used: $resolvedCompanyId');
       _debugLog('role used: ${userContext.role}');
 
-      final loadedSnapshot = await _financialRepository.fetchDashboard(
-        companyId: resolvedCompanyId,
-        fromDate: selectedPeriod.start,
-        toDate: selectedPeriod.end,
-      );
-      var loadedPendingCount = pendingApprovalsCount;
-      try {
-        loadedPendingCount = (await _repository.fetchPendingUsers()).length;
-      } catch (error, stackTrace) {
-        _debugError('pending users count load failed', error, stackTrace);
-        // Approval count is supplemental; keep the dashboard usable.
-      }
+      final results = await Future.wait<Object>([
+        _financialRepository.fetchDashboard(
+          companyId: resolvedCompanyId,
+          fromDate: selectedPeriod.start,
+          toDate: selectedPeriod.end,
+        ),
+        _repository.fetchPendingUsers().then<int>(
+          (users) => users.length,
+          onError: (Object error, StackTrace stackTrace) {
+            _debugError('pending users count load failed', error, stackTrace);
+            return pendingApprovalsCount;
+          },
+        ),
+      ]);
+      final loadedSnapshot = results[0] as FinancialDashboardSnapshot;
+      final loadedPendingCount = results[1] as int;
       snapshot = loadedSnapshot;
       pendingApprovalsCount = loadedPendingCount;
       statusRequest = StatusRequest.success;

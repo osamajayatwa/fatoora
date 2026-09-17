@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:fatoora/core/firebase/trusted_callable_client.dart';
@@ -270,12 +272,28 @@ class FinancialLedgerRepository {
   ) async {
     final result = <String, Map<String, dynamic>>{};
     final orderedIds = ids.toList()..sort();
-    for (var offset = 0; offset < orderedIds.length; offset += 30) {
-      final batch = orderedIds.skip(offset).take(30).toList(growable: false);
-      final snapshot = await collection
-          .where(FieldPath.documentId, whereIn: batch)
-          .get();
-      for (final document in snapshot.docs) {
+    const maximumConcurrentBatches = 6;
+    for (
+      var windowStart = 0;
+      windowStart < orderedIds.length;
+      windowStart += 30 * maximumConcurrentBatches
+    ) {
+      final windowEnd = math.min(
+        windowStart + (30 * maximumConcurrentBatches),
+        orderedIds.length,
+      );
+      final requests = <Future<QuerySnapshot<Map<String, dynamic>>>>[];
+      for (var offset = windowStart; offset < windowEnd; offset += 30) {
+        final batch = orderedIds.sublist(
+          offset,
+          math.min(offset + 30, windowEnd),
+        );
+        requests.add(
+          collection.where(FieldPath.documentId, whereIn: batch).get(),
+        );
+      }
+      final snapshots = await Future.wait(requests);
+      for (final document in snapshots.expand((snapshot) => snapshot.docs)) {
         result[document.id] = document.data();
       }
     }

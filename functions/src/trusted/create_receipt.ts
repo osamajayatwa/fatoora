@@ -10,6 +10,7 @@ import {HttpsError, onCall} from "firebase-functions/v2/https";
 import {
   TRUSTED_CALLABLE_OPTIONS,
   allocateDocumentNumber,
+  buildSearchKeywords,
   businessPath,
   deterministicId,
   documentPrefix,
@@ -232,6 +233,12 @@ export async function createReceiptTransaction(
       id: receiptId,
       companyId,
       receiptNumber: numberAllocation.number,
+      searchKeywords: buildSearchKeywords([
+        numberAllocation.number,
+        customer.name,
+        user.name,
+        paymentMethod,
+      ]),
       receiptDate,
       customerId,
       customerSnapshot: customerSnapshotData(customerId, customer),

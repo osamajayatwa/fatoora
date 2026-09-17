@@ -7,16 +7,19 @@ class ItemSearchBar extends StatelessWidget {
     super.key,
     required this.controller,
     required this.onChanged,
+    this.onSubmitted,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final ValueChanged<String>? onSubmitted;
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
       onChanged: onChanged,
+      onSubmitted: onSubmitted,
       textInputAction: TextInputAction.search,
       decoration: InputDecoration(
         hintText: 'items_search'.tr,

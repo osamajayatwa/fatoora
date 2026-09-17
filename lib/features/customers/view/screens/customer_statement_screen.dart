@@ -155,6 +155,23 @@ class _StatementBody extends StatelessWidget {
                 )
               else
                 _TransactionsTable(transactions: controller.transactions),
+              if (controller.hasMore) ...[
+                const SizedBox(height: 12),
+                Center(
+                  child: OutlinedButton.icon(
+                    onPressed: controller.isLoadingMore
+                        ? null
+                        : controller.loadMore,
+                    icon: controller.isLoadingMore
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.expand_more_rounded),
+                    label: Text('load_more_records'.tr),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

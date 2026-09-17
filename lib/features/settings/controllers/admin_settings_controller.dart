@@ -1,4 +1,5 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/settings/business_settings_resolver.dart';
 import 'package:fatoora/features/settings/data/models/app_settings_model.dart';
 import 'package:fatoora/features/settings/data/models/company_settings_model.dart';
 import 'package:fatoora/features/settings/data/models/document_settings_model.dart';
@@ -177,6 +178,7 @@ class AdminSettingsController extends GetxController {
     try {
       final next = buildSettings();
       await _repository.updateAppSettings(next);
+      BusinessSettingsResolver.invalidateAppSettings();
       settings = next;
       _show('settings_save_success', AppColor.success);
     } catch (error) {

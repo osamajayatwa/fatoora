@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:fatoora/core/firebase/trusted_callable_client.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/features/items/data/models/item_model.dart';
 import 'package:fatoora/features/shared/business/business_user_context.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -118,6 +119,41 @@ class ItemRepository {
           .get()
           .timeout(const Duration(seconds: 20));
       return snapshot.docs.map(ItemModel.fromFirestore).toList();
+    });
+  }
+
+  Future<FirestorePage<ItemModel>> fetchItemsPage({
+    String searchText = '',
+    bool? active,
+    String orderField = 'createdAt',
+    bool descending = true,
+    FirestorePageCursor? after,
+    int pageSize = 36,
+  }) async {
+    return _run(() async {
+      await _contextReader.requireApprovedUser();
+      Query<Map<String, dynamic>> query = _items.where(
+        'deleted',
+        isEqualTo: false,
+      );
+      if (active != null) query = query.where('active', isEqualTo: active);
+      final search = ItemModel.normalizeSearch(searchText);
+      if (search.isNotEmpty) {
+        query = query.where('searchKeywords', arrayContains: search);
+      }
+      final safeOrderField = switch (orderField) {
+        'price' => 'price',
+        'nameLower' => 'nameLower',
+        _ => 'createdAt',
+      };
+      return query
+          .orderBy(safeOrderField, descending: descending)
+          .orderBy(FieldPath.documentId, descending: descending)
+          .getPage(
+            decode: ItemModel.fromFirestore,
+            after: after,
+            pageSize: pageSize,
+          );
     });
   }
 

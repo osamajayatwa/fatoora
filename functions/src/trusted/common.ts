@@ -66,6 +66,27 @@ export function optionalString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+export function normalizeSearchText(value: unknown): string {
+  return optionalString(value).toLowerCase();
+}
+
+export function buildSearchKeywords(values: unknown[]): string[] {
+  const keywords = new Set<string>();
+  for (const value of values) {
+    const normalized = normalizeSearchText(value);
+    if (!normalized) continue;
+    keywords.add(normalized);
+    for (const token of normalized.split(/[\s\-_/]+/u)) {
+      if (!token) continue;
+      keywords.add(token);
+      for (let index = 1; index <= token.length && index <= 20; index += 1) {
+        keywords.add(token.slice(0, index));
+      }
+    }
+  }
+  return [...keywords].sort();
+}
+
 export function requiredIdempotencyKey(value: unknown): string {
   const key = requiredString(value, "idempotencyKey");
   if (!/^[A-Za-z0-9_-]{8,128}$/.test(key)) {

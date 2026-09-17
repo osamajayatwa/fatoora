@@ -1,5 +1,6 @@
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/auth/utils/auth_session.dart';
@@ -33,6 +34,9 @@ class CashMovementsController extends GetxController {
   );
   bool isSavingSettlement = false;
   bool isPrinting = false;
+  bool isLoadingMore = false;
+  bool hasMore = false;
+  FirestorePageCursor? _cursor;
 
   String get companyId =>
       _myServices.sharedPreferences.getString('companyId') ??
@@ -52,11 +56,14 @@ class CashMovementsController extends GetxController {
     statusRequest = StatusRequest.loading;
     update();
     try {
-      snapshot = await _repository.fetchCash(
+      final page = await _repository.fetchCashPage(
         companyId: companyId,
         fromDate: fromDate,
         toDate: toDate,
       );
+      snapshot = page.snapshot;
+      _cursor = page.cursor;
+      hasMore = page.hasMore;
       statusRequest = StatusRequest.success;
     } catch (error) {
       statusRequest = FinancialErrorMapper.status(error);
@@ -66,6 +73,39 @@ class CashMovementsController extends GetxController {
   }
 
   Future<void> refreshCash() => loadCash();
+
+  Future<void> loadMore() async {
+    if (isLoadingMore || !hasMore || _cursor == null) return;
+    isLoadingMore = true;
+    update();
+    try {
+      final page = await _repository.fetchCashMovementDetailsPage(
+        companyId: companyId,
+        fromDate: fromDate,
+        toDate: toDate,
+        after: _cursor,
+      );
+      snapshot = FinancialCashSnapshot(
+        movements: [...snapshot.movements, ...page.items],
+        openingBalance: snapshot.openingBalance,
+        closingBalance: snapshot.closingBalance,
+        cashInHand: snapshot.cashInHand,
+        companyCash: snapshot.companyCash,
+        repCashOutstanding: snapshot.repCashOutstanding,
+        totalIn: snapshot.totalIn,
+        totalOut: snapshot.totalOut,
+        cashBySalesRep: snapshot.cashBySalesRep,
+        repCashOutstandingBySalesRep: snapshot.repCashOutstandingBySalesRep,
+      );
+      _cursor = page.cursor;
+      hasMore = page.hasMore;
+    } catch (error) {
+      loadErrorMessageKey = FinancialErrorMapper.messageKey(error);
+    } finally {
+      isLoadingMore = false;
+      if (!isClosed) update();
+    }
+  }
 
   void setDateRange(DateTime? from, DateTime? to) {
     fromDate = from;
@@ -120,10 +160,15 @@ class CashMovementsController extends GetxController {
       final filterLabel = isAdmin
           ? 'all'.tr
           : AuthSession.cachedDisplayName(_myServices);
+      final exportSnapshot = await _repository.fetchCash(
+        companyId: companyId,
+        fromDate: fromDate,
+        toDate: toDate,
+      );
       await Printing.layoutPdf(
         name: 'cash-report.pdf',
         onLayout: (_) => CashReportPdfService.build(
-          snapshot: snapshot,
+          snapshot: exportSnapshot,
           fromDate: fromDate,
           toDate: toDate,
           salesRepFilterLabel: filterLabel,

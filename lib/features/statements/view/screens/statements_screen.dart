@@ -50,6 +50,21 @@ class StatementsScreen extends StatelessWidget {
                             _CustomerCards(controller: controller)
                           else
                             _CustomerTable(controller: controller),
+                          if (controller.hasMore || controller.isLoadingMore)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 16),
+                              child: Center(
+                                child: controller.isLoadingMore
+                                    ? const CircularProgressIndicator()
+                                    : OutlinedButton.icon(
+                                        onPressed: controller.loadMore,
+                                        icon: const Icon(
+                                          Icons.expand_more_rounded,
+                                        ),
+                                        label: Text('load_more_records'.tr),
+                                      ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -101,6 +116,8 @@ class _Search extends StatelessWidget {
     return TextField(
       controller: controller.searchController,
       onChanged: controller.onSearchChanged,
+      onSubmitted: (_) => controller.submitSearch(),
+      textInputAction: TextInputAction.search,
       decoration: InputDecoration(
         hintText: 'statements_search_hint'.tr,
         prefixIcon: const Icon(Icons.search_rounded),

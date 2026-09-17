@@ -1,5 +1,6 @@
 import 'package:fatoora/core/pdf/app_pdf_localization.dart';
 import 'package:fatoora/core/pdf/business_pdf_configuration.dart';
+import 'package:fatoora/core/settings/business_settings_resolver.dart';
 import 'package:fatoora/features/settings/data/models/app_settings_model.dart';
 import 'package:fatoora/features/settings/data/models/user_preferences_model.dart';
 import 'package:fatoora/features/settings/data/repositories/settings_repository.dart';
@@ -48,9 +49,9 @@ class BusinessPdfSettingsResolver {
     String companyId,
   ) async {
     try {
-      return await repository
-          .getAppSettings(companyId)
-          .timeout(const Duration(seconds: 5));
+      return await BusinessSettingsResolver(
+        repository: repository,
+      ).loadAppSettings(companyId);
     } catch (_) {
       return AppSettingsModel.defaults;
     }
@@ -62,9 +63,9 @@ class BusinessPdfSettingsResolver {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
       if (uid.isEmpty) return UserPreferencesModel.defaults;
-      return await repository
-          .getUserPreferences(uid)
-          .timeout(const Duration(seconds: 5));
+      return await BusinessSettingsResolver(
+        repository: repository,
+      ).loadUserPreferences(uid);
     } catch (_) {
       return UserPreferencesModel.defaults;
     }

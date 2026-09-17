@@ -30,6 +30,8 @@ class AdminLoginWaveHeader extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(24, 20, 24, 42),
         child: Image.asset(
           ImageAssest.logo,
+          cacheWidth: 512,
+          cacheHeight: 512,
           width: 210,
           height: 170,
           fit: BoxFit.contain,

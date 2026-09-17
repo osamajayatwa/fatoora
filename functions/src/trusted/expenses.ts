@@ -2,6 +2,7 @@ import {FieldValue, Firestore, Timestamp, getFirestore} from "firebase-admin/fir
 import {HttpsError, onCall} from "firebase-functions/v2/https";
 import {
   TRUSTED_CALLABLE_OPTIONS,
+  buildSearchKeywords,
   businessPath,
   deterministicId,
   finiteNumber,
@@ -129,6 +130,13 @@ export async function createExpenseTransaction(
       categoryName: category,
       customCategoryName,
       description,
+      searchKeywords: buildSearchKeywords([
+        expenseId,
+        description,
+        customCategoryName,
+        category,
+        user.name,
+      ]),
       notes: description,
       paidByUid: user.uid,
       paidByName: user.name,

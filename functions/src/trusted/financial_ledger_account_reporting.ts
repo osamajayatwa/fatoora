@@ -73,6 +73,7 @@ interface AccountOpening {
   debit: number;
   credit: number;
   balance: number;
+  lastActivityAt?: number;
 }
 
 export const projectFinancialLedgerAccountActivity = onDocumentWritten(
@@ -133,6 +134,130 @@ export const getFinancialLedgerOpeningBalances = onCall(
       fromInclusive: fromInclusive.toMillis(),
       scope,
       openings,
+    };
+  },
+);
+
+export const getCashOpeningBalance = onCall(
+  TRUSTED_CALLABLE_OPTIONS,
+  async (request) => {
+    const uid = requireCallableUid(request, "getCashOpeningBalance");
+    const input = record(request.data);
+    const companyId = requiredDocumentId(input.companyId, "companyId");
+    const firestore = getFirestore();
+    const user = await firestore.runTransaction((transaction) =>
+      requireTrustedUser(transaction, firestore, uid, companyId));
+    const metadata = await firestore.doc(businessPath(
+      companyId,
+      ACCOUNT_ACTIVITY_METADATA_COLLECTION,
+      "current",
+    )).get();
+    if (
+      !metadata.exists ||
+      metadata.get("status") !== "ready" ||
+      metadata.get("projectionVersion") !== ACCOUNT_ACTIVITY_PROJECTION_VERSION
+    ) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Financial ledger account activity projection is not ready.",
+      );
+    }
+    const fromInclusive = timestampFrom(input.fromInclusive, "fromInclusive");
+    let accountKeys: string[];
+    let repNames = new Map<string, string>();
+    if (user.role === "admin") {
+      const reps = await firestore.collection("users")
+        .where("companyId", "==", companyId)
+        .where("role", "==", "sales_rep")
+        .get();
+      repNames = new Map(reps.docs.map((document) => [
+        document.id,
+        optionalString(document.data().name),
+      ]));
+      accountKeys = [
+        "company_cash",
+        ...reps.docs.map((document) => `rep_cash:${document.id}`),
+      ];
+    } else {
+      accountKeys = [`rep_cash:${user.uid}`];
+      repNames.set(user.uid, user.name);
+    }
+    const openings = await loadAccountOpenings(
+      firestore,
+      companyId,
+      user.role === "admin" ? "all" : representativeScopeId(user.uid),
+      accountKeys,
+      fromInclusive,
+    );
+    const companyOpening = openings.find((opening) =>
+      opening.accountKey === "company_cash")?.balance ?? 0;
+    const repOpenings = openings.filter((opening) =>
+      opening.accountKey.startsWith("rep_cash:"))
+      .map((opening) => {
+        const salesRepId = opening.accountKey.slice("rep_cash:".length);
+        return {
+          salesRepId,
+          salesRepName: repNames.get(salesRepId) ?? "",
+          amount: opening.balance,
+        };
+      });
+    const repOpening = roundMoney(repOpenings.reduce(
+      (sum, opening) => sum + opening.amount,
+      0,
+    ));
+    return {
+      projectionVersion: ACCOUNT_ACTIVITY_PROJECTION_VERSION,
+      openingBalance: user.role === "admin" ? companyOpening : repOpening,
+      companyCashOpening: companyOpening,
+      repCashOpening: repOpening,
+      repCashOpeningBySalesRep: repOpenings,
+    };
+  },
+);
+
+export const getReceivableBalances = onCall(
+  TRUSTED_CALLABLE_OPTIONS,
+  async (request) => {
+    const uid = requireCallableUid(request, "getReceivableBalances");
+    const input = record(request.data);
+    const companyId = requiredDocumentId(input.companyId, "companyId");
+    const firestore = getFirestore();
+    const user = await firestore.runTransaction((transaction) =>
+      requireTrustedUser(transaction, firestore, uid, companyId));
+    await requireAccountActivityProjection(firestore, companyId);
+    const atExclusive = timestampFrom(input.atExclusive, "atExclusive");
+    const customerIds = parseDocumentIds(input.customerIds, "customerIds");
+    if (customerIds.length === 0) {
+      return {projectionVersion: ACCOUNT_ACTIVITY_PROJECTION_VERSION, balances: []};
+    }
+    const references = customerIds.map((customerId) => firestore.doc(
+      businessPath(companyId, "customers", customerId),
+    ));
+    const customers = await firestore.getAll(...references);
+    for (const customer of customers) {
+      if (!customer.exists) {
+        throw new HttpsError("not-found", "A requested customer was not found.");
+      }
+      if (user.role === "sales_rep" &&
+          optionalString(customer.data()?.createdByUid) !== user.uid) {
+        throw new HttpsError("permission-denied", "Customer access is denied.");
+      }
+    }
+    const openings = await loadAccountOpenings(
+      firestore,
+      companyId,
+      user.role === "admin" ? "all" : representativeScopeId(user.uid),
+      customerIds.map((customerId) => `customer:${customerId}`),
+      atExclusive,
+    );
+    return {
+      projectionVersion: ACCOUNT_ACTIVITY_PROJECTION_VERSION,
+      atExclusive: atExclusive.toMillis(),
+      balances: openings.map((opening) => ({
+        customerId: opening.accountKey.slice("customer:".length),
+        balance: opening.balance,
+        lastActivityAt: opening.lastActivityAt ?? null,
+      })),
     };
   },
 );
@@ -366,6 +491,7 @@ async function loadAccountOpening(
   const accountPath = accountActivityAccountPath(companyId, scope, accountKey);
   const dayKey = businessDayKey(fromInclusive);
   const monthKey = dayKey.slice(0, 7);
+  const boundary = postingBoundaryId(dayKey, fromInclusive);
   const [months, days, postings] = await Promise.all([
     firestore.collection(`${accountPath}/months`)
       .where(FieldPath.documentId(), "<", `${monthKey}_s00`)
@@ -379,7 +505,7 @@ async function loadAccountOpening(
       .where(
         FieldPath.documentId(),
         "<",
-        postingBoundaryId(dayKey, fromInclusive),
+        boundary,
       )
       .get(),
   ]);
@@ -528,6 +654,35 @@ function parseAccountKeys(value: unknown): string[] {
     throw new HttpsError("invalid-argument", "An account key is too long.");
   }
   return result;
+}
+
+function parseDocumentIds(value: unknown, field: string): string[] {
+  if (!Array.isArray(value) || value.length > MAX_ACCOUNT_KEYS) {
+    throw new HttpsError(
+      "invalid-argument",
+      `${field} must contain no more than ${MAX_ACCOUNT_KEYS} values.`,
+    );
+  }
+  return [...new Set(value.map((item) => requiredDocumentId(item, `${field}[]`)))];
+}
+
+async function requireAccountActivityProjection(
+  firestore: Firestore,
+  companyId: string,
+): Promise<void> {
+  const metadata = await firestore.doc(businessPath(
+    companyId,
+    ACCOUNT_ACTIVITY_METADATA_COLLECTION,
+    "current",
+  )).get();
+  if (!metadata.exists ||
+      metadata.get("status") !== "ready" ||
+      metadata.get("projectionVersion") !== ACCOUNT_ACTIVITY_PROJECTION_VERSION) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Financial ledger account activity projection is not ready.",
+    );
+  }
 }
 
 function accountActivityAccountPath(

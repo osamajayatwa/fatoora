@@ -13,7 +13,15 @@ class AppPdfAssets {
   final pw.Font boldFont;
   final pw.MemoryImage? logo;
 
-  static Future<AppPdfAssets> load({bool loadLogo = true}) async {
+  static Future<AppPdfAssets>? _withoutLogo;
+  static Future<AppPdfAssets>? _withLogo;
+
+  static Future<AppPdfAssets> load({bool loadLogo = true}) {
+    if (loadLogo) return _withLogo ??= _load(loadLogo: true);
+    return _withoutLogo ??= _load(loadLogo: false);
+  }
+
+  static Future<AppPdfAssets> _load({required bool loadLogo}) async {
     final regular = pw.Font.ttf(
       await rootBundle.load('assets/fonts/Cairo/Cairo-Regular.ttf'),
     );

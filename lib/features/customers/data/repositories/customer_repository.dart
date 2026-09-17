@@ -36,6 +36,26 @@ class CustomerRepositoryException implements Exception {
   final Object? cause;
 }
 
+class CustomerStatementPage {
+  const CustomerStatementPage({
+    required this.transactions,
+    required this.cursor,
+    required this.hasMore,
+    required this.openingBalance,
+    required this.totalDebit,
+    required this.totalCredit,
+    required this.closingBalance,
+  });
+
+  final List<CustomerTransactionModel> transactions;
+  final FirestorePageCursor? cursor;
+  final bool hasMore;
+  final double openingBalance;
+  final double totalDebit;
+  final double totalCredit;
+  final double closingBalance;
+}
+
 class OpeningBalanceAlreadyExistsException extends CustomerRepositoryException {
   const OpeningBalanceAlreadyExistsException([this.openingBalance])
     : super(CustomerRepositoryError.openingBalanceExists);
@@ -396,7 +416,79 @@ class CustomerRepository {
     });
   }
 
-  Future<CustomerStatementSnapshot> fetchStatement({
+  Future<CustomerStatementPage> fetchStatementPage({
+    String companyId = AuthRepository.defaultCompanyId,
+    required String customerId,
+    DateTime? fromDate,
+    DateTime? toDate,
+    FirestorePageCursor? after,
+    int pageSize = 50,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      final customer = await getCustomer(
+        companyId: resolvedCompanyId,
+        customerId: customerId,
+      );
+      _requireCanAccessCustomer(user, customer);
+
+      Query<Map<String, dynamic>> query = _transactions(
+        resolvedCompanyId,
+      ).where('customerId', isEqualTo: customerId);
+      if (fromDate != null) {
+        query = query.where(
+          'transactionDate',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfDay(fromDate)),
+        );
+      }
+      if (toDate != null) {
+        query = query.where(
+          'transactionDate',
+          isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(toDate)),
+        );
+      }
+      final pageFuture = query
+          .orderBy('transactionDate')
+          .orderBy(FieldPath.documentId)
+          .getPage(
+            decode: CustomerTransactionModel.fromFirestore,
+            after: after,
+            pageSize: pageSize,
+          );
+      final totalsFuture = query
+          .aggregate(sum('debitAmount'), sum('creditAmount'))
+          .get();
+      final openingBalanceFuture = fromDate == null
+          ? Future<double>.value(0)
+          : _fetchOpeningBalance(
+              companyId: resolvedCompanyId,
+              customerId: customerId,
+              beforeDate: fromDate,
+            );
+      final results = await Future.wait<Object>([
+        pageFuture,
+        totalsFuture,
+        openingBalanceFuture,
+      ]);
+      final page = results[0] as FirestorePage<CustomerTransactionModel>;
+      final totals = results[1] as AggregateQuerySnapshot;
+      final openingBalance = results[2] as double;
+      final totalDebit = _roundMoney(totals.getSum('debitAmount') ?? 0);
+      final totalCredit = _roundMoney(totals.getSum('creditAmount') ?? 0);
+      return CustomerStatementPage(
+        transactions: page.items,
+        cursor: page.cursor,
+        hasMore: page.hasMore,
+        openingBalance: openingBalance,
+        totalDebit: totalDebit,
+        totalCredit: totalCredit,
+        closingBalance: _roundMoney(openingBalance + totalDebit - totalCredit),
+      );
+    });
+  }
+
+  Future<CustomerStatementSnapshot> fetchFullStatement({
     String companyId = AuthRepository.defaultCompanyId,
     required String customerId,
     DateTime? fromDate,
@@ -458,20 +550,21 @@ class CustomerRepository {
     required String customerId,
     required DateTime beforeDate,
   }) async {
-    final documents = await _transactions(companyId)
+    final snapshot = await _transactions(companyId)
         .where('customerId', isEqualTo: customerId)
         .where(
           'transactionDate',
           isLessThan: Timestamp.fromDate(_startOfDay(beforeDate)),
         )
-        .orderBy('transactionDate')
-        .orderBy(FieldPath.documentId)
-        .getAllPages();
-    return documents.fold<double>(0, (balance, document) {
-      final transaction = CustomerTransactionModel.fromFirestore(document);
-      return balance + transaction.debitAmount - transaction.creditAmount;
-    });
+        .aggregate(sum('debitAmount'), sum('creditAmount'))
+        .get();
+    return _roundMoney(
+      (snapshot.getSum('debitAmount') ?? 0) -
+          (snapshot.getSum('creditAmount') ?? 0),
+    );
   }
+
+  double _roundMoney(double value) => (value * 1000).roundToDouble() / 1000;
 
   Future<EffectiveBusinessPermissions> _loadPermissions(
     String companyId,

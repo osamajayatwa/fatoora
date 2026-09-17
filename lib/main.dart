@@ -11,11 +11,14 @@ export 'package:fatoora/app/app.dart' show MyApp;
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await initializeDateFormatting();
-    await initializeFirebaseForEnvironment(
-      FirebaseEnvironmentConfiguration.current(),
-    );
-    await initialServices();
+    await Future.wait([
+      initializeDateFormatting('ar'),
+      initializeDateFormatting('en'),
+      initializeFirebaseForEnvironment(
+        FirebaseEnvironmentConfiguration.current(),
+      ),
+      initialServices(),
+    ]);
     final localeController = Get.put(LocaleController());
     await localeController.init();
     runApp(const MyApp());

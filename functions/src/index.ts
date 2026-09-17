@@ -21,9 +21,19 @@ import {
   searchFinancialLedger,
 } from "./trusted/financial_ledger_reporting";
 import {
+  getCashOpeningBalance,
   getFinancialLedgerOpeningBalances,
+  getReceivableBalances,
   projectFinancialLedgerAccountActivity,
 } from "./trusted/financial_ledger_account_reporting";
+import {getDashboardSnapshot} from "./trusted/dashboard_reporting";
+import {
+  projectInventoryTransferSearch,
+  projectItemReportingFields,
+  projectRepInventoryMovementSearch,
+  projectSalesReturnSearch,
+  projectStockMovementSearch,
+} from "./trusted/operational_search_projection";
 
 initializeApp();
 
@@ -41,12 +51,20 @@ export {
   createItem,
   createReceipt,
   getFinancialLedgerOpeningBalances,
+  getCashOpeningBalance,
+  getReceivableBalances,
+  getDashboardSnapshot,
   getFinancialLedgerSummary,
   postCustomerOpeningBalance,
   postCompanyCashOpeningBalance,
   recordCashSettlement,
   projectFinancialLedgerEntry,
   projectFinancialLedgerAccountActivity,
+  projectInventoryTransferSearch,
+  projectItemReportingFields,
+  projectRepInventoryMovementSearch,
+  projectSalesReturnSearch,
+  projectStockMovementSearch,
   searchFinancialLedger,
   updateCustomerOpeningBalance,
   updateCustomer,

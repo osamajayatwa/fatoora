@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:fatoora/core/class/statusrequest.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
@@ -30,6 +31,9 @@ class StockMovementsController extends GetxController {
   Timer? _debounce;
   int _loadGeneration = 0;
   String _appliedSearchText = '';
+  FirestorePageCursor? _pageCursor;
+  bool hasMore = false;
+  bool isLoadingMore = false;
 
   String get companyId {
     final cached =
@@ -52,17 +56,21 @@ class StockMovementsController extends GetxController {
     final generation = ++_loadGeneration;
     final requestedSearch = serverSearchTerm(searchText);
     statusRequest = StatusRequest.loading;
+    _pageCursor = null;
+    hasMore = false;
     loadErrorMessageKey = 'inventory_load_error';
     update();
     try {
-      final loadedMovements = await _repository.fetchStockMovements(
+      final page = await _repository.fetchStockMovementsPage(
         companyId: companyId,
         itemId: itemId,
         movementType: movementType,
         searchText: requestedSearch,
       );
       if (generation != _loadGeneration) return;
-      movements = loadedMovements;
+      movements = page.items;
+      _pageCursor = page.cursor;
+      hasMore = page.hasMore;
       _appliedSearchText = requestedSearch;
       statusRequest = StatusRequest.success;
     } catch (error) {
@@ -112,6 +120,33 @@ class StockMovementsController extends GetxController {
     _debounce?.cancel();
     movementType = value;
     loadMovements();
+  }
+
+  Future<void> loadMore() async {
+    if (isLoadingMore || !hasMore || _pageCursor == null) return;
+    isLoadingMore = true;
+    final generation = _loadGeneration;
+    update();
+    try {
+      final page = await _repository.fetchStockMovementsPage(
+        companyId: companyId,
+        itemId: itemId,
+        movementType: movementType,
+        searchText: serverSearchTerm(searchText),
+        after: _pageCursor,
+      );
+      if (generation != _loadGeneration) return;
+      movements = [...movements, ...page.items];
+      _pageCursor = page.cursor;
+      hasMore = page.hasMore;
+    } catch (error) {
+      if (generation == _loadGeneration) {
+        loadErrorMessageKey = InventoryErrorMapper.messageKey(error);
+      }
+    } finally {
+      isLoadingMore = false;
+      if (!isClosed) update();
+    }
   }
 
   @override

@@ -1,47 +1,51 @@
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/features/auth/data/models/app_user_model.dart';
+import 'package:fatoora/features/shared/business/business_user_context.dart';
 
 class AuthSession {
   const AuthSession._();
 
   static Future<void> save(MyServices services, AppUserModel user) async {
     final preferences = services.sharedPreferences;
-    await preferences.setString('uid', user.uid);
-    await preferences.setString('name', validDisplayName(user));
-    await preferences.setString('email', user.email);
-    await preferences.setString('phone', user.phone);
-    await preferences.setString('photoUrl', user.photoUrl);
-    await preferences.setString('role', user.role);
-    await preferences.setString('approvalStatus', user.approvalStatus);
-    await preferences.setString('companyId', user.companyId);
-    await preferences.setBool('active', user.active);
-
-    if (user.isAdmin && user.canAccessApp) {
-      await preferences.setString('step', '3');
-    } else if (user.isSalesRep && user.canAccessApp) {
-      await preferences.setString('step', '2');
-    } else {
-      await preferences.setString('step', '1');
-    }
+    BusinessUserContextReader.invalidateCache();
+    final step = user.isAdmin && user.canAccessApp
+        ? '3'
+        : user.isSalesRep && user.canAccessApp
+        ? '2'
+        : '1';
+    await Future.wait([
+      preferences.setString('uid', user.uid),
+      preferences.setString('name', validDisplayName(user)),
+      preferences.setString('email', user.email),
+      preferences.setString('phone', user.phone),
+      preferences.setString('photoUrl', user.photoUrl),
+      preferences.setString('role', user.role),
+      preferences.setString('approvalStatus', user.approvalStatus),
+      preferences.setString('companyId', user.companyId),
+      preferences.setBool('active', user.active),
+      preferences.setString('step', step),
+    ]);
   }
 
   static Future<void> clear(MyServices services) async {
     final preferences = services.sharedPreferences;
-    for (final key in [
-      'step',
-      'uid',
-      'role',
-      'name',
-      'email',
-      'phone',
-      'photoUrl',
-      'approvalStatus',
-      'companyId',
-    ]) {
-      await preferences.remove(key);
-    }
-    await preferences.remove('active');
+    BusinessUserContextReader.invalidateCache();
+    await Future.wait([
+      for (final key in [
+        'step',
+        'uid',
+        'role',
+        'name',
+        'email',
+        'phone',
+        'photoUrl',
+        'approvalStatus',
+        'companyId',
+      ])
+        preferences.remove(key),
+      preferences.remove('active'),
+    ]);
   }
 
   static String routeForProfile(AppUserModel user) {

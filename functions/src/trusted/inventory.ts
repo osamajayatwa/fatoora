@@ -3,10 +3,12 @@ import {HttpsError, onCall} from "firebase-functions/v2/https";
 import {
   DEFAULT_COMPANY_ID,
   TRUSTED_CALLABLE_OPTIONS,
+  buildSearchKeywords,
   businessPath,
   deterministicId,
   finiteNumber,
   numberFrom,
+  normalizeSearchText,
   optionalString,
   record,
   requireCallableUid,
@@ -153,6 +155,22 @@ export async function createItemTransaction(
       costPrice: item.costPrice,
       barcode: item.barcode || null,
       category: item.category || null,
+      inventoryValue: roundMoney(item.currentStock * item.costPrice),
+      stockStatus: !item.trackStock
+        ? "untracked"
+        : item.currentStock <= 0
+          ? "out"
+          : item.currentStock <= item.minStock
+            ? "low"
+            : "ok",
+      nameLower: normalizeItemSearch(item.name),
+      searchKeywords: buildItemSearchKeywords([
+        item.name,
+        item.code,
+        item.description,
+        item.barcode,
+        item.category,
+      ]),
       warehouseId: item.warehouseId,
       inventoryUpdatedAt: FieldValue.serverTimestamp(),
       ...(item.currentStock > 0 ? {
@@ -187,6 +205,14 @@ export async function createItemTransaction(
     }
     return {itemId, alreadyPosted: false};
   });
+}
+
+export function normalizeItemSearch(value: string): string {
+  return normalizeSearchText(value);
+}
+
+export function buildItemSearchKeywords(values: string[]): string[] {
+  return buildSearchKeywords(values);
 }
 
 export async function adjustStockTransaction(

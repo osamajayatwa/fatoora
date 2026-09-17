@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/controllers/customer_error_mapper.dart';
@@ -31,6 +32,9 @@ class CustomerStatementController extends GetxController {
   CustomerModel? customer;
   List<CustomerTransactionModel> transactions = const [];
   bool isPrinting = false;
+  bool isLoadingMore = false;
+  bool hasMore = false;
+  FirestorePageCursor? _cursor;
 
   double openingBalance = 0;
   double totalDebit = 0;
@@ -70,13 +74,18 @@ class CustomerStatementController extends GetxController {
         companyId: companyId,
         customerId: customerId,
       );
-      final statement = await _repository.fetchStatement(
+      final statement = await _repository.fetchStatementPage(
         companyId: companyId,
         customerId: customerId,
         fromDate: fromDate,
         toDate: toDate,
       );
-      transactions = statement.transactions;
+      transactions = _withRunningBalances(
+        statement.transactions,
+        statement.openingBalance,
+      );
+      _cursor = statement.cursor;
+      hasMore = statement.hasMore;
       openingBalance = statement.openingBalance;
       totalDebit = statement.totalDebit;
       totalCredit = statement.totalCredit;
@@ -107,6 +116,35 @@ class CustomerStatementController extends GetxController {
     fromDate = null;
     toDate = null;
     loadStatement();
+  }
+
+  Future<void> loadMore() async {
+    if (isLoadingMore || !hasMore || _cursor == null) return;
+    isLoadingMore = true;
+    update();
+    try {
+      final page = await _repository.fetchStatementPage(
+        companyId: companyId,
+        customerId: customerId,
+        fromDate: fromDate,
+        toDate: toDate,
+        after: _cursor,
+      );
+      final runningStart = transactions.isEmpty
+          ? openingBalance
+          : transactions.last.balanceAfter;
+      transactions = [
+        ...transactions,
+        ..._withRunningBalances(page.transactions, runningStart),
+      ];
+      _cursor = page.cursor;
+      hasMore = page.hasMore;
+    } catch (error) {
+      _showError(CustomerErrorMapper.messageKey(error));
+    } finally {
+      isLoadingMore = false;
+      if (!isClosed) update();
+    }
   }
 
   Future<void> printStatement() async {
@@ -145,18 +183,41 @@ class CustomerStatementController extends GetxController {
     }
   }
 
-  Future<Uint8List> _buildPdf(CustomerModel current) {
-    return CustomerStatementPdfService.build(
-      customer: current,
-      transactions: transactions,
+  Future<Uint8List> _buildPdf(CustomerModel current) async {
+    final fullStatement = await _repository.fetchFullStatement(
+      companyId: companyId,
+      customerId: customerId,
       fromDate: fromDate,
       toDate: toDate,
-      openingBalance: openingBalance,
-      totalDebit: totalDebit,
-      totalCredit: totalCredit,
-      finalBalance: finalBalance,
+    );
+    return CustomerStatementPdfService.build(
+      customer: current,
+      transactions: fullStatement.transactions,
+      fromDate: fromDate,
+      toDate: toDate,
+      openingBalance: fullStatement.openingBalance,
+      totalDebit: fullStatement.totalDebit,
+      totalCredit: fullStatement.totalCredit,
+      finalBalance: fullStatement.closingBalance,
     );
   }
+
+  List<CustomerTransactionModel> _withRunningBalances(
+    List<CustomerTransactionModel> values,
+    double startingBalance,
+  ) {
+    var running = startingBalance;
+    return values
+        .map((transaction) {
+          running = _round(
+            running + transaction.debitAmount - transaction.creditAmount,
+          );
+          return transaction.copyWith(balanceAfter: running);
+        })
+        .toList(growable: false);
+  }
+
+  double _round(double value) => (value * 1000).roundToDouble() / 1000;
 
   String _pdfFilename(CustomerModel current) {
     final safeName = current.name

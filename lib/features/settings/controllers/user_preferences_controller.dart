@@ -1,9 +1,11 @@
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/localization/changelocal.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/settings/business_settings_resolver.dart';
 import 'package:fatoora/features/auth/data/models/app_user_model.dart';
 import 'package:fatoora/features/settings/data/models/user_preferences_model.dart';
 import 'package:fatoora/features/settings/data/repositories/settings_repository.dart';
+import 'package:fatoora/features/shared/business/business_user_context.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -97,6 +99,7 @@ class UserPreferencesController extends GetxController {
         phone: phoneController.text,
         photoUrl: photoUrlController.text,
       );
+      BusinessUserContextReader.invalidateCache(current.uid);
       final safeName = nameController.text.trim();
       profile = current.copyWith(
         name: safeName,
@@ -140,6 +143,7 @@ class UserPreferencesController extends GetxController {
         updatedAt: DateTime.now(),
       );
       await _repository.updateUserPreferences(current.uid, next);
+      BusinessSettingsResolver.invalidateUserPreferences(current.uid);
       preferences = next;
       await _myServices.sharedPreferences.setString('lang', language);
       await _myServices.sharedPreferences.setString('themeMode', themeMode);

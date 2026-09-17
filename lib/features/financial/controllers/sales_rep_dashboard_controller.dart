@@ -51,12 +51,16 @@ class SalesRepDashboardController extends GetxController {
     statusRequest = StatusRequest.loading;
     update();
     try {
-      permissions = await _permissionResolver.resolve(companyId);
-      snapshot = await _repository.fetchDashboard(
-        companyId: companyId,
-        fromDate: selectedPeriod.start,
-        toDate: selectedPeriod.end,
-      );
+      final results = await Future.wait<Object>([
+        _permissionResolver.resolve(companyId),
+        _repository.fetchDashboard(
+          companyId: companyId,
+          fromDate: selectedPeriod.start,
+          toDate: selectedPeriod.end,
+        ),
+      ]);
+      permissions = results[0] as EffectiveBusinessPermissions;
+      snapshot = results[1] as FinancialDashboardSnapshot;
       statusRequest = StatusRequest.success;
     } catch (error) {
       statusRequest = FinancialErrorMapper.status(error);

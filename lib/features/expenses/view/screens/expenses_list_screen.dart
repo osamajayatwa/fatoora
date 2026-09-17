@@ -47,6 +47,21 @@ class ExpensesListScreen extends StatelessWidget {
                             _EmptyExpenses(hasFilters: controller.hasFilters)
                           else
                             _ExpenseList(controller: controller),
+                          if (controller.hasMore || controller.isLoadingMore)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Center(
+                                child: controller.isLoadingMore
+                                    ? const CircularProgressIndicator()
+                                    : OutlinedButton.icon(
+                                        onPressed: controller.loadMoreExpenses,
+                                        icon: const Icon(
+                                          Icons.expand_more_rounded,
+                                        ),
+                                        label: Text('load_more_records'.tr),
+                                      ),
+                              ),
+                            ),
                         ],
                       ),
                     ),

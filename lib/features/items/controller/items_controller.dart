@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
+import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/features/items/data/models/item_model.dart';
 import 'package:fatoora/features/items/data/repositories/item_repository.dart';
@@ -18,6 +22,7 @@ class ItemsController extends GetxController with ItemPageNavigation {
 
   final ItemRepository _repository;
   final TextEditingController searchController = TextEditingController();
+  final ScrollController scrollController = ScrollController();
 
   StatusRequest statusRequest = StatusRequest.loading;
   List<ItemModel> items = const [];
@@ -25,47 +30,53 @@ class ItemsController extends GetxController with ItemPageNavigation {
   ItemSort sort = ItemSort.newest;
   String searchQuery = '';
   String loadErrorMessageKey = 'items_load_error';
+  bool isLoadingMore = false;
+  bool hasMore = false;
+  FirestorePageCursor? _pageCursor;
+  Timer? _searchDebounce;
+  int _loadGeneration = 0;
+  String _appliedSearch = '';
 
-  List<ItemModel> get visibleItems {
-    final query = searchQuery.trim().toLowerCase();
-    final result = items.where((item) {
-      final matchesFilter = switch (filter) {
-        ItemFilter.all => true,
-        ItemFilter.active => item.active,
-        ItemFilter.inactive => !item.active,
-      };
-      final matchesSearch =
-          query.isEmpty ||
-          item.name.toLowerCase().contains(query) ||
-          item.code.toLowerCase().contains(query);
-      return matchesFilter && matchesSearch;
-    }).toList();
-
-    result.sort(
-      (a, b) => switch (sort) {
-        ItemSort.newest => b.createdAt.compareTo(a.createdAt),
-        ItemSort.oldest => a.createdAt.compareTo(b.createdAt),
-        ItemSort.priceHigh => b.price.compareTo(a.price),
-        ItemSort.priceLow => a.price.compareTo(b.price),
-      },
-    );
-    return result;
-  }
+  List<ItemModel> get visibleItems => items;
 
   @override
   void onReady() {
     super.onReady();
+    scrollController.addListener(_onScroll);
     loadItems();
   }
 
   Future<void> loadItems() async {
+    _searchDebounce?.cancel();
+    final generation = ++_loadGeneration;
+    final requestedSearch = serverSearchTerm(searchQuery);
     statusRequest = StatusRequest.loading;
+    _pageCursor = null;
+    hasMore = false;
     loadErrorMessageKey = 'items_load_error';
     update();
     try {
-      items = await _repository.fetchItems();
+      final page = await _repository.fetchItemsPage(
+        searchText: requestedSearch,
+        active: switch (filter) {
+          ItemFilter.all => null,
+          ItemFilter.active => true,
+          ItemFilter.inactive => false,
+        },
+        orderField: switch (sort) {
+          ItemSort.newest || ItemSort.oldest => 'createdAt',
+          ItemSort.priceHigh || ItemSort.priceLow => 'price',
+        },
+        descending: sort == ItemSort.newest || sort == ItemSort.priceHigh,
+      );
+      if (generation != _loadGeneration) return;
+      items = page.items;
+      _pageCursor = page.cursor;
+      hasMore = page.hasMore;
+      _appliedSearch = requestedSearch;
       statusRequest = StatusRequest.success;
     } catch (error) {
+      if (generation != _loadGeneration) return;
       statusRequest = ItemErrorMapper.status(error);
       loadErrorMessageKey = ItemErrorMapper.messageKey(
         error,
@@ -83,18 +94,79 @@ class ItemsController extends GetxController with ItemPageNavigation {
   }
 
   void setFilter(ItemFilter value) {
+    if (filter == value) return;
     filter = value;
-    update();
+    loadItems();
   }
 
   void setSort(ItemSort value) {
+    if (sort == value) return;
     sort = value;
-    update();
+    loadItems();
   }
 
   void onSearchChanged(String value) {
     searchQuery = value;
+    _searchDebounce?.cancel();
+    _loadGeneration++;
     update();
+    if (serverSearchTerm(value).isEmpty) {
+      if (_appliedSearch.isNotEmpty || statusRequest != StatusRequest.success) {
+        loadItems();
+      }
+      return;
+    }
+    _searchDebounce = Timer(serverSearchDebounce, loadItems);
+  }
+
+  void submitSearch() {
+    _searchDebounce?.cancel();
+    loadItems();
+  }
+
+  Future<void> loadMoreItems() async {
+    if (isLoadingMore || !hasMore || _pageCursor == null) return;
+    isLoadingMore = true;
+    final generation = _loadGeneration;
+    update();
+    try {
+      final page = await _repository.fetchItemsPage(
+        searchText: serverSearchTerm(searchQuery),
+        active: switch (filter) {
+          ItemFilter.all => null,
+          ItemFilter.active => true,
+          ItemFilter.inactive => false,
+        },
+        orderField: switch (sort) {
+          ItemSort.newest || ItemSort.oldest => 'createdAt',
+          ItemSort.priceHigh || ItemSort.priceLow => 'price',
+        },
+        descending: sort == ItemSort.newest || sort == ItemSort.priceHigh,
+        after: _pageCursor,
+      );
+      if (generation != _loadGeneration) return;
+      items = [...items, ...page.items];
+      _pageCursor = page.cursor;
+      hasMore = page.hasMore;
+    } catch (error) {
+      if (generation == _loadGeneration) {
+        Get.snackbar(
+          'items_title'.tr,
+          ItemErrorMapper.messageKey(error).tr,
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColor.error,
+          colorText: Colors.white,
+        );
+      }
+    } finally {
+      isLoadingMore = false;
+      if (!isClosed) update();
+    }
+  }
+
+  void _onScroll() {
+    if (!scrollController.hasClients) return;
+    if (scrollController.position.extentAfter < 500) loadMoreItems();
   }
 
   Future<void> openAddItem() async {
@@ -114,6 +186,10 @@ class ItemsController extends GetxController with ItemPageNavigation {
 
   @override
   void onClose() {
+    _searchDebounce?.cancel();
+    scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
     searchController.dispose();
     super.onClose();
   }

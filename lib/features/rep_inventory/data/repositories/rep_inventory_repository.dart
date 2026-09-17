@@ -116,7 +116,10 @@ class RepInventoryRepository {
         );
       }
       final documents = await _users
+          .where('companyId', isEqualTo: resolvedCompanyId)
           .where('role', isEqualTo: AuthRepository.salesRepRole)
+          .where('active', isEqualTo: true)
+          .where('approvalStatus', isEqualTo: AuthRepository.approvalApproved)
           .orderBy(FieldPath.documentId)
           .getAllPages();
       final reps =
@@ -221,6 +224,56 @@ class RepInventoryRepository {
     });
   }
 
+  Future<FirestorePage<InventoryTransferModel>> fetchTransfersPage({
+    String companyId = AuthRepository.defaultCompanyId,
+    String salesRepId = '',
+    InventoryTransferType? type,
+    InventoryTransferStatus? status,
+    DateTime? fromDate,
+    DateTime? toDate,
+    String searchText = '',
+    FirestorePageCursor? after,
+    int pageSize = 40,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      final ownerId = user.isSalesRep ? user.uid : salesRepId.trim();
+      Query<Map<String, dynamic>> query = _transfers(resolvedCompanyId);
+      if (ownerId.isNotEmpty) {
+        query = query.where('salesRepId', isEqualTo: ownerId);
+      }
+      if (type != null) query = query.where('type', isEqualTo: type.value);
+      if (status != null) {
+        query = query.where('status', isEqualTo: status.value);
+      }
+      final search = searchText.trim().toLowerCase();
+      if (search.isNotEmpty) {
+        query = query.where('searchKeywords', arrayContains: search);
+      }
+      if (fromDate != null) {
+        query = query.where(
+          'createdAt',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfDay(fromDate)),
+        );
+      }
+      if (toDate != null) {
+        query = query.where(
+          'createdAt',
+          isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(toDate)),
+        );
+      }
+      return query
+          .orderBy('createdAt', descending: true)
+          .orderBy(FieldPath.documentId, descending: true)
+          .getPage(
+            decode: InventoryTransferModel.fromFirestore,
+            after: after,
+            pageSize: pageSize,
+          );
+    });
+  }
+
   Future<InventoryTransferModel?> getTransfer({
     String companyId = AuthRepository.defaultCompanyId,
     required String transferId,
@@ -298,6 +351,32 @@ class RepInventoryRepository {
           .where(
             (movement) => itemId.trim().isEmpty || movement.itemId == itemId,
           )
+          .toList(growable: false);
+    });
+  }
+
+  Future<List<RepInventoryMovementModel>> fetchRecentMovements({
+    String companyId = AuthRepository.defaultCompanyId,
+    String salesRepId = '',
+    int limit = 40,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      final ownerId = user.isSalesRep ? user.uid : salesRepId.trim();
+      if (ownerId.isEmpty) {
+        throw const RepInventoryRepositoryException(
+          RepInventoryRepositoryError.invalidRepresentative,
+        );
+      }
+      final snapshot = await _repMovements(resolvedCompanyId)
+          .where('salesRepId', isEqualTo: ownerId)
+          .orderBy('createdAt', descending: true)
+          .orderBy(FieldPath.documentId, descending: true)
+          .limit(limit.clamp(1, 100))
+          .get();
+      return snapshot.docs
+          .map(RepInventoryMovementModel.fromFirestore)
           .toList(growable: false);
     });
   }

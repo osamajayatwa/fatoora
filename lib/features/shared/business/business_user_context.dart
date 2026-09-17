@@ -69,11 +69,29 @@ class BusinessUserContextReader {
   BusinessUserContextReader({
     FirebaseAuth? firebaseAuth,
     FirebaseFirestore? firestore,
+    Duration cacheTtl = const Duration(seconds: 30),
   }) : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
-       _firestore = firestore ?? FirebaseFirestore.instance;
+       _firestore = firestore ?? FirebaseFirestore.instance,
+       _cacheTtl = cacheTtl;
 
   final FirebaseAuth _firebaseAuth;
   final FirebaseFirestore _firestore;
+  final Duration _cacheTtl;
+
+  static final Map<_BusinessContextCacheKey, _CachedBusinessContext> _cache =
+      {};
+  static final Map<_BusinessContextCacheKey, Future<BusinessUserContext>>
+  _inFlight = {};
+
+  static void invalidateCache([String? uid]) {
+    if (uid == null) {
+      _cache.clear();
+      _inFlight.clear();
+      return;
+    }
+    _cache.removeWhere((key, _) => key.uid == uid);
+    _inFlight.removeWhere((key, _) => key.uid == uid);
+  }
 
   Future<BusinessUserContext> requireApprovedUser() async {
     try {
@@ -88,31 +106,24 @@ class BusinessUserContextReader {
         );
       }
 
-      final document = await _firestore
-          .collection('users')
-          .doc(firebaseUser.uid)
-          .get()
-          .timeout(const Duration(seconds: 15));
-      if (!document.exists) {
-        throw const BusinessUserContextException(
-          BusinessUserContextError.profileMissing,
-        );
+      final cacheKey = _BusinessContextCacheKey(_firestore, firebaseUser.uid);
+      final now = DateTime.now();
+      final cached = _cache[cacheKey];
+      if (cached != null && now.difference(cached.loadedAt) < _cacheTtl) {
+        return cached.context;
       }
+      final pending = _inFlight[cacheKey];
+      if (pending != null) return await pending;
 
-      final context = BusinessUserContext.fromUser(
-        AppUserModel.fromFirestore(document),
-      );
-      if (!context.canUseBusinessData) {
-        throw const BusinessUserContextException(
-          BusinessUserContextError.permissionDenied,
-        );
+      final load = _loadApprovedUser(firebaseUser.uid);
+      _inFlight[cacheKey] = load;
+      try {
+        final context = await load;
+        _cache[cacheKey] = _CachedBusinessContext(context, DateTime.now());
+        return context;
+      } finally {
+        _inFlight.remove(cacheKey);
       }
-      if (!context.hasValidName) {
-        throw const BusinessUserContextException(
-          BusinessUserContextError.invalidProfile,
-        );
-      }
-      return context;
     } on BusinessUserContextException {
       rethrow;
     } on TimeoutException catch (error) {
@@ -122,4 +133,55 @@ class BusinessUserContextReader {
       );
     }
   }
+
+  Future<BusinessUserContext> _loadApprovedUser(String uid) async {
+    final document = await _firestore
+        .collection('users')
+        .doc(uid)
+        .get()
+        .timeout(const Duration(seconds: 15));
+    if (!document.exists) {
+      throw const BusinessUserContextException(
+        BusinessUserContextError.profileMissing,
+      );
+    }
+
+    final context = BusinessUserContext.fromUser(
+      AppUserModel.fromFirestore(document),
+    );
+    if (!context.canUseBusinessData) {
+      throw const BusinessUserContextException(
+        BusinessUserContextError.permissionDenied,
+      );
+    }
+    if (!context.hasValidName) {
+      throw const BusinessUserContextException(
+        BusinessUserContextError.invalidProfile,
+      );
+    }
+    return context;
+  }
+}
+
+class _BusinessContextCacheKey {
+  const _BusinessContextCacheKey(this.firestore, this.uid);
+
+  final FirebaseFirestore firestore;
+  final String uid;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _BusinessContextCacheKey &&
+      identical(other.firestore, firestore) &&
+      other.uid == uid;
+
+  @override
+  int get hashCode => Object.hash(identityHashCode(firestore), uid);
+}
+
+class _CachedBusinessContext {
+  const _CachedBusinessContext(this.context, this.loadedAt);
+
+  final BusinessUserContext context;
+  final DateTime loadedAt;
 }

@@ -112,10 +112,4 @@ class LocaleController extends GetxController {
     activeThemeMode.value = 'system';
     _applyLanguage('en', saveToPrefs: false);
   }
-
-  @override
-  void onInit() {
-    init();
-    super.onInit();
-  }
 }

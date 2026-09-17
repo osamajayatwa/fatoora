@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/features/auth/data/models/app_user_model.dart';
@@ -151,18 +152,19 @@ class RepInventoryController extends GetxController
             companyId: companyId,
             salesRepId: selectedSalesRepId,
           ),
-          _repository.fetchMovements(
+          _repository.fetchRecentMovements(
             companyId: companyId,
             salesRepId: selectedSalesRepId,
           ),
-          _repository.fetchTransfers(
+          _repository.fetchTransfersPage(
             companyId: companyId,
             salesRepId: selectedSalesRepId,
+            pageSize: 30,
           ),
         ]);
         balances = results[0] as List<RepInventoryBalanceModel>;
         movements = results[1] as List<RepInventoryMovementModel>;
-        transfers = results[2] as List<InventoryTransferModel>;
+        transfers = (results[2] as FirestorePage<InventoryTransferModel>).items;
       }
       statusRequest = StatusRequest.success;
     } catch (error) {
@@ -218,6 +220,9 @@ class InventoryTransfersController extends GetxController
   Timer? _searchDebounce;
   int _loadGeneration = 0;
   String _appliedSearchText = '';
+  FirestorePageCursor? _pageCursor;
+  bool hasMore = false;
+  bool isLoadingMore = false;
 
   @override
   void onReady() {
@@ -230,6 +235,8 @@ class InventoryTransfersController extends GetxController
     final generation = ++_loadGeneration;
     final requestedSearch = serverSearchTerm(searchText);
     statusRequest = StatusRequest.loading;
+    _pageCursor = null;
+    hasMore = false;
     update();
     try {
       if (salesReps.isEmpty && isAdmin) {
@@ -242,7 +249,7 @@ class InventoryTransfersController extends GetxController
           selectedSalesRepId = '';
         }
       }
-      final loadedTransfers = await _repository.fetchTransfers(
+      final page = await _repository.fetchTransfersPage(
         companyId: companyId,
         salesRepId: selectedSalesRepId,
         status: statusFilter,
@@ -252,7 +259,9 @@ class InventoryTransfersController extends GetxController
         searchText: requestedSearch,
       );
       if (generation != _loadGeneration) return;
-      transfers = loadedTransfers;
+      transfers = page.items;
+      _pageCursor = page.cursor;
+      hasMore = page.hasMore;
       _appliedSearchText = requestedSearch;
       statusRequest = StatusRequest.success;
     } catch (error) {
@@ -268,6 +277,36 @@ class InventoryTransfersController extends GetxController
     arguments: {'transferId': transfer.id},
   );
   void create() => Get.toNamed(AppRoute.repInventoryTransferForm);
+
+  Future<void> loadMore() async {
+    if (isLoadingMore || !hasMore || _pageCursor == null) return;
+    isLoadingMore = true;
+    final generation = _loadGeneration;
+    update();
+    try {
+      final page = await _repository.fetchTransfersPage(
+        companyId: companyId,
+        salesRepId: selectedSalesRepId,
+        status: statusFilter,
+        type: typeFilter,
+        fromDate: fromDate,
+        toDate: toDate,
+        searchText: serverSearchTerm(searchText),
+        after: _pageCursor,
+      );
+      if (generation != _loadGeneration) return;
+      transfers = [...transfers, ...page.items];
+      _pageCursor = page.cursor;
+      hasMore = page.hasMore;
+    } catch (error) {
+      if (generation == _loadGeneration) {
+        errorKey = inventoryErrorMessage(error);
+      }
+    } finally {
+      isLoadingMore = false;
+      if (!isClosed) update();
+    }
+  }
 
   void onSearchChanged(String value) {
     searchText = value;

@@ -7,7 +7,6 @@ import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/firebase/trusted_callable_client.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
-import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
 import 'package:fatoora/features/expenses/data/models/expense_model.dart';
 import 'package:fatoora/features/financial/data/models/cash_movement_model.dart';
 import 'package:fatoora/features/financial/data/models/company_cash_opening_balance_model.dart';
@@ -35,6 +34,30 @@ class FinancialRepositoryException implements Exception {
 
   final FinancialRepositoryError error;
   final Object? cause;
+}
+
+class FinancialReceivablesPage {
+  const FinancialReceivablesPage({
+    required this.snapshot,
+    required this.cursor,
+    required this.hasMore,
+  });
+
+  final FinancialReceivablesSnapshot snapshot;
+  final FirestorePageCursor? cursor;
+  final bool hasMore;
+}
+
+class FinancialCashPage {
+  const FinancialCashPage({
+    required this.snapshot,
+    required this.cursor,
+    required this.hasMore,
+  });
+
+  final FinancialCashSnapshot snapshot;
+  final FirestorePageCursor? cursor;
+  final bool hasMore;
 }
 
 class FinancialRepository {
@@ -90,13 +113,6 @@ class FinancialRepository {
         .collection('sales_returns');
   }
 
-  CollectionReference<Map<String, dynamic>> _transactions(String companyId) {
-    return _firestore
-        .collection('companies')
-        .doc(companyId)
-        .collection('customer_transactions');
-  }
-
   CollectionReference<Map<String, dynamic>> _cashMovements(String companyId) {
     return _firestore
         .collection('companies')
@@ -119,156 +135,61 @@ class FinancialRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      final start = _startOfDay(fromDate ?? DateTime(2020));
+      final end = _endOfDay(toDate ?? DateTime.now());
       final results = await Future.wait<Object>([
-        _fetchCustomers(resolvedCompanyId, user),
-        _fetchInvoices(
+        _trustedCallableClient
+            .callAuthenticated<Map<String, dynamic>>('getDashboardSnapshot', {
+              'companyId': resolvedCompanyId,
+              'from': start.millisecondsSinceEpoch,
+              'to': end.millisecondsSinceEpoch,
+            }),
+        _fetchRecentInvoices(
           resolvedCompanyId,
           user,
-          fromDate: fromDate,
-          toDate: toDate,
+          fromDate: start,
+          toDate: end,
         ),
-        _fetchReceipts(
+        _fetchRecentReceipts(
           resolvedCompanyId,
           user,
-          fromDate: fromDate,
-          toDate: toDate,
+          fromDate: start,
+          toDate: end,
         ),
-        _fetchSalesReturns(
-          resolvedCompanyId,
-          user,
-          fromDate: fromDate,
-          toDate: toDate,
-        ),
-        _fetchCashMovements(resolvedCompanyId, user),
-        _fetchExpenses(resolvedCompanyId, user),
+        _fetchTopReceivableCustomers(resolvedCompanyId, user),
       ]);
-      final customers = results[0] as List<CustomerModel>;
-      final invoices = results[1] as List<InvoiceModel>;
-      final receipts = results[2] as List<ReceiptModel>;
-      final salesReturns = results[3] as List<SalesReturnModel>;
-      final cashMovements = results[4] as List<CashMovementModel>;
-      final expenses = results[5] as List<ExpenseModel>;
-      final originalInvoicePaymentTypes =
-          await _fetchOriginalInvoicePaymentTypes(
-            resolvedCompanyId,
-            invoices,
-            salesReturns,
-          );
-      final cashLedger = CashLedgerCalculator.calculate(cashMovements);
-      final companyCash = user.isAdmin ? cashLedger.companyCash : 0.0;
-      final repCashOutstanding = cashLedger.repCashOutstanding;
-      final totalExpenses = _postedExpenseTotal(
-        expenses,
-        fromDate: fromDate,
-        toDate: toDate,
-      );
-      final pendingExpenseCount = expenses
-          .where((expense) => expense.status == ExpenseStatus.pending)
-          .length;
-      final reimbursementsPayable = _round(
-        expenses
-            .where(
-              (expense) =>
-                  expense.reimbursementStatus ==
-                  ExpenseReimbursementStatus.payable,
-            )
-            .fold<double>(0, (total, expense) => total + expense.amount),
-      );
-
-      final financialInvoices = invoices
-          .where((invoice) => invoice.financialPosted && invoice.isFinancial)
-          .toList(growable: false);
-      final receivableCustomers = _buildReceivableCustomers(
-        customers,
-        const [],
-      );
-      final totalReceivables = _round(
-        receivableCustomers.fold<double>(
-          0,
-          (total, item) => total + item.balance,
-        ),
-      );
-      final effectiveCash = user.isAdmin ? companyCash : repCashOutstanding;
-      double returnedFor(PaymentType type) => salesReturns
-          .where(
-            (salesReturn) =>
-                originalInvoicePaymentTypes[salesReturn.originalInvoiceId] ==
-                type,
-          )
-          .fold<double>(
-            0,
-            (total, salesReturn) => total + salesReturn.grandTotal,
-          );
-      final returnedTotal = salesReturns.fold<double>(
-        0,
-        (total, salesReturn) => total + salesReturn.grandTotal,
-      );
+      final callable = results[0] as HttpsCallableResult<Map<String, dynamic>>;
+      final data = callable.data;
+      final recentInvoices = results[1] as List<InvoiceModel>;
+      final recentReceipts = results[2] as List<ReceiptModel>;
+      final topCustomers = results[3] as List<FinancialCustomerBalance>;
+      final repSummaries = _repSalesSummaries(data['salesByRepSummary']);
+      final salesByRep = _repAmounts(data['salesByRep']);
+      final cashByRep = _repAmounts(data['cashBySalesRep']);
 
       return FinancialDashboardSnapshot(
-        totalSales: _round(
-          financialInvoices.fold<double>(
-                0,
-                (total, invoice) => total + invoice.grandTotal,
-              ) -
-              returnedTotal,
-        ),
-        cashSales: _round(
-          financialInvoices
-                  .where((invoice) => invoice.paymentType == PaymentType.cash)
-                  .fold<double>(
-                    0,
-                    (total, invoice) => total + invoice.grandTotal,
-                  ) -
-              returnedFor(PaymentType.cash),
-        ),
-        creditSales: _round(
-          financialInvoices
-                  .where((invoice) => invoice.paymentType == PaymentType.credit)
-                  .fold<double>(
-                    0,
-                    (total, invoice) => total + invoice.grandTotal,
-                  ) -
-              returnedFor(PaymentType.credit),
-        ),
-        partialSales: _round(
-          financialInvoices
-                  .where(
-                    (invoice) => invoice.paymentType == PaymentType.partial,
-                  )
-                  .fold<double>(
-                    0,
-                    (total, invoice) => total + invoice.grandTotal,
-                  ) -
-              returnedFor(PaymentType.partial),
-        ),
-        totalReceivables: totalReceivables,
-        cashInHand: _round(effectiveCash),
-        companyCash: _round(companyCash),
-        repCashOutstanding: _round(repCashOutstanding),
-        totalExpenses: totalExpenses,
-        pendingExpenseCount: pendingExpenseCount,
-        reimbursementsPayable: reimbursementsPayable,
-        invoiceCount: financialInvoices.length,
-        customerCount: customers.where((customer) => customer.active).length,
-        receiptCount: receipts.length,
-        recentInvoices: _recentInvoices(invoices),
-        recentReceipts: _recentReceipts(receipts),
-        topCustomers: _topCustomers(receivableCustomers),
-        cashBySalesRep: cashLedger.repCashOutstandingBySalesRep,
-        repCashOutstandingBySalesRep: cashLedger.repCashOutstandingBySalesRep,
-        salesByRep: _amountsByRepFromInvoices(financialInvoices, salesReturns),
-        salesByRepSummary: _salesSummaryByRep(
-          invoices: financialInvoices,
-          receipts: receipts,
-          movements: cashMovements,
-          salesReturns: salesReturns,
-          originalInvoicePaymentTypes: originalInvoicePaymentTypes,
-        ),
-        weeklyInvoiceValues: _weeklyInvoiceValues(
-          financialInvoices,
-          salesReturns,
-          throughDate: toDate,
-        ),
+        totalSales: _number(data['totalSales']),
+        cashSales: _number(data['cashSales']),
+        creditSales: _number(data['creditSales']),
+        partialSales: _number(data['partialSales']),
+        totalReceivables: _number(data['totalReceivables']),
+        cashInHand: _number(data['cashInHand']),
+        companyCash: _number(data['companyCash']),
+        repCashOutstanding: _number(data['repCashOutstanding']),
+        totalExpenses: _number(data['totalExpenses']),
+        pendingExpenseCount: _integer(data['pendingExpenseCount']),
+        reimbursementsPayable: _number(data['reimbursementsPayable']),
+        invoiceCount: _integer(data['invoiceCount']),
+        customerCount: _integer(data['customerCount']),
+        receiptCount: _integer(data['receiptCount']),
+        recentInvoices: recentInvoices,
+        recentReceipts: recentReceipts,
+        topCustomers: topCustomers,
+        cashBySalesRep: cashByRep,
+        repCashOutstandingBySalesRep: cashByRep,
+        salesByRep: salesByRep,
+        salesByRepSummary: repSummaries,
+        weeklyInvoiceValues: _numberList(data['weeklyInvoiceValues']),
       );
     });
   }
@@ -282,15 +203,18 @@ class FinancialRepository {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
       final customers = await _fetchCustomers(resolvedCompanyId, user);
-      final transactions = await _fetchTransactions(
-        resolvedCompanyId,
-        user,
-        toDate: toDate ?? fromDate,
-      );
+      final effectiveDate = toDate ?? fromDate;
+      final historicalBalances = effectiveDate == null
+          ? const <String, _ProjectedReceivableBalance>{}
+          : await _fetchProjectedReceivableBalances(
+              resolvedCompanyId,
+              customers.map((customer) => customer.id).toList(growable: false),
+              _endOfDay(effectiveDate).add(const Duration(milliseconds: 1)),
+            );
       final receivableCustomers = _buildReceivableCustomers(
         customers,
-        transactions,
-        hasDateFilter: fromDate != null || toDate != null,
+        historicalBalances,
+        hasDateFilter: effectiveDate != null,
       );
       return FinancialReceivablesSnapshot(
         customers: receivableCustomers,
@@ -304,6 +228,51 @@ class FinancialRepository {
     });
   }
 
+  Future<FinancialReceivablesPage> fetchCurrentReceivablesPage({
+    String companyId = AuthRepository.defaultCompanyId,
+    FirestorePageCursor? after,
+    int pageSize = 40,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      Query<Map<String, dynamic>> query = _customers(resolvedCompanyId)
+          .where('active', isEqualTo: true)
+          .where('currentBalance', isGreaterThan: 0);
+      if (user.isSalesRep) {
+        query = query.where('createdByUid', isEqualTo: user.uid);
+      }
+      final results = await Future.wait<Object>([
+        query
+            .orderBy('currentBalance', descending: true)
+            .orderBy(FieldPath.documentId)
+            .getPage(
+              decode: CustomerModel.fromFirestore,
+              after: after,
+              pageSize: pageSize,
+            ),
+        query.aggregate(sum('currentBalance')).get(),
+      ]);
+      final page = results[0] as FirestorePage<CustomerModel>;
+      final aggregate = results[1] as AggregateQuerySnapshot;
+      return FinancialReceivablesPage(
+        snapshot: FinancialReceivablesSnapshot(
+          customers: page.items
+              .map(
+                (customer) => FinancialCustomerBalance(
+                  customer: customer,
+                  balance: _round(customer.currentBalance),
+                ),
+              )
+              .toList(growable: false),
+          totalReceivables: _round(aggregate.getSum('currentBalance') ?? 0),
+        ),
+        cursor: page.cursor,
+        hasMore: page.hasMore,
+      );
+    });
+  }
+
   Future<FinancialCashSnapshot> fetchCash({
     String companyId = AuthRepository.defaultCompanyId,
     DateTime? fromDate,
@@ -312,30 +281,54 @@ class FinancialRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
-      final allMovements = await _fetchCashMovements(resolvedCompanyId, user);
       final periodStart = fromDate == null ? null : _startOfDay(fromDate);
       final periodEnd = toDate == null ? null : _endOfDay(toDate);
-      final openingMovements = periodStart == null
-          ? const <CashMovementModel>[]
-          : allMovements
-                .where((movement) => movement.date.isBefore(periodStart))
-                .toList(growable: false);
-      final movements = allMovements
-          .where((movement) {
-            return (periodStart == null ||
-                    !movement.date.isBefore(periodStart)) &&
-                (periodEnd == null || !movement.date.isAfter(periodEnd));
-          })
-          .toList(growable: false);
-      final closingMovements = allMovements
-          .where((movement) {
-            return periodEnd == null || !movement.date.isAfter(periodEnd);
-          })
-          .toList(growable: false);
-      final openingLedger = CashLedgerCalculator.calculate(openingMovements);
-      final cashLedger = CashLedgerCalculator.calculate(closingMovements);
-      final companyCash = user.isAdmin ? cashLedger.companyCash : 0.0;
-      final repCashOutstanding = cashLedger.repCashOutstanding;
+      final results = await Future.wait<Object>([
+        _fetchCashMovements(
+          resolvedCompanyId,
+          user,
+          fromDate: periodStart,
+          toDate: periodEnd,
+        ),
+        _trustedCallableClient
+            .callAuthenticated<Map<String, dynamic>>('getCashOpeningBalance', {
+              'companyId': resolvedCompanyId,
+              'fromInclusive':
+                  (periodStart ?? DateTime(1970)).millisecondsSinceEpoch,
+            }),
+      ]);
+      final movements = results[0] as List<CashMovementModel>;
+      final openingResult =
+          results[1] as HttpsCallableResult<Map<String, dynamic>>;
+      final openingData = openingResult.data;
+      final cashLedger = CashLedgerCalculator.calculate(movements);
+      final companyCash = user.isAdmin
+          ? _round(
+              _number(openingData['companyCashOpening']) +
+                  cashLedger.companyCash,
+            )
+          : 0.0;
+      final repCashOutstanding = _round(
+        _number(openingData['repCashOpening']) + cashLedger.repCashOutstanding,
+      );
+      final cashByRep = {
+        for (final amount in _repAmounts(
+          openingData['repCashOpeningBySalesRep'],
+        ))
+          amount.salesRepId: amount,
+      };
+      for (final amount in cashLedger.repCashOutstandingBySalesRep) {
+        final opening = cashByRep[amount.salesRepId];
+        cashByRep[amount.salesRepId] = FinancialRepAmount(
+          salesRepId: amount.salesRepId,
+          salesRepName: amount.salesRepName.isNotEmpty
+              ? amount.salesRepName
+              : opening?.salesRepName ?? '',
+          amount: _round((opening?.amount ?? 0) + amount.amount),
+        );
+      }
+      final cashBySalesRep = cashByRep.values.toList(growable: false)
+        ..sort((left, right) => right.amount.compareTo(left.amount));
       final totalIn = _round(
         movements
             .where((movement) => movement.isIn)
@@ -348,19 +341,111 @@ class FinancialRepository {
       );
       return FinancialCashSnapshot(
         movements: movements,
-        openingBalance: _round(
-          user.isAdmin
-              ? openingLedger.companyCash
-              : openingLedger.repCashOutstanding,
-        ),
+        openingBalance: _number(openingData['openingBalance']),
         closingBalance: _round(user.isAdmin ? companyCash : repCashOutstanding),
         cashInHand: _round(user.isAdmin ? companyCash : repCashOutstanding),
         companyCash: _round(companyCash),
         repCashOutstanding: _round(repCashOutstanding),
         totalIn: totalIn,
         totalOut: totalOut,
-        cashBySalesRep: cashLedger.repCashOutstandingBySalesRep,
-        repCashOutstandingBySalesRep: cashLedger.repCashOutstandingBySalesRep,
+        cashBySalesRep: cashBySalesRep,
+        repCashOutstandingBySalesRep: cashBySalesRep,
+      );
+    });
+  }
+
+  Future<FinancialCashPage> fetchCashPage({
+    String companyId = AuthRepository.defaultCompanyId,
+    DateTime? fromDate,
+    DateTime? toDate,
+    FirestorePageCursor? after,
+    int pageSize = 50,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      final periodStart = fromDate == null ? null : _startOfDay(fromDate);
+      final periodEnd = toDate == null ? null : _endOfDay(toDate);
+      final openingCutoff = periodStart ?? DateTime(1970);
+      final closingCutoff = periodEnd == null
+          ? DateTime(9999, 12, 31, 23, 59, 59, 999)
+          : periodEnd.add(const Duration(milliseconds: 1));
+      final results = await Future.wait<Object>([
+        _fetchCashMovementsPage(
+          resolvedCompanyId,
+          user,
+          fromDate: periodStart,
+          toDate: periodEnd,
+          after: after,
+          pageSize: pageSize,
+        ),
+        _trustedCallableClient
+            .callAuthenticated<Map<String, dynamic>>('getCashOpeningBalance', {
+              'companyId': resolvedCompanyId,
+              'fromInclusive': openingCutoff.millisecondsSinceEpoch,
+            }),
+        _trustedCallableClient
+            .callAuthenticated<Map<String, dynamic>>('getCashOpeningBalance', {
+              'companyId': resolvedCompanyId,
+              'fromInclusive': closingCutoff.millisecondsSinceEpoch,
+            }),
+        _fetchCashMovementTotals(
+          resolvedCompanyId,
+          user,
+          fromDate: periodStart,
+          toDate: periodEnd,
+        ),
+      ]);
+      final page = results[0] as FirestorePage<CashMovementModel>;
+      final opening =
+          (results[1] as HttpsCallableResult<Map<String, dynamic>>).data;
+      final closing =
+          (results[2] as HttpsCallableResult<Map<String, dynamic>>).data;
+      final totals = results[3] as ({double totalIn, double totalOut});
+      final companyCash = user.isAdmin
+          ? _number(closing['companyCashOpening'])
+          : 0.0;
+      final repCashOutstanding = _number(closing['repCashOpening']);
+      final cashBySalesRep = _repAmounts(closing['repCashOpeningBySalesRep'])
+        ..sort((left, right) => right.amount.compareTo(left.amount));
+      return FinancialCashPage(
+        snapshot: FinancialCashSnapshot(
+          movements: page.items,
+          openingBalance: _number(opening['openingBalance']),
+          closingBalance: _round(
+            user.isAdmin ? companyCash : repCashOutstanding,
+          ),
+          cashInHand: _round(user.isAdmin ? companyCash : repCashOutstanding),
+          companyCash: _round(companyCash),
+          repCashOutstanding: _round(repCashOutstanding),
+          totalIn: totals.totalIn,
+          totalOut: totals.totalOut,
+          cashBySalesRep: cashBySalesRep,
+          repCashOutstandingBySalesRep: cashBySalesRep,
+        ),
+        cursor: page.cursor,
+        hasMore: page.hasMore,
+      );
+    });
+  }
+
+  Future<FirestorePage<CashMovementModel>> fetchCashMovementDetailsPage({
+    String companyId = AuthRepository.defaultCompanyId,
+    DateTime? fromDate,
+    DateTime? toDate,
+    FirestorePageCursor? after,
+    int pageSize = 50,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      return _fetchCashMovementsPage(
+        resolvedCompanyId,
+        user,
+        fromDate: fromDate == null ? null : _startOfDay(fromDate),
+        toDate: toDate == null ? null : _endOfDay(toDate),
+        after: after,
+        pageSize: pageSize,
       );
     });
   }
@@ -452,6 +537,134 @@ class FinancialRepository {
     });
   }
 
+  Future<List<InvoiceModel>> _fetchRecentInvoices(
+    String companyId,
+    BusinessUserContext user, {
+    required DateTime fromDate,
+    required DateTime toDate,
+  }) async {
+    Query<Map<String, dynamic>> query = _invoices(companyId)
+        .where(
+          'invoiceDate',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(fromDate),
+        )
+        .where('invoiceDate', isLessThanOrEqualTo: Timestamp.fromDate(toDate));
+    if (user.isSalesRep) {
+      query = query.where('salesRepId', isEqualTo: user.uid);
+    }
+    final snapshot = await query
+        .orderBy('invoiceDate', descending: true)
+        .orderBy(FieldPath.documentId, descending: true)
+        .limit(5)
+        .get();
+    return snapshot.docs
+        .map(InvoiceModel.fromFirestore)
+        .toList(growable: false);
+  }
+
+  Future<List<ReceiptModel>> _fetchRecentReceipts(
+    String companyId,
+    BusinessUserContext user, {
+    required DateTime fromDate,
+    required DateTime toDate,
+  }) async {
+    Query<Map<String, dynamic>> query = _receipts(companyId)
+        .where(
+          'receiptDate',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(fromDate),
+        )
+        .where('receiptDate', isLessThanOrEqualTo: Timestamp.fromDate(toDate));
+    if (user.isSalesRep) {
+      query = query.where('salesRepId', isEqualTo: user.uid);
+    }
+    final snapshot = await query
+        .orderBy('receiptDate', descending: true)
+        .orderBy(FieldPath.documentId, descending: true)
+        .limit(5)
+        .get();
+    return snapshot.docs
+        .map(ReceiptModel.fromFirestore)
+        .toList(growable: false);
+  }
+
+  Future<List<FinancialCustomerBalance>> _fetchTopReceivableCustomers(
+    String companyId,
+    BusinessUserContext user,
+  ) async {
+    Query<Map<String, dynamic>> query = _customers(companyId)
+        .where('active', isEqualTo: true)
+        .where('currentBalance', isGreaterThan: 0);
+    if (user.isSalesRep) {
+      query = query.where('createdByUid', isEqualTo: user.uid);
+    }
+    final snapshot = await query
+        .orderBy('currentBalance', descending: true)
+        .orderBy(FieldPath.documentId)
+        .limit(3)
+        .get();
+    return snapshot.docs
+        .map(CustomerModel.fromFirestore)
+        .map(
+          (customer) => FinancialCustomerBalance(
+            customer: customer,
+            balance: _round(customer.currentBalance),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  List<FinancialRepAmount> _repAmounts(Object? value) {
+    if (value is! List) return const [];
+    return value
+        .whereType<Map>()
+        .map((raw) {
+          final map = raw.map((key, value) => MapEntry(key.toString(), value));
+          return FinancialRepAmount(
+            salesRepId: map['salesRepId']?.toString() ?? '',
+            salesRepName: map['salesRepName']?.toString() ?? '',
+            amount: _number(map['amount']),
+          );
+        })
+        .toList(growable: false);
+  }
+
+  List<FinancialRepSalesSummary> _repSalesSummaries(Object? value) {
+    if (value is! List) return const [];
+    return value
+        .whereType<Map>()
+        .map((raw) {
+          final map = raw.map((key, value) => MapEntry(key.toString(), value));
+          return FinancialRepSalesSummary(
+            salesRepId: map['salesRepId']?.toString() ?? '',
+            salesRepName: map['salesRepName']?.toString() ?? '',
+            totalSales: _number(map['totalSales']),
+            cashSales: _number(map['cashSales']),
+            creditSales: _number(map['creditSales']),
+            partialSales: _number(map['partialSales']),
+            receiptsCollected: _number(map['receiptsCollected']),
+            cashInHand: _number(map['cashInHand']),
+            invoiceCount: _integer(map['invoiceCount']),
+          );
+        })
+        .toList(growable: false);
+  }
+
+  List<double> _numberList(Object? value) {
+    if (value is! List) return const [0, 0, 0, 0, 0, 0, 0];
+    final result = value.map(_number).toList(growable: false);
+    return result.length == 7 ? result : const [0, 0, 0, 0, 0, 0, 0];
+  }
+
+  double _number(Object? value) {
+    if (value is num && value.isFinite) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  int _integer(Object? value) {
+    if (value is num && value.isFinite) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
   Future<List<CustomerModel>> _fetchCustomers(
     String companyId,
     BusinessUserContext user,
@@ -467,6 +680,8 @@ class FinancialRepository {
     return customers;
   }
 
+  // Kept as an explicit full-export path; dashboards use bounded aggregates.
+  // ignore: unused_element
   Future<List<InvoiceModel>> _fetchInvoices(
     String companyId,
     BusinessUserContext user, {
@@ -499,6 +714,7 @@ class FinancialRepository {
     return invoices;
   }
 
+  // ignore: unused_element
   Future<List<ReceiptModel>> _fetchReceipts(
     String companyId,
     BusinessUserContext user, {
@@ -531,6 +747,7 @@ class FinancialRepository {
     return receipts;
   }
 
+  // ignore: unused_element
   Future<List<SalesReturnModel>> _fetchSalesReturns(
     String companyId,
     BusinessUserContext user, {
@@ -566,6 +783,7 @@ class FinancialRepository {
         .toList(growable: false);
   }
 
+  // ignore: unused_element
   Future<Map<String, PaymentType>> _fetchOriginalInvoicePaymentTypes(
     String companyId,
     List<InvoiceModel> periodInvoices,
@@ -608,37 +826,57 @@ class FinancialRepository {
     return paymentTypes;
   }
 
-  Future<List<CustomerTransactionModel>> _fetchTransactions(
+  Future<Map<String, _ProjectedReceivableBalance>>
+  _fetchProjectedReceivableBalances(
     String companyId,
-    BusinessUserContext user, {
-    DateTime? fromDate,
-    DateTime? toDate,
-  }) async {
-    Query<Map<String, dynamic>> query = _transactions(companyId);
-    if (user.isSalesRep) {
-      query = query.where('salesRepId', isEqualTo: user.uid);
-    }
-    if (fromDate != null) {
-      query = query.where(
-        'transactionDate',
-        isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfDay(fromDate)),
+    List<String> customerIds,
+    DateTime atExclusive,
+  ) async {
+    const batchSize = 100;
+    const maximumConcurrentBatches = 4;
+    final result = <String, _ProjectedReceivableBalance>{};
+    for (
+      var windowStart = 0;
+      windowStart < customerIds.length;
+      windowStart += batchSize * maximumConcurrentBatches
+    ) {
+      final windowEnd = math.min(
+        windowStart + batchSize * maximumConcurrentBatches,
+        customerIds.length,
       );
+      final calls = <Future<HttpsCallableResult<Map<String, dynamic>>>>[];
+      for (var start = windowStart; start < windowEnd; start += batchSize) {
+        calls.add(
+          _trustedCallableClient.callAuthenticated<Map<String, dynamic>>(
+            'getReceivableBalances',
+            {
+              'companyId': companyId,
+              'customerIds': customerIds.sublist(
+                start,
+                math.min(start + batchSize, windowEnd),
+              ),
+              'atExclusive': atExclusive.millisecondsSinceEpoch,
+            },
+          ),
+        );
+      }
+      for (final response in await Future.wait(calls)) {
+        final values = response.data['balances'];
+        if (values is! List) continue;
+        for (final raw in values.whereType<Map>()) {
+          final customerId = raw['customerId']?.toString().trim() ?? '';
+          if (customerId.isEmpty) continue;
+          final lastActivityValue = raw['lastActivityAt'];
+          result[customerId] = _ProjectedReceivableBalance(
+            balance: _number(raw['balance']),
+            lastActivityDate: lastActivityValue is num
+                ? DateTime.fromMillisecondsSinceEpoch(lastActivityValue.toInt())
+                : null,
+          );
+        }
+      }
     }
-    if (toDate != null) {
-      query = query.where(
-        'transactionDate',
-        isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(toDate)),
-      );
-    }
-    final snapshot = await query
-        .orderBy('transactionDate', descending: true)
-        .orderBy(FieldPath.documentId, descending: true)
-        .getAllPages();
-    final transactions = snapshot
-        .map(CustomerTransactionModel.fromFirestore)
-        .toList(growable: false);
-    transactions.sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
-    return transactions;
+    return result;
   }
 
   Future<List<CashMovementModel>> _fetchCashMovements(
@@ -652,6 +890,18 @@ class FinancialRepository {
       query = query
           .where('salesRepId', isEqualTo: user.uid)
           .where('cashAccount', isEqualTo: CashMovementModel.repCashAccount);
+    }
+    if (fromDate != null) {
+      query = query.where(
+        'date',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfDay(fromDate)),
+      );
+    }
+    if (toDate != null) {
+      query = query.where(
+        'date',
+        isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(toDate)),
+      );
     }
     final snapshot = await query
         .orderBy('date', descending: true)
@@ -672,6 +922,77 @@ class FinancialRepository {
     return movements;
   }
 
+  Future<FirestorePage<CashMovementModel>> _fetchCashMovementsPage(
+    String companyId,
+    BusinessUserContext user, {
+    DateTime? fromDate,
+    DateTime? toDate,
+    FirestorePageCursor? after,
+    required int pageSize,
+  }) async {
+    Query<Map<String, dynamic>> query = _cashMovements(companyId);
+    if (user.isSalesRep) {
+      query = query
+          .where('salesRepId', isEqualTo: user.uid)
+          .where('cashAccount', isEqualTo: CashMovementModel.repCashAccount);
+    }
+    if (fromDate != null) {
+      query = query.where(
+        'date',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(fromDate),
+      );
+    }
+    if (toDate != null) {
+      query = query.where(
+        'date',
+        isLessThanOrEqualTo: Timestamp.fromDate(toDate),
+      );
+    }
+    return query
+        .orderBy('date', descending: true)
+        .orderBy(FieldPath.documentId, descending: true)
+        .getPage(
+          decode: CashMovementModel.fromFirestore,
+          after: after,
+          pageSize: pageSize,
+        );
+  }
+
+  Future<({double totalIn, double totalOut})> _fetchCashMovementTotals(
+    String companyId,
+    BusinessUserContext user, {
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    Query<Map<String, dynamic>> base = _cashMovements(companyId);
+    if (user.isSalesRep) {
+      base = base
+          .where('salesRepId', isEqualTo: user.uid)
+          .where('cashAccount', isEqualTo: CashMovementModel.repCashAccount);
+    }
+    if (fromDate != null) {
+      base = base.where(
+        'date',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(fromDate),
+      );
+    }
+    if (toDate != null) {
+      base = base.where(
+        'date',
+        isLessThanOrEqualTo: Timestamp.fromDate(toDate),
+      );
+    }
+    final results = await Future.wait([
+      base.where('direction', isEqualTo: 'in').aggregate(sum('amount')).get(),
+      base.where('direction', isEqualTo: 'out').aggregate(sum('amount')).get(),
+    ]);
+    return (
+      totalIn: _round(results[0].getSum('amount') ?? 0),
+      totalOut: _round(results[1].getSum('amount') ?? 0),
+    );
+  }
+
+  // ignore: unused_element
   Future<List<ExpenseModel>> _fetchExpenses(
     String companyId,
     BusinessUserContext user,
@@ -693,27 +1014,13 @@ class FinancialRepository {
 
   List<FinancialCustomerBalance> _buildReceivableCustomers(
     List<CustomerModel> customers,
-    List<CustomerTransactionModel> transactions, {
+    Map<String, _ProjectedReceivableBalance> historicalBalances, {
     bool hasDateFilter = false,
   }) {
-    final lastTransactionByCustomer = <String, DateTime>{};
-    final historicalBalances = <String, double>{};
-    for (final transaction in transactions) {
-      final existing = lastTransactionByCustomer[transaction.customerId];
-      if (existing == null || transaction.transactionDate.isAfter(existing)) {
-        lastTransactionByCustomer[transaction.customerId] =
-            transaction.transactionDate;
-      }
-      historicalBalances[transaction.customerId] = _round(
-        (historicalBalances[transaction.customerId] ?? 0) +
-            transaction.debitAmount -
-            transaction.creditAmount,
-      );
-    }
     final balances = customers
         .where((customer) {
           final balance = hasDateFilter
-              ? historicalBalances[customer.id] ?? 0
+              ? historicalBalances[customer.id]?.balance ?? 0
               : customer.currentBalance;
           return customer.active && balance > 0;
         })
@@ -722,10 +1029,11 @@ class FinancialRepository {
             customer: customer,
             balance: _round(
               hasDateFilter
-                  ? historicalBalances[customer.id] ?? 0
+                  ? historicalBalances[customer.id]?.balance ?? 0
                   : customer.currentBalance,
             ),
-            lastTransactionDate: lastTransactionByCustomer[customer.id],
+            lastTransactionDate:
+                historicalBalances[customer.id]?.lastActivityDate,
           ),
         )
         .toList(growable: false);
@@ -733,24 +1041,28 @@ class FinancialRepository {
     return balances;
   }
 
+  // ignore: unused_element
   List<InvoiceModel> _recentInvoices(List<InvoiceModel> invoices) {
     final sorted = List<InvoiceModel>.of(invoices)
       ..sort((a, b) => b.invoiceDate.compareTo(a.invoiceDate));
     return sorted.take(5).toList(growable: false);
   }
 
+  // ignore: unused_element
   List<ReceiptModel> _recentReceipts(List<ReceiptModel> receipts) {
     final sorted = List<ReceiptModel>.of(receipts)
       ..sort((a, b) => b.receiptDate.compareTo(a.receiptDate));
     return sorted.take(5).toList(growable: false);
   }
 
+  // ignore: unused_element
   List<FinancialCustomerBalance> _topCustomers(
     List<FinancialCustomerBalance> customers,
   ) {
     return customers.take(3).toList(growable: false);
   }
 
+  // ignore: unused_element
   List<FinancialRepAmount> _amountsByRepFromInvoices(
     List<InvoiceModel> invoices,
     List<SalesReturnModel> salesReturns,
@@ -782,6 +1094,7 @@ class FinancialRepository {
     return rows;
   }
 
+  // ignore: unused_element
   List<FinancialRepSalesSummary> _salesSummaryByRep({
     required List<InvoiceModel> invoices,
     required List<ReceiptModel> receipts,
@@ -866,6 +1179,7 @@ class FinancialRepository {
     return summaries;
   }
 
+  // ignore: unused_element
   double _postedExpenseTotal(
     List<ExpenseModel> expenses, {
     DateTime? fromDate,
@@ -885,6 +1199,7 @@ class FinancialRepository {
     );
   }
 
+  // ignore: unused_element
   List<double> _weeklyInvoiceValues(
     List<InvoiceModel> invoices,
     List<SalesReturnModel> salesReturns, {
@@ -984,6 +1299,16 @@ class FinancialRepository {
       _ => FinancialRepositoryError.unknown,
     };
   }
+}
+
+class _ProjectedReceivableBalance {
+  const _ProjectedReceivableBalance({
+    required this.balance,
+    required this.lastActivityDate,
+  });
+
+  final double balance;
+  final DateTime? lastActivityDate;
 }
 
 class _MutableRepSales {

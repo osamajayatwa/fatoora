@@ -10,6 +10,20 @@ import 'package:intl/intl.dart';
 typedef FinancialLedgerFileSaver =
     Future<bool> Function(Uint8List bytes, String fileName);
 
+class _AccountingReportBuildRequest {
+  const _AccountingReportBuildRequest(this.data, this.filters);
+
+  final FinancialLedgerExportData data;
+  final FinancialLedgerFilters filters;
+}
+
+List<int> _buildAccountingReportInIsolate(
+  _AccountingReportBuildRequest request,
+) => FinancialLedgerExcelService().buildAccountingReport(
+  data: request.data,
+  filters: request.filters,
+);
+
 class FinancialLedgerExcelService {
   FinancialLedgerExcelService({FinancialLedgerFileSaver? fileSaver})
     : _fileSaver = fileSaver ?? _saveWithFileSaver;
@@ -20,7 +34,12 @@ class FinancialLedgerExcelService {
     required FinancialLedgerExportData data,
     required FinancialLedgerFilters filters,
   }) async {
-    final bytes = buildAccountingReport(data: data, filters: filters);
+    final bytes = kIsWeb
+        ? buildAccountingReport(data: data, filters: filters)
+        : await compute(
+            _buildAccountingReportInIsolate,
+            _AccountingReportBuildRequest(data, filters),
+          );
     if (bytes.isEmpty) {
       throw StateError('Excel generation returned no bytes.');
     }

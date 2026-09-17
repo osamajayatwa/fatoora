@@ -186,20 +186,6 @@ class SalesReturnRepository {
     FirestorePageCursor? after,
     int pageSize = 50,
   }) async {
-    if (searchText.trim().isNotEmpty) {
-      final items = await fetchSalesReturns(
-        companyId: companyId,
-        status: status,
-        searchText: searchText,
-        fromDate: fromDate,
-        toDate: toDate,
-      );
-      return FirestorePage<SalesReturnModel>(
-        items: items,
-        cursor: null,
-        hasMore: false,
-      );
-    }
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
@@ -209,6 +195,10 @@ class SalesReturnRepository {
       }
       if (status != null) {
         query = query.where('status', isEqualTo: status.value);
+      }
+      final normalizedSearch = searchText.trim().toLowerCase();
+      if (normalizedSearch.isNotEmpty) {
+        query = query.where('searchKeywords', arrayContains: normalizedSearch);
       }
       if (fromDate != null) {
         query = query.where(

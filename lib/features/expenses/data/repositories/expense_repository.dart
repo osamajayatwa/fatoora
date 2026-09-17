@@ -27,6 +27,24 @@ class ExpenseRepositoryException implements Exception {
   final Object? cause;
 }
 
+class ExpensePage {
+  const ExpensePage({
+    required this.items,
+    required this.cursor,
+    required this.hasMore,
+    required this.postedTotal,
+    required this.pendingCount,
+    required this.payableReimbursements,
+  });
+
+  final List<ExpenseModel> items;
+  final FirestorePageCursor? cursor;
+  final bool hasMore;
+  final double postedTotal;
+  final int pendingCount;
+  final double payableReimbursements;
+}
+
 class ExpenseRepository {
   ExpenseRepository({
     FirebaseFirestore? firestore,
@@ -124,6 +142,113 @@ class ExpenseRepository {
           .toList(growable: false);
       expenses.sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
       return expenses;
+    });
+  }
+
+  Future<ExpensePage> fetchExpensesPage({
+    String companyId = AuthRepository.defaultCompanyId,
+    String searchText = '',
+    ExpenseStatus? status,
+    ExpenseCategory? category,
+    DateTime? fromDate,
+    DateTime? toDate,
+    FirestorePageCursor? after,
+    int pageSize = 40,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      Query<Map<String, dynamic>> base = _expenses(resolvedCompanyId);
+      if (user.isSalesRep) {
+        base = base.where('paidByUid', isEqualTo: user.uid);
+      }
+      if (category != null) {
+        base = base.where('category', isEqualTo: category.value);
+      }
+      final normalizedSearch = searchText.trim().toLowerCase();
+      if (normalizedSearch.isNotEmpty) {
+        base = base.where('searchKeywords', arrayContains: normalizedSearch);
+      }
+      if (fromDate != null) {
+        base = base.where(
+          'expenseDate',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(_startOfDay(fromDate)),
+        );
+      }
+      if (toDate != null) {
+        base = base.where(
+          'expenseDate',
+          isLessThanOrEqualTo: Timestamp.fromDate(_endOfDay(toDate)),
+        );
+      }
+      var visible = base;
+      if (status != null) {
+        visible = visible.where('status', isEqualTo: status.value);
+      }
+      final pageFuture = visible
+          .orderBy('expenseDate', descending: true)
+          .orderBy(FieldPath.documentId, descending: true)
+          .getPage(
+            decode: ExpenseModel.fromFirestore,
+            after: after,
+            pageSize: pageSize,
+          );
+      Future<double> amountFor(Query<Map<String, dynamic>> query) async {
+        final value = await query.aggregate(sum('amount')).get();
+        return _round(value.getSum('amount') ?? 0);
+      }
+
+      final postedFuture =
+          status == ExpenseStatus.pending ||
+              status == ExpenseStatus.rejected ||
+              status == ExpenseStatus.cancelled
+          ? Future.value(0.0)
+          : amountFor(
+              status == null
+                  ? base.where(
+                      'status',
+                      whereIn: [
+                        ExpenseStatus.posted.value,
+                        ExpenseStatus.approved.value,
+                      ],
+                    )
+                  : base.where('status', isEqualTo: status.value),
+            );
+      final pendingFuture = status != null && status != ExpenseStatus.pending
+          ? Future.value(0)
+          : base
+                .where('status', isEqualTo: ExpenseStatus.pending.value)
+                .count()
+                .get()
+                .then((snapshot) => snapshot.count ?? 0);
+      final reimbursementsFuture = amountFor(
+        status == null
+            ? base.where(
+                'reimbursementStatus',
+                isEqualTo: ExpenseReimbursementStatus.payable.value,
+              )
+            : base
+                  .where('status', isEqualTo: status.value)
+                  .where(
+                    'reimbursementStatus',
+                    isEqualTo: ExpenseReimbursementStatus.payable.value,
+                  ),
+      );
+      final results = await Future.wait<Object>([
+        pageFuture,
+        postedFuture,
+        pendingFuture,
+        reimbursementsFuture,
+      ]);
+      final page = results[0] as FirestorePage<ExpenseModel>;
+      return ExpensePage(
+        items: page.items,
+        cursor: page.cursor,
+        hasMore: page.hasMore,
+        postedTotal: results[1] as double,
+        pendingCount: results[2] as int,
+        payableReimbursements: results[3] as double,
+      );
     });
   }
 
@@ -279,6 +404,8 @@ class ExpenseRepository {
 
   DateTime _endOfDay(DateTime date) =>
       DateTime(date.year, date.month, date.day, 23, 59, 59, 999);
+
+  double _round(double value) => (value * 1000).roundToDouble() / 1000;
 
   Future<T> _run<T>(Future<T> Function() operation) async {
     try {

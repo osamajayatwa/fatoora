@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
@@ -34,6 +35,12 @@ class ExpensesListController extends GetxController {
   Timer? _searchDebounce;
   int _loadGeneration = 0;
   String _appliedSearchText = '';
+  bool isLoadingMore = false;
+  bool hasMore = false;
+  FirestorePageCursor? _pageCursor;
+  double _postedExpenseTotal = 0;
+  int _pendingExpenseCount = 0;
+  double _payableReimbursements = 0;
 
   String get companyId =>
       _myServices.sharedPreferences.getString('companyId') ??
@@ -50,24 +57,9 @@ class ExpensesListController extends GetxController {
       fromDate != null ||
       toDate != null;
 
-  double get postedExpenseTotal => _round(
-    expenses
-        .where((expense) => expense.isPostedOrApproved)
-        .fold<double>(0, (total, expense) => total + expense.amount),
-  );
-
-  int get pendingExpenseCount => expenses
-      .where((expense) => expense.status == ExpenseStatus.pending)
-      .length;
-
-  double get payableReimbursements => _round(
-    expenses
-        .where(
-          (expense) =>
-              expense.reimbursementStatus == ExpenseReimbursementStatus.payable,
-        )
-        .fold<double>(0, (total, expense) => total + expense.amount),
-  );
+  double get postedExpenseTotal => _postedExpenseTotal;
+  int get pendingExpenseCount => _pendingExpenseCount;
+  double get payableReimbursements => _payableReimbursements;
 
   @override
   void onReady() {
@@ -80,10 +72,12 @@ class ExpensesListController extends GetxController {
     final generation = ++_loadGeneration;
     final requestedSearch = serverSearchTerm(searchText);
     statusRequest = StatusRequest.loading;
+    _pageCursor = null;
+    hasMore = false;
     loadErrorMessageKey = 'expenses_load_error';
     update();
     try {
-      final loadedExpenses = await _repository.fetchExpenses(
+      final page = await _repository.fetchExpensesPage(
         companyId: companyId,
         searchText: requestedSearch,
         status: statusFilter,
@@ -92,7 +86,12 @@ class ExpensesListController extends GetxController {
         toDate: toDate,
       );
       if (generation != _loadGeneration) return;
-      expenses = loadedExpenses;
+      expenses = page.items;
+      _pageCursor = page.cursor;
+      hasMore = page.hasMore;
+      _postedExpenseTotal = page.postedTotal;
+      _pendingExpenseCount = page.pendingCount;
+      _payableReimbursements = page.payableReimbursements;
       _appliedSearchText = requestedSearch;
       statusRequest = StatusRequest.success;
     } catch (error) {
@@ -108,6 +107,35 @@ class ExpensesListController extends GetxController {
   }
 
   Future<void> refreshExpenses() => loadExpenses();
+
+  Future<void> loadMoreExpenses() async {
+    if (isLoadingMore || !hasMore || _pageCursor == null) return;
+    isLoadingMore = true;
+    final generation = _loadGeneration;
+    update();
+    try {
+      final page = await _repository.fetchExpensesPage(
+        companyId: companyId,
+        searchText: serverSearchTerm(searchText),
+        status: statusFilter,
+        category: categoryFilter,
+        fromDate: fromDate,
+        toDate: toDate,
+        after: _pageCursor,
+      );
+      if (generation != _loadGeneration) return;
+      expenses = [...expenses, ...page.items];
+      _pageCursor = page.cursor;
+      hasMore = page.hasMore;
+    } catch (error) {
+      if (generation == _loadGeneration) {
+        _showError(ExpenseErrorMapper.messageKey(error));
+      }
+    } finally {
+      isLoadingMore = false;
+      if (!isClosed) update();
+    }
+  }
 
   void onSearchChanged(String value) {
     searchText = value;
@@ -192,11 +220,6 @@ class ExpensesListController extends GetxController {
       backgroundColor: AppColor.error,
       colorText: AppColor.surface,
     );
-  }
-
-  double _round(double value) {
-    if (!value.isFinite) return 0;
-    return (value * 1000).roundToDouble() / 1000;
   }
 
   @override

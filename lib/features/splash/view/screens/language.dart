@@ -237,6 +237,8 @@ class _LanguageBrand extends StatelessWidget {
             height: compact ? 116 : 165,
             child: Image.asset(
               ImageAssest.logo,
+              cacheWidth: 512,
+              cacheHeight: 512,
               fit: BoxFit.contain,
               filterQuality: FilterQuality.medium,
             ),
