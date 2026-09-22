@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:fatoora/features/customers/data/models/customer_statement_snapshot.dart';
 import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -100,6 +103,35 @@ void main() {
     expect(snapshot.closingBalance, 310);
     expect(snapshot.transactions.last.balanceAfter, 310);
   });
+
+  test('index manifest supports customer statement total aggregations', () {
+    final manifest =
+        jsonDecode(File('firestore.indexes.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final statementIndexes = (manifest['indexes'] as List<dynamic>)
+        .cast<Map<String, dynamic>>()
+        .where((index) => index['collectionGroup'] == 'customer_transactions')
+        .map(_indexSignature)
+        .toSet();
+
+    expect(
+      statementIndexes,
+      containsAll({
+        'customerId:ASCENDING|creditAmount:ASCENDING|debitAmount:ASCENDING',
+        'customerId:ASCENDING|transactionDate:ASCENDING|creditAmount:ASCENDING|debitAmount:ASCENDING',
+      }),
+    );
+  });
+}
+
+String _indexSignature(Map<String, dynamic> index) {
+  return (index['fields'] as List<dynamic>)
+      .cast<Map<String, dynamic>>()
+      .map(
+        (field) =>
+            '${field['fieldPath']}:${field['order'] ?? field['arrayConfig']}',
+      )
+      .join('|');
 }
 
 CustomerTransactionModel _transaction({

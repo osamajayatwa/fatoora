@@ -722,6 +722,25 @@
       ]
     },
     {
+      "collectionGroup": "customer_transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "customerId", "order": "ASCENDING" },
+        { "fieldPath": "creditAmount", "order": "ASCENDING" },
+        { "fieldPath": "debitAmount", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "customer_transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "customerId", "order": "ASCENDING" },
+        { "fieldPath": "transactionDate", "order": "ASCENDING" },
+        { "fieldPath": "creditAmount", "order": "ASCENDING" },
+        { "fieldPath": "debitAmount", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "sales_returns",
       "queryScope": "COLLECTION",
       "fields": [
