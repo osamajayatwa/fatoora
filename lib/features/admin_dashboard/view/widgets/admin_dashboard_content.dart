@@ -40,19 +40,17 @@ class AdminDashboardContent extends StatelessWidget {
                   children: [
                     const FatooraMotionReveal(child: AdminWelcomeCard()),
                     const SizedBox(height: 22),
-                    if (MediaQuery.sizeOf(context).width < 600) ...[
-                      TextField(
-                        controller: controller.searchController,
-                        onChanged: controller.onSearchChanged,
-                        decoration: InputDecoration(
-                          hintText: 'dashboard_search_hint'.tr,
-                          prefixIcon: const Icon(Icons.search_rounded),
-                          filled: true,
-                          fillColor: context.appSurface,
-                        ),
+                    TextField(
+                      controller: controller.searchController,
+                      onChanged: controller.onSearchChanged,
+                      decoration: InputDecoration(
+                        hintText: 'dashboard_search_hint'.tr,
+                        prefixIcon: const Icon(Icons.search_rounded),
+                        filled: true,
+                        fillColor: context.appSurface,
                       ),
-                      const SizedBox(height: 18),
-                    ],
+                    ),
+                    const SizedBox(height: 18),
                     const FatooraMotionReveal(child: _StatsGrid()),
                     const SizedBox(height: 18),
                     _ResponsivePair(

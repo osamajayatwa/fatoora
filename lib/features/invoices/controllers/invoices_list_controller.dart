@@ -8,6 +8,7 @@ import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_context.dart';
+import 'package:fatoora/features/shared/navigation/business_navigation_router.dart';
 import 'package:fatoora/features/invoices/controllers/invoice_error_mapper.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_list_query.dart';
@@ -290,15 +291,10 @@ class InvoicesListController extends GetxController {
   }
 
   Future<void> openCreateInvoice() async {
-    final changed = await Get.toNamed(
-      AppRoute.invoiceForm,
-      arguments: {
-        'mode': 'create',
-        'companyId': companyId,
-        'invoiceType': InvoiceType.regular.value,
-      },
+    final changed = await BusinessNavigationRouter.openCreateInvoice(
+      _myServices,
     );
-    if (changed == true) await loadInvoices();
+    if (changed) await loadInvoices();
   }
 
   Future<void> openDetails(InvoiceModel invoice) async {
@@ -364,35 +360,35 @@ class InvoicesListController extends GetxController {
   }
 
   Future<void> printInvoicePdf(InvoiceModel invoice) async {
-  if (isPrinting) return;
+    if (isPrinting) return;
 
-  isPrinting = true;
-  update();
+    isPrinting = true;
+    update();
 
-  try {
-    final bytes = await InvoicePdfService.build(invoice);
-    final fileName = invoice.invoiceNumber;
+    try {
+      final bytes = await InvoicePdfService.build(invoice);
+      final fileName = invoice.invoiceNumber;
 
-    if (kIsWeb) {
-      await FileSaver.instance.saveFile(
-        name: fileName,
-        bytes: bytes,
-        fileExtension: 'pdf',
-        mimeType: MimeType.pdf,
-      );
-    } else {
-      await Printing.layoutPdf(
-        name: '$fileName.pdf',
-        onLayout: (_) async => bytes,
-      );
+      if (kIsWeb) {
+        await FileSaver.instance.saveFile(
+          name: fileName,
+          bytes: bytes,
+          fileExtension: 'pdf',
+          mimeType: MimeType.pdf,
+        );
+      } else {
+        await Printing.layoutPdf(
+          name: '$fileName.pdf',
+          onLayout: (_) async => bytes,
+        );
+      }
+    } catch (_) {
+      _showError('invoice_pdf_error');
+    } finally {
+      isPrinting = false;
+      if (!isClosed) update();
     }
-  } catch (_) {
-    _showError('invoice_pdf_error');
-  } finally {
-    isPrinting = false;
-    if (!isClosed) update();
   }
-}
 
   void _showSuccess(String messageKey) {
     Get.snackbar(

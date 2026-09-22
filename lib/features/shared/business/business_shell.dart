@@ -1,10 +1,5 @@
-import 'package:fatoora/core/constants/color.dart';
-import 'package:fatoora/core/services/services.dart';
-import 'package:fatoora/core/widgets/fatoora_app_bar.dart';
-import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
-import 'package:fatoora/features/admin_dashboard/view/widgets/admin_dashboard_shell.dart';
+import 'package:fatoora/features/shared/navigation/adaptive_business_shell.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 
 class BusinessShell extends StatelessWidget {
   const BusinessShell({
@@ -22,20 +17,11 @@ class BusinessShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final services = Get.find<MyServices>();
-    final role = services.sharedPreferences.getString('role') ?? '';
-    if (role == AuthRepository.adminRole) {
-      return AdminDashboardShell(child: child);
-    }
-
-    return Scaffold(
-      backgroundColor: context.appBackground,
-      appBar: FatooraAppBar(
-        title: title,
-        showBackButton: showBackButton,
-        onBack: onBack,
-      ),
-      body: SafeArea(child: child),
+    return AdaptiveBusinessShell(
+      title: title,
+      showBackButton: showBackButton,
+      onBack: onBack,
+      child: child,
     );
   }
 }

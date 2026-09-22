@@ -1,4 +1,8 @@
 const Map<String, String> commonEnglishTranslations = {
+  'nav_more': 'More',
+  'nav_invoice': 'Invoice',
+  'nav_more_title': 'More',
+  'nav_more_subtitle': 'Open another Fatoora module',
   'load_more_records': 'Load more',
   'loading_more_records': 'Loading...',
   'page_not_found_title': 'Page not found',
@@ -25,6 +29,10 @@ const Map<String, String> commonEnglishTranslations = {
 };
 
 const Map<String, String> commonArabicTranslations = {
+  'nav_more': 'المزيد',
+  'nav_invoice': 'فاتورة',
+  'nav_more_title': 'المزيد',
+  'nav_more_subtitle': 'افتح وحدة أخرى في فاتورة',
   'load_more_records': 'تحميل المزيد',
   'loading_more_records': 'جارٍ التحميل...',
   'page_not_found_title': 'الصفحة غير موجودة',
