@@ -2,8 +2,12 @@ import 'package:fatoora/features/invoices/data/models/invoice_item_snapshot.dart
 
 class QuotationItemModel {
   const QuotationItemModel({
+    this.lineId = '',
+    this.lineType = InvoiceLineType.catalog,
+    this.isLegacyManual = false,
     required this.itemId,
     required this.itemName,
+    this.description = '',
     required this.itemCode,
     required this.unit,
     required this.quantity,
@@ -15,8 +19,12 @@ class QuotationItemModel {
     required this.total,
   });
 
-  final String itemId;
+  final String lineId;
+  final InvoiceLineType lineType;
+  final bool isLegacyManual;
+  final String? itemId;
   final String itemName;
+  final String description;
   final String itemCode;
   final String unit;
   final double quantity;
@@ -29,8 +37,12 @@ class QuotationItemModel {
 
   factory QuotationItemModel.fromInvoiceItem(InvoiceItemSnapshot item) {
     return QuotationItemModel(
+      lineId: item.lineId,
+      lineType: item.lineType,
+      isLegacyManual: item.isLegacyManual,
       itemId: item.itemId,
       itemName: item.itemName,
+      description: item.description,
       itemCode: item.itemCode,
       unit: item.unit,
       quantity: item.quantity,
@@ -45,24 +57,32 @@ class QuotationItemModel {
 
   factory QuotationItemModel.fromMap(Object? value) {
     final data = _asMap(value);
+    final invoiceItem = InvoiceItemSnapshot.fromMap(data);
     return QuotationItemModel(
-      itemId: _readString(data, 'itemId'),
-      itemName: _readString(data, 'itemName'),
-      itemCode: _readString(data, 'itemCode'),
-      unit: _readString(data, 'unit'),
-      quantity: _readDouble(data, 'quantity'),
-      unitPrice: _readDouble(data, 'unitPrice'),
-      discount: _readDouble(data, 'discount'),
-      taxPercent: _readDouble(data, 'taxPercent'),
-      subtotal: _readDouble(data, 'subtotal'),
-      taxAmount: _readDouble(data, 'taxAmount'),
-      total: _readDouble(data, 'total'),
+      lineId: invoiceItem.lineId,
+      lineType: invoiceItem.lineType,
+      isLegacyManual: invoiceItem.isLegacyManual,
+      itemId: invoiceItem.itemId,
+      itemName: invoiceItem.itemName,
+      description: invoiceItem.description,
+      itemCode: invoiceItem.itemCode,
+      unit: invoiceItem.unit,
+      quantity: invoiceItem.quantity,
+      unitPrice: invoiceItem.unitPrice,
+      discount: invoiceItem.discount,
+      taxPercent: invoiceItem.taxPercent,
+      subtotal: invoiceItem.subtotal,
+      taxAmount: invoiceItem.taxAmount,
+      total: invoiceItem.total,
     );
   }
 
   Map<String, dynamic> toMap() => {
+    'lineId': lineId,
+    if (!isLegacyManual) 'lineType': lineType.value,
     'itemId': itemId,
     'itemName': itemName,
+    'description': description,
     'itemCode': itemCode,
     'unit': unit,
     'quantity': quantity,
@@ -76,8 +96,12 @@ class QuotationItemModel {
 
   InvoiceItemSnapshot toInvoiceItem() {
     return InvoiceItemSnapshot(
+      lineId: lineId,
+      lineType: lineType,
+      isLegacyManual: isLegacyManual,
       itemId: itemId,
       itemName: itemName,
+      description: description,
       itemCode: itemCode,
       unit: unit,
       quantity: quantity,
@@ -91,8 +115,13 @@ class QuotationItemModel {
   }
 
   QuotationItemModel copyWith({
+    String? lineId,
+    InvoiceLineType? lineType,
+    bool? isLegacyManual,
     String? itemId,
+    bool clearItemId = false,
     String? itemName,
+    String? description,
     String? itemCode,
     String? unit,
     double? quantity,
@@ -104,8 +133,12 @@ class QuotationItemModel {
     double? total,
   }) {
     return QuotationItemModel(
-      itemId: itemId ?? this.itemId,
+      lineId: lineId ?? this.lineId,
+      lineType: lineType ?? this.lineType,
+      isLegacyManual: isLegacyManual ?? this.isLegacyManual,
+      itemId: clearItemId ? null : itemId ?? this.itemId,
       itemName: itemName ?? this.itemName,
+      description: description ?? this.description,
       itemCode: itemCode ?? this.itemCode,
       unit: unit ?? this.unit,
       quantity: quantity ?? this.quantity,
@@ -121,17 +154,5 @@ class QuotationItemModel {
   static Map<String, dynamic> _asMap(Object? value) {
     if (value is! Map) return const {};
     return value.map((key, value) => MapEntry(key.toString(), value));
-  }
-
-  static String _readString(Map<String, dynamic> data, String key) {
-    final value = data[key];
-    return value is String ? value.trim() : '';
-  }
-
-  static double _readDouble(Map<String, dynamic> data, String key) {
-    final value = data[key];
-    if (value is num && value.isFinite) return value.toDouble();
-    if (value is String) return double.tryParse(value.trim()) ?? 0;
-    return 0;
   }
 }

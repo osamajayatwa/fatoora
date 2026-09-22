@@ -8,7 +8,10 @@ import 'package:fatoora/features/financial/controllers/financial_error_mapper.da
 import 'package:fatoora/features/financial/data/models/dashboard_month_period.dart';
 import 'package:fatoora/features/financial/data/models/financial_dashboard_snapshot.dart';
 import 'package:fatoora/features/financial/data/repositories/financial_repository.dart';
-import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
+import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
+import 'package:fatoora/features/rep_inventory/data/models/rep_inventory_balance_model.dart';
+import 'package:fatoora/features/rep_inventory/data/repositories/rep_inventory_repository.dart';
+import 'package:fatoora/features/shared/navigation/business_navigation_router.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -17,13 +20,16 @@ class SalesRepDashboardController extends GetxController {
     required FinancialRepository repository,
     required MyServices myServices,
     required BusinessPermissionResolver permissionResolver,
+    RepInventoryRepository? inventoryRepository,
   }) : _repository = repository,
        _myServices = myServices,
-       _permissionResolver = permissionResolver;
+       _permissionResolver = permissionResolver,
+       _inventoryRepository = inventoryRepository;
 
   final FinancialRepository _repository;
   final MyServices _myServices;
   final BusinessPermissionResolver _permissionResolver;
+  final RepInventoryRepository? _inventoryRepository;
 
   StatusRequest statusRequest = StatusRequest.loading;
   String loadErrorMessageKey = 'financial_load_error';
@@ -35,6 +41,8 @@ class SalesRepDashboardController extends GetxController {
   bool _followCurrentMonth = true;
   bool get canCreateQuotation => permissions.createQuotations;
   bool get canCreateReceipt => permissions.createReceipts;
+  int? custodyItemCount;
+  double? custodyTotalQuantity;
 
   String get companyId =>
       _myServices.sharedPreferences.getString('companyId') ??
@@ -51,16 +59,23 @@ class SalesRepDashboardController extends GetxController {
     statusRequest = StatusRequest.loading;
     update();
     try {
-      final results = await Future.wait<Object>([
+      final results = await Future.wait<Object?>([
         _permissionResolver.resolve(companyId),
         _repository.fetchDashboard(
           companyId: companyId,
           fromDate: selectedPeriod.start,
           toDate: selectedPeriod.end,
         ),
+        _loadCustodyBalances(),
       ]);
       permissions = results[0] as EffectiveBusinessPermissions;
       snapshot = results[1] as FinancialDashboardSnapshot;
+      final balances = results[2] as List<RepInventoryBalanceModel>?;
+      custodyItemCount = balances?.length;
+      custodyTotalQuantity = balances?.fold<double>(
+        0,
+        (total, balance) => total + balance.quantity,
+      );
       statusRequest = StatusRequest.success;
     } catch (error) {
       statusRequest = FinancialErrorMapper.status(error);
@@ -70,6 +85,17 @@ class SalesRepDashboardController extends GetxController {
   }
 
   Future<void> refreshDashboard() => loadDashboard();
+
+  Future<List<RepInventoryBalanceModel>?> _loadCustodyBalances() async {
+    final repository = _inventoryRepository;
+    if (repository == null) return null;
+    try {
+      return await repository.fetchBalances(companyId: companyId);
+    } catch (_) {
+      // Custody is supplementary. Keep the dashboard usable and show its CTA.
+      return null;
+    }
+  }
 
   String selectedMonthLabel(BuildContext context) {
     return MaterialLocalizations.of(
@@ -100,14 +126,16 @@ class SalesRepDashboardController extends GetxController {
     selectedPeriod = DashboardMonthPeriod.current();
   }
 
-  void createInvoice() {
-    Get.toNamed(
-      AppRoute.invoiceForm,
-      arguments: {'mode': 'create', 'invoiceType': InvoiceType.regular.value},
+  Future<void> createInvoice() async {
+    final changed = await BusinessNavigationRouter.openCreateInvoice(
+      _myServices,
     );
+    if (changed) await refreshDashboard();
   }
 
   void openInvoices() => Get.toNamed(AppRoute.invoices);
+  void openInvoice(InvoiceModel invoice) =>
+      Get.toNamed(AppRoute.invoiceDetailsPath(invoice.id));
   void openReceipts() => Get.toNamed(AppRoute.receipts);
   void createReceipt() {
     if (!canCreateReceipt) {

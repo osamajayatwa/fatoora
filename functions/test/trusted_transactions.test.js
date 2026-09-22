@@ -112,6 +112,33 @@ test("invoice totals ignore forged client aggregates and reject invalid payment"
     discount: 11,
     taxPercent: 0,
   }]));
+  const custom = calculateInvoiceTotals([{
+    lineId: "custom-1",
+    lineType: "custom",
+    itemId: null,
+    itemName: "Installation",
+    description: "Installation at customer site",
+    quantity: 2,
+    unitPrice: 5,
+    discount: 1,
+    taxPercent: 0,
+  }]).items[0];
+  assert.equal(custom.lineId, "custom-1");
+  assert.equal(custom.lineType, "custom");
+  assert.equal(custom.itemId, null);
+  assert.equal(custom.description, "Installation at customer site");
+  assert.throws(() => calculateInvoiceTotals([{
+    lineType: "informational",
+    quantity: 1,
+    unitPrice: 1,
+    taxPercent: 0,
+  }]));
+  assert.throws(() => calculateInvoiceTotals([{
+    lineType: "custom",
+    quantity: 1,
+    unitPrice: 0,
+    taxPercent: 0,
+  }]));
 });
 
 test("JoFotara is not exported and its retained callable fails without writes", async () => {
@@ -1202,6 +1229,306 @@ test("concurrent invoice confirmations post totals and stock exactly once", asyn
   assert.equal(removedProjection.exists, false);
   assert.equal(removedSummary.entryCount, 0);
   assert.equal(removedSummary.metricSales, 0);
+});
+
+test("mixed catalog and custom invoice posts trusted totals without custom inventory", async () => {
+  const companyId = "trusted-custom-lines-admin";
+  const uid = "custom-lines-admin";
+  const customerId = "custom-lines-customer";
+  const invoiceId = "mixed-invoice";
+  await seedUser(uid, "admin", companyId);
+  await seedCustomer(companyId, customerId, uid, 0);
+  await db.doc("items/custom-lines-pump").set({
+    id: "custom-lines-pump",
+    name: "DSS pump",
+    description: "Catalog description",
+    code: "DSS",
+    unit: "pcs",
+    price: 250,
+    active: true,
+    deleted: false,
+    trackStock: true,
+    currentStock: 4,
+  });
+  await db.doc(`companies/${companyId}/invoices/${invoiceId}`).set({
+    ...invoiceDraft({id: invoiceId, companyId, customerId, uid, quantity: 1}),
+    items: [
+      {
+        lineId: "pump-line",
+        lineType: "catalog",
+        itemId: "custom-lines-pump",
+        itemName: "Forged catalog identity",
+        description: "Invoice-local pump description",
+        itemCode: "forged",
+        unit: "forged",
+        quantity: 1,
+        unitPrice: 250,
+        discount: 0,
+        taxPercent: 0,
+        trackStock: false,
+      },
+      ...[
+        ["installation", "Installation", "Installation at customer site", 50],
+        ["maintenance", "Maintenance", "Preventive maintenance", 15],
+        ["service", "Parts/service", "Miscellaneous service", 5],
+      ].map(([lineId, itemName, description, unitPrice]) => ({
+        lineId,
+        lineType: "custom",
+        itemId: null,
+        itemName,
+        description,
+        itemCode: "",
+        unit: "service",
+        quantity: 1,
+        unitPrice,
+        discount: 0,
+        taxPercent: 0,
+      })),
+    ],
+    hasReceivedPayment: true,
+    paidAmount: 100,
+  });
+
+  await confirmInvoiceTransaction(db, uid, companyId, invoiceId);
+  const invoice = (await db.doc(
+    `companies/${companyId}/invoices/${invoiceId}`,
+  ).get()).data();
+  assert.equal(invoice.grandTotal, 320);
+  assert.equal(invoice.paidAmount, 100);
+  assert.equal(invoice.remainingAmount, 220);
+  assert.equal(invoice.items[0].itemName, "DSS pump");
+  assert.equal(invoice.items[0].description, "Invoice-local pump description");
+  assert.equal(invoice.items[1].itemId, null);
+  assert.equal(invoice.items[1].lineType, "custom");
+  assert.equal(invoice.items[1].description, "Installation at customer site");
+  assert.equal((await db.doc("items/custom-lines-pump").get()).data().currentStock, 3);
+  const movements = await db.collection(
+    `companies/${companyId}/stock_movements`,
+  ).get();
+  assert.equal(movements.size, 1);
+  assert.equal(movements.docs[0].data().itemId, "custom-lines-pump");
+  assert.equal((await db.doc(
+    `companies/${companyId}/customers/${customerId}`,
+  ).get()).data().currentBalance, 220);
+
+  const invalidId = "custom-description-required";
+  await db.doc(`companies/${companyId}/invoices/${invalidId}`).set({
+    ...invoiceDraft({id: invalidId, companyId, customerId, uid, quantity: 1}),
+    items: [{
+      lineId: "invalid-custom",
+      lineType: "custom",
+      itemId: null,
+      itemName: "Installation",
+      description: "",
+      unit: "service",
+      quantity: 1,
+      unitPrice: 10,
+      discount: 0,
+      taxPercent: 0,
+    }],
+  });
+  await assert.rejects(
+    () => confirmInvoiceTransaction(db, uid, companyId, invalidId),
+    (error) => error.code === "invalid-argument",
+  );
+
+  const missingNameId = "custom-name-required";
+  await db.doc(`companies/${companyId}/invoices/${missingNameId}`).set({
+    ...invoiceDraft({id: missingNameId, companyId, customerId, uid, quantity: 1}),
+    items: [{
+      lineId: "unnamed-custom",
+      lineType: "custom",
+      itemId: null,
+      itemName: "",
+      description: "A valid description",
+      unit: "service",
+      quantity: 1,
+      unitPrice: 10,
+      discount: 0,
+      taxPercent: 0,
+    }],
+  });
+  await assert.rejects(
+    () => confirmInvoiceTransaction(db, uid, companyId, missingNameId),
+    (error) => error.code === "invalid-argument",
+  );
+
+  const legacyManualId = "legacy-manual-compatible";
+  await db.doc(`companies/${companyId}/invoices/${legacyManualId}`).set({
+    ...invoiceDraft({id: legacyManualId, companyId, customerId, uid, quantity: 1}),
+    items: [{
+      itemId: "manual-installation",
+      itemName: "Legacy installation",
+      unit: "service",
+      quantity: 1,
+      unitPrice: 10,
+      discount: 0,
+      taxPercent: 0,
+    }],
+  });
+  await confirmInvoiceTransaction(db, uid, companyId, legacyManualId);
+  const legacyManual = (await db.doc(
+    `companies/${companyId}/invoices/${legacyManualId}`,
+  ).get()).data().items[0];
+  assert.equal(legacyManual.lineType, "custom");
+  assert.equal(legacyManual.itemId, null);
+  assert.equal(legacyManual.description, "");
+});
+
+test("sales rep custom pricing is independent from catalog price permission", async () => {
+  const companyId = "trusted-custom-lines-rep";
+  const uid = "custom-lines-rep";
+  const customerId = "custom-lines-rep-customer";
+  const invoiceId = "rep-mixed-invoice";
+  await seedUser(uid, "sales_rep", companyId);
+  await seedCustomer(companyId, customerId, uid, 0);
+  await db.doc(`companies/${companyId}/settings/app`).set({
+    permissionSettings: {
+      allowSalesRepPriceEdit: false,
+      allowSalesRepDiscount: false,
+    },
+  });
+  await db.doc("items/custom-lines-untracked").set({
+    id: "custom-lines-untracked",
+    name: "Consulting package",
+    description: "Untracked catalog service",
+    code: "CONSULT",
+    unit: "service",
+    price: 13,
+    active: true,
+    deleted: false,
+    trackStock: false,
+    currentStock: 0,
+  });
+  await db.doc(`companies/${companyId}/invoices/${invoiceId}`).set({
+    ...invoiceDraft({id: invoiceId, companyId, customerId, uid, quantity: 1}),
+    createdByRole: "sales_rep",
+    stockSourceType: "salesRep",
+    stockSourceSalesRepId: uid,
+    items: [
+      {
+        lineId: "untracked-catalog",
+        lineType: "catalog",
+        itemId: "custom-lines-untracked",
+        itemName: "Consulting package",
+        description: "Quotation-specific description",
+        unit: "service",
+        quantity: 1,
+        unitPrice: 13,
+        discount: 0,
+        taxPercent: 0,
+      },
+      {
+        lineId: "custom-delivery",
+        lineType: "custom",
+        itemId: null,
+        itemName: "Delivery",
+        description: "Delivery to site",
+        unit: "trip",
+        quantity: 1,
+        unitPrice: 7,
+        discount: 0,
+        taxPercent: 0,
+      },
+    ],
+  });
+
+  await confirmInvoiceTransaction(db, uid, companyId, invoiceId);
+  const invoice = (await db.doc(
+    `companies/${companyId}/invoices/${invoiceId}`,
+  ).get()).data();
+  assert.equal(invoice.grandTotal, 20);
+  assert.equal(invoice.remainingAmount, 20);
+  assert.equal((await db.collection(
+    `companies/${companyId}/rep_inventory_movements`,
+  ).get()).size, 0);
+
+  const forbiddenCatalogPriceId = "rep-catalog-price-forbidden";
+  await db.doc(`companies/${companyId}/invoices/${forbiddenCatalogPriceId}`).set({
+    ...invoiceDraft({
+      id: forbiddenCatalogPriceId,
+      companyId,
+      customerId,
+      uid,
+      quantity: 1,
+    }),
+    createdByRole: "sales_rep",
+    stockSourceType: "salesRep",
+    stockSourceSalesRepId: uid,
+    items: [{
+      lineId: "altered-catalog-price",
+      lineType: "catalog",
+      itemId: "custom-lines-untracked",
+      itemName: "Consulting package",
+      description: "Untracked catalog service",
+      unit: "service",
+      quantity: 1,
+      unitPrice: 14,
+      discount: 0,
+      taxPercent: 0,
+    }],
+  });
+  await assert.rejects(
+    () => confirmInvoiceTransaction(
+      db,
+      uid,
+      companyId,
+      forbiddenCatalogPriceId,
+    ),
+    (error) => error.code === "permission-denied",
+  );
+});
+
+test("custom line return reverses finance and never creates stock IN", async () => {
+  const companyId = "trusted-custom-return";
+  const uid = "custom-return-admin";
+  const customerId = "custom-return-customer";
+  const invoiceId = "custom-return-invoice";
+  const returnId = "custom-return-document";
+  await seedUser(uid, "admin", companyId);
+  await seedCustomer(companyId, customerId, uid, 0);
+  await db.doc(`companies/${companyId}/invoices/${invoiceId}`).set({
+    ...invoiceDraft({id: invoiceId, companyId, customerId, uid, quantity: 1}),
+    customerSnapshot: {id: customerId, name: "Customer"},
+    items: [{
+      lineId: "service-line",
+      lineType: "custom",
+      itemId: null,
+      itemName: "Maintenance",
+      description: "Annual preventive maintenance",
+      itemCode: "",
+      unit: "service",
+      quantity: 1,
+      unitPrice: 15,
+      discount: 0,
+      taxPercent: 0,
+    }],
+  });
+  await confirmInvoiceTransaction(db, uid, companyId, invoiceId);
+  await confirmSalesReturnTransaction(db, uid, companyId, returnId, {
+    originalInvoiceId: invoiceId,
+    refundType: "credit_customer_balance",
+    returnDate: now,
+    reason: "Service credit",
+    items: [{
+      originalInvoiceItemId: `${invoiceId}:line:service-line`,
+      returnedQuantity: 1,
+      lineType: "catalog",
+      itemId: "forged-item",
+    }],
+  });
+  const salesReturn = (await db.doc(
+    `companies/${companyId}/sales_returns/${returnId}`,
+  ).get()).data();
+  assert.equal(salesReturn.grandTotal, 15);
+  assert.equal(salesReturn.items[0].lineType, "custom");
+  assert.equal(salesReturn.items[0].itemId, null);
+  assert.equal(salesReturn.items[0].description, "Annual preventive maintenance");
+  assert.equal(salesReturn.items[0].lineId, "service-line");
+  assert.deepEqual(salesReturn.stockMovementIds, []);
+  assert.equal((await db.collection(
+    `companies/${companyId}/stock_movements`,
+  ).get()).size, 0);
 });
 
 test("receipt allocates across more than 250 outstanding invoices", async () => {

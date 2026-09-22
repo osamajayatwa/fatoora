@@ -1,7 +1,17 @@
+enum InvoiceLineType { catalog, custom }
+
+extension InvoiceLineTypeValue on InvoiceLineType {
+  String get value => name;
+}
+
 class InvoiceItemSnapshot {
   const InvoiceItemSnapshot({
+    this.lineId = '',
+    this.lineType = InvoiceLineType.catalog,
+    this.isLegacyManual = false,
     required this.itemId,
     required this.itemName,
+    this.description = '',
     required this.itemCode,
     required this.unit,
     required this.quantity,
@@ -13,8 +23,12 @@ class InvoiceItemSnapshot {
     required this.total,
   });
 
-  final String itemId;
+  final String lineId;
+  final InvoiceLineType lineType;
+  final bool isLegacyManual;
+  final String? itemId;
   final String itemName;
+  final String description;
   final String itemCode;
   final String unit;
   final double quantity;
@@ -27,9 +41,18 @@ class InvoiceItemSnapshot {
 
   factory InvoiceItemSnapshot.fromMap(Object? value) {
     final data = _asMap(value);
+    final itemId = _readOptionalString(data, 'itemId');
+    final lineType = _readLineType(data['lineType'], itemId);
+    final rawLineType = _readString(data, 'lineType');
     return InvoiceItemSnapshot(
-      itemId: _readString(data, 'itemId'),
+      lineId: _readString(data, 'lineId'),
+      lineType: lineType,
+      isLegacyManual:
+          rawLineType.isEmpty &&
+          (itemId == null || itemId.startsWith('manual-')),
+      itemId: lineType == InvoiceLineType.custom ? itemId : itemId,
       itemName: _readString(data, 'itemName'),
+      description: _readString(data, 'description'),
       itemCode: _readString(data, 'itemCode'),
       unit: _readString(data, 'unit'),
       quantity: _readDouble(data, 'quantity'),
@@ -43,8 +66,11 @@ class InvoiceItemSnapshot {
   }
 
   Map<String, dynamic> toMap() => {
+    'lineId': lineId,
+    if (!isLegacyManual) 'lineType': lineType.value,
     'itemId': itemId,
     'itemName': itemName,
+    'description': description,
     'itemCode': itemCode,
     'unit': unit,
     'quantity': quantity,
@@ -57,8 +83,13 @@ class InvoiceItemSnapshot {
   };
 
   InvoiceItemSnapshot copyWith({
+    String? lineId,
+    InvoiceLineType? lineType,
+    bool? isLegacyManual,
     String? itemId,
+    bool clearItemId = false,
     String? itemName,
+    String? description,
     String? itemCode,
     String? unit,
     double? quantity,
@@ -70,8 +101,12 @@ class InvoiceItemSnapshot {
     double? total,
   }) {
     return InvoiceItemSnapshot(
-      itemId: itemId ?? this.itemId,
+      lineId: lineId ?? this.lineId,
+      lineType: lineType ?? this.lineType,
+      isLegacyManual: isLegacyManual ?? this.isLegacyManual,
+      itemId: clearItemId ? null : itemId ?? this.itemId,
       itemName: itemName ?? this.itemName,
+      description: description ?? this.description,
       itemCode: itemCode ?? this.itemCode,
       unit: unit ?? this.unit,
       quantity: quantity ?? this.quantity,
@@ -92,6 +127,24 @@ class InvoiceItemSnapshot {
   static String _readString(Map<String, dynamic> data, String key) {
     final value = data[key];
     return value is String ? value.trim() : '';
+  }
+
+  static String? _readOptionalString(Map<String, dynamic> data, String key) {
+    final value = _readString(data, key);
+    return value.isEmpty ? null : value;
+  }
+
+  static InvoiceLineType _readLineType(Object? value, String? itemId) {
+    final normalized = value?.toString().trim().toLowerCase();
+    if (normalized == InvoiceLineType.custom.value) {
+      return InvoiceLineType.custom;
+    }
+    if (normalized == InvoiceLineType.catalog.value) {
+      return InvoiceLineType.catalog;
+    }
+    return itemId == null || itemId.startsWith('manual-')
+        ? InvoiceLineType.custom
+        : InvoiceLineType.catalog;
   }
 
   static double _readDouble(Map<String, dynamic> data, String key) {

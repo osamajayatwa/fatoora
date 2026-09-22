@@ -1,11 +1,15 @@
+import 'package:fatoora/features/shared/navigation/adaptive_business_shell.dart';
+
 class SalesRepDashboardLayout {
   const SalesRepDashboardLayout._();
 
   static const double maxContentWidth = 1240;
   static const double sectionGap = 20;
 
-  static double horizontalPadding(double width) => width < 600 ? 16 : 24;
-  static bool useDesktopColumns(double width) => width >= 1050;
+  static double horizontalPadding(double width) =>
+      width < AdaptiveShellBreakpoints.mobile ? 12 : 24;
+  static bool useDesktopColumns(double width) =>
+      width >= AdaptiveShellBreakpoints.desktop;
 
   static int metricColumns(double width) {
     if (width >= 820) return 4;

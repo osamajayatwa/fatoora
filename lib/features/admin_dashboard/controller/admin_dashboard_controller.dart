@@ -73,7 +73,7 @@ class AdminDashboardController extends GetxController {
       titleKey: 'dashboard_customers_count',
       value: snapshot.customerCount.toString(),
       captionKey: 'dashboard_customer',
-      change: '0%',
+      route: AppRoute.customers,
       icon: Icons.people_alt_outlined,
       color: const Color(0xFFFF9838),
     ),
@@ -81,7 +81,7 @@ class AdminDashboardController extends GetxController {
       titleKey: 'dashboard_invoices_count',
       value: snapshot.invoiceCount.toString(),
       captionKey: 'dashboard_invoice',
-      change: '0%',
+      route: AppRoute.invoices,
       icon: Icons.receipt_long_outlined,
       color: const Color(0xFF35A7FF),
     ),
@@ -89,7 +89,7 @@ class AdminDashboardController extends GetxController {
       titleKey: 'dashboard_invoice_total',
       value: _money.format(snapshot.totalSales),
       captionKey: 'dashboard_jod',
-      change: '0%',
+      route: AppRoute.invoices,
       icon: Icons.description_outlined,
       color: const Color(0xFF42C98B),
     ),
@@ -97,7 +97,7 @@ class AdminDashboardController extends GetxController {
       titleKey: 'financial_company_cash',
       value: _money.format(snapshot.companyCash),
       captionKey: 'dashboard_jod',
-      change: '0%',
+      route: AppRoute.cashMovements,
       icon: Icons.account_balance_wallet_outlined,
       color: const Color(0xFF6657E8),
     ),
@@ -105,7 +105,7 @@ class AdminDashboardController extends GetxController {
       titleKey: 'financial_rep_cash_outstanding',
       value: _money.format(snapshot.repCashOutstanding),
       captionKey: 'dashboard_jod',
-      change: '0%',
+      route: AppRoute.cashMovements,
       icon: Icons.payments_outlined,
       color: const Color(0xFFFF9838),
     ),
@@ -113,7 +113,7 @@ class AdminDashboardController extends GetxController {
       titleKey: 'expenses_total_posted',
       value: _money.format(snapshot.totalExpenses),
       captionKey: 'dashboard_jod',
-      change: '0%',
+      route: AppRoute.expenses,
       icon: Icons.receipt_long_outlined,
       color: AppColor.error,
     ),
@@ -121,7 +121,7 @@ class AdminDashboardController extends GetxController {
       titleKey: 'expenses_pending',
       value: snapshot.pendingExpenseCount.toString(),
       captionKey: 'expenses',
-      change: '0%',
+      route: AppRoute.expenses,
       icon: Icons.pending_actions_outlined,
       color: const Color(0xFFFFA43A),
     ),
@@ -129,7 +129,7 @@ class AdminDashboardController extends GetxController {
       titleKey: 'admin_users_pending',
       value: pendingApprovalsCount.toString(),
       captionKey: 'admin_users_approval_queue',
-      change: '0%',
+      route: AppRoute.pendingUsers,
       icon: Icons.manage_accounts_outlined,
       color: const Color(0xFFFFA43A),
     ),
@@ -138,6 +138,7 @@ class AdminDashboardController extends GetxController {
   List<DashboardInvoice> get invoices => snapshot.recentInvoices
       .map((invoice) {
         return DashboardInvoice(
+          id: invoice.id,
           customer: invoice.customerSnapshot?.name ?? invoice.customerId,
           number: invoice.invoiceNumber,
           amount: _money.format(invoice.grandTotal),
@@ -224,18 +225,21 @@ class AdminDashboardController extends GetxController {
         amount: _money.format(snapshot.cashSales),
         percentage: snapshot.cashSales / total,
         color: AppColor.success,
+        route: AppRoute.invoices,
       ),
       DashboardSummaryItem(
         labelKey: 'financial_credit_sales',
         amount: _money.format(snapshot.creditSales),
         percentage: snapshot.creditSales / total,
         color: AppColor.error,
+        route: AppRoute.invoices,
       ),
       DashboardSummaryItem(
         labelKey: 'financial_partial_sales',
         amount: _money.format(snapshot.partialSales),
         percentage: snapshot.partialSales / total,
         color: const Color(0xFFFFA43A),
+        route: AppRoute.invoices,
       ),
       DashboardSummaryItem(
         labelKey: 'financial_total_receivables',
@@ -244,6 +248,7 @@ class AdminDashboardController extends GetxController {
             ? 0
             : (snapshot.totalReceivables / total).clamp(0, 1).toDouble(),
         color: const Color(0xFF6657E8),
+        route: AppRoute.receivables,
       ),
     ];
   }
@@ -251,6 +256,7 @@ class AdminDashboardController extends GetxController {
   List<DashboardCustomer> get topCustomers => snapshot.topCustomers
       .map(
         (item) => DashboardCustomer(
+          id: item.customer.id,
           name: item.customer.name,
           amount: _money.format(item.balance),
         ),
@@ -258,20 +264,38 @@ class AdminDashboardController extends GetxController {
       .toList(growable: false);
 
   List<DashboardAlert> get alerts => [
-    DashboardAlert(
-      messageKey: snapshot.totalReceivables > 0
-          ? 'financial_alert_receivables'
-          : 'financial_alert_no_receivables',
-      date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
-      icon: Icons.account_balance_outlined,
-      color: snapshot.totalReceivables > 0 ? AppColor.error : AppColor.success,
-    ),
-    DashboardAlert(
-      messageKey: 'financial_alert_cash',
-      date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
-      icon: Icons.account_balance_wallet_outlined,
-      color: AppColor.primaryColor,
-    ),
+    if (snapshot.totalReceivables > 0)
+      DashboardAlert(
+        messageKey: 'financial_alert_receivables',
+        date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        icon: Icons.account_balance_outlined,
+        color: AppColor.error,
+        route: AppRoute.receivables,
+      ),
+    if (snapshot.repCashOutstanding > 0)
+      DashboardAlert(
+        messageKey: 'sales_rep_home_cash_attention',
+        date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        icon: Icons.account_balance_wallet_outlined,
+        color: AppColor.primaryColor,
+        route: AppRoute.cashMovements,
+      ),
+    if (snapshot.pendingExpenseCount > 0)
+      DashboardAlert(
+        messageKey: 'sales_rep_home_pending_expenses',
+        date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        icon: Icons.pending_actions_outlined,
+        color: const Color(0xFFFFA43A),
+        route: AppRoute.expenses,
+      ),
+    if (pendingApprovalsCount > 0)
+      DashboardAlert(
+        messageKey: 'admin_users_pending',
+        date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        icon: Icons.manage_accounts_outlined,
+        color: const Color(0xFFFFA43A),
+        route: AppRoute.pendingUsers,
+      ),
   ];
 
   @override
@@ -396,7 +420,11 @@ class AdminDashboardController extends GetxController {
   void showNotifications() {
     Get.snackbar(
       'dashboard_notifications'.tr,
-      'dashboard_notifications_message'.tr,
+      pendingApprovalsCount > 0
+          ? 'dashboard_pending_approvals_message'.trParams({
+              'count': pendingApprovalsCount.toString(),
+            })
+          : 'dashboard_no_notifications'.tr,
       snackPosition: SnackPosition.BOTTOM,
       backgroundColor: AppColor.secondaryColor,
       colorText: AppColor.surface,

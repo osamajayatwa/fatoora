@@ -101,7 +101,10 @@ class SalesReturnPdfService {
             data: salesReturn.items
                 .map(
                   (item) => [
-                    item.itemName,
+                    [
+                      item.itemName,
+                      item.description,
+                    ].where((value) => value.trim().isNotEmpty).join('\n'),
                     loc.quantity(item.returnedQuantity),
                     item.unit,
                     loc.money(item.unitPrice),

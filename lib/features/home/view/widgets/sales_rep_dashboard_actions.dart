@@ -18,7 +18,6 @@ class SalesRepPrimaryActions extends StatelessWidget {
         subtitle: 'sales_rep_home_create_invoice_subtitle'.tr,
         icon: Icons.note_add_outlined,
         onTap: controller.createInvoice,
-        emphasized: true,
       ),
       _PrimaryActionData(
         title: 'create_receipt'.tr,
@@ -83,24 +82,15 @@ class _PrimaryActionCard extends StatelessWidget {
     return SalesRepInteractiveCard(
       onTap: data.onTap,
       semanticLabel: data.title,
-      tint: data.emphasized
-          ? Color.alphaBlend(
-              scheme.primary.withValues(alpha: 0.075),
-              scheme.surface,
-            )
-          : null,
-      borderColor: data.emphasized
-          ? scheme.primary.withValues(alpha: 0.42)
-          : null,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final horizontal = constraints.maxWidth >= 260;
           final icon = SalesRepIconBox(
             icon: data.icon,
-            color: data.emphasized ? scheme.primary : scheme.secondary,
+            color: scheme.secondary,
             size: 46,
           );
-          final arrow = _ActionArrow(emphasized: data.emphasized);
+          const arrow = _ActionArrow();
           final label = _PrimaryActionLabel(data: data);
           if (horizontal) {
             return Row(
@@ -160,15 +150,11 @@ class _PrimaryActionLabel extends StatelessWidget {
 }
 
 class _ActionArrow extends StatelessWidget {
-  const _ActionArrow({required this.emphasized});
-
-  final bool emphasized;
+  const _ActionArrow();
 
   @override
   Widget build(BuildContext context) {
-    final color = emphasized
-        ? Theme.of(context).colorScheme.primary
-        : context.appMutedText;
+    final color = context.appMutedText;
     return Container(
       width: 28,
       height: 28,
@@ -310,14 +296,12 @@ class _PrimaryActionData {
     required this.subtitle,
     required this.icon,
     required this.onTap,
-    this.emphasized = false,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
   final VoidCallback onTap;
-  final bool emphasized;
 }
 
 class _ServiceData {

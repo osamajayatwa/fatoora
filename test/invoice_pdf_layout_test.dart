@@ -59,17 +59,24 @@ void main() {
     expect(_pageCount(bytes), 1);
   });
 
-  test('twenty-five long items and long notes stay within two pages', () async {
-    final invoice = _invoice(itemCount: 25, longNames: true, notes: _longNotes);
+  test(
+    'twenty-five described items and long notes paginate compactly',
+    () async {
+      final invoice = _invoice(
+        itemCount: 25,
+        longNames: true,
+        notes: _longNotes,
+      );
 
-    final bytes = await InvoicePdfService.build(
-      invoice,
-      configuration: _configuration('en'),
-    );
+      final bytes = await InvoicePdfService.build(
+        invoice,
+        configuration: _configuration('en'),
+      );
 
-    _expectPdf(bytes);
-    expect(_pageCount(bytes), lessThanOrEqualTo(2));
-  });
+      _expectPdf(bytes);
+      expect(_pageCount(bytes), inInclusiveRange(1, 3));
+    },
+  );
 
   test('fifty-item Arabic invoice with long content still generates', () async {
     final invoice = _invoice(
@@ -262,6 +269,9 @@ InvoiceModel _invoice({
       return InvoiceItemSnapshot(
         itemId: 'item-$sequence',
         itemName: name,
+        description: longNames
+            ? 'Installation notes and technical description for model $sequence / وصف فني متعدد اللغات'
+            : 'Submersible pump description $sequence',
         itemCode: 'PUMP-$sequence',
         unit: 'pcs',
         quantity: 2,

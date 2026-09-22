@@ -30,6 +30,8 @@ import {
   TrustedInvoiceLine,
   calculateInvoiceTotals,
   calculatePayment,
+  persistedInvoiceLine,
+  totalsFromTrustedLines,
 } from "./totals";
 
 interface InvoiceRequest {
@@ -123,17 +125,28 @@ export async function confirmInvoiceTransaction(
     );
     const totals = calculateInvoiceTotals(invoice.items);
     const catalogLines: CatalogLine[] = [];
+    const seenLineIds = new Set<string>();
     for (let index = 0; index < totals.items.length; index += 1) {
       const line = totals.items[index];
+      if (seenLineIds.has(line.lineId)) {
+        throw new HttpsError("invalid-argument", "Invoice lineId values must be unique.");
+      }
+      seenLineIds.add(line.lineId);
       if (!canDiscount && line.discount !== 0) {
         throw new HttpsError("permission-denied", "Discount permission is required.");
       }
-      if (!line.itemId || line.itemId.startsWith("manual-")) {
-        if (!canEditPrice || !line.itemName) {
-          throw new HttpsError("permission-denied", "Manual invoice line is not permitted.");
+      if (line.lineType === "custom") {
+        const legacyManual = !line.lineTypeExplicit &&
+          (!line.itemId || line.itemId.startsWith("manual-"));
+        if ((!legacyManual && line.itemId) || !line.itemName || !line.unit ||
+          (!legacyManual && !line.description)) {
+          throw new HttpsError("invalid-argument", "Custom invoice line is invalid.");
         }
-        catalogLines.push({line, index});
+        catalogLines.push({line: {...line, itemId: null}, index});
         continue;
+      }
+      if (!line.itemId) {
+        throw new HttpsError("invalid-argument", "Catalog invoice line itemId is required.");
       }
       const itemRef = firestore.doc(`items/${line.itemId}`);
       const itemSnapshot = await transaction.get(itemRef);
@@ -166,7 +179,7 @@ export async function confirmInvoiceTransaction(
     }
 
     const normalizedItems = catalogLines.map((entry) => entry.line);
-    const normalizedTotals = calculateInvoiceTotals(normalizedItems);
+    const normalizedTotals = totalsFromTrustedLines(normalizedItems);
     const hasReceivedPayment = invoice.hasReceivedPayment === true;
     const payment = calculatePayment(
       normalizedTotals.grandTotal,
@@ -320,7 +333,7 @@ export async function confirmInvoiceTransaction(
       }
     }
     transaction.update(invoiceRef, {
-      items: normalizedTotals.items,
+      items: normalizedTotals.items.map(persistedInvoiceLine),
       subtotal: normalizedTotals.subtotal,
       totalDiscount: normalizedTotals.totalDiscount,
       totalTax: normalizedTotals.totalTax,
@@ -392,6 +405,9 @@ async function buildInvoiceInventory(
   for (const entry of catalogLines) {
     if (!entry.item || !entry.itemRef || entry.item.trackStock !== true) continue;
     const itemId = entry.line.itemId;
+    if (!itemId) {
+      throw new HttpsError("data-loss", "Tracked catalog line is missing itemId.");
+    }
     const quantity = roundQuantity(entry.line.quantity);
     const sourceLineId = `${invoiceId}_line_${String(entry.index).padStart(3, "0")}`;
     if (sourceType === "salesRep") {

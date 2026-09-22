@@ -280,7 +280,14 @@ class _ItemsCard extends StatelessWidget {
               .map(
                 (item) => DataRow(
                   cells: [
-                    DataCell(Text(item.itemName)),
+                    DataCell(
+                      Text(
+                        [
+                          item.itemName,
+                          item.description,
+                        ].where((value) => value.isNotEmpty).join('\n'),
+                      ),
+                    ),
                     DataCell(Text(_quantity(item.quantity))),
                     DataCell(Text(item.unit)),
                     DataCell(Text(money.format(item.unitPrice))),

@@ -196,11 +196,6 @@ class _AdaptiveBusinessShellState extends State<AdaptiveBusinessShell> {
                     Icons.brightness_6_outlined,
                     'settings_theme'.tr,
                   ),
-                  _headerMenuItem(
-                    _HeaderAction.notifications,
-                    Icons.notifications_none_rounded,
-                    'dashboard_notifications'.tr,
-                  ),
                 ],
               ),
             ]
@@ -218,11 +213,6 @@ class _AdaptiveBusinessShellState extends State<AdaptiveBusinessShell> {
                       ? Icons.light_mode_outlined
                       : Icons.dark_mode_outlined,
                 ),
-              ),
-              IconButton(
-                tooltip: 'dashboard_notifications'.tr,
-                onPressed: _showNotifications,
-                icon: const Icon(Icons.notifications_none_rounded),
               ),
             ],
       onProfile: () => Get.toNamed(AppRoute.settings),
@@ -306,9 +296,6 @@ class _AdaptiveBusinessShellState extends State<AdaptiveBusinessShell> {
       case _HeaderAction.theme:
         _toggleTheme();
         return;
-      case _HeaderAction.notifications:
-        _showNotifications();
-        return;
     }
   }
 
@@ -322,16 +309,6 @@ class _AdaptiveBusinessShellState extends State<AdaptiveBusinessShell> {
     if (!Get.isRegistered<LocaleController>()) return;
     Get.find<LocaleController>().changeThemeMode(
       Theme.of(context).brightness == Brightness.dark ? 'light' : 'dark',
-    );
-  }
-
-  void _showNotifications() {
-    Get.snackbar(
-      'dashboard_notifications'.tr,
-      'dashboard_notifications_message'.tr,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: AppColor.secondaryColor,
-      colorText: AppColor.surface,
     );
   }
 
@@ -373,7 +350,7 @@ class _AdaptiveBusinessShellState extends State<AdaptiveBusinessShell> {
   }
 }
 
-enum _HeaderAction { language, theme, notifications }
+enum _HeaderAction { language, theme }
 
 class _BusinessBottomNavigation extends StatelessWidget {
   const _BusinessBottomNavigation({

@@ -7,6 +7,7 @@ import 'package:fatoora/features/invoices/view/widgets/customer_snapshot_card.da
 import 'package:fatoora/features/invoices/view/widgets/invoice_items_table.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_totals_card.dart';
 import 'package:fatoora/features/invoices/view/widgets/item_picker_sheet.dart';
+import 'package:fatoora/features/invoices/view/widgets/custom_line_editor.dart';
 import 'package:fatoora/features/quotations/controllers/quotation_form_controller.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
@@ -363,6 +364,17 @@ class _AddItemCard extends StatelessWidget {
                 ),
                 icon: const Icon(Icons.inventory_2_outlined),
                 label: Text('select_item'.tr),
+              ),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final line = await showCustomLineEditor(
+                    context,
+                    canApplyDiscount: controller.canApplyDiscount,
+                  );
+                  if (line != null) controller.addCustomLine(line);
+                },
+                icon: const Icon(Icons.add_box_outlined),
+                label: Text('custom_line'.tr),
               ),
               Text(
                 'invoice_items_catalog_only'.tr,

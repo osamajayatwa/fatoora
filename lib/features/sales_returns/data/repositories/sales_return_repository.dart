@@ -495,8 +495,11 @@ class SalesReturnRepository {
 
     final invoiceItemsByLineId = <String, InvoiceItemSnapshot>{
       for (var index = 0; index < originalInvoice.items.length; index++)
-        originalInvoiceItemId(originalInvoice.id, index):
-            originalInvoice.items[index],
+        originalInvoiceItemId(
+          originalInvoice.id,
+          index,
+          lineId: originalInvoice.items[index].lineId,
+        ): originalInvoice.items[index],
     };
     final seenLineIds = <String>{};
     final normalizedItems = <SalesReturnItemModel>[];
@@ -525,8 +528,11 @@ class SalesReturnRepository {
       final taxAmount = _round(subtotal * taxPercent / 100);
       normalizedItems.add(
         SalesReturnItemModel(
+          lineId: invoiceItem.lineId,
+          lineType: invoiceItem.lineType,
           itemId: invoiceItem.itemId,
           itemName: invoiceItem.itemName,
+          description: invoiceItem.description,
           itemCode: invoiceItem.itemCode,
           unit: invoiceItem.unit,
           returnedQuantity: quantity,
@@ -612,8 +618,11 @@ class SalesReturnRepository {
   }) {
     final invoiceItemsByLineId = <String, InvoiceItemSnapshot>{
       for (var index = 0; index < originalInvoice.items.length; index++)
-        originalInvoiceItemId(originalInvoice.id, index):
-            originalInvoice.items[index],
+        originalInvoiceItemId(
+          originalInvoice.id,
+          index,
+          lineId: originalInvoice.items[index].lineId,
+        ): originalInvoice.items[index],
     };
     for (final item in salesReturn.items) {
       final original = invoiceItemsByLineId[item.originalInvoiceItemId];
@@ -762,8 +771,11 @@ class SalesReturnRepository {
   }
 }
 
-String originalInvoiceItemId(String invoiceId, int index) =>
-    '$invoiceId:$index';
+String originalInvoiceItemId(
+  String invoiceId,
+  int index, {
+  String lineId = '',
+}) => lineId.trim().isEmpty ? '$invoiceId:$index' : '$invoiceId:line:$lineId';
 
 class _ReturnNumberAllocation {
   const _ReturnNumberAllocation({

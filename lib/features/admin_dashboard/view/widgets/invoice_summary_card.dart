@@ -54,7 +54,10 @@ class InvoiceSummaryCard extends StatelessWidget {
                   ],
                 ),
               );
-              final legend = _SummaryLegend(items: summary);
+              final legend = _SummaryLegend(
+                items: summary,
+                onTap: controller.navigateTo,
+              );
               return compact
                   ? Column(
                       children: [chart, const SizedBox(height: 18), legend],
@@ -75,52 +78,62 @@ class InvoiceSummaryCard extends StatelessWidget {
 }
 
 class _SummaryLegend extends StatelessWidget {
-  const _SummaryLegend({required this.items});
+  const _SummaryLegend({required this.items, required this.onTap});
 
   final List<DashboardSummaryItem> items;
+  final ValueChanged<String> onTap;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: items
           .map(
-            (item) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 7),
-              child: Row(
-                children: [
-                  Container(
-                    width: 9,
-                    height: 9,
-                    decoration: BoxDecoration(
-                      color: item.color,
-                      shape: BoxShape.circle,
-                    ),
+            (item) => Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => onTap(item.route),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 7,
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      item.labelKey.tr,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.appMutedText,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 9,
+                        height: 9,
+                        decoration: BoxDecoration(
+                          color: item.color,
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          item.labelKey.tr,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: context.appMutedText),
+                        ),
+                      ),
+                      Text(
+                        '${(item.percentage * 100).round()}%',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: context.appText,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        item.amount,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: context.appText,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    '${(item.percentage * 100).round()}%',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: context.appText,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    item.amount,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: context.appText,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           )

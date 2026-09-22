@@ -47,7 +47,12 @@ class LatestInvoicesCard extends StatelessWidget {
               return Column(
                 children: [
                   for (var index = 0; index < invoices.length; index++) ...[
-                    _InvoiceRow(invoice: invoices[index]),
+                    _InvoiceRow(
+                      invoice: invoices[index],
+                      onTap: () => controller.navigateTo(
+                        AppRoute.invoiceDetailsPath(invoices[index].id),
+                      ),
+                    ),
                     if (index != invoices.length - 1)
                       Divider(height: 1, color: context.appBorder),
                   ],
@@ -62,95 +67,106 @@ class LatestInvoicesCard extends StatelessWidget {
 }
 
 class _InvoiceRow extends StatelessWidget {
-  const _InvoiceRow({required this.invoice});
+  const _InvoiceRow({required this.invoice, required this.onTap});
 
   final DashboardInvoice invoice;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: Theme.of(
-                context,
-              ).colorScheme.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.receipt_long_outlined,
-              color: AppColor.primaryColor,
-              size: 21,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  invoice.customer,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.appText,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  invoice.number,
-                  style: Theme.of(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Theme.of(
                     context,
-                  ).textTheme.bodySmall?.copyWith(color: context.appMutedText),
+                  ).colorScheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ],
-            ),
-          ),
-          if (MediaQuery.sizeOf(context).width > 410)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: invoice.statusColor.withValues(alpha: 0.11),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                invoice.statusKey.tr,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: invoice.statusColor,
-                  fontWeight: FontWeight.w700,
+                child: const Icon(
+                  Icons.receipt_long_outlined,
+                  color: AppColor.primaryColor,
+                  size: 21,
                 ),
               ),
-            ),
-          Expanded(
-            flex: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  invoice.amount,
-                  maxLines: 1,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.appText,
-                    fontWeight: FontWeight.w700,
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      invoice.customer,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: context.appText,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      invoice.number,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.appMutedText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (MediaQuery.sizeOf(context).width > 410)
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: invoice.statusColor.withValues(alpha: 0.11),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    invoice.statusKey.tr,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: invoice.statusColor,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-                Text(
-                  'dashboard_jod'.tr,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(color: context.appMutedText),
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      invoice.amount,
+                      maxLines: 1,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: context.appText,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      'dashboard_jod'.tr,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: context.appMutedText,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

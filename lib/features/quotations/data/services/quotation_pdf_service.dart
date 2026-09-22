@@ -83,7 +83,10 @@ class QuotationPdfService {
             data: quotation.items
                 .map(
                   (item) => [
-                    item.itemName,
+                    [
+                      item.itemName,
+                      item.description,
+                    ].where((value) => value.trim().isNotEmpty).join('\n'),
                     loc.quantity(item.quantity),
                     item.unit,
                     loc.money(item.unitPrice),

@@ -8,8 +8,11 @@ import {
 } from "./common";
 
 export interface TrustedInvoiceLine {
-  itemId: string;
+  lineId: string;
+  lineType: "catalog" | "custom";
+  itemId: string | null;
   itemName: string;
+  description: string;
   itemCode: string;
   unit: string;
   quantity: number;
@@ -19,6 +22,8 @@ export interface TrustedInvoiceLine {
   subtotal: number;
   taxAmount: number;
   total: number;
+  /** Internal compatibility marker. Never persist this field. */
+  lineTypeExplicit: boolean;
 }
 
 export interface TrustedInvoiceTotals {
@@ -34,6 +39,10 @@ export function calculateInvoiceTotals(rawLines: unknown): TrustedInvoiceTotals 
     throw new HttpsError("invalid-argument", "Invoice must contain 1 to 100 lines.");
   }
   const items = rawLines.map((raw, index) => calculateInvoiceLine(raw, index));
+  return totalsFromTrustedLines(items);
+}
+
+export function totalsFromTrustedLines(items: TrustedInvoiceLine[]): TrustedInvoiceTotals {
   return {
     items,
     subtotal: roundMoney(items.reduce((sum, item) => sum + item.subtotal, 0)),
@@ -45,6 +54,15 @@ export function calculateInvoiceTotals(rawLines: unknown): TrustedInvoiceTotals 
 
 export function calculateInvoiceLine(raw: unknown, index: number): TrustedInvoiceLine {
   const data = record(raw);
+  const rawLineType = optionalString(data.lineType);
+  if (rawLineType && rawLineType !== "catalog" && rawLineType !== "custom") {
+    throw new HttpsError("invalid-argument", `Invoice line ${index + 1} type is invalid.`);
+  }
+  const rawItemId = optionalString(data.itemId);
+  const lineType: "catalog" | "custom" = rawLineType === "catalog" || rawLineType === "custom"
+    ? rawLineType
+    :
+    (rawItemId && !rawItemId.startsWith("manual-") ? "catalog" : "custom");
   const quantity = roundQuantity(finiteNumber(data.quantity, `items[${index}].quantity`));
   const unitPrice = roundMoney(finiteNumber(data.unitPrice, `items[${index}].unitPrice`));
   const taxPercent = roundMoney(finiteNumber(data.taxPercent, `items[${index}].taxPercent`));
@@ -61,8 +79,11 @@ export function calculateInvoiceLine(raw: unknown, index: number): TrustedInvoic
   const taxable = roundMoney(subtotal - requestedDiscount);
   const taxAmount = roundMoney(taxable * taxPercent / 100);
   return {
-    itemId: optionalString(data.itemId),
+    lineId: optionalString(data.lineId) || `legacy-line-${index}`,
+    lineType,
+    itemId: rawItemId || null,
     itemName: optionalString(data.itemName),
+    description: optionalString(data.description),
     itemCode: optionalString(data.itemCode),
     unit: optionalString(data.unit),
     quantity,
@@ -72,6 +93,26 @@ export function calculateInvoiceLine(raw: unknown, index: number): TrustedInvoic
     subtotal,
     taxAmount,
     total: roundMoney(taxable + taxAmount),
+    lineTypeExplicit: Boolean(rawLineType),
+  };
+}
+
+export function persistedInvoiceLine(line: TrustedInvoiceLine): Record<string, unknown> {
+  return {
+    lineId: line.lineId,
+    lineType: line.lineType,
+    itemId: line.itemId,
+    itemName: line.itemName,
+    description: line.description,
+    itemCode: line.itemCode,
+    unit: line.unit,
+    quantity: line.quantity,
+    unitPrice: line.unitPrice,
+    discount: line.discount,
+    taxPercent: line.taxPercent,
+    subtotal: line.subtotal,
+    taxAmount: line.taxAmount,
+    total: line.total,
   };
 }
 

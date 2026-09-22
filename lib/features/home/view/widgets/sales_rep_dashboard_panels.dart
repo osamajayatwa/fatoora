@@ -203,7 +203,7 @@ class SalesRepRecentActivityPanel extends StatelessWidget {
           amount: invoice.grandTotal,
           icon: Icons.receipt_long_outlined,
           color: scheme.primary,
-          onTap: controller.openInvoices,
+          onTap: () => controller.openInvoice(invoice),
         ),
       ),
       ...controller.snapshot.recentReceipts.map(

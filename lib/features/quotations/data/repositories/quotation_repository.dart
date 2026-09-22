@@ -7,6 +7,7 @@ import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
+import 'package:fatoora/features/invoices/data/models/invoice_item_snapshot.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/items/data/models/item_model.dart';
 import 'package:fatoora/features/quotations/data/models/quotation_item_model.dart';
@@ -415,7 +416,15 @@ class QuotationRepository {
               customerId: customer.id,
               customerSnapshot: quotation.customerSnapshot,
               items: quotation.items
-                  .map((item) => item.toInvoiceItem())
+                  .asMap()
+                  .entries
+                  .map(
+                    (entry) => entry.value.toInvoiceItem().copyWith(
+                      lineId: entry.value.lineId.trim().isEmpty
+                          ? '${invoiceRef.id}-line-${entry.key}'
+                          : entry.value.lineId,
+                    ),
+                  )
                   .toList(growable: false),
               subtotal: quotation.subtotal,
               totalDiscount: quotation.totalDiscount,
@@ -525,7 +534,17 @@ class QuotationRepository {
       );
     }
     for (final item in quotation.items) {
-      if (item.quantity <= 0 || item.unitPrice < 0) {
+      final validCommon =
+          item.itemName.trim().isNotEmpty &&
+          item.quantity > 0 &&
+          item.unitPrice > 0;
+      final validIdentity = item.lineType == InvoiceLineType.catalog
+          ? (item.itemId?.trim().isNotEmpty ?? false)
+          : item.isLegacyManual ||
+                (item.itemId == null &&
+                    item.description.trim().isNotEmpty &&
+                    item.unit.trim().isNotEmpty);
+      if (!validCommon || !validIdentity) {
         throw const QuotationRepositoryException(
           QuotationRepositoryError.invalidData,
         );
@@ -649,12 +668,19 @@ class QuotationRepository {
     if (permissions.editCatalogPrice) return;
     final catalogPrices = <String, double>{};
     for (final item in items) {
-      if (item.itemId.trim().isEmpty || item.itemId.startsWith('manual-')) {
+      if (item.lineType == InvoiceLineType.custom ||
+          (item.itemId?.startsWith('manual-') ?? false)) {
         continue;
+      }
+      final itemId = item.itemId;
+      if (itemId == null || itemId.trim().isEmpty) {
+        throw const QuotationRepositoryException(
+          QuotationRepositoryError.invalidData,
+        );
       }
       QuotationItemModel? existing;
       for (final candidate in existingItems ?? const <QuotationItemModel>[]) {
-        if (candidate.itemId == item.itemId) {
+        if (candidate.itemId == itemId) {
           existing = candidate;
           break;
         }
@@ -667,16 +693,16 @@ class QuotationRepository {
         }
         continue;
       }
-      var catalogPrice = catalogPrices[item.itemId];
+      var catalogPrice = catalogPrices[itemId];
       if (catalogPrice == null) {
-        final snapshot = await transaction.get(_items.doc(item.itemId));
+        final snapshot = await transaction.get(_items.doc(itemId));
         if (!snapshot.exists) {
           throw const QuotationRepositoryException(
             QuotationRepositoryError.priceEditDisabled,
           );
         }
         catalogPrice = ItemModel.fromFirestore(snapshot).price;
-        catalogPrices[item.itemId] = catalogPrice;
+        catalogPrices[itemId] = catalogPrice;
       }
       if ((catalogPrice - item.unitPrice).abs() > 0.0005) {
         throw const QuotationRepositoryException(

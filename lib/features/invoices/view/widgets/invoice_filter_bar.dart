@@ -20,6 +20,7 @@ class InvoiceFilterBar extends StatelessWidget {
     required this.sortField,
     required this.sortDirection,
     required this.hasActiveFilters,
+    required this.showSalesRepresentative,
     required this.loadSalesRepOptions,
     required this.loadCustomerOptions,
     required this.onTypeChanged,
@@ -45,6 +46,7 @@ class InvoiceFilterBar extends StatelessWidget {
   final InvoiceSortField sortField;
   final InvoiceSortDirection sortDirection;
   final bool hasActiveFilters;
+  final bool showSalesRepresentative;
   final InvoiceFilterOptionLoader loadSalesRepOptions;
   final InvoiceFilterOptionLoader loadCustomerOptions;
   final ValueChanged<InvoiceType?> onTypeChanged;
@@ -99,16 +101,17 @@ class InvoiceFilterBar extends StatelessWidget {
                   spacing: 10,
                   runSpacing: 10,
                   children: [
-                    _control(
-                      controlWidth,
-                      _selectionControl(
-                        label: 'sales_rep'.tr,
-                        icon: Icons.badge_outlined,
-                        value:
-                            salesRep?.label ?? 'all_sales_representatives'.tr,
-                        onTap: () => _openSalesRepPicker(context),
+                    if (showSalesRepresentative)
+                      _control(
+                        controlWidth,
+                        _selectionControl(
+                          label: 'sales_rep'.tr,
+                          icon: Icons.badge_outlined,
+                          value:
+                              salesRep?.label ?? 'all_sales_representatives'.tr,
+                          onTap: () => _openSalesRepPicker(context),
+                        ),
                       ),
-                    ),
                     _control(
                       controlWidth,
                       _selectionControl(
@@ -343,7 +346,7 @@ class InvoiceFilterBar extends StatelessWidget {
 
   List<Widget> _activeFilterChips() {
     return [
-      if (salesRep != null)
+      if (showSalesRepresentative && salesRep != null)
         _chip('sales_rep'.tr, salesRep!.label, () => onSalesRepChanged(null)),
       if (customer != null)
         _chip(

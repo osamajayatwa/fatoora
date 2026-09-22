@@ -15,6 +15,7 @@ class SalesRepOverviewMetrics extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
+    final quantity = NumberFormat('#,##0.###');
     final metrics = [
       _MetricData(
         title: 'sales_rep_home_sales_period'.tr,
@@ -42,8 +43,14 @@ class SalesRepOverviewMetrics extends StatelessWidget {
       ),
       _MetricData(
         title: 'sales_rep_home_custody_items'.tr,
-        value: 'sales_rep_home_view_inventory'.tr,
-        support: 'sales_rep_home_inventory_hint'.tr,
+        value:
+            controller.custodyItemCount?.toString() ??
+            'sales_rep_home_view_inventory'.tr,
+        support: controller.custodyTotalQuantity == null
+            ? 'sales_rep_home_inventory_hint'.tr
+            : 'sales_rep_home_custody_quantity'.trParams({
+                'quantity': quantity.format(controller.custodyTotalQuantity),
+              }),
         icon: Icons.inventory_2_outlined,
         color: scheme.primaryContainer,
         onTap: controller.openMyInventory,

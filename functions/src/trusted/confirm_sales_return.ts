@@ -45,10 +45,13 @@ interface ReturnRequest {
 }
 
 interface ReturnLine {
+  lineId: string;
+  lineType: "catalog" | "custom";
   originalInvoiceItemId: string;
   originalIndex: number;
-  itemId: string;
+  itemId: string | null;
   itemName: string;
+  description: string;
   itemCode: string;
   unit: string;
   returnedQuantity: number;
@@ -356,7 +359,7 @@ export async function confirmSalesReturnTransaction(
     }
     const allReturned = (invoice.items as unknown[]).every((raw, index) => {
       const original = record(raw);
-      return roundQuantity(nextAllocation[`${originalInvoiceId}:${index}`] ?? 0) >=
+      return roundQuantity(nextAllocation[invoiceLineReference(originalInvoiceId, original, index)] ?? 0) >=
         roundQuantity(numberFrom(original, "quantity"));
     });
     const returnIds = Array.isArray(invoice.returnInvoiceIds) ? invoice.returnInvoiceIds : [];
@@ -462,15 +465,32 @@ function normalizeReturnLines(
     const requested = record(raw);
     const lineId = requiredString(requested.originalInvoiceItemId, `items[${returnIndex}].originalInvoiceItemId`);
     const prefix = `${invoiceId}:`;
-    if (!lineId.startsWith(prefix) || seen.has(lineId)) {
+    if (!lineId.startsWith(prefix)) {
       throw new HttpsError("invalid-argument", "Sales return line identity is invalid.");
     }
-    seen.add(lineId);
-    const originalIndex = Number(lineId.slice(prefix.length));
+    const suffix = lineId.slice(prefix.length);
+    const originalIndex = suffix.startsWith("line:")
+      ? rawInvoiceItems.findIndex((raw) =>
+        optionalString(record(raw).lineId) === suffix.slice("line:".length))
+      : Number(suffix);
     if (!Number.isInteger(originalIndex) || originalIndex < 0 || originalIndex >= rawInvoiceItems.length) {
       throw new HttpsError("invalid-argument", "Sales return line does not exist.");
     }
     const original = record(rawInvoiceItems[originalIndex]);
+    const canonicalLineId = invoiceLineReference(invoiceId, original, originalIndex);
+    if (seen.has(canonicalLineId)) {
+      throw new HttpsError("invalid-argument", "Sales return line identity is invalid.");
+    }
+    seen.add(canonicalLineId);
+    const originalItemId = optionalString(original.itemId);
+    const rawLineType = optionalString(original.lineType);
+    if (rawLineType && rawLineType !== "catalog" && rawLineType !== "custom") {
+      throw new HttpsError("data-loss", "Original invoice line type is invalid.");
+    }
+    const lineType: "catalog" | "custom" = rawLineType === "catalog" || rawLineType === "custom"
+      ? rawLineType
+      :
+      (originalItemId && !originalItemId.startsWith("manual-") ? "catalog" : "custom");
     const soldQuantity = roundQuantity(numberFrom(original, "quantity"));
     const returnedQuantity = roundQuantity(numberFrom(requested, "returnedQuantity"));
     if (soldQuantity <= 0 || returnedQuantity <= 0) {
@@ -485,10 +505,13 @@ function normalizeReturnLines(
     const subtotal = roundMoney(returnedQuantity * unitPrice);
     const taxAmount = roundMoney(subtotal * taxPercent / 100);
     return {
-      originalInvoiceItemId: lineId,
+      lineId: optionalString(original.lineId) || lineId,
+      lineType,
+      originalInvoiceItemId: canonicalLineId,
       originalIndex,
-      itemId: optionalString(original.itemId),
+      itemId: lineType === "custom" ? null : originalItemId || null,
       itemName: optionalString(original.itemName),
+      description: optionalString(original.description),
       itemCode: optionalString(original.itemCode),
       unit: optionalString(original.unit),
       returnedQuantity,
@@ -501,6 +524,11 @@ function normalizeReturnLines(
       total: roundMoney(subtotal + taxAmount),
     };
   });
+}
+
+function invoiceLineReference(invoiceId: string, original: DocumentData, index: number): string {
+  const lineId = optionalString(original.lineId);
+  return lineId ? `${invoiceId}:line:${lineId}` : `${invoiceId}:${index}`;
 }
 
 function returnTotals(lines: ReturnLine[]) {
@@ -524,7 +552,9 @@ async function readReturnedQuantities(
   for (const [key, value] of Object.entries(stored)) {
     if (typeof value === "number" && Number.isFinite(value)) result[key] = roundQuantity(value);
   }
-  if (Object.keys(result).length > 0) return result;
+  if (Object.keys(result).length > 0) {
+    return normalizeReturnedQuantityKeys(invoiceId, invoice, result);
+  }
   const legacy = await transaction.get(
     firestore.collection(`companies/${companyId}/sales_returns`)
       .where("originalInvoiceId", "==", invoiceId)
@@ -542,7 +572,25 @@ async function readReturnedQuantities(
       );
     }
   }
-  return result;
+  return normalizeReturnedQuantityKeys(invoiceId, invoice, result);
+}
+
+function normalizeReturnedQuantityKeys(
+  invoiceId: string,
+  invoice: DocumentData,
+  quantities: Record<string, number>,
+): Record<string, number> {
+  if (!Array.isArray(invoice.items)) return quantities;
+  invoice.items.forEach((raw, index) => {
+    const canonical = invoiceLineReference(invoiceId, record(raw), index);
+    const legacy = `${invoiceId}:${index}`;
+    if (canonical === legacy || quantities[legacy] === undefined) return;
+    quantities[canonical] = roundQuantity(
+      (quantities[canonical] ?? 0) + quantities[legacy],
+    );
+    delete quantities[legacy];
+  });
+  return quantities;
 }
 
 async function buildReturnInventory(
@@ -580,7 +628,10 @@ async function buildReturnInventory(
   const finalWrites = new Map<string, PendingWrite>();
   const balanceCreatedAt = new Map<string, unknown>();
   for (const line of lines) {
-    if (!line.itemId || line.itemId.startsWith("manual-")) continue;
+    if (line.lineType === "custom") continue;
+    if (!line.itemId) {
+      throw new HttpsError("data-loss", "Catalog return line is missing itemId.");
+    }
     const originalSourceLineId = `${invoice.id}_line_${String(line.originalIndex).padStart(3, "0")}`;
     const wasTracked = originalMovements.some((movement) =>
       movement.itemId === line.itemId &&

@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
@@ -16,6 +18,7 @@ class InvoiceCard extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onPrint,
+    this.showSalesRepresentative = false,
   });
 
   final InvoiceModel invoice;
@@ -23,6 +26,7 @@ class InvoiceCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onPrint;
+  final bool showSalesRepresentative;
 
   @override
   Widget build(BuildContext context) {
@@ -32,14 +36,14 @@ class InvoiceCard extends StatelessWidget {
       elevation: 0,
       color: AppColor.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         side: const BorderSide(color: Color(0xFFE4E8EF)),
       ),
       child: InkWell(
         onTap: onView,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(15, 14, 10, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -56,46 +60,6 @@ class InvoiceCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  InvoiceStatusChip(status: invoice.invoiceStatus),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                invoice.customerSnapshot?.name ?? 'customer_name'.tr,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColor.secondaryColor,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  InvoiceTypeChip(type: invoice.invoiceType),
-                  InvoicePaymentStatusChip(status: invoice.paymentStatus),
-                  if (invoice.returnStatus != InvoiceReturnStatus.none)
-                    InvoiceReturnStatusChip(status: invoice.returnStatus),
-                  _InfoPill(
-                    icon: Icons.calendar_today_outlined,
-                    label: DateFormat.yMMMd().format(invoice.invoiceDate),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      currency.format(invoice.grandTotal),
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppColor.primaryColor,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
                   InvoiceActionsMenu(
                     showView: true,
                     showDelete: true,
@@ -106,6 +70,65 @@ class InvoiceCard extends StatelessWidget {
                     onDelete: onDelete,
                     onPrint: onPrint,
                   ),
+                ],
+              ),
+              const SizedBox(height: 5),
+              Text(
+                invoice.customerSnapshot?.name ?? 'customer_name'.tr,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColor.secondaryColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 10),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final total = Text(
+                    currency.format(invoice.grandTotal),
+                    textDirection: ui.TextDirection.ltr,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: AppColor.primaryColor,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  );
+                  final date = _InfoPill(
+                    icon: Icons.calendar_today_outlined,
+                    label: DateFormat.yMMMd().format(invoice.invoiceDate),
+                  );
+                  if (constraints.maxWidth < 310 ||
+                      MediaQuery.textScalerOf(context).scale(1) > 1.4) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [total, const SizedBox(height: 7), date],
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(child: total),
+                      date,
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  InvoiceStatusChip(status: invoice.invoiceStatus),
+                  InvoicePaymentStatusChip(status: invoice.paymentStatus),
+                  InvoiceTypeChip(type: invoice.invoiceType),
+                  if (invoice.returnStatus != InvoiceReturnStatus.none)
+                    InvoiceReturnStatusChip(status: invoice.returnStatus),
+                  if (showSalesRepresentative &&
+                      invoice.salesRepName.trim().isNotEmpty)
+                    _InfoPill(
+                      icon: Icons.badge_outlined,
+                      label: invoice.salesRepName,
+                    ),
                 ],
               ),
             ],

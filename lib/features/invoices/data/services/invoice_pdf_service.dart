@@ -351,7 +351,14 @@ class InvoicePdfService {
     final data = invoice.items
         .map(
           (item) => <pw.Widget>[
-            _mixedText(item.itemName, loc: loc, style: cellStyle),
+            _mixedText(
+              [
+                item.itemName,
+                item.description,
+              ].where((value) => value.trim().isNotEmpty).join('\n'),
+              loc: loc,
+              style: cellStyle,
+            ),
             _ltrText(loc.quantity(item.quantity), style: cellStyle),
             _mixedText(item.unit, loc: loc, style: cellStyle),
             _ltrText(loc.money(item.unitPrice), style: cellStyle),

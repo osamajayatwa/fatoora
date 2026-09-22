@@ -55,6 +55,15 @@ class InvoicesListController extends GetxController {
   Timer? _searchDebounce;
   String _appliedSearchText = '';
 
+  bool get isAdmin =>
+      _myServices.sharedPreferences.getString('role')?.trim() == 'admin';
+
+  bool get showSalesRepresentative => isAdmin;
+
+  bool get searchIsTooShort => serverSearchIsTooShort(searchText);
+
+  String get appliedSearchText => _appliedSearchText;
+
   String get companyId {
     final args = InvoiceContext.arguments(Get.arguments);
     return InvoiceContext.resolveCompanyId(_myServices, args);
@@ -70,7 +79,17 @@ class InvoicesListController extends GetxController {
       fromDate != null ||
       toDate != null;
 
-  bool get hasFilters => hasActiveFilters || searchText.trim().isNotEmpty;
+  bool get hasFilters => hasActiveFilters || _appliedSearchText.isNotEmpty;
+
+  int get activeFilterCount => [
+    typeFilter,
+    statusFilter,
+    paymentStatusFilter,
+    returnStatusFilter,
+    if (showSalesRepresentative) salesRepFilter,
+    customerFilter,
+    if (hasDateRange) true,
+  ].where((value) => value != null).length;
 
   bool get hasDateRange => fromDate != null || toDate != null;
 
@@ -254,6 +273,27 @@ class InvoicesListController extends GetxController {
     loadInvoices();
   }
 
+  void applyFilters({
+    required InvoiceType? type,
+    required InvoiceStatus? status,
+    required PaymentStatus? paymentStatus,
+    required InvoiceReturnStatus? returnStatus,
+    required InvoiceFilterOption? salesRep,
+    required InvoiceFilterOption? customer,
+    required DateTimeRange? dateRange,
+  }) {
+    typeFilter = type;
+    statusFilter = status;
+    paymentStatusFilter = paymentStatus;
+    returnStatusFilter = returnStatus;
+    salesRepFilter = showSalesRepresentative ? salesRep : null;
+    customerFilter = customer;
+    fromDate = dateRange?.start;
+    toDate = dateRange?.end;
+    if (dateRange != null) sortField = InvoiceSortField.invoiceDate;
+    loadInvoices();
+  }
+
   void setSortField(InvoiceSortField value) {
     if (hasDateRange && value != InvoiceSortField.invoiceDate) {
       _showInfo('sort_invoices'.tr, 'date_range_sort_notice'.tr);
@@ -276,6 +316,14 @@ class InvoicesListController extends GetxController {
           ? InvoiceSortDirection.descending
           : InvoiceSortDirection.ascending,
     );
+  }
+
+  void applySort(InvoiceSortField field, InvoiceSortDirection direction) {
+    final effectiveField = hasDateRange ? InvoiceSortField.invoiceDate : field;
+    if (sortField == effectiveField && sortDirection == direction) return;
+    sortField = effectiveField;
+    sortDirection = direction;
+    loadInvoices();
   }
 
   void clearFilters() {

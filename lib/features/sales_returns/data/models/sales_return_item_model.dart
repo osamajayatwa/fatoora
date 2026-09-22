@@ -1,7 +1,12 @@
+import 'package:fatoora/features/invoices/data/models/invoice_item_snapshot.dart';
+
 class SalesReturnItemModel {
   const SalesReturnItemModel({
+    this.lineId = '',
+    this.lineType = InvoiceLineType.catalog,
     required this.itemId,
     required this.itemName,
+    this.description = '',
     required this.itemCode,
     required this.unit,
     required this.returnedQuantity,
@@ -15,8 +20,11 @@ class SalesReturnItemModel {
     required this.originalInvoiceItemId,
   });
 
-  final String itemId;
+  final String lineId;
+  final InvoiceLineType lineType;
+  final String? itemId;
   final String itemName;
+  final String description;
   final String itemCode;
   final String unit;
   final double returnedQuantity;
@@ -31,9 +39,13 @@ class SalesReturnItemModel {
 
   factory SalesReturnItemModel.fromMap(Object? value) {
     final data = _asMap(value);
+    final invoiceLine = InvoiceItemSnapshot.fromMap(data);
     return SalesReturnItemModel(
-      itemId: _readString(data, 'itemId'),
-      itemName: _readString(data, 'itemName'),
+      lineId: invoiceLine.lineId,
+      lineType: invoiceLine.lineType,
+      itemId: invoiceLine.itemId,
+      itemName: invoiceLine.itemName,
+      description: invoiceLine.description,
       itemCode: _readString(data, 'itemCode'),
       unit: _readString(data, 'unit'),
       returnedQuantity: _readDouble(data, 'returnedQuantity'),
@@ -49,8 +61,11 @@ class SalesReturnItemModel {
   }
 
   Map<String, dynamic> toMap() => {
+    'lineId': lineId,
+    'lineType': lineType.value,
     'itemId': itemId,
     'itemName': itemName,
+    'description': description,
     'itemCode': itemCode,
     'unit': unit,
     'returnedQuantity': returnedQuantity,
@@ -65,8 +80,12 @@ class SalesReturnItemModel {
   };
 
   SalesReturnItemModel copyWith({
+    String? lineId,
+    InvoiceLineType? lineType,
     String? itemId,
+    bool clearItemId = false,
     String? itemName,
+    String? description,
     String? itemCode,
     String? unit,
     double? returnedQuantity,
@@ -80,8 +99,11 @@ class SalesReturnItemModel {
     String? originalInvoiceItemId,
   }) {
     return SalesReturnItemModel(
-      itemId: itemId ?? this.itemId,
+      lineId: lineId ?? this.lineId,
+      lineType: lineType ?? this.lineType,
+      itemId: clearItemId ? null : itemId ?? this.itemId,
       itemName: itemName ?? this.itemName,
+      description: description ?? this.description,
       itemCode: itemCode ?? this.itemCode,
       unit: unit ?? this.unit,
       returnedQuantity: returnedQuantity ?? this.returnedQuantity,

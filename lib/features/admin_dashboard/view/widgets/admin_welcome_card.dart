@@ -1,3 +1,4 @@
+import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/admin_dashboard/controller/admin_dashboard_controller.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/quick_actions_sheet.dart';
@@ -13,7 +14,7 @@ class AdminWelcomeCard extends StatelessWidget {
     final controller = Get.find<AdminDashboardController>();
     final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 600 ? 18 : 24),
       decoration: BoxDecoration(
         gradient: AppColor.mainGradient,
         borderRadius: BorderRadius.circular(24),
@@ -45,7 +46,7 @@ class AdminWelcomeCard extends StatelessWidget {
                   color: Colors.white.withValues(alpha: .82),
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
@@ -54,11 +55,13 @@ class AdminWelcomeCard extends StatelessWidget {
                     icon: Icons.trending_up_rounded,
                     label: 'dashboard_net_sales'.tr,
                     value: currency.format(controller.snapshot.totalSales),
+                    onTap: () => controller.navigateTo(AppRoute.invoices),
                   ),
                   _WelcomeMetric(
                     icon: Icons.account_balance_wallet_outlined,
                     label: 'financial_company_cash'.tr,
                     value: currency.format(controller.snapshot.companyCash),
+                    onTap: () => controller.navigateTo(AppRoute.cashMovements),
                   ),
                   _WelcomeMetric(
                     icon: Icons.payments_outlined,
@@ -66,6 +69,7 @@ class AdminWelcomeCard extends StatelessWidget {
                     value: currency.format(
                       controller.snapshot.repCashOutstanding,
                     ),
+                    onTap: () => controller.navigateTo(AppRoute.cashMovements),
                   ),
                 ],
               ),
@@ -125,35 +129,41 @@ class _WelcomeMetric extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    required this.onTap,
   });
 
   final IconData icon;
   final String label;
   final String value;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: .12),
+    return Material(
+      color: Colors.black.withValues(alpha: .12),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 17, color: Colors.white),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              '$label  $value',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 17, color: Colors.white),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  '$label  $value',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -736,12 +736,19 @@ class InvoiceRepository {
     }
     if (permissions.editCatalogPrice) return;
     for (final item in items) {
-      if (item.itemId.trim().isEmpty || item.itemId.startsWith('manual-')) {
+      if (item.lineType == InvoiceLineType.custom ||
+          (item.itemId?.startsWith('manual-') ?? false)) {
         continue;
+      }
+      final itemId = item.itemId;
+      if (itemId == null || itemId.trim().isEmpty) {
+        throw const InvoiceRepositoryException(
+          InvoiceRepositoryError.invalidData,
+        );
       }
       InvoiceItemSnapshot? existing;
       for (final candidate in existingItems ?? const <InvoiceItemSnapshot>[]) {
-        if (candidate.itemId == item.itemId) {
+        if (candidate.itemId == itemId) {
           existing = candidate;
           break;
         }
@@ -756,7 +763,7 @@ class InvoiceRepository {
       }
       final snapshot = await _readItemOnce(
         transaction: transaction,
-        itemId: item.itemId,
+        itemId: itemId,
         itemSnapshots: itemSnapshots,
       );
       if (!snapshot.exists) {
@@ -795,6 +802,23 @@ class InvoiceRepository {
       throw const InvoiceRepositoryException(
         InvoiceRepositoryError.invalidData,
       );
+    }
+    for (final line in invoice.items) {
+      final validCommon =
+          line.itemName.trim().isNotEmpty &&
+          line.quantity > 0 &&
+          line.unitPrice > 0;
+      final validIdentity = line.lineType == InvoiceLineType.catalog
+          ? (line.itemId?.trim().isNotEmpty ?? false)
+          : line.isLegacyManual ||
+                (line.itemId == null &&
+                    line.description.trim().isNotEmpty &&
+                    line.unit.trim().isNotEmpty);
+      if (!validCommon || !validIdentity) {
+        throw const InvoiceRepositoryException(
+          InvoiceRepositoryError.invalidData,
+        );
+      }
     }
     if (_dateOnly(invoice.dueDate).isBefore(_dateOnly(invoice.invoiceDate))) {
       throw const InvoiceRepositoryException(

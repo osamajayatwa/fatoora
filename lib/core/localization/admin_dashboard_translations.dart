@@ -1,4 +1,7 @@
 const Map<String, String> adminDashboardEnglishTranslations = {
+  'dashboard_pending_approvals_message':
+      '@count user approvals require attention.',
+  'dashboard_no_notifications': 'There are no new attention items.',
   'dashboard_admin': 'Administrator',
   'dashboard_management_system': 'Invoice management system',
   'dashboard_home': 'Home',
@@ -12,7 +15,6 @@ const Map<String, String> adminDashboardEnglishTranslations = {
   'dashboard_logout': 'Log out',
   'dashboard_search_hint': 'Search invoices or customers...',
   'dashboard_notifications': 'Notifications',
-  'dashboard_notifications_message': 'You have 3 recent alerts',
   'dashboard_welcome': 'Welcome, @name',
   'dashboard_daily_summary': "Here's a summary of today's business",
   'dashboard_today': 'Today',
@@ -24,7 +26,6 @@ const Map<String, String> adminDashboardEnglishTranslations = {
   'dashboard_customer': 'customer',
   'dashboard_invoice': 'invoice',
   'dashboard_jod': 'JOD',
-  'dashboard_from_yesterday': 'from yesterday',
   'dashboard_latest_invoices': 'Latest invoices',
   'dashboard_view_all': 'View all',
   'dashboard_paid': 'Paid',
@@ -68,9 +69,6 @@ const Map<String, String> adminDashboardEnglishTranslations = {
   'dashboard_other': 'Other',
   'dashboard_top_customers': 'Top customers',
   'dashboard_alerts': 'Alerts',
-  'dashboard_alert_unpaid': 'You have 8 unpaid invoices',
-  'dashboard_alert_sales': 'Sales are down 12% from yesterday',
-  'dashboard_alert_customer': 'A new customer was added',
   'dashboard_footer': 'Copyright 2026 Fatoora. All rights reserved.',
   'dashboard_module_coming_soon':
       'This module is ready in navigation and will be implemented next.',
@@ -79,6 +77,10 @@ const Map<String, String> adminDashboardEnglishTranslations = {
 };
 
 const Map<String, String> adminDashboardArabicTranslations = {
+  'dashboard_pending_approvals_message':
+      '\u064a\u0648\u062c\u062f @count \u0637\u0644\u0628\u0627\u062a \u0645\u0633\u062a\u062e\u062f\u0645\u064a\u0646 \u0628\u062d\u0627\u062c\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0627\u062c\u0639\u0629.',
+  'dashboard_no_notifications':
+      '\u0644\u0627 \u062a\u0648\u062c\u062f \u0639\u0646\u0627\u0635\u0631 \u062c\u062f\u064a\u062f\u0629 \u0628\u062d\u0627\u062c\u0629 \u0625\u0644\u0649 \u0627\u0644\u0627\u0646\u062a\u0628\u0627\u0647.',
   'dashboard_admin': 'مدير النظام',
   'dashboard_management_system': 'نظام إدارة الفواتير',
   'dashboard_home': 'الرئيسية',
@@ -92,7 +94,6 @@ const Map<String, String> adminDashboardArabicTranslations = {
   'dashboard_logout': 'تسجيل الخروج',
   'dashboard_search_hint': 'ابحث في الفواتير أو العملاء...',
   'dashboard_notifications': 'الإشعارات',
-  'dashboard_notifications_message': 'لديك 3 تنبيهات حديثة',
   'dashboard_welcome': 'مرحبا، @name',
   'dashboard_daily_summary': 'هذا ملخص أعمال اليوم',
   'dashboard_today': 'اليوم',
@@ -104,7 +105,6 @@ const Map<String, String> adminDashboardArabicTranslations = {
   'dashboard_customer': 'عميل',
   'dashboard_invoice': 'فاتورة',
   'dashboard_jod': 'دينار أردني',
-  'dashboard_from_yesterday': 'عن أمس',
   'dashboard_latest_invoices': 'أحدث الفواتير',
   'dashboard_view_all': 'عرض الكل',
   'dashboard_paid': 'مدفوعة',
@@ -148,9 +148,6 @@ const Map<String, String> adminDashboardArabicTranslations = {
   'dashboard_other': 'أخرى',
   'dashboard_top_customers': 'أفضل العملاء',
   'dashboard_alerts': 'التنبيهات',
-  'dashboard_alert_unpaid': 'لديك 8 فواتير غير مدفوعة',
-  'dashboard_alert_sales': 'انخفضت المبيعات بنسبة 12% عن أمس',
-  'dashboard_alert_customer': 'تمت إضافة عميل جديد',
   'dashboard_footer': 'حقوق النشر 2026 فاتورة. جميع الحقوق محفوظة.',
   'dashboard_module_coming_soon':
       'هذه الوحدة جاهزة في التنقل وسيتم تنفيذها لاحقا.',

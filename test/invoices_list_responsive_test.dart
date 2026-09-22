@@ -1,4 +1,5 @@
 import 'package:fatoora/core/class/statusrequest.dart';
+import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/features/invoices/controllers/invoices_list_controller.dart';
@@ -10,6 +11,7 @@ import 'package:fatoora/features/invoices/data/repositories/invoice_repository.d
 import 'package:fatoora/features/invoices/view/screens/invoices_list_screen.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_actions_menu.dart';
 import 'package:fatoora/features/invoices/view/widgets/invoice_card.dart';
+import 'package:fatoora/features/invoices/view/widgets/invoice_filter_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
@@ -67,7 +69,7 @@ void main() {
   testWidgets('invoice list uses full table columns at wide web width', (
     tester,
   ) async {
-    await _pumpInvoiceList(tester, const Size(1536, 900));
+    await _pumpInvoiceList(tester, const Size(1536, 900), role: 'admin');
 
     expect(find.byType(DataTable), findsOneWidget);
     expect(find.text('return_status'), findsWidgets);
@@ -110,20 +112,279 @@ void main() {
     expect(find.byType(InvoiceActionsMenu), findsNWidgets(_invoices.length));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'mobile uses compact controls and exposes every relevant filter',
+    (tester) async {
+      await _pumpInvoiceList(tester, const Size(390, 800));
+
+      expect(
+        find.byKey(const ValueKey('invoice-filter-button')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('invoice-sort-button')), findsOneWidget);
+      expect(find.byType(InvoiceFilterBar), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('invoice-filter-button')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('invoice-filter-sales-rep')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('invoice-filter-customer')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('invoice-filter-status')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('invoice-filter-payment-status')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('invoice-filter-type')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('invoice-filter-return-status')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('invoice-filter-date-range')),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('admin sees sales representative filters and card metadata', (
+    tester,
+  ) async {
+    await _pumpInvoiceList(tester, const Size(390, 800), role: 'admin');
+
+    expect(
+      find.descendant(
+        of: find.byType(InvoiceCard).first,
+        matching: find.text('Sales Rep'),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('invoice-filter-button')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('invoice-filter-sales-rep')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('sales representative card omits redundant self metadata', (
+    tester,
+  ) async {
+    await _pumpInvoiceList(tester, const Size(390, 800));
+
+    expect(
+      find.descendant(
+        of: find.byType(InvoiceCard).first,
+        matching: find.text('Sales Rep'),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
+    'active filters can be removed individually or cleared together',
+    (tester) async {
+      final controller = await _pumpInvoiceList(tester, const Size(390, 800));
+      controller.statusFilter = InvoiceStatus.confirmed;
+      controller.paymentStatusFilter = PaymentStatus.paid;
+      controller.update();
+      await tester.pump();
+
+      expect(find.byType(InputChip), findsNWidgets(2));
+      tester.widget<InputChip>(find.byType(InputChip).first).onDeleted!();
+      await tester.pumpAndSettle();
+      expect(controller.activeFilterCount, 1);
+
+      controller.statusFilter = InvoiceStatus.confirmed;
+      controller.paymentStatusFilter = PaymentStatus.paid;
+      controller.update();
+      await tester.pump();
+      await tester.drag(
+        find.byKey(const ValueKey('invoice-active-filter-chips')),
+        const Offset(-700, 0),
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('invoice-clear-all-filters')));
+      await tester.pumpAndSettle();
+      expect(controller.hasActiveFilters, isFalse);
+    },
+  );
+
+  testWidgets(
+    'sort sheet exposes all fields and reflects forced date sorting',
+    (tester) async {
+      final controller = await _pumpInvoiceList(tester, const Size(390, 800));
+      controller.fromDate = DateTime(2026, 9, 1);
+      controller.toDate = DateTime(2026, 9, 30);
+      controller.sortField = InvoiceSortField.invoiceDate;
+      controller.update();
+      await tester.pump();
+
+      await tester.tap(find.byKey(const ValueKey('invoice-sort-button')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('invoice-sort-date-notice')),
+        findsOneWidget,
+      );
+      for (final field in InvoiceSortField.values) {
+        expect(
+          find.byKey(ValueKey('invoice-sort-${field.name}')),
+          findsOneWidget,
+        );
+      }
+      final customerSort = tester.widget<RadioListTile<InvoiceSortField>>(
+        find.byKey(const ValueKey('invoice-sort-customerName')),
+      );
+      expect(customerSort.onChanged, isNull);
+    },
+  );
+
+  testWidgets(
+    'filter sheet reset applies through authoritative controller state',
+    (tester) async {
+      final controller = await _pumpInvoiceList(tester, const Size(390, 800));
+      controller
+        ..statusFilter = InvoiceStatus.confirmed
+        ..paymentStatusFilter = PaymentStatus.paid
+        ..update();
+      await tester.pump();
+
+      await tester.tap(find.byKey(const ValueKey('invoice-filter-button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('invoice-filter-reset')));
+      await tester.tap(find.byKey(const ValueKey('invoice-filter-apply')));
+      await tester.pumpAndSettle();
+
+      expect(controller.statusFilter, isNull);
+      expect(controller.paymentStatusFilter, isNull);
+    },
+  );
+
+  testWidgets('existing Load More affordance remains available', (
+    tester,
+  ) async {
+    final controller = await _pumpInvoiceList(tester, const Size(390, 800));
+    controller
+      ..hasMore = true
+      ..update();
+    await tester.pump();
+    expect(find.text('load_more_records'), findsOneWidget);
+  });
+
+  testWidgets('result loading and error states keep controls visible', (
+    tester,
+  ) async {
+    final controller = await _pumpInvoiceList(tester, const Size(390, 800));
+    controller
+      ..invoices = const []
+      ..statusRequest = StatusRequest.loading
+      ..update();
+    await tester.pump();
+    expect(find.byKey(const ValueKey('invoice-search-field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('invoice-filter-button')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('invoice-results-loader')),
+      findsOneWidget,
+    );
+
+    controller
+      ..statusRequest = StatusRequest.serverfailure
+      ..loadErrorMessageKey = 'invoice_load_error'
+      ..update();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('invoice-search-field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('invoice-retry-button')), findsOneWidget);
+  });
+
+  testWidgets('normal and filtered empty states remain distinct', (
+    tester,
+  ) async {
+    final controller = await _pumpInvoiceList(tester, const Size(390, 800));
+    controller
+      ..invoices = const []
+      ..statusRequest = StatusRequest.success
+      ..update();
+    await tester.pumpAndSettle();
+    expect(find.text('no_invoices_found'), findsOneWidget);
+
+    controller.statusFilter = InvoiceStatus.confirmed;
+    controller.update();
+    await tester.pumpAndSettle();
+    expect(find.text('no_search_results'), findsOneWidget);
+  });
+
+  testWidgets('one-character search shows guidance without applied filtering', (
+    tester,
+  ) async {
+    final controller = await _pumpInvoiceList(tester, const Size(390, 800));
+    await tester.enterText(
+      find.byKey(const ValueKey('invoice-search-field')),
+      'a',
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(controller.searchIsTooShort, isTrue);
+    expect(controller.hasFilters, isFalse);
+    expect(
+      find.byKey(const ValueKey('invoice-search-minimum-hint')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('tablet keeps the compact card workflow without overflow', (
+    tester,
+  ) async {
+    await _pumpInvoiceList(tester, const Size(800, 1024));
+    expect(find.byType(InvoiceCard), findsNWidgets(_invoices.length));
+    expect(find.byKey(const ValueKey('invoice-filter-button')), findsOneWidget);
+    expect(find.byType(DataTable), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mobile card and desktop row open existing invoice details', (
+    tester,
+  ) async {
+    await _pumpInvoiceList(
+      tester,
+      const Size(390, 800),
+      includeDetailsRoute: true,
+    );
+    await tester.tap(find.byType(InvoiceCard).first);
+    await tester.pumpAndSettle();
+    expect(Get.currentRoute, '/invoices/invoice-1');
+
+    Get.back();
+    await tester.pumpAndSettle();
+    await tester.binding.setSurfaceSize(const Size(1024, 800));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('INV-2026-000001').first);
+    await tester.pumpAndSettle();
+    expect(Get.currentRoute, '/invoices/invoice-1');
+  });
 }
 
-Future<void> _pumpInvoiceList(
+Future<InvoicesListController> _pumpInvoiceList(
   WidgetTester tester,
   Size size, {
   Locale locale = const Locale('en'),
   double textScale = 1,
+  String role = 'sales_rep',
+  bool includeDetailsRoute = false,
 }) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
   SharedPreferences.setMockInitialValues({
     'companyId': 'default_company',
-    'role': 'sales_rep',
+    'role': role,
     'uid': 'rep-1',
     'name': 'Sales Rep',
     'approvalStatus': 'approved',
@@ -150,9 +411,18 @@ Future<void> _pumpInvoiceList(
         child: child!,
       ),
       home: const InvoicesListScreen(),
+      getPages: includeDetailsRoute
+          ? [
+              GetPage(
+                name: AppRoute.invoiceDetails,
+                page: () => const Scaffold(body: Text('invoice-details-page')),
+              ),
+            ]
+          : const [],
     ),
   );
   await tester.pumpAndSettle();
+  return controller;
 }
 
 void _expectFinderInsideViewport(

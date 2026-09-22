@@ -19,8 +19,11 @@ export interface InvoiceCustomerSnapshot {
 }
 
 export interface InvoiceItemSnapshot {
-  itemId: string;
+  lineId: string;
+  lineType: "catalog" | "custom";
+  itemId?: string | null;
   itemName: string;
+  description: string;
   itemCode: string;
   unit: string;
   quantity: number;

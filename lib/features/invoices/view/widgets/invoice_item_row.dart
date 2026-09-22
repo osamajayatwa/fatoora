@@ -26,6 +26,9 @@ class InvoiceItemRow extends StatelessWidget {
     double? unitPrice,
     double? discount,
     double? taxPercent,
+    String? description,
+    String? itemName,
+    String? unit,
   })
   onUpdate;
   final VoidCallback onRemove;
@@ -49,13 +52,17 @@ class InvoiceItemRow extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    item.itemName,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: AppColor.secondaryColor,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+                  child: item.lineType == InvoiceLineType.custom && editable
+                      ? TextFormField(
+                          key: ValueKey('${item.lineId}-name'),
+                          initialValue: item.itemName,
+                          decoration: InputDecoration(
+                            labelText: 'line_name'.tr,
+                            isDense: true,
+                          ),
+                          onChanged: (value) => onUpdate(itemName: value),
+                        )
+                      : _LineTitle(item: item),
                 ),
                 if (editable)
                   IconButton(
@@ -68,6 +75,29 @@ class InvoiceItemRow extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             if (editable)
+              TextFormField(
+                key: ValueKey('${item.lineId}-description'),
+                initialValue: item.description,
+                minLines: 1,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'description'.tr,
+                  isDense: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onChanged: (value) => onUpdate(description: value),
+              )
+            else if (item.description.isNotEmpty)
+              Text(
+                item.description,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColor.grey),
+              ),
+            const SizedBox(height: 10),
+            if (editable)
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
@@ -78,6 +108,22 @@ class InvoiceItemRow extends StatelessWidget {
                     value: item.quantity,
                     onChanged: (value) => onUpdate(quantity: value),
                   ),
+                  if (item.lineType == InvoiceLineType.custom)
+                    SizedBox(
+                      width: 130,
+                      child: TextFormField(
+                        key: ValueKey('${item.lineId}-unit'),
+                        initialValue: item.unit,
+                        decoration: InputDecoration(
+                          labelText: 'unit'.tr,
+                          isDense: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onChanged: (value) => onUpdate(unit: value),
+                      ),
+                    ),
                   if (canEditUnitPrice)
                     _NumberField(
                       width: 150,
@@ -141,6 +187,41 @@ class InvoiceItemRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _LineTitle extends StatelessWidget {
+  const _LineTitle({required this.item});
+
+  final InvoiceItemSnapshot item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(
+          item.itemName,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            color: AppColor.secondaryColor,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF4F6FA),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            (item.lineType == InvoiceLineType.custom ? 'custom' : 'catalog').tr,
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+        ),
+      ],
     );
   }
 }

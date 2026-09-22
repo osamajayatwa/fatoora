@@ -5,7 +5,7 @@ class DashboardStat {
     required this.titleKey,
     required this.value,
     required this.captionKey,
-    required this.change,
+    required this.route,
     required this.icon,
     required this.color,
   });
@@ -13,13 +13,14 @@ class DashboardStat {
   final String titleKey;
   final String value;
   final String captionKey;
-  final String change;
+  final String route;
   final IconData icon;
   final Color color;
 }
 
 class DashboardInvoice {
   const DashboardInvoice({
+    required this.id,
     required this.customer,
     required this.number,
     required this.amount,
@@ -27,6 +28,7 @@ class DashboardInvoice {
     required this.statusColor,
   });
 
+  final String id;
   final String customer;
   final String number;
   final String amount;
@@ -52,17 +54,24 @@ class DashboardSummaryItem {
     required this.amount,
     required this.percentage,
     required this.color,
+    required this.route,
   });
 
   final String labelKey;
   final String amount;
   final double percentage;
   final Color color;
+  final String route;
 }
 
 class DashboardCustomer {
-  const DashboardCustomer({required this.name, required this.amount});
+  const DashboardCustomer({
+    required this.id,
+    required this.name,
+    required this.amount,
+  });
 
+  final String id;
   final String name;
   final String amount;
 }
@@ -73,10 +82,12 @@ class DashboardAlert {
     required this.date,
     required this.icon,
     required this.color,
+    required this.route,
   });
 
   final String messageKey;
   final String date;
   final IconData icon;
   final Color color;
+  final String route;
 }

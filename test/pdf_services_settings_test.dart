@@ -412,6 +412,7 @@ class _PdfFixture {
         SalesReturnItemModel(
           itemId: 'item-1',
           itemName: 'Test item',
+          description: 'Returned line description / وصف البند المرتجع',
           itemCode: 'ITEM-1',
           unit: 'pcs',
           returnedQuantity: 1,
@@ -459,6 +460,7 @@ class _PdfFixture {
   static const invoiceItem = InvoiceItemSnapshot(
     itemId: 'item-1',
     itemName: 'Test item',
+    description: 'Document-local description / وصف خاص بالمستند',
     itemCode: 'ITEM-1',
     unit: 'pcs',
     quantity: 2,

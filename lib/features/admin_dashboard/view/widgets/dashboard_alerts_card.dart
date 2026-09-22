@@ -16,44 +16,62 @@ class DashboardAlertsCard extends StatelessWidget {
         children: [
           const DashboardSectionTitle(titleKey: 'dashboard_alerts'),
           const SizedBox(height: 10),
+          if (alerts.isEmpty)
+            const DashboardEmptyState(
+              icon: Icons.check_circle_outline_rounded,
+              messageKey: 'sales_rep_home_all_good_detail',
+            ),
           for (var index = 0; index < alerts.length; index++) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: alerts[index].color.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      alerts[index].icon,
-                      size: 19,
-                      color: alerts[index].color,
-                    ),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => Get.find<AdminDashboardController>().navigateTo(
+                  alerts[index].route,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 12,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      alerts[index].messageKey.tr,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: context.appText,
-                        fontWeight: FontWeight.w500,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: alerts[index].color.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          alerts[index].icon,
+                          size: 19,
+                          color: alerts[index].color,
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          alerts[index].messageKey.tr,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: context.appText,
+                                fontWeight: FontWeight.w500,
+                              ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        alerts[index].date,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: context.appMutedText,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 10),
-                  Text(
-                    alerts[index].date,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: context.appMutedText,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
             if (index != alerts.length - 1)

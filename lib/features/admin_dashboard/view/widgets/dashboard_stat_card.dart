@@ -5,13 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class DashboardStatCard extends StatelessWidget {
-  const DashboardStatCard({super.key, required this.stat});
+  const DashboardStatCard({super.key, required this.stat, required this.onTap});
 
   final DashboardStat stat;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return DashboardCard(
+      onTap: onTap,
+      semanticLabel: stat.titleKey.tr,
+      padding: const EdgeInsets.all(15),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -29,13 +33,13 @@ class DashboardStatCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Container(
-                width: 48,
-                height: 48,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   color: stat.color,
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
                       color: stat.color.withValues(alpha: 0.25),
@@ -44,11 +48,11 @@ class DashboardStatCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Icon(stat.icon, color: Colors.white, size: 25),
+                child: Icon(stat.icon, color: Colors.white, size: 21),
               ),
             ],
           ),
-          const Spacer(),
+          const SizedBox(height: 13),
           Text(
             stat.value,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -64,34 +68,15 @@ class DashboardStatCard extends StatelessWidget {
             ).textTheme.bodySmall?.copyWith(color: context.appMutedText),
           ),
           const Spacer(),
-          Row(
-            children: [
-              const Icon(
-                Icons.arrow_upward_rounded,
-                size: 16,
-                color: AppColor.success,
-              ),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  stat.change,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: AppColor.success,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                  'dashboard_from_yesterday'.tr,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: context.appMutedText),
-                ),
-              ),
-            ],
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: Icon(
+              Directionality.of(context) == TextDirection.rtl
+                  ? Icons.arrow_back_rounded
+                  : Icons.arrow_forward_rounded,
+              size: 17,
+              color: stat.color,
+            ),
           ),
         ],
       ),

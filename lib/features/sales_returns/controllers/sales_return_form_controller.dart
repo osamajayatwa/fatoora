@@ -114,11 +114,20 @@ class SalesReturnFormController extends GetxController {
       );
       availableByLineId = {
         for (var index = 0; index < invoice.items.length; index++)
-          originalInvoiceItemId(invoice.id, index): _round(
+          originalInvoiceItemId(
+            invoice.id,
+            index,
+            lineId: invoice.items[index].lineId,
+          ): _round(
             math
                 .max(
                   invoice.items[index].quantity -
-                      (returned[originalInvoiceItemId(invoice.id, index)] ?? 0),
+                      (returned[originalInvoiceItemId(
+                            invoice.id,
+                            index,
+                            lineId: invoice.items[index].lineId,
+                          )] ??
+                          0),
                   0,
                 )
                 .toDouble(),
@@ -128,7 +137,11 @@ class SalesReturnFormController extends GetxController {
         for (var index = 0; index < invoice.items.length; index++)
           _emptyReturnItem(
             invoice.items[index],
-            originalInvoiceItemId(invoice.id, index),
+            originalInvoiceItemId(
+              invoice.id,
+              index,
+              lineId: invoice.items[index].lineId,
+            ),
           ),
       ];
       for (final item in items) {
@@ -292,8 +305,11 @@ class SalesReturnFormController extends GetxController {
                 invoiceItem.quantity,
           );
     return SalesReturnItemModel(
+      lineId: invoiceItem.lineId,
+      lineType: invoiceItem.lineType,
       itemId: invoiceItem.itemId,
       itemName: invoiceItem.itemName,
+      description: invoiceItem.description,
       itemCode: invoiceItem.itemCode,
       unit: invoiceItem.unit,
       returnedQuantity: 0,

@@ -30,59 +30,76 @@ class TopCustomersCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           for (var index = 0; index < customers.length; index++)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: medalColors[index].withValues(alpha: 0.14),
-                      border: Border.all(color: medalColors[index], width: 1.5),
-                    ),
-                    child: Text(
-                      '${index + 1}',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: medalColors[index],
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => controller.navigateTo(
+                  AppRoute.customerDetailsPath(customers[index].id),
+                ),
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 12,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      customers[index].name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: context.appText,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                  child: Row(
                     children: [
-                      Text(
-                        customers[index].amount,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: context.appText,
-                          fontWeight: FontWeight.w700,
+                      Container(
+                        width: 32,
+                        height: 32,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: medalColors[index].withValues(alpha: 0.14),
+                          border: Border.all(
+                            color: medalColors[index],
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Text(
+                          '${index + 1}',
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(
+                                color: medalColors[index],
+                                fontWeight: FontWeight.w800,
+                              ),
                         ),
                       ),
-                      Text(
-                        'dashboard_jod'.tr,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: context.appMutedText,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          customers[index].name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: context.appText,
+                                fontWeight: FontWeight.w600,
+                              ),
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            customers[index].amount,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: context.appText,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                          Text(
+                            'dashboard_jod'.tr,
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(color: context.appMutedText),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
         ],

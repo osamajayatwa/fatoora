@@ -130,18 +130,19 @@ class AdminDashboardHeader extends StatelessWidget {
                 icon: const Icon(Icons.notifications_none_rounded),
                 color: context.appText,
               ),
-              PositionedDirectional(
-                top: 6,
-                end: 6,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColor.error,
-                    shape: BoxShape.circle,
+              if (controller.pendingApprovalsCount > 0)
+                PositionedDirectional(
+                  top: 6,
+                  end: 6,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: AppColor.error,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           if (!compact) ...[

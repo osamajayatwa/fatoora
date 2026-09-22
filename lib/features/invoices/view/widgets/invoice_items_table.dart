@@ -27,6 +27,9 @@ class InvoiceItemsTable extends StatelessWidget {
     double? unitPrice,
     double? discount,
     double? taxPercent,
+    String? description,
+    String? itemName,
+    String? unit,
   })
   onUpdateItem;
   final ValueChanged<int> onRemoveItem;
@@ -60,13 +63,24 @@ class InvoiceItemsTable extends StatelessWidget {
                       editable: editable,
                       canEditUnitPrice: canEditUnitPrice,
                       canEditDiscount: canEditDiscount,
-                      onUpdate: ({quantity, unitPrice, discount, taxPercent}) =>
-                          onUpdateItem(
+                      onUpdate:
+                          ({
+                            quantity,
+                            unitPrice,
+                            discount,
+                            taxPercent,
+                            description,
+                            itemName,
+                            unit,
+                          }) => onUpdateItem(
                             index: i,
                             quantity: quantity,
                             unitPrice: unitPrice,
                             discount: discount,
                             taxPercent: taxPercent,
+                            description: description,
+                            itemName: itemName,
+                            unit: unit,
                           ),
                       onRemove: () => onRemoveItem(i),
                     ),
@@ -84,6 +98,8 @@ class InvoiceItemsTable extends StatelessWidget {
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
+              dataRowMinHeight: 72,
+              dataRowMaxHeight: 240,
               headingTextStyle: Theme.of(context).textTheme.labelMedium
                   ?.copyWith(
                     color: AppColor.secondaryColor,
@@ -105,15 +121,85 @@ class InvoiceItemsTable extends StatelessWidget {
                       DataCell(
                         SizedBox(
                           width: 220,
-                          child: Text(
-                            items[i].itemName,
-                            overflow: TextOverflow.ellipsis,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (editable &&
+                                  items[i].lineType == InvoiceLineType.custom)
+                                TextFormField(
+                                  key: ValueKey(
+                                    '${items[i].lineId}-name-table',
+                                  ),
+                                  initialValue: items[i].itemName,
+                                  decoration: InputDecoration(
+                                    labelText: 'line_name'.tr,
+                                    isDense: true,
+                                  ),
+                                  onChanged: (value) =>
+                                      onUpdateItem(index: i, itemName: value),
+                                )
+                              else
+                                Text(
+                                  items[i].itemName,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              const SizedBox(height: 4),
+                              if (editable &&
+                                  items[i].lineType == InvoiceLineType.custom)
+                                TextFormField(
+                                  key: ValueKey(
+                                    '${items[i].lineId}-unit-table',
+                                  ),
+                                  initialValue: items[i].unit,
+                                  decoration: InputDecoration(
+                                    labelText: 'unit'.tr,
+                                    isDense: true,
+                                  ),
+                                  onChanged: (value) =>
+                                      onUpdateItem(index: i, unit: value),
+                                ),
+                              const SizedBox(height: 4),
+                              if (editable)
+                                TextFormField(
+                                  key: ValueKey(
+                                    '${items[i].lineId}-description-table',
+                                  ),
+                                  initialValue: items[i].description,
+                                  minLines: 1,
+                                  maxLines: 3,
+                                  decoration: InputDecoration(
+                                    labelText: 'description'.tr,
+                                    isDense: true,
+                                  ),
+                                  onChanged: (value) => onUpdateItem(
+                                    index: i,
+                                    description: value,
+                                  ),
+                                )
+                              else if (items[i].description.isNotEmpty)
+                                Text(
+                                  items[i].description,
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              const SizedBox(height: 4),
+                              Text(
+                                (items[i].lineType == InvoiceLineType.custom
+                                        ? 'custom'
+                                        : 'catalog')
+                                    .tr,
+                                style: Theme.of(context).textTheme.labelSmall,
+                              ),
+                            ],
                           ),
                         ),
                       ),
                       DataCell(
-                        editable && canEditUnitPrice
+                        editable
                             ? _InlineNumberField(
+                                fieldKey: '${items[i].lineId}-quantity-table',
                                 value: items[i].quantity,
                                 onChanged: (value) =>
                                     onUpdateItem(index: i, quantity: value),
@@ -121,8 +207,11 @@ class InvoiceItemsTable extends StatelessWidget {
                             : Text(items[i].quantity.toString()),
                       ),
                       DataCell(
-                        editable && canEditDiscount
+                        editable &&
+                                (items[i].lineType == InvoiceLineType.custom ||
+                                    canEditUnitPrice)
                             ? _InlineNumberField(
+                                fieldKey: '${items[i].lineId}-price-table',
                                 value: items[i].unitPrice,
                                 onChanged: (value) =>
                                     onUpdateItem(index: i, unitPrice: value),
@@ -130,8 +219,9 @@ class InvoiceItemsTable extends StatelessWidget {
                             : Text(currency.format(items[i].unitPrice)),
                       ),
                       DataCell(
-                        editable
+                        editable && canEditDiscount
                             ? _InlineNumberField(
+                                fieldKey: '${items[i].lineId}-discount-table',
                                 value: items[i].discount,
                                 onChanged: (value) =>
                                     onUpdateItem(index: i, discount: value),
@@ -141,6 +231,7 @@ class InvoiceItemsTable extends StatelessWidget {
                       DataCell(
                         editable
                             ? _InlineNumberField(
+                                fieldKey: '${items[i].lineId}-tax-table',
                                 value: items[i].taxPercent,
                                 onChanged: (value) =>
                                     onUpdateItem(index: i, taxPercent: value),
@@ -169,8 +260,13 @@ class InvoiceItemsTable extends StatelessWidget {
 }
 
 class _InlineNumberField extends StatelessWidget {
-  const _InlineNumberField({required this.value, required this.onChanged});
+  const _InlineNumberField({
+    required this.fieldKey,
+    required this.value,
+    required this.onChanged,
+  });
 
+  final String fieldKey;
   final double value;
   final ValueChanged<double> onChanged;
 
@@ -179,6 +275,7 @@ class _InlineNumberField extends StatelessWidget {
     return SizedBox(
       width: 90,
       child: TextFormField(
+        key: ValueKey(fieldKey),
         initialValue: value.toString(),
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: const InputDecoration(isDense: true),

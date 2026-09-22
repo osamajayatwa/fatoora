@@ -6,6 +6,7 @@ import 'package:fatoora/features/financial/controllers/company_cash_opening_bala
 import 'package:fatoora/features/financial/controllers/receivables_controller.dart';
 import 'package:fatoora/features/financial/controllers/sales_rep_dashboard_controller.dart';
 import 'package:fatoora/features/financial/data/repositories/financial_repository.dart';
+import 'package:fatoora/features/rep_inventory/data/repositories/rep_inventory_repository.dart';
 import 'package:get/get.dart';
 
 void registerFinancialDependencies() {
@@ -19,11 +20,18 @@ class SalesRepDashboardBinding extends Bindings {
   @override
   void dependencies() {
     registerFinancialDependencies();
+    if (!Get.isRegistered<RepInventoryRepository>()) {
+      Get.lazyPut<RepInventoryRepository>(
+        RepInventoryRepository.new,
+        fenix: true,
+      );
+    }
     Get.lazyPut<SalesRepDashboardController>(
       () => SalesRepDashboardController(
         repository: Get.find<FinancialRepository>(),
         myServices: Get.find<MyServices>(),
         permissionResolver: Get.find<BusinessPermissionResolver>(),
+        inventoryRepository: Get.find<RepInventoryRepository>(),
       ),
     );
   }

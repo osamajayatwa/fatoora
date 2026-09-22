@@ -54,6 +54,8 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     text: '0',
   );
   final TextEditingController itemNameController = TextEditingController();
+  final TextEditingController itemDescriptionController =
+      TextEditingController();
   final TextEditingController itemCodeController = TextEditingController();
   final TextEditingController itemUnitController = TextEditingController(
     text: 'pcs',
@@ -297,8 +299,11 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
   void addCatalogItem(ItemModel item) {
     if (readOnly || !item.active || item.deleted) return;
     final rawItem = InvoiceItemSnapshot(
+      lineId: _newLineId(),
+      lineType: InvoiceLineType.catalog,
       itemId: item.id,
       itemName: item.name,
+      description: item.description,
       itemCode: item.code,
       unit: item.unit,
       quantity: 1,
@@ -316,17 +321,22 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
   void addItemFromInputs() {
     if (readOnly) return;
     final itemName = itemNameController.text.trim();
+    final description = itemDescriptionController.text.trim();
     final quantity = _parseDouble(itemQuantityController.text);
     final price = _parseDouble(itemPriceController.text);
     if (itemName.isEmpty) {
       _showError('item_name_required');
       return;
     }
+    if (description.isEmpty) {
+      _showError('description_required');
+      return;
+    }
     if (quantity <= 0) {
       _showError('invalid_quantity');
       return;
     }
-    if (price < 0) {
+    if (price <= 0) {
       _showError('invalid_price');
       return;
     }
@@ -337,8 +347,11 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     }
 
     final rawItem = InvoiceItemSnapshot(
-      itemId: 'manual-${DateTime.now().millisecondsSinceEpoch}',
+      lineId: _newLineId(),
+      lineType: InvoiceLineType.custom,
+      itemId: null,
       itemName: itemName,
+      description: description,
       itemCode: itemCodeController.text.trim(),
       unit: itemUnitController.text.trim().isEmpty
           ? 'pcs'
@@ -359,6 +372,12 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     recalculateTotals();
   }
 
+  void addCustomLine(InvoiceItemSnapshot line) {
+    if (readOnly || line.lineType != InvoiceLineType.custom) return;
+    items = [...items, _totalsService.calculateLine(line)];
+    recalculateTotals();
+  }
+
   void removeItem(int index) {
     if (readOnly || index < 0 || index >= items.length) return;
     items = [...items]..removeAt(index);
@@ -371,9 +390,14 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     double? unitPrice,
     double? discount,
     double? taxPercent,
+    String? description,
+    String? itemName,
+    String? unit,
   }) {
     if (readOnly || index < 0 || index >= items.length) return;
-    if (unitPrice != null && !canEditCatalogPrice) {
+    if (unitPrice != null &&
+        items[index].lineType == InvoiceLineType.catalog &&
+        !canEditCatalogPrice) {
       _showError('sales_rep_price_edit_disabled');
       return;
     }
@@ -386,6 +410,11 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
       unitPrice: unitPrice,
       discount: discount,
       taxPercent: taxPercent,
+      description: description,
+      itemName: items[index].lineType == InvoiceLineType.custom
+          ? itemName
+          : null,
+      unit: items[index].lineType == InvoiceLineType.custom ? unit : null,
     );
     final next = [...items];
     next[index] = _totalsService.calculateLine(item);
@@ -525,8 +554,29 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
         _showError('invalid_quantity');
         return false;
       }
-      if (item.unitPrice < 0) {
+      if (item.unitPrice <= 0) {
         _showError('invalid_price');
+        return false;
+      }
+      if (item.itemName.trim().isEmpty) {
+        _showError('item_name_required');
+        return false;
+      }
+      if (item.lineType == InvoiceLineType.custom &&
+          !item.isLegacyManual &&
+          item.description.trim().isEmpty) {
+        _showError('description_required');
+        return false;
+      }
+      if (item.lineType == InvoiceLineType.custom &&
+          !item.isLegacyManual &&
+          item.unit.trim().isEmpty) {
+        _showError('field_required');
+        return false;
+      }
+      if (item.lineType == InvoiceLineType.catalog &&
+          (item.itemId?.trim().isEmpty ?? true)) {
+        _showError('invoice_invalid_data');
         return false;
       }
     }
@@ -674,6 +724,7 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
 
   void _clearItemInputs() {
     itemNameController.clear();
+    itemDescriptionController.clear();
     itemCodeController.clear();
     itemUnitController.text = 'pcs';
     itemQuantityController.text = '1';
@@ -683,6 +734,9 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
       _defaultTaxPercent,
     );
   }
+
+  String _newLineId() =>
+      'line-${DateTime.now().microsecondsSinceEpoch}-${items.length}';
 
   void _showSuccess(String messageKey) {
     Get.snackbar(
@@ -725,6 +779,7 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     paymentMethodController.dispose();
     paidAmountController.dispose();
     itemNameController.dispose();
+    itemDescriptionController.dispose();
     itemCodeController.dispose();
     itemUnitController.dispose();
     itemQuantityController.dispose();

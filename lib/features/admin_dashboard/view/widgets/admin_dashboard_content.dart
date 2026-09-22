@@ -29,8 +29,11 @@ class AdminDashboardContent extends StatelessWidget {
           onRefresh: controller.refreshDashboard,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.all(
-              MediaQuery.sizeOf(context).width < 600 ? 14 : 24,
+            padding: EdgeInsets.fromLTRB(
+              MediaQuery.sizeOf(context).width < 600 ? 12 : 24,
+              MediaQuery.sizeOf(context).width < 600 ? 12 : 20,
+              MediaQuery.sizeOf(context).width < 600 ? 12 : 24,
+              32,
             ),
             child: Center(
               child: ConstrainedBox(
@@ -39,7 +42,7 @@ class AdminDashboardContent extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const FatooraMotionReveal(child: AdminWelcomeCard()),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 14),
                     TextField(
                       controller: controller.searchController,
                       onChanged: controller.onSearchChanged,
@@ -50,9 +53,9 @@ class AdminDashboardContent extends StatelessWidget {
                         fillColor: context.appSurface,
                       ),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 14),
                     const FatooraMotionReveal(child: _StatsGrid()),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                     _ResponsivePair(
                       desktopHeight: 420,
                       first: LatestInvoicesCard(),
@@ -60,15 +63,15 @@ class AdminDashboardContent extends StatelessWidget {
                         values: controller.weeklyInvoiceValues,
                       ),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                     _ResponsivePair(
                       desktopHeight: 430,
                       first: InvoiceSummaryCard(),
                       second: TopCustomersCard(),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                     SalesByRepCard(),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                     DashboardAlertsCard(),
                     const SizedBox(height: 20),
                     Text(
@@ -100,13 +103,13 @@ class _StatsGrid extends StatelessWidget {
       builder: (context, constraints) {
         final textScale = MediaQuery.textScalerOf(context).scale(1);
         final columns = constraints.maxWidth >= 1200
-            ? 5
+            ? 4
             : constraints.maxWidth >= 820
             ? 3
-            : constraints.maxWidth >= 560
+            : constraints.maxWidth >= 280 && textScale <= 1.6
             ? 2
             : 1;
-        const spacing = 16.0;
+        const spacing = 12.0;
         final width =
             (constraints.maxWidth - (columns - 1) * spacing) / columns;
         return Wrap(
@@ -116,8 +119,12 @@ class _StatsGrid extends StatelessWidget {
               .map(
                 (stat) => SizedBox(
                   width: width,
-                  height: 190 + ((textScale - 1).clamp(0, 1).toDouble() * 72),
-                  child: DashboardStatCard(stat: stat),
+                  height: 172 + ((textScale - 1).clamp(0, 1).toDouble() * 120),
+                  child: DashboardStatCard(
+                    stat: stat,
+                    onTap: () => Get.find<AdminDashboardController>()
+                        .navigateTo(stat.route),
+                  ),
                 ),
               )
               .toList(),

@@ -1,4 +1,5 @@
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/features/shared/dashboard/dashboard_primitives.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -7,27 +8,21 @@ class DashboardCard extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(20),
+    this.onTap,
+    this.semanticLabel,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
+  final VoidCallback? onTap;
+  final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return FatooraDashboardSurface(
       padding: padding,
-      decoration: BoxDecoration(
-        color: context.appSurface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: context.appBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).colorScheme.shadow,
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+      onTap: onTap,
+      semanticLabel: semanticLabel,
       child: child,
     );
   }
@@ -47,33 +42,10 @@ class DashboardSectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                titleKey.tr,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: context.appText,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              if (subtitleKey != null) ...[
-                const SizedBox(height: 3),
-                Text(
-                  subtitleKey!.tr,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: context.appMutedText),
-                ),
-              ],
-            ],
-          ),
-        ),
-        if (trailing != null) trailing!,
-      ],
+    return FatooraDashboardSectionTitle(
+      title: titleKey.tr,
+      subtitle: subtitleKey?.tr,
+      trailing: trailing,
     );
   }
 }

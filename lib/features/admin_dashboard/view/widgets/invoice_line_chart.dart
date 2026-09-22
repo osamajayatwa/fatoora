@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/app/routes/app_routes.dart';
+import 'package:fatoora/features/admin_dashboard/controller/admin_dashboard_controller.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -23,6 +25,9 @@ class InvoiceLineChartCard extends StatelessWidget {
     ];
 
     return DashboardCard(
+      onTap: () =>
+          Get.find<AdminDashboardController>().navigateTo(AppRoute.invoices),
+      semanticLabel: 'dashboard_invoice_chart'.tr,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -49,7 +54,7 @@ class InvoiceLineChartCard extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           SizedBox(
-            height: 215,
+            height: 210,
             child: CustomPaint(
               painter: _LineChartPainter(
                 values: values,

@@ -1,4 +1,5 @@
 const Map<String, String> salesRepHomeEnglishTranslations = {
+  'sales_rep_home_custody_quantity': '@quantity total units',
   'sales_rep_home_overview': 'Period overview',
   'sales_rep_home_sales_period': 'Sales this period',
   'sales_rep_home_receipts_period': 'Receipts this period',
@@ -34,6 +35,8 @@ const Map<String, String> salesRepHomeEnglishTranslations = {
 };
 
 const Map<String, String> salesRepHomeArabicTranslations = {
+  'sales_rep_home_custody_quantity':
+      '\u0625\u062c\u0645\u0627\u0644\u064a \u0627\u0644\u0643\u0645\u064a\u0629 @quantity',
   'sales_rep_home_overview': 'نظرة عامة للفترة',
   'sales_rep_home_sales_period': 'مبيعات الفترة',
   'sales_rep_home_receipts_period': 'مقبوضات الفترة',

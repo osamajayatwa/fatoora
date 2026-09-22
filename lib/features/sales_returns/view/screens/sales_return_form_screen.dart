@@ -270,7 +270,10 @@ class _ItemCards extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  item.itemName,
+                  [
+                    item.itemName,
+                    item.description,
+                  ].where((value) => value.isNotEmpty).join('\n'),
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     color: AppColor.secondaryColor,
                     fontWeight: FontWeight.w800,
@@ -323,7 +326,10 @@ class _ItemTable extends StatelessWidget {
                     SizedBox(
                       width: 180,
                       child: Text(
-                        item.itemName,
+                        [
+                          item.itemName,
+                          item.description,
+                        ].where((value) => value.isNotEmpty).join('\n'),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),

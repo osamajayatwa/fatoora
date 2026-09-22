@@ -210,7 +210,16 @@ class _LeftColumn extends StatelessWidget {
           items: invoice.items,
           editable: false,
           onUpdateItem:
-              ({required index, quantity, unitPrice, discount, taxPercent}) {},
+              ({
+                required index,
+                quantity,
+                unitPrice,
+                discount,
+                taxPercent,
+                description,
+                itemName,
+                unit,
+              }) {},
           onRemoveItem: (_) {},
         ),
         const SizedBox(height: 18),

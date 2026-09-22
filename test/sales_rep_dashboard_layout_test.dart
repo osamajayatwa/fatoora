@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('narrow mobile dashboard gives quick actions full width', () {
-    expect(SalesRepDashboardLayout.horizontalPadding(320), 16);
+    expect(SalesRepDashboardLayout.horizontalPadding(320), 12);
     expect(SalesRepDashboardLayout.metricColumns(288), 2);
     expect(SalesRepDashboardLayout.primaryActionColumns(288), 1);
     expect(SalesRepDashboardLayout.secondaryServiceColumns(288), 1);
@@ -23,7 +23,8 @@ void main() {
   });
 
   test('desktop dashboard uses constrained two-column composition', () {
-    expect(SalesRepDashboardLayout.useDesktopColumns(1050), isTrue);
+    expect(SalesRepDashboardLayout.useDesktopColumns(1050), isFalse);
+    expect(SalesRepDashboardLayout.useDesktopColumns(1080), isTrue);
     expect(SalesRepDashboardLayout.metricColumns(1180), 4);
     expect(
       SalesRepDashboardLayout.maxContentWidth,

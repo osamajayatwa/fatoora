@@ -68,6 +68,8 @@ class FinancialLedgerSalesDetail {
     required this.salesRepId,
     required this.salesRepName,
     required this.lineId,
+    required this.lineType,
+    required this.description,
     required this.itemId,
     required this.itemName,
     required this.itemCode,
@@ -92,7 +94,9 @@ class FinancialLedgerSalesDetail {
   final String salesRepId;
   final String salesRepName;
   final String lineId;
-  final String itemId;
+  final String lineType;
+  final String description;
+  final String? itemId;
   final String itemName;
   final String itemCode;
   final String unit;
@@ -197,7 +201,13 @@ FinancialLedgerSalesAssembly assembleFinancialLedgerSalesDetails({
     var sourceTotal = 0.0;
     for (var index = 0; index < rawItems.length; index += 1) {
       final item = _map(rawItems[index]);
-      final itemId = _string(item['itemId']);
+      final rawItemId = _string(item['itemId']);
+      final explicitLineType = _string(item['lineType']);
+      final lineType = explicitLineType.isNotEmpty
+          ? explicitLineType
+          : rawItemId.isEmpty || rawItemId.startsWith('manual-')
+          ? 'custom'
+          : 'catalog';
       final itemName = _string(item['itemName']);
       final quantity = _number(
         item[isInvoice ? 'quantity' : 'returnedQuantity'],
@@ -225,7 +235,9 @@ FinancialLedgerSalesAssembly assembleFinancialLedgerSalesDetails({
           lineId: _string(item['originalInvoiceItemId']).isNotEmpty
               ? _string(item['originalInvoiceItemId'])
               : '$sourceId:$index',
-          itemId: itemId,
+          lineType: lineType,
+          description: _string(item['description']),
+          itemId: rawItemId.isEmpty ? null : rawItemId,
           itemName: itemName,
           itemCode: _string(item['itemCode']),
           unit: _string(item['unit']),
