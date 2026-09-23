@@ -1,11 +1,13 @@
-import 'package:fatoora/core/class/handilingdataview.dart';
+import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/motion/fatoora_overlays.dart';
 import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
+import 'package:fatoora/core/widgets/responsive_data_table_card.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/financial/controllers/cash_movements_controller.dart';
 import 'package:fatoora/features/financial/data/models/cash_movement_model.dart';
 import 'package:fatoora/features/financial/data/models/financial_dashboard_snapshot.dart';
+import 'package:fatoora/features/financial/view/widgets/cash_movement_presentation.dart';
 import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
@@ -20,66 +22,39 @@ class CashMovementsScreen extends StatelessWidget {
     return GetBuilder<CashMovementsController>(
       builder: (controller) => BusinessShell(
         title: 'financial_cash'.tr,
-        child: HandilingDataView(
-          statusrequest: controller.statusRequest,
-          errorMessage: controller.loadErrorMessageKey.tr,
-          retryLabel: 'items_retry'.tr,
-          onRetry: controller.loadCash,
-          widget: RefreshIndicator(
-            onRefresh: controller.refreshCash,
-            color: AppColor.primaryColor,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final padding = constraints.maxWidth < 600 ? 14.0 : 24.0;
-                return SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(padding, padding, padding, 96),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1220),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _CashHeader(controller: controller),
-                          if (controller.isAdmin &&
-                              controller
-                                  .snapshot
-                                  .repCashOutstandingBySalesRep
-                                  .isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            _RepCashBalances(controller: controller),
-                          ],
+        child: RefreshIndicator(
+          onRefresh: controller.refreshCash,
+          color: AppColor.primaryColor,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final padding = constraints.maxWidth < 600 ? 14.0 : 24.0;
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(padding, padding, padding, 96),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1220),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _CashHeader(controller: controller),
+                        if (controller.statusRequest == StatusRequest.success &&
+                            controller.isAdmin &&
+                            controller
+                                .snapshot
+                                .repCashOutstandingBySalesRep
+                                .isNotEmpty) ...[
                           const SizedBox(height: 16),
-                          if (controller.snapshot.movements.isEmpty)
-                            const _EmptyCashMovements()
-                          else
-                            _CashMovementList(controller: controller),
-                          if (controller.hasMore) ...[
-                            const SizedBox(height: 12),
-                            Center(
-                              child: OutlinedButton.icon(
-                                onPressed: controller.isLoadingMore
-                                    ? null
-                                    : controller.loadMore,
-                                icon: controller.isLoadingMore
-                                    ? const SizedBox.square(
-                                        dimension: 18,
-                                        child: FatooraProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Icon(Icons.expand_more_rounded),
-                                label: Text('load_more_records'.tr),
-                              ),
-                            ),
-                          ],
+                          _RepCashBalances(controller: controller),
                         ],
-                      ),
+                        const SizedBox(height: 16),
+                        _CashResults(controller: controller),
+                      ],
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -150,11 +125,23 @@ class _CashHeader extends StatelessWidget {
             trailing: controls,
             stretchTrailingOnCompact: false,
           ),
-          const SizedBox(height: 18),
-          _CashSummaryGrid(
-            snapshot: controller.snapshot,
-            isAdmin: controller.isAdmin,
-          ),
+          if (controller.statusRequest == StatusRequest.success) ...[
+            const SizedBox(height: 14),
+            Text(
+              controller.isAdmin
+                  ? 'financial_company_cash'.tr
+                  : 'ledger_rep_cash'.tr,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: AppColor.secondaryColor,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 10),
+            _CashSummaryGrid(
+              snapshot: controller.snapshot,
+              isAdmin: controller.isAdmin,
+            ),
+          ],
         ],
       ),
     );
@@ -323,44 +310,122 @@ class _RepCashBalances extends StatelessWidget {
               in controller.snapshot.repCashOutstandingBySalesRep) ...[
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      rep.salesRepName.isEmpty
-                          ? 'sales_rep'.tr
-                          : rep.salesRepName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColor.secondaryColor,
-                        fontWeight: FontWeight.w700,
-                      ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final name = Text(
+                    rep.salesRepName.isEmpty
+                        ? 'sales_rep'.tr
+                        : rep.salesRepName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColor.secondaryColor,
+                      fontWeight: FontWeight.w700,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
+                  );
+                  final amount = Text(
                     currency.format(rep.amount),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: rep.amount > 0 ? AppColor.success : AppColor.grey,
                       fontWeight: FontWeight.w900,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton.icon(
+                  );
+                  final action = OutlinedButton.icon(
                     onPressed: rep.amount <= 0 || controller.isSavingSettlement
                         ? null
                         : () => _showSettlementDialog(context, controller, rep),
                     icon: const Icon(Icons.payments_outlined),
                     label: Text('financial_settle'.tr),
-                  ),
-                ],
+                  );
+                  if (constraints.maxWidth < 530 ||
+                      MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        name,
+                        const SizedBox(height: 6),
+                        amount,
+                        const SizedBox(height: 8),
+                        action,
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: name),
+                      const SizedBox(width: 10),
+                      amount,
+                      const SizedBox(width: 8),
+                      action,
+                    ],
+                  );
+                },
               ),
             ),
             const Divider(height: 1, color: Color(0xFFF0F1F5)),
           ],
         ],
       ),
+    );
+  }
+}
+
+class _CashResults extends StatelessWidget {
+  const _CashResults({required this.controller});
+  final CashMovementsController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    if (controller.statusRequest == StatusRequest.loading) {
+      return const Center(
+        key: ValueKey('cash-results-loading'),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 48),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    if (controller.statusRequest != StatusRequest.success) {
+      return BusinessEmptyState(
+        key: const ValueKey('cash-results-error'),
+        icon: Icons.error_outline_rounded,
+        title: controller.loadErrorMessageKey.tr,
+        action: OutlinedButton.icon(
+          onPressed: controller.loadCash,
+          icon: const Icon(Icons.refresh_rounded),
+          label: Text('items_retry'.tr),
+        ),
+      );
+    }
+    if (controller.snapshot.movements.isEmpty) {
+      return const _EmptyCashMovements();
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _CashMovementList(controller: controller),
+        if (controller.loadMoreErrorMessageKey != null) ...[
+          const SizedBox(height: 12),
+          BusinessEmptyState(
+            key: const ValueKey('cash-load-more-error'),
+            icon: Icons.error_outline_rounded,
+            title: controller.loadMoreErrorMessageKey!.tr,
+            action: OutlinedButton.icon(
+              onPressed: controller.loadMore,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text('items_retry'.tr),
+            ),
+          ),
+        ],
+        if (controller.hasMore &&
+            controller.loadMoreErrorMessageKey == null) ...[
+          const SizedBox(height: 12),
+          BusinessLoadMoreButton(
+            loading: controller.isLoadingMore,
+            onPressed: controller.loadMore,
+          ),
+        ],
+      ],
     );
   }
 }
@@ -372,84 +437,267 @@ class _CashMovementList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        for (final movement in controller.snapshot.movements) ...[
-          _CashMovementCard(movement: movement),
-          const SizedBox(height: 12),
-        ],
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 900 &&
+            MediaQuery.textScalerOf(context).scale(1) <= 1.3) {
+          return _CashMovementTable(controller: controller);
+        }
+        final groups = cashMovementPresentationGroups(
+          controller.snapshot.movements,
+        );
+        final twoColumns =
+            constraints.maxWidth >= 650 &&
+            MediaQuery.textScalerOf(context).scale(1) <= 1.3;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            for (final group in groups)
+              SizedBox(
+                width: twoColumns
+                    ? (constraints.maxWidth - 12) / 2
+                    : constraints.maxWidth,
+                child: group.length == 2
+                    ? _SettlementPairCard(movements: group)
+                    : _CashMovementCard(
+                        movement: group.single,
+                        showRepresentative: controller.isAdmin,
+                      ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
 
 class _CashMovementCard extends StatelessWidget {
-  const _CashMovementCard({required this.movement});
+  const _CashMovementCard({
+    required this.movement,
+    required this.showRepresentative,
+  });
 
   final CashMovementModel movement;
+  final bool showRepresentative;
 
   @override
   Widget build(BuildContext context) {
     final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
     final date = DateFormat.yMd();
     final color = movement.isOut ? AppColor.error : AppColor.success;
+    final accountKey = cashAccountLabelKey(movement);
     return DashboardCard(
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              movement.isOut
-                  ? Icons.north_east_rounded
-                  : Icons.south_west_rounded,
-              color: color,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+          Row(
+            children: [
+              Icon(
+                movement.isOut
+                    ? Icons.north_east_rounded
+                    : Icons.south_west_rounded,
+                color: color,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
                   'financial_movement_${movement.effectiveType}'.tr,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     color: AppColor.secondaryColor,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  [
-                    if (movement.effectiveReferenceNumber.isNotEmpty)
-                      movement.effectiveReferenceNumber,
-                    if (movement.customerName.isNotEmpty) movement.customerName,
-                    if (movement.salesRepName.isNotEmpty) movement.salesRepName,
-                    date.format(movement.date),
-                  ].join('  |  '),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: AppColor.grey),
-                ),
-              ],
-            ),
+              ),
+              Text(
+                movement.isOut
+                    ? 'cash_direction_out'.tr
+                    : 'cash_direction_in'.tr,
+                style: TextStyle(color: color, fontWeight: FontWeight.w900),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
+          const SizedBox(height: 8),
           Text(
             '${movement.isOut ? '-' : '+'}${currency.format(movement.amount)}',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
               color: color,
               fontWeight: FontWeight.w900,
             ),
           ),
+          const SizedBox(height: 6),
+          if (accountKey != null)
+            Text(
+              accountKey.tr,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          Text(
+            [
+              if (movement.effectiveReferenceNumber.isNotEmpty)
+                movement.effectiveReferenceNumber,
+              if (movement.settlementId.isNotEmpty) movement.settlementId,
+              if (movement.customerName.isNotEmpty) movement.customerName,
+              if (showRepresentative && movement.salesRepName.isNotEmpty)
+                movement.salesRepName,
+              date.format(movement.date),
+            ].join('  |  '),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettlementPairCard extends StatelessWidget {
+  const _SettlementPairCard({required this.movements});
+  final List<CashMovementModel> movements;
+
+  @override
+  Widget build(BuildContext context) {
+    final money = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
+    return DashboardCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'financial_cash_settlement'.tr,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: AppColor.secondaryColor,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            movements.first.settlementId,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 10),
+          for (final movement in movements) ...[
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final label = Text(
+                  cashAccountLabelKey(movement)?.tr ??
+                      (movement.isOut
+                          ? 'cash_direction_out'.tr
+                          : 'cash_direction_in'.tr),
+                );
+                final amount = Text(
+                  '${movement.isOut ? '-' : '+'}${money.format(movement.amount)}',
+                  style: TextStyle(
+                    color: movement.isOut ? AppColor.error : AppColor.success,
+                    fontWeight: FontWeight.w900,
+                  ),
+                );
+                if (constraints.maxWidth < 380 ||
+                    MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [label, const SizedBox(height: 3), amount],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: label),
+                    const SizedBox(width: 8),
+                    amount,
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 6),
+          ],
+          Text(
+            DateFormat.yMd().format(movements.first.date),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CashMovementTable extends StatelessWidget {
+  const _CashMovementTable({required this.controller});
+  final CashMovementsController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final money = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
+    DataColumn column(String key, double width) => DataColumn(
+      label: SizedBox(
+        width: width,
+        child: Text(key.tr, maxLines: 2, overflow: TextOverflow.ellipsis),
+      ),
+    );
+    return ResponsiveDataTableCard(
+      minWidth: controller.isAdmin ? 1050 : 900,
+      child: DataTable(
+        columnSpacing: 14,
+        horizontalMargin: 14,
+        columns: [
+          column('cash_direction', 80),
+          column('financial_amount', 120),
+          column('financial_type', 145),
+          column('financial_reference', 140),
+          column('cash_account', 145),
+          column('financial_date', 100),
+          if (controller.isAdmin) column('sales_rep', 125),
+        ],
+        rows: [
+          for (final movement in controller.snapshot.movements)
+            DataRow(
+              cells: [
+                DataCell(
+                  BoundedTableText(
+                    movement.isOut
+                        ? 'cash_direction_out'.tr
+                        : 'cash_direction_in'.tr,
+                    width: 80,
+                  ),
+                ),
+                DataCell(
+                  BoundedTableText(
+                    '${movement.isOut ? '-' : '+'}'
+                    '${money.format(movement.amount)}',
+                    width: 120,
+                    forceLtr: true,
+                  ),
+                ),
+                DataCell(
+                  BoundedTableText(
+                    'financial_movement_${movement.effectiveType}'.tr,
+                    width: 145,
+                  ),
+                ),
+                DataCell(
+                  BoundedTableText(
+                    movement.effectiveReferenceNumber.isNotEmpty
+                        ? movement.effectiveReferenceNumber
+                        : movement.settlementId,
+                    width: 140,
+                    forceLtr: true,
+                  ),
+                ),
+                DataCell(
+                  BoundedTableText(
+                    cashAccountLabelKey(movement)?.tr ?? '-',
+                    width: 145,
+                  ),
+                ),
+                DataCell(
+                  BoundedTableText(
+                    DateFormat.yMd().format(movement.date),
+                    width: 100,
+                    forceLtr: true,
+                  ),
+                ),
+                if (controller.isAdmin)
+                  DataCell(BoundedTableText(movement.salesRepName, width: 125)),
+              ],
+            ),
         ],
       ),
     );
@@ -479,6 +727,7 @@ Future<void> _showSettlementDialog(
   final notesController = TextEditingController();
   final result = await showFatooraGetDialog<bool>(
     AlertDialog(
+      scrollable: true,
       title: Text('financial_cash_settlement'.tr),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -486,6 +735,16 @@ Future<void> _showSettlementDialog(
           Text(
             rep.salesRepName.isEmpty ? 'sales_rep'.tr : rep.salesRepName,
             style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'financial_settlement_transfer_hint'.tr,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${'financial_rep_cash_outstanding'.tr}: '
+            '${NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3).format(rep.amount)}',
           ),
           const SizedBox(height: 14),
           TextField(

@@ -31,6 +31,13 @@ const Map<String, String> salesReturnEnglishTranslations = {
   'sales_returns_subtitle':
       'Returns from confirmed invoices, with linked stock and financial posting.',
   'sales_returns_search_hint': 'Search return number, invoice, or customer',
+  'sales_returns_search_minimum': 'Enter at least two characters to search.',
+  'sales_returns_filter': 'Filter',
+  'sales_return_line_catalog': 'Catalog item',
+  'sales_return_line_custom': 'Custom line',
+  'sales_return_receivable_reduction': 'Receivable reduced',
+  'sales_return_customer_credit': 'Customer credit',
+  'sales_return_cash_refund': 'Cash refunded',
   'sales_returns_no_search_results': 'No returns match the current filters.',
   'sales_return_form_subtitle':
       'Choose quantities from the original confirmed invoice.',
@@ -105,6 +112,13 @@ const Map<String, String> salesReturnArabicTranslations = {
   'sales_returns_subtitle':
       'إرجاعات مرتبطة بفواتير مؤكدة مع ترحيل المخزون والحركة المالية.',
   'sales_returns_search_hint': 'ابحث برقم الإرجاع أو الفاتورة أو العميل',
+  'sales_returns_search_minimum': 'أدخل حرفين على الأقل للبحث.',
+  'sales_returns_filter': 'تصفية',
+  'sales_return_line_catalog': 'صنف من الكتالوج',
+  'sales_return_line_custom': 'بند مخصص',
+  'sales_return_receivable_reduction': 'تخفيض المستحقات',
+  'sales_return_customer_credit': 'رصيد دائن للعميل',
+  'sales_return_cash_refund': 'مبلغ مسترد نقداً',
   'sales_returns_no_search_results': 'لا توجد إرجاعات مطابقة للتصفية الحالية.',
   'sales_return_form_subtitle':
       'اختر الكميات من أصناف الفاتورة المؤكدة الأصلية.',

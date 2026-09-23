@@ -41,6 +41,7 @@ class FinancialLedgerController extends GetxController {
   FinancialLedgerCursor? _cursor;
   bool hasMore = false;
   bool isLoadingMore = false;
+  String? loadMoreErrorMessageKey;
   bool isExporting = false;
   bool isCopying = false;
   Timer? _searchDebounce;
@@ -102,6 +103,7 @@ class FinancialLedgerController extends GetxController {
     final requestedFilters = filters;
     statusRequest = StatusRequest.loading;
     loadErrorMessageKey = 'ledger_load_error';
+    loadMoreErrorMessageKey = null;
     update();
     try {
       final results = await Future.wait<Object>([
@@ -136,6 +138,7 @@ class FinancialLedgerController extends GetxController {
   Future<void> loadMore() async {
     if (isLoadingMore || !hasMore || _cursor == null) return;
     isLoadingMore = true;
+    loadMoreErrorMessageKey = null;
     final generation = _loadGeneration;
     update();
     try {
@@ -150,7 +153,7 @@ class FinancialLedgerController extends GetxController {
       hasMore = page.hasMore;
     } catch (error) {
       if (generation != _loadGeneration) return;
-      _showError(_messageFor(error));
+      loadMoreErrorMessageKey = _messageFor(error);
     } finally {
       isLoadingMore = false;
       if (!isClosed) update();
@@ -228,6 +231,8 @@ class FinancialLedgerController extends GetxController {
     filters = FinancialLedgerFilters.currentMonth();
     loadInitial();
   }
+
+  void applyFilters(FinancialLedgerFilters value) => _setFilters(value);
 
   Future<void> exportAccountingReport() async {
     if (isExporting) return;

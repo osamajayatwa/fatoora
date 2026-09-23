@@ -2,6 +2,7 @@ import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
+import 'package:fatoora/features/invoices/data/models/invoice_item_snapshot.dart';
 import 'package:fatoora/features/sales_returns/controllers/sales_return_details_controller.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_enums.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_model.dart';
@@ -54,44 +55,74 @@ class _Details extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final title = Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        salesReturn.returnNumber,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              color: AppColor.secondaryColor,
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(DateFormat.yMMMd().format(salesReturn.returnDate)),
+                      const SizedBox(height: 8),
+                      Text(
+                        money.format(salesReturn.grandTotal),
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              color: AppColor.primaryColor,
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                    ],
+                  );
+                  final actions = Wrap(
+                    spacing: 10,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      SalesReturnStatusChip(status: salesReturn.status),
+                      OutlinedButton.icon(
+                        onPressed: controller.isPrinting
+                            ? null
+                            : controller.printSalesReturn,
+                        icon: controller.isPrinting
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: FatooraProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.picture_as_pdf_outlined),
+                        label: Text('export_pdf'.tr),
+                      ),
+                    ],
+                  );
+                  if (constraints.maxWidth < 650 ||
+                      MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+                    return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          salesReturn.returnNumber,
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(
-                                color: AppColor.secondaryColor,
-                                fontWeight: FontWeight.w900,
-                              ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(DateFormat.yMMMd().format(salesReturn.returnDate)),
-                      ],
-                    ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: controller.isPrinting
-                        ? null
-                        : controller.printSalesReturn,
-                    icon: controller.isPrinting
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: FatooraProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.picture_as_pdf_outlined),
-                    label: Text('export_pdf'.tr),
-                  ),
-                  const SizedBox(width: 10),
-                  SalesReturnStatusChip(status: salesReturn.status),
-                ],
+                      children: [title, const SizedBox(height: 10), actions],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: title),
+                      const SizedBox(width: 12),
+                      actions,
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 18),
-              _InfoCard(salesReturn: salesReturn),
+              _InfoCard(
+                salesReturn: salesReturn,
+                showSalesRepresentative: controller.showSalesRepresentative,
+              ),
               const SizedBox(height: 18),
               _ItemsCard(salesReturn: salesReturn),
               const SizedBox(height: 18),
@@ -154,9 +185,13 @@ class _Details extends StatelessWidget {
 }
 
 class _InfoCard extends StatelessWidget {
-  const _InfoCard({required this.salesReturn});
+  const _InfoCard({
+    required this.salesReturn,
+    required this.showSalesRepresentative,
+  });
 
   final SalesReturnModel salesReturn;
+  final bool showSalesRepresentative;
 
   @override
   Widget build(BuildContext context) {
@@ -173,7 +208,10 @@ class _InfoCard extends StatelessWidget {
             label: 'customer_name'.tr,
             value: salesReturn.customerSnapshot?.name ?? '-',
           ),
-          _Field(label: 'sales_rep'.tr, value: salesReturn.salesRepName),
+          if (showSalesRepresentative && salesReturn.salesRepName.isNotEmpty)
+            _Field(label: 'sales_rep'.tr, value: salesReturn.salesRepName),
+          if (showSalesRepresentative && salesReturn.createdByName.isNotEmpty)
+            _Field(label: 'created_by'.tr, value: salesReturn.createdByName),
           _Field(
             label: 'refund_type'.tr,
             value: 'refund_type_${salesReturn.refundType.value}'.tr,
@@ -205,42 +243,88 @@ class _ItemsCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columns: [
-                DataColumn(label: Text('item_name'.tr)),
-                DataColumn(label: Text('returned_quantity'.tr)),
-                DataColumn(label: Text('unit'.tr)),
-                DataColumn(label: Text('unit_price'.tr)),
-                DataColumn(label: Text('tax'.tr)),
-                DataColumn(label: Text('grand_total'.tr)),
-              ],
-              rows: salesReturn.items
-                  .map(
-                    (item) => DataRow(
-                      cells: [
-                        DataCell(
-                          Text(
-                            [
-                              item.itemName,
-                              item.description,
-                            ].where((value) => value.isNotEmpty).join('\n'),
-                          ),
-                        ),
-                        DataCell(Text(_quantity(item.returnedQuantity))),
-                        DataCell(Text(item.unit)),
-                        DataCell(Text(money.format(item.unitPrice))),
-                        DataCell(
-                          Text('${item.taxPercent.toStringAsFixed(2)}%'),
-                        ),
-                        DataCell(Text(money.format(item.total))),
-                      ],
+          if (MediaQuery.sizeOf(context).width < 760 ||
+              MediaQuery.textScalerOf(context).scale(1) > 1.3)
+            for (final item in salesReturn.items) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFD),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE4E8EF)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.itemName,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: AppColor.secondaryColor,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  )
-                  .toList(growable: false),
+                    if (item.description.isNotEmpty) Text(item.description),
+                    const SizedBox(height: 6),
+                    Text(
+                      item.lineType == InvoiceLineType.custom
+                          ? 'sales_return_line_custom'.tr
+                          : 'sales_return_line_catalog'.tr,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${'returned_quantity'.tr}: ${_quantity(item.returnedQuantity)} ${item.unit}',
+                    ),
+                    Text(
+                      '${'grand_total'.tr}: ${money.format(item.total)}',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ]
+          else
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: [
+                  DataColumn(label: Text('item_name'.tr)),
+                  DataColumn(label: Text('returned_quantity'.tr)),
+                  DataColumn(label: Text('unit'.tr)),
+                  DataColumn(label: Text('unit_price'.tr)),
+                  DataColumn(label: Text('tax'.tr)),
+                  DataColumn(label: Text('grand_total'.tr)),
+                ],
+                rows: salesReturn.items
+                    .map(
+                      (item) => DataRow(
+                        cells: [
+                          DataCell(
+                            Text(
+                              [
+                                item.itemName,
+                                item.description,
+                                item.lineType == InvoiceLineType.custom
+                                    ? 'sales_return_line_custom'.tr
+                                    : 'sales_return_line_catalog'.tr,
+                              ].where((value) => value.isNotEmpty).join('\n'),
+                            ),
+                          ),
+                          DataCell(Text(_quantity(item.returnedQuantity))),
+                          DataCell(Text(item.unit)),
+                          DataCell(Text(money.format(item.unitPrice))),
+                          DataCell(
+                            Text('${item.taxPercent.toStringAsFixed(2)}%'),
+                          ),
+                          DataCell(Text(money.format(item.total))),
+                        ],
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -275,6 +359,21 @@ class _TotalsCard extends StatelessWidget {
             value: money.format(salesReturn.grandTotal),
             bold: true,
           ),
+          if (salesReturn.receivableReduction > 0)
+            _Field(
+              label: 'sales_return_receivable_reduction'.tr,
+              value: money.format(salesReturn.receivableReduction),
+            ),
+          if (salesReturn.customerCreditAmount > 0)
+            _Field(
+              label: 'sales_return_customer_credit'.tr,
+              value: money.format(salesReturn.customerCreditAmount),
+            ),
+          if (salesReturn.cashRefundAmount > 0)
+            _Field(
+              label: 'sales_return_cash_refund'.tr,
+              value: money.format(salesReturn.cashRefundAmount),
+            ),
         ],
       ),
     );

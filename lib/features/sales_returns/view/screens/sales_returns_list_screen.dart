@@ -1,5 +1,6 @@
-import 'package:fatoora/core/class/handilingdataview.dart';
+import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
 import 'package:fatoora/core/widgets/responsive_data_table_card.dart';
 import 'package:fatoora/features/sales_returns/controllers/sales_returns_list_controller.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_enums.dart';
@@ -12,8 +13,6 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 class SalesReturnsListScreen extends StatelessWidget {
-  // TODO: Keep return summary cards out of the main dashboards until their
-  // aggregate query can be added without making dashboard loading heavier.
   const SalesReturnsListScreen({super.key});
 
   @override
@@ -21,54 +20,35 @@ class SalesReturnsListScreen extends StatelessWidget {
     return GetBuilder<SalesReturnsListController>(
       builder: (controller) => BusinessShell(
         title: 'sales_returns'.tr,
-        child: HandilingDataView(
-          statusrequest: controller.statusRequest,
-          errorMessage: controller.loadErrorMessageKey.tr,
-          retryLabel: 'items_retry'.tr,
-          onRetry: controller.loadSalesReturns,
-          widget: RefreshIndicator(
-            color: AppColor.primaryColor,
-            onRefresh: controller.refreshSalesReturns,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final compact = constraints.maxWidth < 900;
-                final padding = constraints.maxWidth < 600 ? 14.0 : 24.0;
-                return SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(padding, padding, padding, 96),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1260),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          BusinessPageHeader(
-                            title: 'sales_returns'.tr,
-                            subtitle: 'sales_returns_subtitle'.tr,
-                          ),
-                          const SizedBox(height: 18),
-                          _Filters(controller: controller),
-                          const SizedBox(height: 18),
-                          if (controller.salesReturns.isEmpty)
-                            _EmptyReturns(hasFilters: controller.hasFilters)
-                          else if (compact)
-                            _ReturnCards(controller: controller)
-                          else
-                            _ReturnTable(controller: controller),
-                          if (controller.hasMore) ...[
-                            const SizedBox(height: 16),
-                            BusinessLoadMoreButton(
-                              loading: controller.isLoadingMore,
-                              onPressed: controller.loadMoreSalesReturns,
-                            ),
-                          ],
-                        ],
-                      ),
+        child: RefreshIndicator(
+          color: AppColor.primaryColor,
+          onRefresh: controller.refreshSalesReturns,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final padding = constraints.maxWidth < 600 ? 14.0 : 24.0;
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(padding, padding, padding, 96),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1260),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        BusinessPageHeader(
+                          title: 'sales_returns'.tr,
+                          subtitle: 'sales_returns_subtitle'.tr,
+                        ),
+                        const SizedBox(height: 14),
+                        _Filters(controller: controller),
+                        const SizedBox(height: 14),
+                        _Results(controller: controller),
+                      ],
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -83,72 +63,176 @@ class _Filters extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final stacked =
-            constraints.maxWidth < 560 ||
-            MediaQuery.textScalerOf(context).scale(1) > 1.3;
-        return Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            SizedBox(
-              width: stacked ? constraints.maxWidth : 320,
-              child: TextField(
-                controller: controller.searchController,
-                onChanged: controller.onSearchChanged,
-                onSubmitted: (_) => controller.submitSearch(),
-                textInputAction: TextInputAction.search,
-                decoration: InputDecoration(
-                  hintText: 'sales_returns_search_hint'.tr,
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  suffixIcon: controller.searchText.isEmpty
-                      ? null
-                      : IconButton(
-                          onPressed: controller.clearSearch,
-                          icon: const Icon(Icons.close_rounded),
-                        ),
-                  filled: true,
-                  fillColor: AppColor.surface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          key: const ValueKey('return-search'),
+          controller: controller.searchController,
+          onChanged: controller.onSearchChanged,
+          onSubmitted: (_) => controller.submitSearch(),
+          textInputAction: TextInputAction.search,
+          decoration: InputDecoration(
+            hintText: 'sales_returns_search_hint'.tr,
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: controller.searchText.isEmpty
+                ? null
+                : IconButton(
+                    onPressed: controller.clearSearch,
+                    icon: const Icon(Icons.close_rounded),
                   ),
+            filled: true,
+            fillColor: AppColor.surface,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+        ),
+        if (controller.searchIsTooShort) ...[
+          const SizedBox(height: 5),
+          Text(
+            'sales_returns_search_minimum'.tr,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+        const SizedBox(height: 10),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: OutlinedButton.icon(
+            key: const ValueKey('return-filter-button'),
+            onPressed: () => _showStatusFilter(context),
+            icon: const Icon(Icons.tune_rounded),
+            label: Text('sales_returns_filter'.tr),
+          ),
+        ),
+        if (controller.hasFilters) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              if (controller.searchText.trim().isNotEmpty)
+                InputChip(
+                  label: Text(controller.searchText.trim()),
+                  onDeleted: controller.clearSearch,
                 ),
-              ),
-            ),
-            SizedBox(
-              width: stacked ? constraints.maxWidth : null,
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<SalesReturnStatus?>(
-                  isExpanded: stacked,
-                  value: controller.statusFilter,
-                  hint: Text('status'.tr),
-                  borderRadius: BorderRadius.circular(14),
-                  items: [
-                    DropdownMenuItem<SalesReturnStatus?>(
-                      value: null,
-                      child: Text('all'.tr),
-                    ),
-                    for (final status in SalesReturnStatus.values)
-                      DropdownMenuItem<SalesReturnStatus?>(
-                        value: status,
-                        child: Text('sales_return_status_${status.value}'.tr),
-                      ),
-                  ],
-                  onChanged: controller.setStatusFilter,
+              if (controller.statusFilter != null)
+                InputChip(
+                  key: const ValueKey('return-status-chip'),
+                  label: Text(
+                    'sales_return_status_${controller.statusFilter!.value}'.tr,
+                  ),
+                  onDeleted: () => controller.setStatusFilter(null),
                 ),
-              ),
-            ),
-            if (controller.hasFilters)
               TextButton.icon(
                 onPressed: controller.clearFilters,
                 icon: const Icon(Icons.close_rounded),
                 label: Text('clear_filters'.tr),
               ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _showStatusFilter(BuildContext context) async {
+    final selected = await showFatooraModalBottomSheet<Object>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Text(
+                'status'.tr,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            ListTile(
+              title: Text('all'.tr),
+              onTap: () => Navigator.of(sheetContext).pop('all'),
+            ),
+            for (final status in SalesReturnStatus.values)
+              ListTile(
+                title: Text('sales_return_status_${status.value}'.tr),
+                onTap: () => Navigator.of(sheetContext).pop(status),
+              ),
+            const SizedBox(height: 12),
           ],
-        );
-      },
+        ),
+      ),
+    );
+    if (selected == 'all') controller.setStatusFilter(null);
+    if (selected is SalesReturnStatus) controller.setStatusFilter(selected);
+  }
+}
+
+class _Results extends StatelessWidget {
+  const _Results({required this.controller});
+  final SalesReturnsListController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    if (controller.statusRequest == StatusRequest.loading) {
+      return const Center(
+        key: ValueKey('return-results-loading'),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 48),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    if (controller.statusRequest != StatusRequest.success) {
+      return BusinessEmptyState(
+        key: const ValueKey('return-results-error'),
+        icon: Icons.error_outline_rounded,
+        title: controller.loadErrorMessageKey.tr,
+        action: OutlinedButton.icon(
+          onPressed: controller.loadSalesReturns,
+          icon: const Icon(Icons.refresh_rounded),
+          label: Text('items_retry'.tr),
+        ),
+      );
+    }
+    if (controller.salesReturns.isEmpty) {
+      return _EmptyReturns(hasFilters: controller.hasAppliedFilters);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+            if (constraints.maxWidth >= 900 && !largeText) {
+              return _ReturnTable(controller: controller);
+            }
+            return _ReturnCards(controller: controller);
+          },
+        ),
+        if (controller.loadMoreErrorMessageKey != null) ...[
+          const SizedBox(height: 12),
+          BusinessEmptyState(
+            key: const ValueKey('return-load-more-error'),
+            icon: Icons.error_outline_rounded,
+            title: controller.loadMoreErrorMessageKey!.tr,
+            action: OutlinedButton.icon(
+              onPressed: controller.loadMoreSalesReturns,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text('items_retry'.tr),
+            ),
+          ),
+        ],
+        if (controller.hasMore &&
+            controller.loadMoreErrorMessageKey == null) ...[
+          const SizedBox(height: 16),
+          BusinessLoadMoreButton(
+            loading: controller.isLoadingMore,
+            onPressed: controller.loadMoreSalesReturns,
+          ),
+        ],
+      ],
     );
   }
 }
@@ -160,24 +244,43 @@ class _ReturnCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        for (final salesReturn in controller.salesReturns) ...[
-          _ReturnCard(
-            salesReturn: salesReturn,
-            onTap: () => controller.openDetails(salesReturn),
-          ),
-          const SizedBox(height: 12),
-        ],
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final twoColumns =
+            constraints.maxWidth >= 650 &&
+            MediaQuery.textScalerOf(context).scale(1) <= 1.3;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            for (final salesReturn in controller.salesReturns)
+              SizedBox(
+                width: twoColumns
+                    ? (constraints.maxWidth - 12) / 2
+                    : constraints.maxWidth,
+                child: SalesReturnListCard(
+                  salesReturn: salesReturn,
+                  showSalesRepresentative: controller.showSalesRepresentative,
+                  onTap: () => controller.openDetails(salesReturn),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
 
-class _ReturnCard extends StatelessWidget {
-  const _ReturnCard({required this.salesReturn, required this.onTap});
+class SalesReturnListCard extends StatelessWidget {
+  const SalesReturnListCard({
+    super.key,
+    required this.salesReturn,
+    required this.showSalesRepresentative,
+    required this.onTap,
+  });
 
   final SalesReturnModel salesReturn;
+  final bool showSalesRepresentative;
   final VoidCallback onTap;
 
   @override
@@ -192,10 +295,11 @@ class _ReturnCard extends StatelessWidget {
         side: const BorderSide(color: Color(0xFFE4E8EF)),
       ),
       child: InkWell(
+        key: ValueKey('return-card-${salesReturn.id}'),
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -213,13 +317,17 @@ class _ReturnCard extends StatelessWidget {
                   SalesReturnStatusChip(status: salesReturn.status),
                 ],
               ),
-              const SizedBox(height: 10),
-              Text(
-                '${'original_invoice'.tr}: ${salesReturn.originalInvoiceNumber}',
-              ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 6),
               Text(salesReturn.customerSnapshot?.name ?? '-'),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
+              Text(
+                money.format(salesReturn.grandTotal),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: AppColor.primaryColor,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 12,
                 runSpacing: 8,
@@ -232,11 +340,18 @@ class _ReturnCard extends StatelessWidget {
                     icon: Icons.account_balance_wallet_outlined,
                     text: 'refund_type_${salesReturn.refundType.value}'.tr,
                   ),
-                  _Info(
-                    icon: Icons.payments_outlined,
-                    text: money.format(salesReturn.grandTotal),
-                  ),
+                  if (showSalesRepresentative &&
+                      salesReturn.salesRepName.isNotEmpty)
+                    _Info(
+                      icon: Icons.person_outline_rounded,
+                      text: salesReturn.salesRepName,
+                    ),
                 ],
+              ),
+              const SizedBox(height: 5),
+              Text(
+                '${'original_invoice'.tr}: ${salesReturn.originalInvoiceNumber}',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ),
@@ -270,12 +385,14 @@ class _ReturnTable extends StatelessWidget {
               _column('status', width: 92),
               if (full) _column('refund_type', width: 132),
               _column('grand_total', width: 116, numeric: true),
-              if (full) _column('sales_rep', width: 130),
+              if (full && controller.showSalesRepresentative)
+                _column('sales_rep', width: 130),
               _column('actions', width: 68),
             ],
             rows: controller.salesReturns
                 .map(
                   (salesReturn) => DataRow(
+                    onSelectChanged: (_) => controller.openDetails(salesReturn),
                     cells: [
                       DataCell(
                         BoundedTableText(
@@ -312,7 +429,7 @@ class _ReturnTable extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (full)
+                      if (full && controller.showSalesRepresentative)
                         DataCell(
                           BoundedTableText(
                             'refund_type_${salesReturn.refundType.value}'.tr,
@@ -383,7 +500,7 @@ class _Info extends StatelessWidget {
       children: [
         Icon(icon, size: 16, color: AppColor.grey),
         const SizedBox(width: 5),
-        Text(text),
+        Flexible(child: Text(text, softWrap: true)),
       ],
     );
   }

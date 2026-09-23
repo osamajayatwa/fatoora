@@ -18,6 +18,7 @@ const Map<String, String> financialLedgerArabicTranslations = {
   'ledger_summary_note':
       'المبيعات النقدية والآجلة مبالغ إجمالية موثقة عند إصدار الفاتورة؛ تعرض المرتجعات منفصلة لتجنب توزيعها بصورة تخمينية.',
   'ledger_search': 'بحث',
+  'ledger_filter': 'تصفية',
   'ledger_search_hint': 'مرجع، عميل، مندوب أو بيان',
   'ledger_search_min': 'أدخل حرفين على الأقل',
   'ledger_movement_type': 'نوع الحركة',
@@ -96,6 +97,7 @@ const Map<String, String> financialLedgerEnglishTranslations = {
   'ledger_summary_note':
       'Cash and credit sales are verified gross invoice portions; returns are shown separately to avoid speculative allocation.',
   'ledger_search': 'Search',
+  'ledger_filter': 'Filter',
   'ledger_search_hint': 'Reference, customer, rep, or description',
   'ledger_search_min': 'Enter at least two characters',
   'ledger_movement_type': 'Movement type',

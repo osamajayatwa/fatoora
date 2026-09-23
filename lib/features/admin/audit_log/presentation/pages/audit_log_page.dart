@@ -1,4 +1,4 @@
-import 'package:fatoora/core/class/handilingdataview.dart';
+import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/motion/fatoora_overlays.dart';
 import 'package:fatoora/features/admin/audit_log/controllers/audit_log_controller.dart';
@@ -16,15 +16,7 @@ class AuditLogPage extends GetView<AuditLogController> {
   @override
   Widget build(BuildContext context) => AdminDashboardShell(
     child: GetBuilder<AuditLogController>(
-      builder: (controller) => HandilingDataView(
-        statusrequest: controller.statusRequest,
-        onRetry: controller.load,
-        errorMessage: controller.statusRequest.name == 'unauthorized'
-            ? 'audit_admin_only'.tr
-            : 'audit_load_failed'.tr,
-        retryLabel: 'retry'.tr,
-        widget: _AuditLogBody(controller: controller),
-      ),
+      builder: (controller) => _AuditLogBody(controller: controller),
     ),
   );
 }
@@ -44,37 +36,19 @@ class _AuditLogBody extends StatelessWidget {
           children: [
             BusinessPageHeader(
               title: 'audit_log_title'.tr,
-              subtitle: 'audit_log_description'.tr,
+              subtitle: compact ? null : 'audit_log_description'.tr,
             ),
-            const SizedBox(height: 18),
-            _SummaryCards(controller: controller),
-            const SizedBox(height: 18),
             _FilterToolbar(controller: controller, compact: compact),
-            const SizedBox(height: 18),
-            if (controller.visibleEvents.isEmpty)
-              _EmptyState()
-            else if (compact)
-              ...controller.visibleEvents.map(
-                (event) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _EventCard(
-                    event: event,
-                    onOpen: () => _openDetails(context, event),
-                  ),
-                ),
-              )
-            else
-              _EventTable(
-                events: controller.visibleEvents,
-                onOpen: (event) => _openDetails(context, event),
-              ),
-            if (controller.hasMore) ...[
-              const SizedBox(height: 18),
-              BusinessLoadMoreButton(
-                loading: controller.loadingMore,
-                onPressed: controller.loadMore,
-              ),
+            if (controller.statusRequest == StatusRequest.success) ...[
+              const SizedBox(height: 14),
+              _SummaryCards(controller: controller),
             ],
+            const SizedBox(height: 14),
+            _AuditResults(
+              controller: controller,
+              compact: compact,
+              onOpen: (event) => _openDetails(context, event),
+            ),
           ],
         ),
       );
@@ -109,6 +83,78 @@ class _AuditLogBody extends StatelessWidget {
         ),
       );
     }
+  }
+}
+
+class _AuditResults extends StatelessWidget {
+  const _AuditResults({
+    required this.controller,
+    required this.compact,
+    required this.onOpen,
+  });
+  final AuditLogController controller;
+  final bool compact;
+  final ValueChanged<AuditEventModel> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    if (controller.statusRequest == StatusRequest.loading) {
+      return const Center(
+        key: ValueKey('audit-results-loading'),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 48),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    if (controller.statusRequest != StatusRequest.success) {
+      return BusinessEmptyState(
+        key: const ValueKey('audit-results-error'),
+        icon: Icons.error_outline_rounded,
+        title: controller.statusRequest == StatusRequest.unauthorized
+            ? 'audit_admin_only'.tr
+            : 'audit_load_failed'.tr,
+        action: OutlinedButton.icon(
+          onPressed: controller.load,
+          icon: const Icon(Icons.refresh_rounded),
+          label: Text('retry'.tr),
+        ),
+      );
+    }
+    if (controller.visibleEvents.isEmpty) return _EmptyState();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (compact)
+          for (final event in controller.visibleEvents) ...[
+            _EventCard(event: event, onOpen: () => onOpen(event)),
+            const SizedBox(height: 10),
+          ]
+        else
+          _EventTable(events: controller.visibleEvents, onOpen: onOpen),
+        if (controller.loadMoreErrorMessageKey != null) ...[
+          const SizedBox(height: 12),
+          BusinessEmptyState(
+            key: const ValueKey('audit-load-more-error'),
+            icon: Icons.error_outline_rounded,
+            title: controller.loadMoreErrorMessageKey!.tr,
+            action: OutlinedButton.icon(
+              onPressed: controller.loadMore,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text('retry'.tr),
+            ),
+          ),
+        ],
+        if (controller.hasMore &&
+            controller.loadMoreErrorMessageKey == null) ...[
+          const SizedBox(height: 14),
+          BusinessLoadMoreButton(
+            loading: controller.loadingMore,
+            onPressed: controller.loadMore,
+          ),
+        ],
+      ],
+    );
   }
 }
 
@@ -193,6 +239,7 @@ class _FilterToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (compact) return _CompactAuditFilters(controller: controller);
     final search = TextField(
       controller: controller.searchController,
       onChanged: controller.search,
@@ -297,6 +344,138 @@ class _FilterToolbar extends StatelessWidget {
               ),
       ),
     );
+  }
+}
+
+class _CompactAuditFilters extends StatelessWidget {
+  const _CompactAuditFilters({required this.controller});
+  final AuditLogController controller;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      TextField(
+        key: const ValueKey('audit-search'),
+        controller: controller.searchController,
+        onChanged: controller.search,
+        decoration: InputDecoration(
+          labelText: 'audit_search'.tr,
+          prefixIcon: const Icon(Icons.search_rounded),
+          filled: true,
+          fillColor: AppColor.surface,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+      const SizedBox(height: 10),
+      Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: OutlinedButton.icon(
+          key: const ValueKey('audit-filter-button'),
+          onPressed: () => _showFilter(context),
+          icon: const Icon(Icons.tune_rounded),
+          label: Text('audit_filter'.tr),
+        ),
+      ),
+      if (controller.filterValue.isNotEmpty ||
+          controller.dateRange != null ||
+          controller.searchText.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            if (controller.searchText.isNotEmpty)
+              InputChip(
+                label: Text(controller.searchText),
+                onDeleted: () {
+                  controller.searchController.clear();
+                  controller.search('');
+                },
+              ),
+            if (controller.filterValue.isNotEmpty)
+              InputChip(
+                label: Text(controller.filterValue.tr),
+                onDeleted: controller.clearFilters,
+              ),
+            if (controller.dateRange != null)
+              InputChip(
+                label: Text(
+                  '${DateFormat.yMd().format(controller.dateRange!.start)} - '
+                  '${DateFormat.yMd().format(controller.dateRange!.end)}',
+                ),
+                onDeleted: () => controller.setDateRange(null),
+              ),
+            TextButton(
+              onPressed: controller.clearFilters,
+              child: Text('audit_clear_filters'.tr),
+            ),
+          ],
+        ),
+      ],
+    ],
+  );
+
+  Future<void> _showFilter(BuildContext context) async {
+    final action = await showFatooraModalBottomSheet<(String, String)>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: FractionallySizedBox(
+          heightFactor: 0.75,
+          child: ListView(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'audit_filter'.tr,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              ListTile(
+                title: Text('audit_date_range'.tr),
+                leading: const Icon(Icons.date_range_outlined),
+                onTap: () => Navigator.of(sheetContext).pop(('date', '')),
+              ),
+              for (final value in const [
+                'sales',
+                'financial',
+                'inventory',
+                'customers',
+                'security',
+                'settings',
+              ])
+                ListTile(
+                  title: Text('${'audit_category'.tr}: ${value.tr}'),
+                  onTap: () =>
+                      Navigator.of(sheetContext).pop(('category', value)),
+                ),
+              for (final value in const ['info', 'warning', 'critical'])
+                ListTile(
+                  title: Text('${'audit_severity'.tr}: ${value.tr}'),
+                  onTap: () =>
+                      Navigator.of(sheetContext).pop(('severity', value)),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (action == null) return;
+    if (action.$1 == 'date' && context.mounted) {
+      final now = DateTime.now();
+      final range = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(now.year - 5),
+        lastDate: DateTime(now.year + 1),
+        initialDateRange: controller.dateRange,
+      );
+      if (range != null) await controller.setDateRange(range);
+    } else {
+      await controller.setFilter(action.$1, action.$2);
+    }
   }
 }
 

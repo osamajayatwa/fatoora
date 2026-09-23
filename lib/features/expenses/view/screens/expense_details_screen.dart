@@ -43,7 +43,10 @@ class ExpenseDetailsScreen extends StatelessWidget {
                       children: [
                         _DetailsHeader(expense: expense),
                         const SizedBox(height: 16),
-                        _ExpenseInfo(expense: expense),
+                        _ExpenseInfo(
+                          expense: expense,
+                          showRepresentative: controller.isAdmin,
+                        ),
                         if (controller.canDecide) ...[
                           const SizedBox(height: 16),
                           _DecisionCard(controller: controller),
@@ -92,6 +95,13 @@ class _DetailsHeader extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      '${'expenses_reference'.tr}: ${expense.id}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 4),
                     Text(
                       _categoryLabel(expense).tr,
                       style: Theme.of(context).textTheme.headlineSmall
@@ -144,9 +154,10 @@ class _DetailsHeader extends StatelessWidget {
 }
 
 class _ExpenseInfo extends StatelessWidget {
-  const _ExpenseInfo({required this.expense});
+  const _ExpenseInfo({required this.expense, required this.showRepresentative});
 
   final ExpenseModel expense;
+  final bool showRepresentative;
 
   @override
   Widget build(BuildContext context) {
@@ -162,17 +173,34 @@ class _ExpenseInfo extends StatelessWidget {
             'expense_reimbursement_status',
             expense.reimbursementStatus.labelKey.tr,
           ),
-          _InfoRow('expense_paid_by', expense.paidByName),
-          if (expense.salesRepName.isNotEmpty)
+          if (showRepresentative && expense.paidByName.isNotEmpty)
+            _InfoRow('expense_paid_by', expense.paidByName),
+          if (showRepresentative && expense.salesRepName.isNotEmpty)
             _InfoRow('sales_rep', expense.salesRepName),
           if (expense.description.isNotEmpty)
             _InfoRow('expense_description', expense.description),
           if (expense.cashMovementId.isNotEmpty)
             _InfoRow('cash_movements', expense.cashMovementId),
+          if (expense.fundingSource == ExpenseFundingSource.personalCash &&
+              expense.cashMovementId.isEmpty)
+            Text(
+              'expense_personal_cash_note'.tr,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           if (expense.approvedByName.isNotEmpty)
             _InfoRow('expense_approved_by', expense.approvedByName),
+          if (expense.approvedAt != null)
+            _InfoRow(
+              'expense_status_approved',
+              formatter.format(expense.approvedAt!),
+            ),
           if (expense.rejectedByName.isNotEmpty)
             _InfoRow('expense_rejected_by', expense.rejectedByName),
+          if (expense.rejectedAt != null)
+            _InfoRow(
+              'expense_status_rejected',
+              formatter.format(expense.rejectedAt!),
+            ),
           if (expense.rejectionReason.isNotEmpty)
             _InfoRow('expense_rejection_reason', expense.rejectionReason),
         ],

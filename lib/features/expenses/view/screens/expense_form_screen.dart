@@ -35,6 +35,7 @@ class ExpenseFormScreen extends StatelessWidget {
                         const SizedBox(height: 20),
                         TextField(
                           controller: controller.amountController,
+                          readOnly: controller.isSaving,
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
@@ -47,6 +48,7 @@ class ExpenseFormScreen extends StatelessWidget {
                         const SizedBox(height: 16),
                         DropdownButtonFormField<ExpenseCategory>(
                           value: controller.category,
+                          isExpanded: true,
                           decoration: InputDecoration(
                             labelText: 'expense_category'.tr,
                             prefixIcon: const Icon(Icons.category_outlined),
@@ -56,15 +58,22 @@ class ExpenseFormScreen extends StatelessWidget {
                             for (final category in ExpenseCategory.values)
                               DropdownMenuItem(
                                 value: category,
-                                child: Text(category.labelKey.tr),
+                                child: Text(
+                                  category.labelKey.tr,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                           ],
-                          onChanged: controller.setCategory,
+                          onChanged: controller.isSaving
+                              ? null
+                              : controller.setCategory,
                         ),
                         if (controller.category == ExpenseCategory.other) ...[
                           const SizedBox(height: 16),
                           TextField(
                             controller: controller.customCategoryController,
+                            readOnly: controller.isSaving,
                             decoration: InputDecoration(
                               labelText: 'expense_custom_category'.tr,
                               prefixIcon: const Icon(Icons.edit_outlined),
@@ -74,11 +83,20 @@ class ExpenseFormScreen extends StatelessWidget {
                         ],
                         const SizedBox(height: 16),
                         _FundingSourceSelector(controller: controller),
+                        if (controller.fundingSource ==
+                            ExpenseFundingSource.personalCash) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'expense_personal_cash_note'.tr,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
                         const SizedBox(height: 16),
                         _ExpenseDateField(controller: controller),
                         const SizedBox(height: 16),
                         TextField(
                           controller: controller.descriptionController,
+                          readOnly: controller.isSaving,
                           maxLines: 3,
                           decoration: InputDecoration(
                             labelText: 'expense_description'.tr,
@@ -109,7 +127,9 @@ class ExpenseFormScreen extends StatelessWidget {
                                 )
                               : const Icon(Icons.save_outlined),
                           label: Text(
-                            controller.isAdmin
+                            controller.isSaving
+                                ? 'expense_saving'.tr
+                                : controller.isAdmin
                                 ? 'expense_post'.tr
                                 : 'expense_submit_for_approval'.tr,
                           ),
@@ -193,7 +213,9 @@ class _FundingSourceSelector extends StatelessWidget {
           for (final source in controller.availableFundingSources)
             ChoiceChip(
               selected: controller.fundingSource == source,
-              onSelected: (_) => controller.setFundingSource(source),
+              onSelected: controller.isSaving
+                  ? null
+                  : (_) => controller.setFundingSource(source),
               label: Text(source.labelKey.tr),
             ),
         ],
@@ -212,15 +234,17 @@ class _ExpenseDateField extends StatelessWidget {
     final formatter = DateFormat.yMd();
     return InkWell(
       borderRadius: BorderRadius.circular(14),
-      onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          firstDate: DateTime(2020),
-          lastDate: DateTime.now().add(const Duration(days: 365)),
-          initialDate: controller.expenseDate,
-        );
-        if (picked != null) controller.setExpenseDate(picked);
-      },
+      onTap: controller.isSaving
+          ? null
+          : () async {
+              final picked = await showDatePicker(
+                context: context,
+                firstDate: DateTime(2020),
+                lastDate: DateTime.now().add(const Duration(days: 365)),
+                initialDate: controller.expenseDate,
+              );
+              if (picked != null) controller.setExpenseDate(picked);
+            },
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: 'expense_date'.tr,

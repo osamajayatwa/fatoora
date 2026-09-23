@@ -28,6 +28,8 @@ class AuditLogController extends GetxController {
   DocumentSnapshot<Map<String, dynamic>>? _cursor;
   bool hasMore = false;
   bool loadingMore = false;
+  String? loadMoreErrorMessageKey;
+  int _loadGeneration = 0;
   String filterField = '';
   String filterValue = '';
   DateTimeRange? dateRange;
@@ -75,10 +77,13 @@ class AuditLogController extends GetxController {
   }
 
   Future<void> load() async {
+    final generation = ++_loadGeneration;
     statusRequest = StatusRequest.loading;
+    loadMoreErrorMessageKey = null;
     update();
     try {
       final context = await _contextLoader();
+      if (generation != _loadGeneration) return;
       if (!context.isAdmin) {
         statusRequest = StatusRequest.unauthorized;
         update();
@@ -89,15 +94,18 @@ class AuditLogController extends GetxController {
         companyId: context.companyId,
         filter: _filter,
       );
+      if (generation != _loadGeneration) return;
       events = page.events;
       _cursor = page.cursor;
       hasMore = page.hasMore;
       statusRequest = StatusRequest.success;
     } on FirebaseException catch (error) {
+      if (generation != _loadGeneration) return;
       statusRequest = error.code == 'permission-denied'
           ? StatusRequest.unauthorized
           : StatusRequest.serverfailure;
     } catch (_) {
+      if (generation != _loadGeneration) return;
       statusRequest = StatusRequest.failure;
     }
     update();
@@ -107,6 +115,8 @@ class AuditLogController extends GetxController {
     final context = userContext;
     if (context == null || !hasMore || loadingMore) return;
     loadingMore = true;
+    loadMoreErrorMessageKey = null;
+    final generation = _loadGeneration;
     update();
     try {
       final page = await _repository.fetchPage(
@@ -114,9 +124,13 @@ class AuditLogController extends GetxController {
         filter: _filter,
         after: _cursor,
       );
+      if (generation != _loadGeneration) return;
       events = [...events, ...page.events];
       _cursor = page.cursor;
       hasMore = page.hasMore;
+    } catch (_) {
+      if (generation != _loadGeneration) return;
+      loadMoreErrorMessageKey = 'audit_load_failed';
     } finally {
       loadingMore = false;
       update();

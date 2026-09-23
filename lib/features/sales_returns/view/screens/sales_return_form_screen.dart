@@ -2,6 +2,7 @@ import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
+import 'package:fatoora/features/invoices/data/models/invoice_item_snapshot.dart';
 import 'package:fatoora/features/sales_returns/controllers/sales_return_form_controller.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_enums.dart';
 import 'package:fatoora/features/sales_returns/data/models/sales_return_item_model.dart';
@@ -148,6 +149,7 @@ class _ReturnMeta extends StatelessWidget {
         builder: (context, constraints) {
           final reason = TextField(
             controller: controller.reasonController,
+            readOnly: controller.isSaving,
             maxLines: 3,
             onChanged: (_) => controller.update(),
             decoration: InputDecoration(
@@ -176,7 +178,9 @@ class _ReturnMeta extends StatelessWidget {
                   for (final type in RefundType.values)
                     ChoiceChip(
                       selected: controller.refundType == type,
-                      onSelected: (_) => controller.setRefundType(type),
+                      onSelected: controller.isSaving
+                          ? null
+                          : (_) => controller.setRefundType(type),
                       label: Text('refund_type_${type.value}'.tr),
                     ),
                 ],
@@ -212,15 +216,17 @@ class _DateField extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(12),
-      onTap: () async {
-        final selected = await showDatePicker(
-          context: context,
-          initialDate: controller.returnDate,
-          firstDate: DateTime(2020),
-          lastDate: DateTime.now().add(const Duration(days: 365)),
-        );
-        if (selected != null) controller.setReturnDate(selected);
-      },
+      onTap: controller.isSaving
+          ? null
+          : () async {
+              final selected = await showDatePicker(
+                context: context,
+                initialDate: controller.returnDate,
+                firstDate: DateTime(2020),
+                lastDate: DateTime.now().add(const Duration(days: 365)),
+              );
+              if (selected != null) controller.setReturnDate(selected);
+            },
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: 'return_date'.tr,
@@ -270,14 +276,18 @@ class _ItemCards extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  [
-                    item.itemName,
-                    item.description,
-                  ].where((value) => value.isNotEmpty).join('\n'),
+                  item.itemName,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     color: AppColor.secondaryColor,
                     fontWeight: FontWeight.w800,
                   ),
+                ),
+                if (item.description.isNotEmpty) Text(item.description),
+                const SizedBox(height: 5),
+                Text(
+                  item.lineType == InvoiceLineType.custom
+                      ? 'sales_return_line_custom'.tr
+                      : 'sales_return_line_catalog'.tr,
                 ),
                 if (item.itemCode.isNotEmpty) Text(item.itemCode),
                 const SizedBox(height: 10),
@@ -329,6 +339,9 @@ class _ItemTable extends StatelessWidget {
                         [
                           item.itemName,
                           item.description,
+                          item.lineType == InvoiceLineType.custom
+                              ? 'sales_return_line_custom'.tr
+                              : 'sales_return_line_catalog'.tr,
                         ].where((value) => value.isNotEmpty).join('\n'),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -365,6 +378,7 @@ class _QuantityField extends StatelessWidget {
     final lineId = item.originalInvoiceItemId;
     return TextField(
       controller: controller.quantityControllers[lineId],
+      readOnly: controller.isSaving,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       onChanged: (value) => controller.updateReturnedQuantity(lineId, value),
       decoration: InputDecoration(

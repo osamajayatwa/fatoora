@@ -1,10 +1,11 @@
-import 'package:fatoora/core/class/handilingdataview.dart';
+import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
-import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/core/widgets/responsive_data_table_card.dart';
 import 'package:fatoora/features/customers/controllers/customer_statement_controller.dart';
 import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
+import 'package:fatoora/features/customers/view/widgets/customer_list_components.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
+import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -20,13 +21,7 @@ class CustomerStatementScreen extends StatelessWidget {
         title: 'customers_statement'.tr,
         showBackButton: true,
         onBack: controller.requestBack,
-        child: HandilingDataView(
-          statusrequest: controller.statusRequest,
-          errorMessage: controller.loadErrorMessageKey.tr,
-          retryLabel: 'items_retry'.tr,
-          onRetry: controller.loadStatement,
-          widget: _StatementBody(controller: controller),
-        ),
+        child: _StatementBody(controller: controller),
       ),
     );
   }
@@ -40,8 +35,6 @@ class _StatementBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final customer = controller.customer;
-    if (customer == null) return const SizedBox.shrink();
-    final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
     return SingleChildScrollView(
       padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 600 ? 14 : 24),
       child: Center(
@@ -67,22 +60,20 @@ class _StatementBody extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                customer.name,
+                                customer?.name ?? 'customers_statement'.tr,
                                 style: Theme.of(context).textTheme.headlineSmall
                                     ?.copyWith(
                                       color: AppColor.secondaryColor,
                                       fontWeight: FontWeight.w900,
                                     ),
                               ),
-                              const SizedBox(height: 6),
-                              Text(
-                                '${'customers_balance'.tr}: ${currency.format(controller.finalBalance)}',
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(
-                                      color: AppColor.primaryColor,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                              ),
+                              if (controller.statusRequest ==
+                                  StatusRequest.success) ...[
+                                const SizedBox(height: 6),
+                                CustomerBalanceBadge(
+                                  balance: controller.finalBalance,
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -110,20 +101,22 @@ class _StatementBody extends StatelessWidget {
                         ),
                         if (controller.fromDate != null ||
                             controller.toDate != null)
-                          TextButton.icon(
-                            onPressed: controller.clearDateRange,
-                            icon: const Icon(Icons.close_rounded),
-                            label: Text('clear_filters'.tr),
+                          InputChip(
+                            label: Text(
+                              '${DateFormat.yMd().format(controller.fromDate!)} - '
+                              '${DateFormat.yMd().format(controller.toDate!)}',
+                            ),
+                            onDeleted: controller.clearDateRange,
                           ),
                         OutlinedButton.icon(
-                          onPressed: controller.isPrinting
+                          onPressed: controller.isPrinting || customer == null
                               ? null
                               : controller.printStatement,
                           icon: const Icon(Icons.print_outlined),
                           label: Text('print'.tr),
                         ),
                         FilledButton.icon(
-                          onPressed: controller.isPrinting
+                          onPressed: controller.isPrinting || customer == null
                               ? null
                               : controller.exportStatementPdf,
                           style: FilledButton.styleFrom(
@@ -138,41 +131,11 @@ class _StatementBody extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              _Totals(controller: controller),
-              const SizedBox(height: 16),
-              if (controller.transactions.isEmpty)
-                DashboardCard(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 34),
-                    child: Text(
-                      'customers_no_transactions'.tr,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppColor.secondaryColor,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                )
-              else
-                _TransactionsTable(transactions: controller.transactions),
-              if (controller.hasMore) ...[
+              if (controller.statusRequest == StatusRequest.success) ...[
+                _Totals(controller: controller),
                 const SizedBox(height: 12),
-                Center(
-                  child: OutlinedButton.icon(
-                    onPressed: controller.isLoadingMore
-                        ? null
-                        : controller.loadMore,
-                    icon: controller.isLoadingMore
-                        ? const SizedBox.square(
-                            dimension: 18,
-                            child: FatooraProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.expand_more_rounded),
-                    label: Text('load_more_records'.tr),
-                  ),
-                ),
               ],
+              _TransactionResults(controller: controller),
             ],
           ),
         ),
@@ -233,7 +196,7 @@ class _TotalChip extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               value,
-              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: AppColor.secondaryColor,
                 fontWeight: FontWeight.w900,
@@ -241,6 +204,164 @@ class _TotalChip extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _TransactionResults extends StatelessWidget {
+  const _TransactionResults({required this.controller});
+  final CustomerStatementController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    if (controller.statusRequest == StatusRequest.loading) {
+      return const Center(
+        key: ValueKey('statement-results-loading'),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 48),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    if (controller.statusRequest != StatusRequest.success) {
+      return BusinessEmptyState(
+        key: const ValueKey('statement-results-error'),
+        icon: Icons.error_outline_rounded,
+        title: controller.loadErrorMessageKey.tr,
+        action: OutlinedButton.icon(
+          onPressed: controller.loadStatement,
+          icon: const Icon(Icons.refresh_rounded),
+          label: Text('items_retry'.tr),
+        ),
+      );
+    }
+    if (controller.transactions.isEmpty) {
+      return BusinessEmptyState(
+        key: const ValueKey('statement-results-empty'),
+        icon: Icons.receipt_long_outlined,
+        title: 'customers_no_transactions'.tr,
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+            if (constraints.maxWidth >= 900 && !largeText) {
+              return _TransactionsTable(transactions: controller.transactions);
+            }
+            final twoColumns = constraints.maxWidth >= 650 && !largeText;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                for (final transaction in controller.transactions)
+                  SizedBox(
+                    width: twoColumns
+                        ? (constraints.maxWidth - 12) / 2
+                        : constraints.maxWidth,
+                    child: StatementTransactionCard(transaction: transaction),
+                  ),
+              ],
+            );
+          },
+        ),
+        if (controller.loadMoreErrorMessageKey != null) ...[
+          const SizedBox(height: 12),
+          BusinessEmptyState(
+            key: const ValueKey('statement-load-more-error'),
+            icon: Icons.error_outline_rounded,
+            title: controller.loadMoreErrorMessageKey!.tr,
+            action: OutlinedButton.icon(
+              onPressed: controller.loadMore,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text('items_retry'.tr),
+            ),
+          ),
+        ],
+        if (controller.hasMore &&
+            controller.loadMoreErrorMessageKey == null) ...[
+          const SizedBox(height: 12),
+          BusinessLoadMoreButton(
+            loading: controller.isLoadingMore,
+            onPressed: controller.loadMore,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class StatementTransactionCard extends StatelessWidget {
+  const StatementTransactionCard({super.key, required this.transaction});
+  final CustomerTransactionModel transaction;
+
+  @override
+  Widget build(BuildContext context) {
+    final money = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
+    return DashboardCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  transaction.transactionType.tr,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: AppColor.secondaryColor,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Text(
+                DateFormat.yMd().format(transaction.transactionDate),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+          if (transaction.sourceNumber.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              transaction.sourceNumber,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+          if (transaction.notes.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              transaction.notes,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 12,
+            runSpacing: 5,
+            children: [
+              if (transaction.debitAmount != 0)
+                Text(
+                  '${'customers_debit'.tr}: '
+                  '${money.format(transaction.debitAmount)}',
+                ),
+              if (transaction.creditAmount != 0)
+                Text(
+                  '${'customers_credit'.tr}: '
+                  '${money.format(transaction.creditAmount)}',
+                ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            '${'customers_balance'.tr}: '
+            '${money.format(transaction.balanceAfter)}',
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+        ],
       ),
     );
   }

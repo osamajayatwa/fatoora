@@ -28,6 +28,8 @@ class SalesReturnDetailsController extends GetxController {
   bool isPrinting = false;
 
   bool get canConfirm => salesReturn?.isDraft == true && !isConfirming;
+  bool get showSalesRepresentative =>
+      _myServices.sharedPreferences.getString('role')?.trim() == 'admin';
 
   @override
   void onReady() {

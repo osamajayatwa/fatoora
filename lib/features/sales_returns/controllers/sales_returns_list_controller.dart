@@ -30,6 +30,7 @@ class SalesReturnsListController extends GetxController {
   SalesReturnStatus? statusFilter;
   String searchText = '';
   bool isLoadingMore = false;
+  String? loadMoreErrorMessageKey;
   bool hasMore = false;
   FirestorePageCursor? _pageCursor;
   Timer? _searchDebounce;
@@ -40,6 +41,12 @@ class SalesReturnsListController extends GetxController {
       _myServices.sharedPreferences.getString('companyId') ?? 'default_company';
 
   bool get hasFilters => searchText.trim().isNotEmpty || statusFilter != null;
+  bool get hasAppliedFilters =>
+      _appliedSearchText.isNotEmpty || statusFilter != null;
+  bool get showSalesRepresentative =>
+      _myServices.sharedPreferences.getString('role')?.trim() == 'admin';
+  bool get searchIsTooShort =>
+      searchText.trim().isNotEmpty && serverSearchTerm(searchText).isEmpty;
 
   @override
   void onReady() {
@@ -54,6 +61,7 @@ class SalesReturnsListController extends GetxController {
     statusRequest = StatusRequest.loading;
     _pageCursor = null;
     hasMore = false;
+    loadMoreErrorMessageKey = null;
     loadErrorMessageKey = 'sales_returns_load_error';
     update();
     try {
@@ -85,6 +93,7 @@ class SalesReturnsListController extends GetxController {
   Future<void> loadMoreSalesReturns() async {
     if (isLoadingMore || !hasMore || _pageCursor == null) return;
     isLoadingMore = true;
+    loadMoreErrorMessageKey = null;
     final generation = _loadGeneration;
     update();
     try {
@@ -98,9 +107,10 @@ class SalesReturnsListController extends GetxController {
       salesReturns = [...salesReturns, ...page.items];
       _pageCursor = page.cursor;
       hasMore = page.hasMore;
+      loadMoreErrorMessageKey = null;
     } catch (error) {
       if (generation != _loadGeneration) return;
-      _showError(SalesReturnErrorMapper.messageKey(error));
+      loadMoreErrorMessageKey = SalesReturnErrorMapper.messageKey(error);
     } finally {
       isLoadingMore = false;
       if (!isClosed) update();

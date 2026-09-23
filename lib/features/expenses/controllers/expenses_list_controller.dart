@@ -36,6 +36,7 @@ class ExpensesListController extends GetxController {
   int _loadGeneration = 0;
   String _appliedSearchText = '';
   bool isLoadingMore = false;
+  String? loadMoreErrorMessageKey;
   bool hasMore = false;
   FirestorePageCursor? _pageCursor;
   double _postedExpenseTotal = 0;
@@ -56,6 +57,14 @@ class ExpensesListController extends GetxController {
       categoryFilter != null ||
       fromDate != null ||
       toDate != null;
+  bool get hasAppliedFilters =>
+      _appliedSearchText.isNotEmpty ||
+      statusFilter != null ||
+      categoryFilter != null ||
+      fromDate != null ||
+      toDate != null;
+  bool get searchIsTooShort =>
+      searchText.trim().isNotEmpty && serverSearchTerm(searchText).isEmpty;
 
   double get postedExpenseTotal => _postedExpenseTotal;
   int get pendingExpenseCount => _pendingExpenseCount;
@@ -74,6 +83,7 @@ class ExpensesListController extends GetxController {
     statusRequest = StatusRequest.loading;
     _pageCursor = null;
     hasMore = false;
+    loadMoreErrorMessageKey = null;
     loadErrorMessageKey = 'expenses_load_error';
     update();
     try {
@@ -111,6 +121,7 @@ class ExpensesListController extends GetxController {
   Future<void> loadMoreExpenses() async {
     if (isLoadingMore || !hasMore || _pageCursor == null) return;
     isLoadingMore = true;
+    loadMoreErrorMessageKey = null;
     final generation = _loadGeneration;
     update();
     try {
@@ -127,9 +138,10 @@ class ExpensesListController extends GetxController {
       expenses = [...expenses, ...page.items];
       _pageCursor = page.cursor;
       hasMore = page.hasMore;
+      loadMoreErrorMessageKey = null;
     } catch (error) {
       if (generation == _loadGeneration) {
-        _showError(ExpenseErrorMapper.messageKey(error));
+        loadMoreErrorMessageKey = ExpenseErrorMapper.messageKey(error);
       }
     } finally {
       isLoadingMore = false;
@@ -180,6 +192,18 @@ class ExpensesListController extends GetxController {
   }
 
   void setDateRange(DateTimeRange? range) {
+    fromDate = range?.start;
+    toDate = range?.end;
+    loadExpenses();
+  }
+
+  void applyFilters({
+    required ExpenseStatus? status,
+    required ExpenseCategory? category,
+    required DateTimeRange? range,
+  }) {
+    statusFilter = status;
+    categoryFilter = category;
     fromDate = range?.start;
     toDate = range?.end;
     loadExpenses();

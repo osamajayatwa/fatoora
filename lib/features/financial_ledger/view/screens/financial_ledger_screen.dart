@@ -1,9 +1,11 @@
-import 'package:fatoora/core/class/handilingdataview.dart';
+import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/financial_ledger/controllers/financial_ledger_controller.dart';
 import 'package:fatoora/features/financial_ledger/data/models/financial_ledger_entry.dart';
+import 'package:fatoora/features/financial_ledger/data/models/financial_ledger_filters.dart';
 import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
@@ -18,43 +20,37 @@ class FinancialLedgerScreen extends StatelessWidget {
     return GetBuilder<FinancialLedgerController>(
       builder: (controller) => BusinessShell(
         title: 'financial_ledger'.tr,
-        child: HandilingDataView(
-          statusrequest: controller.statusRequest,
-          errorMessage: controller.loadErrorMessageKey.tr,
-          retryLabel: 'items_retry'.tr,
-          onRetry: controller.loadInitial,
-          widget: RefreshIndicator(
-            color: AppColor.primaryColor,
-            onRefresh: controller.refreshLedger,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final padding = constraints.maxWidth < 600 ? 14.0 : 24.0;
-                return SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(padding, padding, padding, 96),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1500),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _Header(controller: controller),
-                          const SizedBox(height: 16),
+        child: RefreshIndicator(
+          color: AppColor.primaryColor,
+          onRefresh: controller.refreshLedger,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final padding = constraints.maxWidth < 600 ? 14.0 : 24.0;
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(padding, padding, padding, 96),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1500),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _Header(controller: controller),
+                        const SizedBox(height: 14),
+                        _Filters(controller: controller),
+                        if (controller.statusRequest ==
+                            StatusRequest.success) ...[
+                          const SizedBox(height: 14),
                           _Summary(controller: controller),
-                          const SizedBox(height: 16),
-                          _Filters(controller: controller),
-                          const SizedBox(height: 16),
-                          if (controller.entries.isEmpty)
-                            const _EmptyLedger()
-                          else
-                            _LedgerResults(controller: controller),
                         ],
-                      ),
+                        const SizedBox(height: 14),
+                        _LedgerResults(controller: controller),
+                      ],
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -312,6 +308,10 @@ class _Filters extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (MediaQuery.sizeOf(context).width < 1100 ||
+        MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+      return _CompactLedgerFilters(controller: controller);
+    }
     final filters = controller.filters;
     return DashboardCard(
       child: LayoutBuilder(
@@ -447,6 +447,264 @@ class _Filters extends StatelessWidget {
   }
 }
 
+class _CompactLedgerFilters extends StatelessWidget {
+  const _CompactLedgerFilters({required this.controller});
+  final FinancialLedgerController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final filters = controller.filters;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          key: const ValueKey('ledger-search'),
+          controller: controller.searchController,
+          onChanged: controller.onSearchChanged,
+          onSubmitted: (_) => controller.submitSearch(),
+          textInputAction: TextInputAction.search,
+          decoration: InputDecoration(
+            labelText: 'ledger_search'.tr,
+            hintText: 'ledger_search_hint'.tr,
+            errorText: controller.searchTooShort
+                ? 'ledger_search_min'.tr
+                : null,
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: controller.searchController.text.isEmpty
+                ? null
+                : IconButton(
+                    onPressed: controller.clearSearch,
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+            filled: true,
+            fillColor: AppColor.surface,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: OutlinedButton.icon(
+            key: const ValueKey('ledger-filter-button'),
+            onPressed: () => _showSheet(context),
+            icon: const Icon(Icons.tune_rounded),
+            label: Text('ledger_filter'.tr),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            InputChip(
+              label: Text(
+                '${DateFormat.yMd().format(filters.fromDate)} - '
+                '${DateFormat.yMd().format(filters.toDate)}',
+              ),
+              onDeleted: () {
+                final month = FinancialLedgerFilters.currentMonth();
+                controller.applyFilters(
+                  filters.copyWith(
+                    fromDate: month.fromDate,
+                    toDate: month.toDate,
+                  ),
+                );
+              },
+            ),
+            if (filters.search.isNotEmpty)
+              InputChip(
+                label: Text(filters.search),
+                onDeleted: controller.clearSearch,
+              ),
+            if (filters.type.isNotEmpty)
+              InputChip(
+                label: Text('ledger_type_${filters.type}'.tr),
+                onDeleted: () => controller.setType(''),
+              ),
+            if (filters.accountKey.isNotEmpty)
+              InputChip(
+                label: Text('ledger_account'.tr),
+                onDeleted: () => controller.setAccount(''),
+              ),
+            if (filters.customerId.isNotEmpty)
+              InputChip(
+                label: Text('ledger_customer'.tr),
+                onDeleted: () => controller.setCustomer(''),
+              ),
+            if (filters.salesRepId.isNotEmpty)
+              InputChip(
+                label: Text('ledger_sales_rep'.tr),
+                onDeleted: () => controller.setSalesRep(''),
+              ),
+            if (filters.paymentMethod.isNotEmpty)
+              InputChip(
+                label: Text('ledger_payment_${filters.paymentMethod}'.tr),
+                onDeleted: () => controller.setPaymentMethod(''),
+              ),
+            if (filters.hasFilters)
+              TextButton(
+                onPressed: controller.clearFilters,
+                child: Text('ledger_reset_filters'.tr),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showSheet(BuildContext context) async {
+    var draft = controller.filters;
+    final applied = await showFatooraModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => SafeArea(
+          child: FractionallySizedBox(
+            heightFactor: 0.85,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.maxWidth;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'ledger_filter'.tr,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 14),
+                      _FilterDropdown(
+                        width: width,
+                        label: 'ledger_movement_type'.tr,
+                        value: draft.type,
+                        items: const [
+                          '',
+                          'invoice_sale',
+                          'receipt',
+                          'expense',
+                          'sales_return',
+                          'refund',
+                          'settlement',
+                          'opening_balance',
+                          'opening_balance_adjustment',
+                        ],
+                        labelFor: (value) =>
+                            value.isEmpty ? 'all'.tr : 'ledger_type_$value'.tr,
+                        onChanged: (value) => setSheetState(
+                          () => draft = draft.copyWith(type: value ?? ''),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      _OptionDropdown(
+                        width: width,
+                        label: 'ledger_account'.tr,
+                        value: draft.accountKey,
+                        options: controller.accountOptions,
+                        onChanged: (value) => setSheetState(
+                          () => draft = draft.copyWith(accountKey: value ?? ''),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      _OptionDropdown(
+                        width: width,
+                        label: 'ledger_customer'.tr,
+                        value: draft.customerId,
+                        options: [
+                          for (final customer in controller.lookups.customers)
+                            LedgerFilterOption(customer.id, customer.name),
+                        ],
+                        onChanged: (value) => setSheetState(
+                          () => draft = draft.copyWith(customerId: value ?? ''),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      _OptionDropdown(
+                        width: width,
+                        label: 'ledger_sales_rep'.tr,
+                        value: draft.salesRepId,
+                        options: [
+                          for (final rep in controller.lookups.representatives)
+                            LedgerFilterOption(rep.uid, rep.name),
+                        ],
+                        onChanged: (value) => setSheetState(
+                          () => draft = draft.copyWith(salesRepId: value ?? ''),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      _FilterDropdown(
+                        width: width,
+                        label: 'ledger_payment_method'.tr,
+                        value: draft.paymentMethod,
+                        items: const [
+                          '',
+                          'cash',
+                          'credit',
+                          'bank',
+                          'check',
+                          'cliq',
+                          'personal_cash',
+                          'cash_refund',
+                          'credit_customer_balance',
+                        ],
+                        labelFor: (value) => value.isEmpty
+                            ? 'all'.tr
+                            : 'ledger_payment_$value'.tr,
+                        onChanged: (value) => setSheetState(
+                          () => draft = draft.copyWith(
+                            paymentMethod: value ?? '',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final range = await showDateRangePicker(
+                            context: sheetContext,
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 365),
+                            ),
+                            initialDateRange: DateTimeRange(
+                              start: draft.fromDate,
+                              end: draft.toDate,
+                            ),
+                          );
+                          if (range != null) {
+                            setSheetState(
+                              () => draft = draft.copyWith(
+                                fromDate: range.start,
+                                toDate: range.end,
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.date_range_outlined),
+                        label: Text(
+                          '${DateFormat.yMd().format(draft.fromDate)} - '
+                          '${DateFormat.yMd().format(draft.toDate)}',
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton(
+                        onPressed: () => Navigator.of(sheetContext).pop(true),
+                        child: Text('apply_filters'.tr),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    if (applied == true) controller.applyFilters(draft);
+  }
+}
+
 class _FilterDropdown extends StatelessWidget {
   const _FilterDropdown({
     required this.width,
@@ -476,7 +734,14 @@ class _FilterDropdown extends StatelessWidget {
       ),
       items: [
         for (final item in items)
-          DropdownMenuItem(value: item, child: Text(labelFor(item))),
+          DropdownMenuItem(
+            value: item,
+            child: Text(
+              labelFor(item),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
       ],
       onChanged: onChanged,
     ),
@@ -534,33 +799,77 @@ class _LedgerResults extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final wide = MediaQuery.sizeOf(context).width >= 1050;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (wide)
-          _LedgerTable(controller: controller)
-        else
-          for (final entry in controller.entries) ...[
-            _LedgerCard(
-              entry: entry,
-              onTap: () => controller.openOriginal(entry),
-            ),
-            const SizedBox(height: 10),
+    if (controller.statusRequest == StatusRequest.loading) {
+      return const Center(
+        key: ValueKey('ledger-results-loading'),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 48),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    if (controller.statusRequest != StatusRequest.success) {
+      return BusinessEmptyState(
+        key: const ValueKey('ledger-results-error'),
+        icon: Icons.error_outline_rounded,
+        title: controller.loadErrorMessageKey.tr,
+        action: OutlinedButton.icon(
+          onPressed: controller.loadInitial,
+          icon: const Icon(Icons.refresh_rounded),
+          label: Text('items_retry'.tr),
+        ),
+      );
+    }
+    if (controller.entries.isEmpty) return const _EmptyLedger();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide =
+            constraints.maxWidth >= 900 &&
+            MediaQuery.textScalerOf(context).scale(1) <= 1.3;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (wide)
+              _LedgerTable(controller: controller)
+            else
+              for (final entry in controller.entries) ...[
+                _LedgerCard(
+                  entry: entry,
+                  onTap: () => controller.openOriginal(entry),
+                ),
+                const SizedBox(height: 10),
+              ],
+            if (controller.loadMoreErrorMessageKey != null) ...[
+              const SizedBox(height: 12),
+              BusinessEmptyState(
+                key: const ValueKey('ledger-load-more-error'),
+                icon: Icons.error_outline_rounded,
+                title: controller.loadMoreErrorMessageKey!.tr,
+                action: OutlinedButton.icon(
+                  onPressed: controller.loadMore,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: Text('items_retry'.tr),
+                ),
+              ),
+            ],
+            if (controller.hasMore &&
+                controller.loadMoreErrorMessageKey == null) ...[
+              const SizedBox(height: 14),
+              Center(
+                child: OutlinedButton.icon(
+                  onPressed: controller.isLoadingMore
+                      ? null
+                      : controller.loadMore,
+                  icon: controller.isLoadingMore
+                      ? const _ButtonLoader()
+                      : const Icon(Icons.expand_more_rounded),
+                  label: Text('ledger_load_more'.tr),
+                ),
+              ),
+            ],
           ],
-        if (controller.hasMore) ...[
-          const SizedBox(height: 14),
-          Center(
-            child: OutlinedButton.icon(
-              onPressed: controller.isLoadingMore ? null : controller.loadMore,
-              icon: controller.isLoadingMore
-                  ? const _ButtonLoader()
-                  : const Icon(Icons.expand_more_rounded),
-              label: Text('ledger_load_more'.tr),
-            ),
-          ),
-        ],
-      ],
+        );
+      },
     );
   }
 }

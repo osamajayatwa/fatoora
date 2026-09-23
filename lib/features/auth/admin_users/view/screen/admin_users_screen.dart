@@ -1,4 +1,4 @@
-import 'package:fatoora/core/class/handilingdataview.dart';
+import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/motion/fatoora_overlays.dart';
 import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
@@ -35,65 +35,106 @@ class AdminUsersScreen extends StatelessWidget {
         final adminList = controller.selectedTab == 2;
         return BusinessShell(
           title: 'admin_users'.tr,
-          child: HandilingDataView(
-            statusrequest: controller.statusRequest,
-            errorMessage: controller.loadErrorMessageKey.tr,
-            retryLabel: 'items_retry'.tr,
-            onRetry: controller.loadUsers,
-            widget: RefreshIndicator(
-              color: AppColor.primaryColor,
-              onRefresh: controller.refreshUsers,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final compact = constraints.maxWidth < 760;
-                  final padding = constraints.maxWidth < 600 ? 14.0 : 24.0;
-                  return SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.fromLTRB(padding, padding, padding, 96),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 1220),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _Header(controller: controller),
-                            const SizedBox(height: 18),
-                            _TabSelector(controller: controller),
-                            const SizedBox(height: 18),
-                            if (users.isEmpty)
-                              _EmptyUsers(
-                                messageKey: controller.selectedTab == 0
-                                    ? 'admin_users_no_pending'
-                                    : controller.selectedTab == 1
-                                    ? 'admin_users_no_sales_reps'
-                                    : 'admin_users_no_admins',
-                              )
-                            else if (compact)
-                              _UsersCards(
-                                users: users,
-                                pending: pending,
-                                adminList: adminList,
-                                controller: controller,
-                              )
-                            else
-                              _UsersTable(
-                                users: users,
-                                pending: pending,
-                                adminList: adminList,
-                                controller: controller,
-                              ),
-                          ],
-                        ),
+          child: RefreshIndicator(
+            color: AppColor.primaryColor,
+            onRefresh: controller.refreshUsers,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 760;
+                final padding = constraints.maxWidth < 600 ? 14.0 : 24.0;
+                return SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(padding, padding, padding, 96),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1220),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _Header(controller: controller),
+                          const SizedBox(height: 18),
+                          _TabSelector(controller: controller),
+                          const SizedBox(height: 18),
+                          _UserResults(
+                            controller: controller,
+                            users: users,
+                            pending: pending,
+                            adminList: adminList,
+                            compact: compact,
+                          ),
+                        ],
                       ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
           ),
         );
       },
     );
+  }
+}
+
+class _UserResults extends StatelessWidget {
+  const _UserResults({
+    required this.controller,
+    required this.users,
+    required this.pending,
+    required this.adminList,
+    required this.compact,
+  });
+  final AdminUsersController controller;
+  final List<AppUserModel> users;
+  final bool pending;
+  final bool adminList;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    if (controller.statusRequest == StatusRequest.loading) {
+      return const Center(
+        key: ValueKey('users-results-loading'),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 48),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    if (controller.statusRequest != StatusRequest.success) {
+      return BusinessEmptyState(
+        key: const ValueKey('users-results-error'),
+        icon: Icons.error_outline_rounded,
+        title: controller.loadErrorMessageKey.tr,
+        action: OutlinedButton.icon(
+          onPressed: controller.loadUsers,
+          icon: const Icon(Icons.refresh_rounded),
+          label: Text('items_retry'.tr),
+        ),
+      );
+    }
+    if (users.isEmpty) {
+      return _EmptyUsers(
+        messageKey: controller.selectedTab == 0
+            ? 'admin_users_no_pending'
+            : controller.selectedTab == 1
+            ? 'admin_users_no_sales_reps'
+            : 'admin_users_no_admins',
+      );
+    }
+    return compact
+        ? _UsersCards(
+            users: users,
+            pending: pending,
+            adminList: adminList,
+            controller: controller,
+          )
+        : _UsersTable(
+            users: users,
+            pending: pending,
+            adminList: adminList,
+            controller: controller,
+          );
   }
 }
 
@@ -168,18 +209,30 @@ class _UsersCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        for (final user in users) ...[
-          _UserCard(
-            user: user,
-            pending: pending,
-            adminList: adminList,
-            controller: controller,
-          ),
-          const SizedBox(height: 12),
-        ],
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final twoColumns =
+            constraints.maxWidth >= 650 &&
+            MediaQuery.textScalerOf(context).scale(1) <= 1.3;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            for (final user in users)
+              SizedBox(
+                width: twoColumns
+                    ? (constraints.maxWidth - 12) / 2
+                    : constraints.maxWidth,
+                child: _UserCard(
+                  user: user,
+                  pending: pending,
+                  adminList: adminList,
+                  controller: controller,
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
@@ -240,10 +293,11 @@ class _UserCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                _StatusChip(user: user),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
+            _StatusChip(user: user),
+            const SizedBox(height: 10),
             Wrap(
               spacing: 12,
               runSpacing: 8,
@@ -523,11 +577,13 @@ class _Meta extends StatelessWidget {
       children: [
         Icon(icon, size: 16, color: AppColor.grey),
         const SizedBox(width: 5),
-        Text(
-          text.isEmpty ? '-' : text,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppColor.secondaryColor,
-            fontWeight: FontWeight.w600,
+        Flexible(
+          child: Text(
+            text.isEmpty ? '-' : text,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColor.secondaryColor,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],

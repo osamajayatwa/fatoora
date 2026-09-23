@@ -33,8 +33,10 @@ class CustomerStatementController extends GetxController {
   List<CustomerTransactionModel> transactions = const [];
   bool isPrinting = false;
   bool isLoadingMore = false;
+  String? loadMoreErrorMessageKey;
   bool hasMore = false;
   FirestorePageCursor? _cursor;
+  int _loadGeneration = 0;
 
   double openingBalance = 0;
   double totalDebit = 0;
@@ -48,6 +50,7 @@ class CustomerStatementController extends GetxController {
   }
 
   Future<void> loadStatement() async {
+    final generation = ++_loadGeneration;
     final args = Get.arguments;
     if (args is Map) {
       companyId =
@@ -68,6 +71,9 @@ class CustomerStatementController extends GetxController {
     }
     statusRequest = StatusRequest.loading;
     loadErrorMessageKey = 'customers_statement_load_error';
+    loadMoreErrorMessageKey = null;
+    _cursor = null;
+    hasMore = false;
     update();
     try {
       customer = await _repository.getCustomer(
@@ -80,6 +86,7 @@ class CustomerStatementController extends GetxController {
         fromDate: fromDate,
         toDate: toDate,
       );
+      if (generation != _loadGeneration) return;
       transactions = _withRunningBalances(
         statement.transactions,
         statement.openingBalance,
@@ -96,6 +103,7 @@ class CustomerStatementController extends GetxController {
       }
       statusRequest = StatusRequest.success;
     } catch (error) {
+      if (generation != _loadGeneration) return;
       statusRequest = CustomerErrorMapper.status(error);
       loadErrorMessageKey = CustomerErrorMapper.messageKey(
         error,
@@ -121,6 +129,8 @@ class CustomerStatementController extends GetxController {
   Future<void> loadMore() async {
     if (isLoadingMore || !hasMore || _cursor == null) return;
     isLoadingMore = true;
+    loadMoreErrorMessageKey = null;
+    final generation = _loadGeneration;
     update();
     try {
       final page = await _repository.fetchStatementPage(
@@ -130,6 +140,7 @@ class CustomerStatementController extends GetxController {
         toDate: toDate,
         after: _cursor,
       );
+      if (generation != _loadGeneration) return;
       final runningStart = transactions.isEmpty
           ? openingBalance
           : transactions.last.balanceAfter;
@@ -140,7 +151,8 @@ class CustomerStatementController extends GetxController {
       _cursor = page.cursor;
       hasMore = page.hasMore;
     } catch (error) {
-      _showError(CustomerErrorMapper.messageKey(error));
+      if (generation != _loadGeneration) return;
+      loadMoreErrorMessageKey = CustomerErrorMapper.messageKey(error);
     } finally {
       isLoadingMore = false;
       if (!isClosed) update();

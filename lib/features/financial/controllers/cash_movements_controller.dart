@@ -35,8 +35,10 @@ class CashMovementsController extends GetxController {
   bool isSavingSettlement = false;
   bool isPrinting = false;
   bool isLoadingMore = false;
+  String? loadMoreErrorMessageKey;
   bool hasMore = false;
   FirestorePageCursor? _cursor;
+  int _loadGeneration = 0;
 
   String get companyId =>
       _myServices.sharedPreferences.getString('companyId') ??
@@ -53,7 +55,11 @@ class CashMovementsController extends GetxController {
   }
 
   Future<void> loadCash() async {
+    final generation = ++_loadGeneration;
     statusRequest = StatusRequest.loading;
+    loadMoreErrorMessageKey = null;
+    _cursor = null;
+    hasMore = false;
     update();
     try {
       final page = await _repository.fetchCashPage(
@@ -61,11 +67,13 @@ class CashMovementsController extends GetxController {
         fromDate: fromDate,
         toDate: toDate,
       );
+      if (generation != _loadGeneration) return;
       snapshot = page.snapshot;
       _cursor = page.cursor;
       hasMore = page.hasMore;
       statusRequest = StatusRequest.success;
     } catch (error) {
+      if (generation != _loadGeneration) return;
       statusRequest = FinancialErrorMapper.status(error);
       loadErrorMessageKey = FinancialErrorMapper.messageKey(error);
     }
@@ -77,6 +85,8 @@ class CashMovementsController extends GetxController {
   Future<void> loadMore() async {
     if (isLoadingMore || !hasMore || _cursor == null) return;
     isLoadingMore = true;
+    loadMoreErrorMessageKey = null;
+    final generation = _loadGeneration;
     update();
     try {
       final page = await _repository.fetchCashMovementDetailsPage(
@@ -85,6 +95,7 @@ class CashMovementsController extends GetxController {
         toDate: toDate,
         after: _cursor,
       );
+      if (generation != _loadGeneration) return;
       snapshot = FinancialCashSnapshot(
         movements: [...snapshot.movements, ...page.items],
         openingBalance: snapshot.openingBalance,
@@ -100,7 +111,8 @@ class CashMovementsController extends GetxController {
       _cursor = page.cursor;
       hasMore = page.hasMore;
     } catch (error) {
-      loadErrorMessageKey = FinancialErrorMapper.messageKey(error);
+      if (generation != _loadGeneration) return;
+      loadMoreErrorMessageKey = FinancialErrorMapper.messageKey(error);
     } finally {
       isLoadingMore = false;
       if (!isClosed) update();
