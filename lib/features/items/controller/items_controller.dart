@@ -30,6 +30,7 @@ class ItemsController extends GetxController with ItemPageNavigation {
   ItemSort sort = ItemSort.newest;
   String searchQuery = '';
   String loadErrorMessageKey = 'items_load_error';
+  String? loadMoreErrorMessageKey;
   bool isLoadingMore = false;
   bool hasMore = false;
   FirestorePageCursor? _pageCursor;
@@ -38,6 +39,8 @@ class ItemsController extends GetxController with ItemPageNavigation {
   String _appliedSearch = '';
 
   List<ItemModel> get visibleItems => items;
+  bool get hasAppliedSearch => _appliedSearch.isNotEmpty;
+  bool get searchIsTooShort => serverSearchIsTooShort(searchQuery);
 
   @override
   void onReady() {
@@ -54,6 +57,7 @@ class ItemsController extends GetxController with ItemPageNavigation {
     _pageCursor = null;
     hasMore = false;
     loadErrorMessageKey = 'items_load_error';
+    loadMoreErrorMessageKey = null;
     update();
     try {
       final page = await _repository.fetchItemsPage(
@@ -127,6 +131,7 @@ class ItemsController extends GetxController with ItemPageNavigation {
   Future<void> loadMoreItems() async {
     if (isLoadingMore || !hasMore || _pageCursor == null) return;
     isLoadingMore = true;
+    loadMoreErrorMessageKey = null;
     final generation = _loadGeneration;
     update();
     try {
@@ -148,11 +153,13 @@ class ItemsController extends GetxController with ItemPageNavigation {
       items = [...items, ...page.items];
       _pageCursor = page.cursor;
       hasMore = page.hasMore;
+      loadMoreErrorMessageKey = null;
     } catch (error) {
       if (generation == _loadGeneration) {
+        loadMoreErrorMessageKey = ItemErrorMapper.messageKey(error);
         Get.snackbar(
           'items_title'.tr,
-          ItemErrorMapper.messageKey(error).tr,
+          loadMoreErrorMessageKey!.tr,
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: AppColor.error,
           colorText: Colors.white,

@@ -35,6 +35,7 @@ class ReceiptsListController extends GetxController {
   DateTime? fromDate;
   DateTime? toDate;
   bool isLoadingMore = false;
+  String? loadMoreErrorMessageKey;
   bool hasMore = false;
   FirestorePageCursor? _pageCursor;
   Timer? _searchDebounce;
@@ -49,7 +50,13 @@ class ReceiptsListController extends GetxController {
 
   bool get hasFilters =>
       searchText.trim().isNotEmpty || fromDate != null || toDate != null;
+  bool get hasAppliedFilters =>
+      _appliedSearchText.isNotEmpty || fromDate != null || toDate != null;
   bool get canCreateReceipt => permissions.createReceipts;
+  bool get showSalesRepresentative =>
+      _myServices.sharedPreferences.getString('role')?.trim() == 'admin';
+  bool get searchIsTooShort =>
+      searchText.trim().isNotEmpty && serverSearchTerm(searchText).isEmpty;
 
   @override
   void onReady() {
@@ -64,6 +71,7 @@ class ReceiptsListController extends GetxController {
     statusRequest = StatusRequest.loading;
     _pageCursor = null;
     hasMore = false;
+    loadMoreErrorMessageKey = null;
     loadErrorMessageKey = 'receipts_load_error';
     update();
     try {
@@ -101,6 +109,7 @@ class ReceiptsListController extends GetxController {
   Future<void> loadMoreReceipts() async {
     if (isLoadingMore || !hasMore || _pageCursor == null) return;
     isLoadingMore = true;
+    loadMoreErrorMessageKey = null;
     final generation = _loadGeneration;
     update();
     try {
@@ -115,9 +124,10 @@ class ReceiptsListController extends GetxController {
       receipts = [...receipts, ...page.items];
       _pageCursor = page.cursor;
       hasMore = page.hasMore;
+      loadMoreErrorMessageKey = null;
     } catch (error) {
       if (generation != _loadGeneration) return;
-      _showError(ReceiptErrorMapper.messageKey(error));
+      loadMoreErrorMessageKey = ReceiptErrorMapper.messageKey(error);
     } finally {
       isLoadingMore = false;
       if (!isClosed) update();

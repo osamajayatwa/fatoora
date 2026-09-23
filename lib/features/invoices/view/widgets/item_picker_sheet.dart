@@ -6,11 +6,13 @@ import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/motion/fatoora_overlays.dart';
 import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/core/data/firestore_query_pager.dart';
+import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/core/search/server_search_policy.dart';
 import 'package:fatoora/core/widgets/responsive_picker_sheet.dart';
 import 'package:fatoora/features/items/binding/items_binding.dart';
 import 'package:fatoora/features/items/data/models/item_model.dart';
 import 'package:fatoora/features/items/data/repositories/item_repository.dart';
+import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -136,7 +138,9 @@ class _InvoiceItemPickerSheetState extends State<InvoiceItemPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
+    final showWarehouseStock =
+        Get.find<MyServices>().sharedPreferences.getString('role') ==
+        AuthRepository.adminRole;
     return ResponsivePickerSheet(
       header: Row(
         children: [
@@ -183,46 +187,9 @@ class _InvoiceItemPickerSheetState extends State<InvoiceItemPickerSheet> {
                     );
                   }
                   final item = _items[index];
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const CircleAvatar(
-                      backgroundColor: Color(0xFFF4F6FA),
-                      child: Icon(Icons.inventory_2_outlined),
-                    ),
-                    title: Text(item.name),
-                    subtitle: Text(
-                      [
-                        item.code,
-                        item.unit,
-                        '${item.taxRate}% ${'tax'.tr}',
-                        item.trackStock
-                            ? '${'current_stock'.tr}: ${NumberFormat('#,##0.###').format(item.currentStock)}'
-                            : 'track_stock_disabled'.tr,
-                      ].where((value) => value.isNotEmpty).join(' / '),
-                    ),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(currency.format(item.price)),
-                        if (item.trackStock)
-                          Text(
-                            item.isOutOfStock
-                                ? 'out_of_stock'.tr
-                                : item.isLowStock
-                                ? 'low_stock'.tr
-                                : 'available_quantity'.tr,
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: item.isOutOfStock
-                                      ? AppColor.error
-                                      : item.isLowStock
-                                      ? const Color(0xFFFFA43A)
-                                      : AppColor.success,
-                                ),
-                          ),
-                      ],
-                    ),
+                  return ItemPickerRow(
+                    item: item,
+                    showWarehouseStock: showWarehouseStock,
                     onTap: () => Get.back<ItemModel>(result: item),
                   );
                 },
@@ -242,4 +209,70 @@ class _InvoiceItemPickerSheetState extends State<InvoiceItemPickerSheet> {
     _searchController.dispose();
     super.dispose();
   }
+}
+
+class ItemPickerRow extends StatelessWidget {
+  const ItemPickerRow({
+    super.key,
+    required this.item,
+    required this.showWarehouseStock,
+    required this.onTap,
+  });
+
+  final ItemModel item;
+  final bool showWarehouseStock;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    key: ValueKey('item-picker-${item.id}'),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+    leading: const Icon(
+      Icons.inventory_2_outlined,
+      color: AppColor.primaryColor,
+    ),
+    title: Text(item.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+    subtitle: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (item.description.trim().isNotEmpty)
+          Text(
+            item.description,
+            key: ValueKey('item-picker-description-${item.id}'),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        if (item.code.trim().isNotEmpty || item.unit.trim().isNotEmpty)
+          Text(
+            [
+              item.code,
+              item.unit,
+            ].where((value) => value.trim().isNotEmpty).join(' · '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        Text(
+          NumberFormat.currency(
+            symbol: 'JOD ',
+            decimalDigits: 3,
+          ).format(item.price),
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: AppColor.primaryColor,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        if (showWarehouseStock)
+          Text(
+            item.trackStock
+                ? '${'current_stock'.tr}: ${NumberFormat('#,##0.###').format(item.currentStock)} ${item.unit}'
+                : 'track_stock_disabled'.tr,
+            key: ValueKey('item-picker-stock-${item.id}'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+      ],
+    ),
+    onTap: onTap,
+  );
 }

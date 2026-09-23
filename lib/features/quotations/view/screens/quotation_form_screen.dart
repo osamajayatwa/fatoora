@@ -192,18 +192,20 @@ class _SideColumn extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              OutlinedButton.icon(
-                onPressed: controller.isSaving ? null : controller.saveDraft,
-                icon: controller.isSaving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: FatooraProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.save_outlined),
-                label: Text('save_draft'.tr),
-              ),
-              const SizedBox(height: 10),
+              if (!controller.readOnly) ...[
+                OutlinedButton.icon(
+                  onPressed: controller.isSaving ? null : controller.saveDraft,
+                  icon: controller.isSaving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: FatooraProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save_outlined),
+                  label: Text('save_draft'.tr),
+                ),
+                const SizedBox(height: 10),
+              ],
               Text(
                 'quotation_has_no_financial_effect'.tr,
                 style: Theme.of(
@@ -377,7 +379,7 @@ class _AddItemCard extends StatelessWidget {
                 label: Text('custom_line'.tr),
               ),
               Text(
-                'invoice_items_catalog_only'.tr,
+                'quotation_line_help'.tr,
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: AppColor.grey),

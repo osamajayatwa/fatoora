@@ -23,6 +23,8 @@ class ReceiptDetailsController extends GetxController {
   String loadErrorMessageKey = 'receipts_load_error';
   ReceiptModel? receipt;
   bool isPrinting = false;
+  bool get showSalesRepresentative =>
+      _myServices.sharedPreferences.getString('role')?.trim() == 'admin';
 
   String get companyId {
     final args = Get.arguments;

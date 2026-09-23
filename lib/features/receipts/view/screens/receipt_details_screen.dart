@@ -3,8 +3,10 @@ import 'dart:ui' as ui;
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
+import 'package:fatoora/features/customers/view/widgets/customer_list_components.dart';
 import 'package:fatoora/features/receipts/controllers/receipt_details_controller.dart';
 import 'package:fatoora/features/receipts/data/models/receipt_model.dart';
+import 'package:fatoora/features/receipts/view/widgets/receipt_presentation.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -45,6 +47,8 @@ class _ReceiptDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
+    final allocations = receiptAllocationRows(receipt);
+    final cashKey = receiptCashDestinationKey(receipt);
     final padding = MediaQuery.sizeOf(context).width < 600 ? 14.0 : 24.0;
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(padding, padding, padding, 96),
@@ -68,7 +72,9 @@ class _ReceiptDetails extends StatelessWidget {
                 children: [
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      final compact = constraints.maxWidth < 520;
+                      final compact =
+                          constraints.maxWidth < 520 ||
+                          MediaQuery.textScalerOf(context).scale(1) > 1.3;
                       final leading = IconButton.filledTonal(
                         tooltip: MaterialLocalizations.of(
                           context,
@@ -107,9 +113,7 @@ class _ReceiptDetails extends StatelessWidget {
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: FatooraProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
+                                child: FatooraProgressIndicator(strokeWidth: 2),
                               )
                             : const Icon(Icons.picture_as_pdf_outlined),
                         label: Text('export_pdf'.tr),
@@ -142,7 +146,24 @@ class _ReceiptDetails extends StatelessWidget {
                       );
                     },
                   ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 18),
+                  Text(
+                    'receipt_amount'.tr,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelMedium?.copyWith(color: AppColor.grey),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    currency.format(receipt.amount),
+                    key: const ValueKey('receipt-detail-amount'),
+                    softWrap: true,
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      color: AppColor.primaryColor,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const Divider(height: 28),
                   Wrap(
                     spacing: 14,
                     runSpacing: 14,
@@ -151,11 +172,6 @@ class _ReceiptDetails extends StatelessWidget {
                         label: 'customer_name'.tr,
                         value: receipt.customerSnapshot.name,
                         icon: Icons.person_outline,
-                      ),
-                      _InfoTile(
-                        label: 'receipt_amount'.tr,
-                        value: currency.format(receipt.amount),
-                        icon: Icons.payments_outlined,
                       ),
                       _InfoTile(
                         label: 'payment_method'.tr,
@@ -167,18 +183,61 @@ class _ReceiptDetails extends StatelessWidget {
                         value: DateFormat.yMd().format(receipt.receiptDate),
                         icon: Icons.calendar_today_outlined,
                       ),
-                      _InfoTile(
-                        label: 'sales_rep'.tr,
-                        value: receipt.salesRepName,
-                        icon: Icons.badge_outlined,
-                      ),
-                      _InfoTile(
-                        label: 'created_by'.tr,
-                        value: receipt.createdByName,
-                        icon: Icons.verified_user_outlined,
-                      ),
+                      if (cashKey != null)
+                        _InfoTile(
+                          label: 'receipts_cash_destination'.tr,
+                          value: cashKey.tr,
+                          icon: Icons.account_balance_wallet_outlined,
+                        ),
+                      if (controller.showSalesRepresentative &&
+                          receipt.salesRepName.trim().isNotEmpty)
+                        _InfoTile(
+                          label: 'sales_rep'.tr,
+                          value: receipt.salesRepName,
+                          icon: Icons.badge_outlined,
+                        ),
+                      if (controller.showSalesRepresentative &&
+                          receipt.createdByName.trim().isNotEmpty)
+                        _InfoTile(
+                          label: 'created_by'.tr,
+                          value: receipt.createdByName,
+                          icon: Icons.verified_user_outlined,
+                        ),
                     ],
                   ),
+                  if (receipt.resultingCustomerBalance != null) ...[
+                    const SizedBox(height: 18),
+                    Text(
+                      'receipts_balance_after'.tr,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: AppColor.secondaryColor,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: CustomerBalanceBadge(
+                        balance: receipt.resultingCustomerBalance!,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 22),
+                  Text(
+                    'receipts_allocation_title'.tr,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppColor.secondaryColor,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  if (allocations.isEmpty)
+                    Text('receipts_no_allocation'.tr)
+                  else
+                    for (final allocation in allocations) ...[
+                      _AllocationRow(allocation: allocation, money: currency),
+                      const SizedBox(height: 8),
+                    ],
                   if (receipt.notes.isNotEmpty) ...[
                     const SizedBox(height: 18),
                     Text(
@@ -199,6 +258,68 @@ class _ReceiptDetails extends StatelessWidget {
       ),
     );
   }
+}
+
+class _AllocationRow extends StatelessWidget {
+  const _AllocationRow({required this.allocation, required this.money});
+
+  final ReceiptInvoiceAllocation allocation;
+  final NumberFormat money;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: const Color(0xFFF8FAFD),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: const Color(0xFFE4E8EF)),
+    ),
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final number = allocation.invoiceNumber.isEmpty
+            ? allocation.invoiceId
+            : allocation.invoiceNumber;
+        final title = Text(
+          number,
+          softWrap: true,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            color: AppColor.secondaryColor,
+            fontWeight: FontWeight.w800,
+          ),
+        );
+        final amount = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'receipts_allocated_from_receipt'.tr,
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+            Text(
+              money.format(allocation.amount),
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: AppColor.primaryColor,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        );
+        if (constraints.maxWidth < 480 ||
+            MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [title, const SizedBox(height: 8), amount],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: title),
+            const SizedBox(width: 12),
+            amount,
+          ],
+        );
+      },
+    ),
+  );
 }
 
 class _InfoTile extends StatelessWidget {

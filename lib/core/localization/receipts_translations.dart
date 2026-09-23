@@ -10,6 +10,20 @@ const Map<String, String> receiptsEnglishTranslations = {
   'save_receipt': 'Save receipt',
   'receipts_search_hint':
       'Search by receipt number, customer, payment method, or sales rep...',
+  'receipts_search_minimum': 'Enter at least 2 characters to search.',
+  'receipts_filter': 'Filter',
+  'receipts_allocations': 'Allocations',
+  'receipts_allocated_invoices': 'Allocated to @count invoices',
+  'receipts_allocation_title': 'Invoice allocations',
+  'receipts_allocated_from_receipt': 'Allocated from this receipt',
+  'receipts_no_allocation': 'No invoice allocation is stored for this receipt.',
+  'receipts_allocation_auto':
+      'Eligible invoices are allocated automatically when this receipt is saved. The posted allocation will appear in Receipt Details.',
+  'receipts_cash_destination': 'Cash destination',
+  'receipts_balance_after': 'Customer balance after receipt',
+  'receipts_saving': 'Saving receipt...',
+  'receipts_server_validation_error':
+      'The server rejected this receipt. Refresh the customer balance, then check the customer and amount before retrying.',
   'receipts_empty': 'No receipts found.',
   'receipts_no_search_results': 'No matching receipts found.',
   'receipts_load_error': 'Unable to load receipts. Please try again.',
@@ -52,6 +66,20 @@ const Map<String, String> receiptsArabicTranslations = {
   'save_receipt': 'حفظ الإيصال',
   'receipts_search_hint':
       'ابحث برقم الإيصال أو العميل أو طريقة الدفع أو المندوب...',
+  'receipts_search_minimum': 'أدخل حرفين على الأقل للبحث.',
+  'receipts_filter': 'تصفية',
+  'receipts_allocations': 'التخصيصات',
+  'receipts_allocated_invoices': 'مخصص لعدد @count من الفواتير',
+  'receipts_allocation_title': 'تخصيصات الفواتير',
+  'receipts_allocated_from_receipt': 'المبلغ المخصص من هذا الإيصال',
+  'receipts_no_allocation': 'لا توجد تخصيصات فواتير محفوظة لهذا الإيصال.',
+  'receipts_allocation_auto':
+      'يتم تخصيص المبلغ للفواتير المؤهلة تلقائياً عند حفظ الإيصال. ستظهر التخصيصات المرحّلة في تفاصيل الإيصال.',
+  'receipts_cash_destination': 'وجهة النقد',
+  'receipts_balance_after': 'رصيد العميل بعد الإيصال',
+  'receipts_saving': 'جارٍ حفظ الإيصال...',
+  'receipts_server_validation_error':
+      'رفض الخادم هذا الإيصال. حدّث رصيد العميل، ثم تحقق من العميل والمبلغ قبل إعادة المحاولة.',
   'receipts_empty': 'لا توجد إيصالات.',
   'receipts_no_search_results': 'لا توجد إيصالات مطابقة.',
   'receipts_load_error': 'تعذر تحميل الإيصالات. حاول مرة أخرى.',

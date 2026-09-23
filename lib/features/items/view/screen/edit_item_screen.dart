@@ -19,8 +19,12 @@ class EditItemScreen extends StatelessWidget {
         },
         child: AdminDashboardShell(
           child: SingleChildScrollView(
-            padding: EdgeInsets.all(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.fromLTRB(
               MediaQuery.sizeOf(context).width < 600 ? 14 : 24,
+              MediaQuery.sizeOf(context).width < 600 ? 14 : 24,
+              MediaQuery.sizeOf(context).width < 600 ? 14 : 24,
+              24 + MediaQuery.viewInsetsOf(context).bottom,
             ),
             child: Center(
               child: ConstrainedBox(
@@ -53,62 +57,39 @@ class EditItemScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    Card(
-                      margin: EdgeInsets.zero,
-                      elevation: 0,
-                      color: AppColor.surface,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        side: const BorderSide(color: Color(0xFFE4E8EF)),
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.all(
-                          MediaQuery.sizeOf(context).width < 600 ? 16 : 26,
-                        ),
-                        child: controller.item == null
-                            ? HandilingDataView(
-                                statusrequest: controller.statusRequest,
-                                errorMessage: 'items_not_found_error'.tr,
-                                retryLabel: 'items_retry'.tr,
-                                widget: const SizedBox.shrink(),
-                              )
-                            : HandilingDataRequest(
-                                statusrequest: controller.statusRequest,
-                                widget: ItemForm(
-                                  formKey: controller.formKey,
-                                  nameController: controller.nameController,
-                                  codeController: controller.codeController,
-                                  descriptionController:
-                                      controller.descriptionController,
-                                  unitController: controller.unitController,
-                                  priceController: controller.priceController,
-                                  taxRateController:
-                                      controller.taxRateController,
-                                  currentStockController:
-                                      controller.currentStockController,
-                                  openingStockController:
-                                      controller.openingStockController,
-                                  minStockController:
-                                      controller.minStockController,
-                                  costPriceController:
-                                      controller.costPriceController,
-                                  barcodeController:
-                                      controller.barcodeController,
-                                  categoryController:
-                                      controller.categoryController,
-                                  warehouseController:
-                                      controller.warehouseController,
-                                  active: controller.active,
-                                  trackStock: controller.trackStock,
-                                  onActiveChanged: controller.setActive,
-                                  onTrackStockChanged: controller.setTrackStock,
-                                  onSubmit: controller.submit,
-                                  submitLabel: 'items_update'.tr,
-                                  loading: controller.isLoading,
-                                ),
-                              ),
-                      ),
-                    ),
+                    controller.item == null
+                        ? HandilingDataView(
+                            statusrequest: controller.statusRequest,
+                            errorMessage: 'items_not_found_error'.tr,
+                            retryLabel: 'items_retry'.tr,
+                            widget: const SizedBox.shrink(),
+                          )
+                        : ItemForm(
+                            formKey: controller.formKey,
+                            nameController: controller.nameController,
+                            codeController: controller.codeController,
+                            descriptionController:
+                                controller.descriptionController,
+                            unitController: controller.unitController,
+                            priceController: controller.priceController,
+                            taxRateController: controller.taxRateController,
+                            currentStockController:
+                                controller.currentStockController,
+                            openingStockController:
+                                controller.openingStockController,
+                            minStockController: controller.minStockController,
+                            costPriceController: controller.costPriceController,
+                            barcodeController: controller.barcodeController,
+                            categoryController: controller.categoryController,
+                            warehouseController: controller.warehouseController,
+                            active: controller.active,
+                            trackStock: controller.trackStock,
+                            onActiveChanged: controller.setActive,
+                            onTrackStockChanged: controller.setTrackStock,
+                            onSubmit: controller.submit,
+                            submitLabel: 'items_update'.tr,
+                            loading: controller.isLoading,
+                          ),
                   ],
                 ),
               ),

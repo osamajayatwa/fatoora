@@ -5,6 +5,7 @@ import 'package:fatoora/features/items/controller/item_details_controller.dart';
 import 'package:fatoora/features/items/view/widgets/item_action_button.dart';
 import 'package:fatoora/features/items/view/widgets/item_details_info_tile.dart';
 import 'package:fatoora/features/items/view/widgets/item_status_badge.dart';
+import 'package:fatoora/features/shared/inventory/inventory_presentation.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/admin_dashboard_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -83,7 +84,7 @@ class _DetailsContent extends StatelessWidget {
                   ItemStatusBadge(active: item.active),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
               Card(
                 margin: EdgeInsets.zero,
                 elevation: 0,
@@ -141,6 +142,13 @@ class _DetailsContent extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 25),
+                      if (item.trackStock) ...[
+                        Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: InventoryStockStatusChip(item: item),
+                        ),
+                        const SizedBox(height: 18),
+                      ],
                       Text(
                         'items_information'.tr,
                         style: Theme.of(context).textTheme.titleMedium
@@ -162,6 +170,13 @@ class _DetailsContent extends StatelessWidget {
                             children: [
                               SizedBox(
                                 width: constraints.maxWidth,
+                                child: Text(
+                                  'items_basic_information'.tr,
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                              ),
+                              SizedBox(
+                                width: constraints.maxWidth,
                                 child: ItemDetailsInfoTile(
                                   label: 'items_description'.tr,
                                   value: item.description,
@@ -174,6 +189,13 @@ class _DetailsContent extends StatelessWidget {
                                   label: 'items_unit'.tr,
                                   value: item.unit,
                                   icon: Icons.straighten_rounded,
+                                ),
+                              ),
+                              SizedBox(
+                                width: constraints.maxWidth,
+                                child: Text(
+                                  'items_pricing'.tr,
+                                  style: Theme.of(context).textTheme.titleSmall,
                                 ),
                               ),
                               SizedBox(
@@ -197,49 +219,64 @@ class _DetailsContent extends StatelessWidget {
                               SizedBox(
                                 width: width,
                                 child: ItemDetailsInfoTile(
-                                  label: 'current_stock'.tr,
-                                  value: item.trackStock
-                                      ? NumberFormat(
-                                          '#,##0.###',
-                                        ).format(item.currentStock)
-                                      : 'track_stock_disabled'.tr,
-                                  icon: Icons.inventory_2_outlined,
-                                  valueColor: item.isOutOfStock
-                                      ? AppColor.error
-                                      : item.isLowStock
-                                      ? AppColor.accentYellow
-                                      : AppColor.success,
-                                ),
-                              ),
-                              SizedBox(
-                                width: width,
-                                child: ItemDetailsInfoTile(
-                                  label: 'min_stock'.tr,
-                                  value: NumberFormat(
-                                    '#,##0.###',
-                                  ).format(item.minStock),
-                                  icon: Icons.warning_amber_rounded,
-                                ),
-                              ),
-                              SizedBox(
-                                width: width,
-                                child: ItemDetailsInfoTile(
-                                  label: 'opening_stock'.tr,
-                                  value: NumberFormat(
-                                    '#,##0.###',
-                                  ).format(item.openingStock),
-                                  icon: Icons.input_rounded,
-                                ),
-                              ),
-                              SizedBox(
-                                width: width,
-                                child: ItemDetailsInfoTile(
                                   label: 'cost_price'.tr,
                                   value:
                                       '${NumberFormat('#,##0.00').format(item.costPrice)} ${'items_jod'.tr}',
                                   icon: Icons.price_change_outlined,
                                 ),
                               ),
+                              SizedBox(
+                                width: constraints.maxWidth,
+                                child: Text(
+                                  'items_inventory'.tr,
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                              ),
+                              SizedBox(
+                                width: width,
+                                child: ItemDetailsInfoTile(
+                                  label: 'track_stock'.tr,
+                                  value: item.trackStock
+                                      ? 'items_tracking_enabled'.tr
+                                      : 'track_stock_disabled'.tr,
+                                  icon: Icons.inventory_outlined,
+                                ),
+                              ),
+                              if (item.trackStock)
+                                SizedBox(
+                                  width: width,
+                                  child: ItemDetailsInfoTile(
+                                    label: 'current_stock'.tr,
+                                    value:
+                                        '${inventoryQuantity(item.currentStock)} ${item.unit}',
+                                    icon: Icons.inventory_2_outlined,
+                                    valueColor: item.isOutOfStock
+                                        ? AppColor.error
+                                        : item.isLowStock
+                                        ? AppColor.accentYellow
+                                        : AppColor.success,
+                                  ),
+                                ),
+                              if (item.trackStock)
+                                SizedBox(
+                                  width: width,
+                                  child: ItemDetailsInfoTile(
+                                    label: 'min_stock'.tr,
+                                    value:
+                                        '${inventoryQuantity(item.minStock)} ${item.unit}',
+                                    icon: Icons.warning_amber_rounded,
+                                  ),
+                                ),
+                              if (item.trackStock)
+                                SizedBox(
+                                  width: width,
+                                  child: ItemDetailsInfoTile(
+                                    label: 'opening_stock'.tr,
+                                    value:
+                                        '${inventoryQuantity(item.openingStock)} ${item.unit}',
+                                    icon: Icons.input_rounded,
+                                  ),
+                                ),
                               SizedBox(
                                 width: width,
                                 child: ItemDetailsInfoTile(

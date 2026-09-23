@@ -1,7 +1,10 @@
-import 'package:fatoora/core/class/handilingdataview.dart';
+import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
+import 'package:fatoora/core/widgets/responsive_data_table_card.dart';
 import 'package:fatoora/features/receipts/controllers/receipts_list_controller.dart';
 import 'package:fatoora/features/receipts/data/models/receipt_model.dart';
+import 'package:fatoora/features/receipts/view/widgets/receipt_presentation.dart';
 import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
@@ -12,187 +15,287 @@ class ReceiptsListScreen extends StatelessWidget {
   const ReceiptsListScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return GetBuilder<ReceiptsListController>(
-      builder: (controller) {
-        return BusinessShell(
-          title: 'receipts'.tr,
-          child: HandilingDataView(
-            statusrequest: controller.statusRequest,
-            errorMessage: controller.loadErrorMessageKey.tr,
-            retryLabel: 'items_retry'.tr,
-            onRetry: controller.loadReceipts,
-            widget: RefreshIndicator(
-              color: AppColor.primaryColor,
-              onRefresh: controller.refreshReceipts,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final compact = constraints.maxWidth < 760;
-                  final padding = constraints.maxWidth < 600 ? 14.0 : 24.0;
-                  return SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.fromLTRB(padding, padding, padding, 96),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 1220),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _ReceiptsHeader(controller: controller),
-                            const SizedBox(height: 18),
-                            _ReceiptFilters(controller: controller),
-                            const SizedBox(height: 18),
-                            if (controller.receipts.isEmpty)
-                              _EmptyReceipts(hasFilters: controller.hasFilters)
-                            else if (compact)
-                              _ReceiptCards(controller: controller)
-                            else
-                              _ReceiptTable(controller: controller),
-                            if (controller.hasMore) ...[
-                              const SizedBox(height: 16),
-                              BusinessLoadMoreButton(
-                                loading: controller.isLoadingMore,
-                                onPressed: controller.loadMoreReceipts,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _ReceiptsHeader extends StatelessWidget {
-  const _ReceiptsHeader({required this.controller});
-
-  final ReceiptsListController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return BusinessPageHeader(
+  Widget build(BuildContext context) => GetBuilder<ReceiptsListController>(
+    builder: (controller) => BusinessShell(
       title: 'receipts'.tr,
-      trailing: controller.canCreateReceipt
-          ? BusinessPrimaryActionButton(
-              onPressed: controller.openCreateReceipt,
-              icon: Icons.add_rounded,
-              label: 'create_receipt'.tr,
-            )
-          : null,
-    );
-  }
-}
-
-class _ReceiptFilters extends StatelessWidget {
-  const _ReceiptFilters({required this.controller});
-
-  final ReceiptsListController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final searchWidth = constraints.maxWidth < 350
-            ? constraints.maxWidth
-            : 320.0;
-        return Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            SizedBox(
-              width: searchWidth,
-              child: TextField(
-                controller: controller.searchController,
-                onChanged: controller.onSearchChanged,
-                onSubmitted: (_) => controller.submitSearch(),
-                textInputAction: TextInputAction.search,
-                decoration: InputDecoration(
-                  hintText: 'receipts_search_hint'.tr,
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  suffixIcon: controller.searchText.isEmpty
-                      ? null
-                      : IconButton(
-                          onPressed: controller.clearSearch,
-                          icon: const Icon(Icons.close_rounded),
-                        ),
-                  filled: true,
-                  fillColor: AppColor.surface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
+      child: RefreshIndicator(
+        color: AppColor.primaryColor,
+        onRefresh: controller.refreshReceipts,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final padding = constraints.maxWidth < 600 ? 14.0 : 24.0;
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(padding, padding, padding, 96),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1220),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      BusinessPageHeader(
+                        title: 'receipts'.tr,
+                        trailing: controller.canCreateReceipt
+                            ? BusinessPrimaryActionButton(
+                                onPressed: controller.openCreateReceipt,
+                                icon: Icons.add_rounded,
+                                label: 'create_receipt'.tr,
+                              )
+                            : null,
+                      ),
+                      const SizedBox(height: 14),
+                      _Controls(controller: controller),
+                      const SizedBox(height: 14),
+                      _Results(controller: controller),
+                    ],
                   ),
                 ),
               ),
-            ),
-            OutlinedButton.icon(
-              onPressed: () async {
-                final range = await showDateRangePicker(
-                  context: context,
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime.now().add(const Duration(days: 365)),
-                  initialDateRange:
-                      controller.fromDate != null && controller.toDate != null
-                      ? DateTimeRange(
-                          start: controller.fromDate!,
-                          end: controller.toDate!,
-                        )
-                      : null,
-                );
-                controller.setDateRange(range);
-              },
-              icon: const Icon(Icons.date_range_outlined),
-              label: Text('financial_filter_dates'.tr),
-            ),
-            if (controller.hasFilters)
-              TextButton.icon(
-                onPressed: controller.clearFilters,
-                icon: const Icon(Icons.close_rounded),
-                label: Text('financial_clear_dates'.tr),
+            );
+          },
+        ),
+      ),
+    ),
+  );
+}
+
+class _Controls extends StatelessWidget {
+  const _Controls({required this.controller});
+  final ReceiptsListController controller;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      TextField(
+        key: const ValueKey('receipt-search'),
+        controller: controller.searchController,
+        onChanged: controller.onSearchChanged,
+        onSubmitted: (_) => controller.submitSearch(),
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          hintText: 'receipts_search_hint'.tr,
+          prefixIcon: const Icon(Icons.search_rounded),
+          suffixIcon: controller.searchText.isEmpty
+              ? null
+              : IconButton(
+                  onPressed: controller.clearSearch,
+                  icon: const Icon(Icons.close_rounded),
+                ),
+          filled: true,
+          fillColor: AppColor.surface,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+      if (controller.searchIsTooShort) ...[
+        const SizedBox(height: 5),
+        Text(
+          'receipts_search_minimum'.tr,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
+      const SizedBox(height: 10),
+      Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: OutlinedButton.icon(
+          key: const ValueKey('receipt-filter-button'),
+          onPressed: () => _showDateFilter(context),
+          icon: const Icon(Icons.tune_rounded),
+          label: Text('receipts_filter'.tr),
+        ),
+      ),
+      if (controller.hasFilters) ...[
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            if (controller.searchText.trim().isNotEmpty)
+              InputChip(
+                key: const ValueKey('receipt-search-chip'),
+                label: Text(controller.searchText.trim()),
+                onDeleted: controller.clearSearch,
               ),
+            if (controller.fromDate != null && controller.toDate != null)
+              InputChip(
+                key: const ValueKey('receipt-date-chip'),
+                label: Text(
+                  '${DateFormat.yMd().format(controller.fromDate!)} - '
+                  '${DateFormat.yMd().format(controller.toDate!)}',
+                ),
+                onDeleted: () => controller.setDateRange(null),
+              ),
+            TextButton(
+              onPressed: controller.clearFilters,
+              child: Text('clear_filters'.tr),
+            ),
           ],
-        );
-      },
+        ),
+      ],
+    ],
+  );
+
+  Future<void> _showDateFilter(BuildContext context) async {
+    final action = await showFatooraModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Text(
+                'financial_filter_dates'.tr,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            ListTile(
+              key: const ValueKey('receipt-date-choose'),
+              leading: const Icon(Icons.date_range_outlined),
+              title: Text('financial_filter_dates'.tr),
+              onTap: () => Navigator.of(sheetContext).pop('choose'),
+            ),
+            if (controller.fromDate != null || controller.toDate != null)
+              ListTile(
+                key: const ValueKey('receipt-date-clear'),
+                leading: const Icon(Icons.close_rounded),
+                title: Text('financial_clear_dates'.tr),
+                onTap: () => Navigator.of(sheetContext).pop('clear'),
+              ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
     );
+    if (action == 'clear') {
+      controller.setDateRange(null);
+    } else if (action == 'choose' && context.mounted) {
+      final range = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2020),
+        lastDate: DateTime.now().add(const Duration(days: 365)),
+        initialDateRange:
+            controller.fromDate != null && controller.toDate != null
+            ? DateTimeRange(
+                start: controller.fromDate!,
+                end: controller.toDate!,
+              )
+            : null,
+      );
+      if (range != null) controller.setDateRange(range);
+    }
   }
 }
 
-class _ReceiptCards extends StatelessWidget {
-  const _ReceiptCards({required this.controller});
-
+class _Results extends StatelessWidget {
+  const _Results({required this.controller});
   final ReceiptsListController controller;
 
   @override
   Widget build(BuildContext context) {
+    if (controller.statusRequest == StatusRequest.loading) {
+      return const Center(
+        key: ValueKey('receipt-results-loading'),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 48),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    if (controller.statusRequest != StatusRequest.success) {
+      return BusinessEmptyState(
+        key: const ValueKey('receipt-results-error'),
+        icon: Icons.error_outline_rounded,
+        title: controller.loadErrorMessageKey.tr,
+        action: OutlinedButton.icon(
+          onPressed: controller.loadReceipts,
+          icon: const Icon(Icons.refresh_rounded),
+          label: Text('items_retry'.tr),
+        ),
+      );
+    }
+    if (controller.receipts.isEmpty) {
+      return BusinessEmptyState(
+        key: const ValueKey('receipt-results-empty'),
+        icon: Icons.receipt_long_outlined,
+        title: controller.hasAppliedFilters
+            ? 'receipts_no_search_results'.tr
+            : 'receipts_empty'.tr,
+      );
+    }
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final receipt in controller.receipts) ...[
-          _ReceiptCard(
-            receipt: receipt,
-            onTap: () => controller.openDetails(receipt),
-          ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+            if (width >= 760 && !largeText) {
+              return _ReceiptTable(controller: controller);
+            }
+            final columns = width >= 650 && !largeText ? 2 : 1;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                for (final receipt in controller.receipts)
+                  SizedBox(
+                    width: columns == 1 ? width : (width - 12) / 2,
+                    child: ReceiptListCard(
+                      receipt: receipt,
+                      showSalesRepresentative:
+                          controller.showSalesRepresentative,
+                      onTap: () => controller.openDetails(receipt),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+        if (controller.loadMoreErrorMessageKey != null) ...[
           const SizedBox(height: 12),
+          BusinessEmptyState(
+            key: const ValueKey('receipt-load-more-error'),
+            icon: Icons.error_outline_rounded,
+            title: controller.loadMoreErrorMessageKey!.tr,
+            action: OutlinedButton.icon(
+              onPressed: controller.loadMoreReceipts,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text('items_retry'.tr),
+            ),
+          ),
+        ],
+        if (controller.hasMore &&
+            controller.loadMoreErrorMessageKey == null) ...[
+          const SizedBox(height: 16),
+          BusinessLoadMoreButton(
+            loading: controller.isLoadingMore,
+            onPressed: controller.loadMoreReceipts,
+          ),
         ],
       ],
     );
   }
 }
 
-class _ReceiptCard extends StatelessWidget {
-  const _ReceiptCard({required this.receipt, required this.onTap});
-
+class ReceiptListCard extends StatelessWidget {
+  const ReceiptListCard({
+    super.key,
+    required this.receipt,
+    required this.showSalesRepresentative,
+    required this.onTap,
+  });
   final ReceiptModel receipt;
+  final bool showSalesRepresentative;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
+    final money = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
+    final allocations = receiptAllocationRows(receipt);
+    final cashKey = receiptCashDestinationKey(receipt);
     return Card(
       margin: EdgeInsets.zero,
       elevation: 0,
@@ -202,48 +305,66 @@ class _ReceiptCard extends StatelessWidget {
         side: const BorderSide(color: Color(0xFFE4E8EF)),
       ),
       child: InkWell(
+        key: ValueKey('receipt-card-${receipt.id}'),
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Expanded(
-                    child: Text(
-                      receipt.receiptNumber,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppColor.secondaryColor,
-                        fontWeight: FontWeight.w900,
-                      ),
+                  Text(
+                    receipt.receiptNumber,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppColor.secondaryColor,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                   _PaymentMethodChip(method: receipt.paymentMethod),
                 ],
               ),
-              const SizedBox(height: 10),
-              Text(receipt.customerSnapshot.name),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 14,
-                runSpacing: 8,
-                children: [
-                  _MiniInfo(
-                    icon: Icons.calendar_today_outlined,
-                    text: DateFormat.yMd().format(receipt.receiptDate),
-                  ),
-                  _MiniInfo(
-                    icon: Icons.person_outline,
-                    text: receipt.salesRepName,
-                  ),
-                  _MiniInfo(
-                    icon: Icons.payments_outlined,
-                    text: currency.format(receipt.amount),
-                  ),
-                ],
+              const SizedBox(height: 6),
+              Text(
+                receipt.customerSnapshot.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
+              const SizedBox(height: 8),
+              Text(
+                money.format(receipt.amount),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: AppColor.primaryColor,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _ReceiptMeta(
+                icon: Icons.calendar_today_outlined,
+                text: DateFormat.yMd().format(receipt.receiptDate),
+              ),
+              if (allocations.isNotEmpty)
+                _ReceiptMeta(
+                  icon: Icons.receipt_long_outlined,
+                  text: 'receipts_allocated_invoices'.trParams({
+                    'count': '${allocations.length}',
+                  }),
+                ),
+              if (cashKey != null)
+                _ReceiptMeta(
+                  icon: Icons.account_balance_wallet_outlined,
+                  text: '${'receipts_cash_destination'.tr}: ${cashKey.tr}',
+                ),
+              if (showSalesRepresentative &&
+                  receipt.salesRepName.trim().isNotEmpty)
+                _ReceiptMeta(
+                  icon: Icons.person_outline,
+                  text: receipt.salesRepName,
+                ),
             ],
           ),
         ),
@@ -254,68 +375,114 @@ class _ReceiptCard extends StatelessWidget {
 
 class _ReceiptTable extends StatelessWidget {
   const _ReceiptTable({required this.controller});
-
   final ReceiptsListController controller;
 
   @override
   Widget build(BuildContext context) {
-    final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      color: AppColor.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFE4E8EF)),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingTextStyle: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: AppColor.secondaryColor,
-            fontWeight: FontWeight.w800,
+    final money = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
+    final showRep = controller.showSalesRepresentative;
+    return ResponsiveDataTableCard(
+      minWidth: showRep ? 1360 : 1200,
+      child: DataTable(
+        showCheckboxColumn: false,
+        columnSpacing: 20,
+        horizontalMargin: 16,
+        columns: [
+          DataColumn(
+            label: BoundedTableText(
+              'receipt_number'.tr,
+              width: 120,
+              maxLines: 2,
+            ),
           ),
-          columns: [
-            DataColumn(label: Text('receipt_number'.tr)),
-            DataColumn(label: Text('receipt_date'.tr)),
-            DataColumn(label: Text('customer_name'.tr)),
-            DataColumn(label: Text('receipt_amount'.tr)),
-            DataColumn(label: Text('payment_method'.tr)),
-            DataColumn(label: Text('sales_rep'.tr)),
-            DataColumn(label: Text('actions'.tr)),
-          ],
-          rows: controller.receipts
-              .map(
-                (receipt) => DataRow(
-                  cells: [
-                    DataCell(Text(receipt.receiptNumber)),
-                    DataCell(
-                      Text(DateFormat.yMd().format(receipt.receiptDate)),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 190,
-                        child: Text(
-                          receipt.customerSnapshot.name,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    DataCell(Text(currency.format(receipt.amount))),
-                    DataCell(_PaymentMethodChip(method: receipt.paymentMethod)),
-                    DataCell(Text(receipt.salesRepName)),
-                    DataCell(
-                      IconButton.filledTonal(
-                        tooltip: 'invoice_details'.tr,
-                        onPressed: () => controller.openDetails(receipt),
-                        icon: const Icon(Icons.visibility_outlined),
-                      ),
-                    ),
-                  ],
+          DataColumn(
+            label: BoundedTableText(
+              'customer_name'.tr,
+              width: 165,
+              maxLines: 2,
+            ),
+          ),
+          DataColumn(
+            label: BoundedTableText('receipt_date'.tr, width: 100, maxLines: 2),
+          ),
+          DataColumn(
+            label: BoundedTableText(
+              'receipt_amount'.tr,
+              width: 125,
+              maxLines: 2,
+            ),
+          ),
+          DataColumn(
+            label: BoundedTableText(
+              'payment_method'.tr,
+              width: 100,
+              maxLines: 2,
+            ),
+          ),
+          DataColumn(
+            label: BoundedTableText(
+              'receipts_allocations'.tr,
+              width: 120,
+              maxLines: 2,
+            ),
+          ),
+          if (showRep)
+            DataColumn(
+              label: BoundedTableText('sales_rep'.tr, width: 130, maxLines: 2),
+            ),
+          DataColumn(label: Text('actions'.tr)),
+        ],
+        rows: [
+          for (final receipt in controller.receipts)
+            DataRow(
+              key: ValueKey('receipt-row-${receipt.id}'),
+              onSelectChanged: (_) => controller.openDetails(receipt),
+              cells: [
+                DataCell(
+                  BoundedTableText(
+                    receipt.receiptNumber,
+                    width: 120,
+                    forceLtr: true,
+                  ),
                 ),
-              )
-              .toList(),
-        ),
+                DataCell(
+                  BoundedTableText(receipt.customerSnapshot.name, width: 165),
+                ),
+                DataCell(
+                  BoundedTableText(
+                    DateFormat.yMd().format(receipt.receiptDate),
+                    width: 100,
+                  ),
+                ),
+                DataCell(
+                  BoundedTableText(money.format(receipt.amount), width: 125),
+                ),
+                DataCell(
+                  BoundedTableWidget(
+                    width: 100,
+                    child: _PaymentMethodChip(method: receipt.paymentMethod),
+                  ),
+                ),
+                DataCell(
+                  BoundedTableText(
+                    receiptAllocationRows(receipt).isEmpty
+                        ? '-'
+                        : '${receiptAllocationRows(receipt).length}',
+                    width: 120,
+                  ),
+                ),
+                if (showRep)
+                  DataCell(BoundedTableText(receipt.salesRepName, width: 130)),
+                DataCell(
+                  IconButton.filledTonal(
+                    tooltip: 'receipt_details'.tr,
+                    onPressed: () => controller.openDetails(receipt),
+                    icon: const Icon(Icons.visibility_outlined),
+                  ),
+                ),
+              ],
+            ),
+        ],
       ),
     );
   }
@@ -323,57 +490,42 @@ class _ReceiptTable extends StatelessWidget {
 
 class _PaymentMethodChip extends StatelessWidget {
   const _PaymentMethodChip({required this.method});
-
   final String method;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColor.primaryLight,
-        borderRadius: BorderRadius.circular(999),
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: AppColor.primaryLight,
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: Text(
+      'payment_method_$method'.tr,
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+        color: AppColor.primaryDark,
+        fontWeight: FontWeight.w800,
       ),
-      child: Text(
-        'payment_method_$method'.tr,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppColor.primaryDark,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
+    ),
+  );
 }
 
-class _MiniInfo extends StatelessWidget {
-  const _MiniInfo({required this.icon, required this.text});
-
+class _ReceiptMeta extends StatelessWidget {
+  const _ReceiptMeta({required this.icon, required this.text});
   final IconData icon;
   final String text;
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: AppColor.grey),
-        const SizedBox(width: 5),
-        Text(text.isEmpty ? '-' : text),
-      ],
-    );
-  }
-}
-
-class _EmptyReceipts extends StatelessWidget {
-  const _EmptyReceipts({required this.hasFilters});
-
-  final bool hasFilters;
-
-  @override
-  Widget build(BuildContext context) {
-    return BusinessEmptyState(
-      icon: Icons.receipt_long_outlined,
-      title: hasFilters ? 'receipts_no_search_results'.tr : 'receipts_empty'.tr,
-    );
-  }
+  Widget build(BuildContext context) => Row(
+    children: [
+      Icon(icon, size: 15, color: AppColor.grey),
+      const SizedBox(width: 5),
+      Expanded(
+        child: Text(
+          text,
+          softWrap: true,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ),
+    ],
+  );
 }

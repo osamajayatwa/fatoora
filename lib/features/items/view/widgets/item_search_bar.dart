@@ -17,6 +17,7 @@ class ItemSearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextField(
+      key: const ValueKey('items-search-field'),
       controller: controller,
       onChanged: onChanged,
       onSubmitted: onSubmitted,
@@ -27,6 +28,7 @@ class ItemSearchBar extends StatelessWidget {
         suffixIcon: controller.text.isEmpty
             ? null
             : IconButton(
+                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
                 onPressed: () {
                   controller.clear();
                   onChanged('');

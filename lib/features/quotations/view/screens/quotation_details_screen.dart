@@ -3,8 +3,11 @@ import 'dart:ui' as ui;
 import 'package:fatoora/core/class/handilingdataview.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
+import 'package:fatoora/core/widgets/responsive_data_table_card.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
+import 'package:fatoora/features/invoices/data/models/invoice_item_snapshot.dart';
 import 'package:fatoora/features/quotations/controllers/quotation_details_controller.dart';
+import 'package:fatoora/features/quotations/data/models/quotation_item_model.dart';
 import 'package:fatoora/features/quotations/data/models/quotation_model.dart';
 import 'package:fatoora/features/quotations/data/models/quotation_status.dart';
 import 'package:fatoora/features/quotations/view/widgets/quotation_status_chip.dart';
@@ -144,7 +147,10 @@ class _Details extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 18),
-              _InfoCard(quotation: quotation),
+              _InfoCard(
+                quotation: quotation,
+                showSalesRepresentative: controller.showSalesRepresentative,
+              ),
               const SizedBox(height: 18),
               _StatusActions(controller: controller, quotation: quotation),
               const SizedBox(height: 18),
@@ -164,9 +170,13 @@ class _Details extends StatelessWidget {
 }
 
 class _InfoCard extends StatelessWidget {
-  const _InfoCard({required this.quotation});
+  const _InfoCard({
+    required this.quotation,
+    required this.showSalesRepresentative,
+  });
 
   final QuotationModel quotation;
+  final bool showSalesRepresentative;
 
   @override
   Widget build(BuildContext context) {
@@ -179,7 +189,8 @@ class _InfoCard extends StatelessWidget {
             label: 'customer_name'.tr,
             value: quotation.customerSnapshot?.name ?? '-',
           ),
-          _Field(label: 'sales_rep'.tr, value: quotation.salesRepName),
+          if (showSalesRepresentative)
+            _Field(label: 'sales_rep'.tr, value: quotation.salesRepName),
           _Field(
             label: 'quotation_date'.tr,
             value: DateFormat.yMd().format(quotation.quotationDate),
@@ -264,44 +275,173 @@ class _ItemsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DashboardCard(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: [
-            DataColumn(label: Text('item_name'.tr)),
-            DataColumn(label: Text('quantity'.tr)),
-            DataColumn(label: Text('unit'.tr)),
-            DataColumn(label: Text('unit_price'.tr)),
-            DataColumn(label: Text('discount'.tr)),
-            DataColumn(label: Text('tax'.tr)),
-            DataColumn(label: Text('grand_total'.tr)),
-          ],
-          rows: quotation.items
-              .map(
-                (item) => DataRow(
-                  cells: [
-                    DataCell(
-                      Text(
-                        [
-                          item.itemName,
-                          item.description,
-                        ].where((value) => value.isNotEmpty).join('\n'),
-                      ),
-                    ),
-                    DataCell(Text(_quantity(item.quantity))),
-                    DataCell(Text(item.unit)),
-                    DataCell(Text(money.format(item.unitPrice))),
-                    DataCell(Text(money.format(item.discount))),
-                    DataCell(Text(money.format(item.taxAmount))),
-                    DataCell(Text(money.format(item.total))),
-                  ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact =
+              constraints.maxWidth < 760 ||
+              MediaQuery.textScalerOf(context).scale(1) > 1.3;
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'item_name'.tr,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: AppColor.secondaryColor,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              )
-              .toList(growable: false),
-        ),
+                const SizedBox(height: 10),
+                for (
+                  var index = 0;
+                  index < quotation.items.length;
+                  index++
+                ) ...[
+                  if (index > 0) const Divider(height: 22),
+                  _LineCard(item: quotation.items[index], money: money),
+                ],
+              ],
+            );
+          }
+          return ResponsiveDataTableCard(
+            minWidth: 1120,
+            child: DataTable(
+              dataRowMinHeight: 60,
+              dataRowMaxHeight: 110,
+              columnSpacing: 18,
+              horizontalMargin: 16,
+              columns: [
+                DataColumn(label: BoundedTableText('item_name'.tr, width: 220)),
+                DataColumn(label: BoundedTableText('quantity'.tr, width: 65)),
+                DataColumn(label: BoundedTableText('unit'.tr, width: 70)),
+                DataColumn(
+                  label: BoundedTableText('unit_price'.tr, width: 120),
+                ),
+                DataColumn(label: BoundedTableText('discount'.tr, width: 115)),
+                DataColumn(label: BoundedTableText('tax'.tr, width: 110)),
+                DataColumn(
+                  label: BoundedTableText('grand_total'.tr, width: 120),
+                ),
+              ],
+              rows: [
+                for (final item in quotation.items)
+                  DataRow(
+                    cells: [
+                      DataCell(
+                        SizedBox(
+                          width: 220,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.itemName,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              if (item.description.trim().isNotEmpty)
+                                Text(
+                                  item.description,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        BoundedTableText(_quantity(item.quantity), width: 65),
+                      ),
+                      DataCell(BoundedTableText(item.unit, width: 70)),
+                      DataCell(
+                        BoundedTableText(
+                          money.format(item.unitPrice),
+                          width: 120,
+                        ),
+                      ),
+                      DataCell(
+                        BoundedTableText(
+                          money.format(item.discount),
+                          width: 115,
+                        ),
+                      ),
+                      DataCell(
+                        BoundedTableText(
+                          money.format(item.taxAmount),
+                          width: 110,
+                        ),
+                      ),
+                      DataCell(
+                        BoundedTableText(money.format(item.total), width: 120),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
+}
+
+class _LineCard extends StatelessWidget {
+  const _LineCard({required this.item, required this.money});
+
+  final QuotationItemModel item;
+  final NumberFormat money;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Wrap(
+        spacing: 8,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(
+            item.itemName,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: AppColor.secondaryColor,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (item.lineType == InvoiceLineType.custom)
+            Chip(
+              label: Text('custom_line'.tr),
+              visualDensity: VisualDensity.compact,
+            ),
+        ],
+      ),
+      if (item.description.trim().isNotEmpty) ...[
+        const SizedBox(height: 4),
+        Text(item.description, softWrap: true),
+      ],
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 14,
+        runSpacing: 4,
+        children: [
+          Text('${'quantity'.tr}: ${_quantity(item.quantity)} ${item.unit}'),
+          Text('${'unit_price'.tr}: ${money.format(item.unitPrice)}'),
+          Text('${'discount'.tr}: ${money.format(item.discount)}'),
+          Text('${'tax'.tr}: ${money.format(item.taxAmount)}'),
+        ],
+      ),
+      const SizedBox(height: 6),
+      Text(
+        '${'grand_total'.tr}: ${money.format(item.total)}',
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+          color: AppColor.primaryColor,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    ],
+  );
 }
 
 class _TotalsCard extends StatelessWidget {

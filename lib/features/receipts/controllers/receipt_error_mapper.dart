@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/features/receipts/data/repositories/receipt_repository.dart';
 
@@ -22,6 +23,10 @@ class ReceiptErrorMapper {
 
   static String messageKey(Object error, {String fallback = 'receipts_error'}) {
     if (error is ReceiptRepositoryException) {
+      final cause = error.cause;
+      if (cause is FirebaseException && cause.code == 'failed-precondition') {
+        return 'receipts_server_validation_error';
+      }
       return switch (error.error) {
         ReceiptRepositoryError.unauthenticated => 'receipts_session_error',
         ReceiptRepositoryError.permissionDenied => 'receipts_permission_error',

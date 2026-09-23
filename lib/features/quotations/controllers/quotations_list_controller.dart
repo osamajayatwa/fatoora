@@ -36,6 +36,7 @@ class QuotationsListController extends GetxController {
   QuotationStatus? statusFilter;
   Timer? _searchDebounce;
   bool isLoadingMore = false;
+  String? loadMoreErrorMessageKey;
   bool hasMore = false;
   FirestorePageCursor? _pageCursor;
   int _loadGeneration = 0;
@@ -48,7 +49,13 @@ class QuotationsListController extends GetxController {
       AuthRepository.defaultCompanyId;
 
   bool get hasFilters => searchText.trim().isNotEmpty || statusFilter != null;
+  bool get hasAppliedFilters =>
+      _appliedSearchText.isNotEmpty || statusFilter != null;
   bool get canCreateQuotation => permissions.createQuotations;
+  bool get showSalesRepresentative =>
+      _myServices.sharedPreferences.getString('role')?.trim() == 'admin';
+  bool get searchIsTooShort =>
+      searchText.trim().isNotEmpty && serverSearchTerm(searchText).isEmpty;
 
   @override
   void onReady() {
@@ -63,6 +70,7 @@ class QuotationsListController extends GetxController {
     statusRequest = StatusRequest.loading;
     _pageCursor = null;
     hasMore = false;
+    loadMoreErrorMessageKey = null;
     loadErrorMessageKey = 'quotations_load_error';
     update();
     try {
@@ -95,6 +103,7 @@ class QuotationsListController extends GetxController {
   Future<void> loadMoreQuotations() async {
     if (isLoadingMore || !hasMore || _pageCursor == null) return;
     isLoadingMore = true;
+    loadMoreErrorMessageKey = null;
     final generation = _loadGeneration;
     update();
     try {
@@ -108,9 +117,10 @@ class QuotationsListController extends GetxController {
       quotations = [...quotations, ...page.items];
       _pageCursor = page.cursor;
       hasMore = page.hasMore;
+      loadMoreErrorMessageKey = null;
     } catch (error) {
       if (generation != _loadGeneration) return;
-      _showError(QuotationErrorMapper.messageKey(error));
+      loadMoreErrorMessageKey = QuotationErrorMapper.messageKey(error);
     } finally {
       isLoadingMore = false;
       if (!isClosed) update();

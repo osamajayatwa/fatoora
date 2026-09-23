@@ -1,5 +1,6 @@
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
+import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -55,267 +56,279 @@ class ItemForm extends StatelessWidget {
   final bool showCurrentStock;
 
   @override
-  Widget build(BuildContext context) {
-    return Form(
-      key: formKey,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final twoColumns = constraints.maxWidth >= 720;
-          final fieldWidth = twoColumns
-              ? (constraints.maxWidth - 18) / 2
-              : constraints.maxWidth;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Wrap(
-                spacing: 18,
-                runSpacing: 17,
-                children: [
-                  SizedBox(
-                    width: fieldWidth,
-                    child: _textField(
-                      controller: nameController,
-                      label: 'items_name'.tr,
-                      icon: Icons.inventory_2_outlined,
-                    ),
-                  ),
-                  SizedBox(
-                    width: fieldWidth,
-                    child: _textField(
-                      controller: codeController,
-                      label: 'items_code'.tr,
-                      icon: Icons.qr_code_2_rounded,
-                    ),
-                  ),
-                  SizedBox(
-                    width: fieldWidth,
-                    child: _textField(
-                      controller: unitController,
-                      label: 'items_unit'.tr,
-                      icon: Icons.straighten_rounded,
-                    ),
-                  ),
-                  SizedBox(
-                    width: fieldWidth,
-                    child: _numberField(
-                      controller: priceController,
-                      label: 'items_price'.tr,
-                      icon: Icons.payments_outlined,
-                      validator: _validatePrice,
-                      suffix: 'items_jod'.tr,
-                    ),
-                  ),
-                  SizedBox(
-                    width: fieldWidth,
-                    child: _numberField(
-                      controller: taxRateController,
-                      label: 'items_tax_rate'.tr,
-                      icon: Icons.percent_rounded,
-                      validator: _validateTax,
-                      suffix: '%',
-                    ),
-                  ),
-                  SizedBox(
-                    width: fieldWidth,
-                    child: _switchTile(
-                      context: context,
-                      label: 'items_active'.tr,
-                      icon: Icons.toggle_on_outlined,
-                      value: active,
-                      onChanged: onActiveChanged,
-                    ),
-                  ),
-                  SizedBox(
-                    width: fieldWidth,
-                    child: _switchTile(
-                      context: context,
-                      label: 'track_stock'.tr,
-                      icon: Icons.inventory_outlined,
-                      value: trackStock,
-                      onChanged: onTrackStockChanged,
-                    ),
-                  ),
-                  if (showCurrentStock)
-                    SizedBox(
-                      width: fieldWidth,
-                      child: _numberField(
-                        controller: currentStockController,
-                        label: 'current_stock'.tr,
-                        icon: Icons.inventory_2_outlined,
-                        validator: _validateNonNegative,
-                        suffix: 'quantity'.tr,
-                        enabled: trackStock,
-                      ),
-                    ),
-                  SizedBox(
-                    width: fieldWidth,
-                    child: _numberField(
-                      controller: openingStockController,
-                      label: 'opening_stock'.tr,
-                      icon: Icons.input_rounded,
-                      validator: _validateNonNegative,
-                      suffix: 'quantity'.tr,
-                      enabled: trackStock,
-                    ),
-                  ),
-                  SizedBox(
-                    width: fieldWidth,
-                    child: _numberField(
-                      controller: minStockController,
-                      label: 'min_stock'.tr,
-                      icon: Icons.warning_amber_rounded,
-                      validator: _validateNonNegative,
-                      suffix: 'quantity'.tr,
-                      enabled: trackStock,
-                    ),
-                  ),
-                  SizedBox(
-                    width: fieldWidth,
-                    child: _numberField(
-                      controller: costPriceController,
-                      label: 'cost_price'.tr,
-                      icon: Icons.price_change_outlined,
-                      validator: _validateNonNegative,
-                      suffix: 'items_jod'.tr,
-                    ),
-                  ),
-                  SizedBox(
-                    width: fieldWidth,
-                    child: _textField(
-                      controller: barcodeController,
-                      label: 'barcode'.tr,
-                      icon: Icons.qr_code_scanner_rounded,
-                      required: false,
-                    ),
-                  ),
-                  SizedBox(
-                    width: fieldWidth,
-                    child: _textField(
-                      controller: categoryController,
-                      label: 'category'.tr,
-                      icon: Icons.category_outlined,
-                      required: false,
-                    ),
-                  ),
-                  SizedBox(
-                    width: fieldWidth,
-                    child: _textField(
-                      controller: warehouseController,
-                      label: 'warehouse'.tr,
-                      icon: Icons.warehouse_outlined,
-                    ),
-                  ),
-                  SizedBox(
-                    width: constraints.maxWidth,
-                    child: _textField(
-                      controller: descriptionController,
-                      label: 'items_description'.tr,
-                      icon: Icons.notes_rounded,
-                      maxLines: 4,
-                    ),
-                  ),
-                ],
+  Widget build(BuildContext context) => Form(
+    key: formKey,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _section(context, 'items_basic_information'.tr, [
+          _textField(
+            'item-name-field',
+            nameController,
+            'items_name'.tr,
+            Icons.inventory_2_outlined,
+          ),
+          _textField(
+            'item-code-field',
+            codeController,
+            'items_code'.tr,
+            Icons.qr_code_2_rounded,
+          ),
+          _textField(
+            'item-description-field',
+            descriptionController,
+            'items_description'.tr,
+            Icons.notes_rounded,
+            maxLines: 4,
+            wide: true,
+          ),
+          _textField(
+            'item-unit-field',
+            unitController,
+            'items_unit'.tr,
+            Icons.straighten_rounded,
+          ),
+          _textField(
+            'item-barcode-field',
+            barcodeController,
+            'barcode'.tr,
+            Icons.qr_code_scanner_rounded,
+            required: false,
+          ),
+          _textField(
+            'item-category-field',
+            categoryController,
+            'category'.tr,
+            Icons.category_outlined,
+            required: false,
+          ),
+          _switchTile(
+            context,
+            'items_active'.tr,
+            Icons.toggle_on_outlined,
+            active,
+            onActiveChanged,
+            key: 'item-active-switch',
+          ),
+        ]),
+        const SizedBox(height: 14),
+        _section(context, 'items_pricing'.tr, [
+          _numberField(
+            'item-price-field',
+            priceController,
+            'items_price'.tr,
+            Icons.payments_outlined,
+            _validatePrice,
+            'items_jod'.tr,
+          ),
+          _numberField(
+            'item-tax-field',
+            taxRateController,
+            'items_tax_rate'.tr,
+            Icons.percent_rounded,
+            _validateTax,
+            '%',
+          ),
+          _numberField(
+            'item-cost-field',
+            costPriceController,
+            'cost_price'.tr,
+            Icons.price_change_outlined,
+            _validateNonNegative,
+            'items_jod'.tr,
+          ),
+        ]),
+        const SizedBox(height: 14),
+        _section(context, 'items_inventory'.tr, [
+          _switchTile(
+            context,
+            'track_stock'.tr,
+            Icons.inventory_outlined,
+            trackStock,
+            onTrackStockChanged,
+            key: 'item-track-switch',
+          ),
+          if (trackStock) ...[
+            if (showCurrentStock)
+              _numberField(
+                'item-current-stock-field',
+                currentStockController,
+                'current_stock'.tr,
+                Icons.inventory_2_outlined,
+                _validateNonNegative,
+                'quantity'.tr,
               ),
-              const SizedBox(height: 26),
-              Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: SizedBox(
-                  width: twoColumns ? 190 : double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: loading ? null : onSubmit,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColor.primaryColor,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                    ),
-                    icon: loading
-                        ? const SizedBox(
-                            width: 19,
-                            height: 19,
-                            child: FatooraProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.check_rounded),
-                    label: Text(submitLabel),
-                  ),
-                ),
+            _numberField(
+              'item-opening-stock-field',
+              openingStockController,
+              'opening_stock'.tr,
+              Icons.input_rounded,
+              _validateNonNegative,
+              'quantity'.tr,
+            ),
+            _numberField(
+              'item-min-stock-field',
+              minStockController,
+              'min_stock'.tr,
+              Icons.warning_amber_rounded,
+              _validateNonNegative,
+              'quantity'.tr,
+            ),
+          ] else
+            _FormFieldSpec(
+              wide: true,
+              child: Text(
+                'track_stock_disabled'.tr,
+                key: const ValueKey('item-tracking-disabled'),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: context.appMutedText),
               ),
-            ],
-          );
-        },
-      ),
-    );
-  }
+            ),
+          _textField(
+            'item-warehouse-field',
+            warehouseController,
+            'warehouse'.tr,
+            Icons.warehouse_outlined,
+          ),
+        ]),
+        const SizedBox(height: 18),
+        Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: FilledButton.icon(
+            key: const ValueKey('item-save-button'),
+            onPressed: loading ? null : onSubmit,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColor.primaryColor,
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
+            ),
+            icon: loading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: FatooraProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.check_rounded),
+            label: Text(loading ? 'items_saving'.tr : submitLabel),
+          ),
+        ),
+      ],
+    ),
+  );
 
-  Widget _textField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
+  Widget _section(
+    BuildContext context,
+    String title,
+    List<_FormFieldSpec> specs,
+  ) => DashboardCard(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: context.appText,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 14),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final twoColumns =
+                constraints.maxWidth >= 620 &&
+                MediaQuery.textScalerOf(context).scale(1) <= 1.3;
+            final width = twoColumns
+                ? (constraints.maxWidth - 12) / 2
+                : constraints.maxWidth;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                for (final spec in specs)
+                  SizedBox(
+                    width: spec.wide ? constraints.maxWidth : width,
+                    child: spec.child,
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    ),
+  );
+
+  _FormFieldSpec _textField(
+    String key,
+    TextEditingController controller,
+    String label,
+    IconData icon, {
     int maxLines = 1,
     bool required = true,
-    bool enabled = true,
-  }) {
-    return TextFormField(
+    bool wide = false,
+  }) => _FormFieldSpec(
+    wide: wide,
+    child: TextFormField(
+      key: ValueKey(key),
       controller: controller,
-      enabled: enabled && !loading,
+      enabled: !loading,
       maxLines: maxLines,
       textInputAction: maxLines > 1
           ? TextInputAction.newline
           : TextInputAction.next,
       validator: required ? _validateRequired : null,
-      decoration: _decoration(label: label, icon: icon),
-    );
-  }
+      decoration: _decoration('$label${required ? ' *' : ''}', icon),
+    ),
+  );
 
-  Widget _numberField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    required String? Function(String?) validator,
-    required String suffix,
-    bool enabled = true,
-  }) {
-    return TextFormField(
+  _FormFieldSpec _numberField(
+    String key,
+    TextEditingController controller,
+    String label,
+    IconData icon,
+    String? Function(String?) validator,
+    String suffix,
+  ) => _FormFieldSpec(
+    child: TextFormField(
+      key: ValueKey(key),
       controller: controller,
-      enabled: enabled && !loading,
+      enabled: !loading,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
       ],
       textInputAction: TextInputAction.next,
       validator: validator,
-      decoration: _decoration(
-        label: label,
-        icon: icon,
-      ).copyWith(suffixText: suffix),
-    );
-  }
+      decoration: _decoration('$label *', icon).copyWith(suffixText: suffix),
+    ),
+  );
 
-  Widget _switchTile({
-    required BuildContext context,
-    required String label,
-    required IconData icon,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Container(
+  _FormFieldSpec _switchTile(
+    BuildContext context,
+    String label,
+    IconData icon,
+    bool value,
+    ValueChanged<bool> onChanged, {
+    required String key,
+  }) => _FormFieldSpec(
+    child: Container(
+      key: ValueKey(key),
       constraints: const BoxConstraints(minHeight: 58),
-      padding: const EdgeInsets.symmetric(horizontal: 15),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFAFBFD),
+        color: context.appSurfaceMuted,
         borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: const Color(0xFFE1E5ED)),
+        border: Border.all(color: context.appBorder),
       ),
       child: Row(
         children: [
-          Icon(icon, color: AppColor.grey),
-          const SizedBox(width: 12),
+          Icon(icon, color: context.appMutedText),
+          const SizedBox(width: 8),
           Expanded(
-            child: Text(label, style: Theme.of(context).textTheme.bodyLarge),
+            child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
           ),
           Switch(
             value: value,
@@ -324,30 +337,15 @@ class ItemForm extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
 
-  InputDecoration _decoration({required String label, required IconData icon}) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon),
-      filled: true,
-      fillColor: const Color(0xFFFAFBFD),
-      alignLabelWithHint: true,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(13),
-        borderSide: const BorderSide(color: Color(0xFFE1E5ED)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(13),
-        borderSide: const BorderSide(color: Color(0xFFE1E5ED)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(13),
-        borderSide: const BorderSide(color: AppColor.primaryColor, width: 1.4),
-      ),
-    );
-  }
+  InputDecoration _decoration(String label, IconData icon) => InputDecoration(
+    labelText: label,
+    prefixIcon: Icon(icon),
+    alignLabelWithHint: true,
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(13)),
+  );
 
   String? _validateRequired(String? value) =>
       value == null || value.trim().isEmpty ? 'items_required'.tr : null;
@@ -375,4 +373,10 @@ class ItemForm extends StatelessWidget {
     if (number < 0) return 'inventory_number_non_negative'.tr;
     return null;
   }
+}
+
+class _FormFieldSpec {
+  const _FormFieldSpec({required this.child, this.wide = false});
+  final Widget child;
+  final bool wide;
 }

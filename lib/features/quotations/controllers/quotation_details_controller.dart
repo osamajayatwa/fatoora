@@ -32,6 +32,8 @@ class QuotationDetailsController extends GetxController {
 
   bool get canEdit => quotation?.canEdit == true && !isSavingStatus;
   bool get canConvert => quotation?.canConvert == true && !isConverting;
+  bool get showSalesRepresentative =>
+      _myServices.sharedPreferences.getString('role')?.trim() == 'admin';
 
   @override
   void onReady() {

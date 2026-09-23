@@ -75,11 +75,26 @@ class _TotalLine extends StatelessWidget {
           );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Expanded(child: Text(label, style: style)),
-          Text(value, style: style),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 300 ||
+              MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(label, style: style),
+                const SizedBox(height: 2),
+                Text(value, style: style, softWrap: true),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: Text(label, style: style)),
+              Text(value, style: style),
+            ],
+          );
+        },
       ),
     );
   }

@@ -47,6 +47,7 @@ class ReceiptFormScreen extends StatelessWidget {
                           TextField(
                             controller: controller.amountController,
                             onChanged: controller.onAmountChanged,
+                            readOnly: controller.isSaving,
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
                             ),
@@ -69,7 +70,9 @@ class ReceiptFormScreen extends StatelessWidget {
                                     ?.copyWith(color: AppColor.grey),
                               );
                               final action = TextButton.icon(
-                                onPressed: controller.useFullBalance,
+                                onPressed: controller.isSaving
+                                    ? null
+                                    : controller.useFullBalance,
                                 icon: const Icon(Icons.done_all_rounded),
                                 label: Text('receipts_pay_full_balance'.tr),
                               );
@@ -98,12 +101,36 @@ class ReceiptFormScreen extends StatelessWidget {
                             },
                           ),
                           const SizedBox(height: 16),
+                          Text(
+                            'payment_details'.tr,
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  color: AppColor.secondaryColor,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                          ),
+                          const SizedBox(height: 10),
                           _PaymentMethodSelector(controller: controller),
+                          if (controller.paymentMethod == 'cash' &&
+                              (controller.permissions.isAdmin ||
+                                  controller.permissions.isSalesRep)) ...[
+                            const SizedBox(height: 10),
+                            Text(
+                              '${'receipts_cash_destination'.tr}: '
+                              '${(controller.permissions.isAdmin ? 'financial_company_cash' : 'ledger_rep_cash').tr}',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: AppColor.secondaryColor,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                          ],
                           const SizedBox(height: 16),
                           _ReceiptDateField(controller: controller),
                           const SizedBox(height: 16),
                           TextField(
                             controller: controller.notesController,
+                            readOnly: controller.isSaving,
                             maxLines: 3,
                             decoration: InputDecoration(
                               labelText: 'notes'.tr,
@@ -111,9 +138,26 @@ class ReceiptFormScreen extends StatelessWidget {
                               border: const OutlineInputBorder(),
                             ),
                           ),
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFD),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFFE4E8EF),
+                              ),
+                            ),
+                            child: Text(
+                              'receipts_allocation_auto'.tr,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
                           const SizedBox(height: 22),
                           FilledButton.icon(
-                            onPressed: controller.isSaving
+                            onPressed:
+                                controller.isSaving ||
+                                    !controller.permissions.createReceipts
                                 ? null
                                 : controller.saveReceipt,
                             style: FilledButton.styleFrom(
@@ -133,7 +177,11 @@ class ReceiptFormScreen extends StatelessWidget {
                                     ),
                                   )
                                 : const Icon(Icons.save_outlined),
-                            label: Text('save_receipt'.tr),
+                            label: Text(
+                              controller.isSaving
+                                  ? 'receipts_saving'.tr
+                                  : 'save_receipt'.tr,
+                            ),
                           ),
                         ],
                       ),
@@ -204,7 +252,9 @@ class _CustomerSelector extends StatelessWidget {
     final customer = controller.customer;
     return InkWell(
       borderRadius: BorderRadius.circular(14),
-      onTap: () => controller.selectCustomer(context),
+      onTap: controller.isSaving
+          ? null
+          : () => controller.selectCustomer(context),
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: 'select_customer'.tr,
@@ -255,7 +305,9 @@ class _PaymentMethodSelector extends StatelessWidget {
           for (final method in ReceiptFormController.paymentMethods)
             ChoiceChip(
               selected: controller.paymentMethod == method,
-              onSelected: (_) => controller.setPaymentMethod(method),
+              onSelected: controller.isSaving
+                  ? null
+                  : (_) => controller.setPaymentMethod(method),
               label: Text('payment_method_$method'.tr),
             ),
         ],
@@ -273,15 +325,17 @@ class _ReceiptDateField extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(14),
-      onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          firstDate: DateTime(2020),
-          lastDate: DateTime.now().add(const Duration(days: 365)),
-          initialDate: controller.receiptDate,
-        );
-        if (picked != null) controller.setReceiptDate(picked);
-      },
+      onTap: controller.isSaving
+          ? null
+          : () async {
+              final picked = await showDatePicker(
+                context: context,
+                firstDate: DateTime(2020),
+                lastDate: DateTime.now().add(const Duration(days: 365)),
+                initialDate: controller.receiptDate,
+              );
+              if (picked != null) controller.setReceiptDate(picked);
+            },
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: 'receipt_date'.tr,

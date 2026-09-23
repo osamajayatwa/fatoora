@@ -53,6 +53,7 @@ class AddItemController extends GetxController with ItemPageNavigation {
   bool active = true;
   bool trackStock = true;
   bool isDirty = false;
+  bool defaultsLoaded = false;
   bool _applyingDefaults = false;
 
   bool get isLoading => statusRequest == StatusRequest.loading;
@@ -115,6 +116,7 @@ class AddItemController extends GetxController with ItemPageNavigation {
     trackStock = inventory.trackStockByDefault;
     _applyingDefaults = false;
     isDirty = false;
+    defaultsLoaded = true;
     statusRequest = StatusRequest.success;
     update();
   }

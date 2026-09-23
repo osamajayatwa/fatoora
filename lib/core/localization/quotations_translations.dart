@@ -25,9 +25,13 @@ const Map<String, String> quotationsEnglishTranslations = {
   'validity': 'Validity',
   'no_quotations_found': 'No quotations found.',
   'search_quotations': 'Search by customer, item, number, rep, or date...',
+  'quotations_search_minimum': 'Enter at least 2 characters to search.',
+  'quotations_filter': 'Filter',
   'all_quotation_statuses': 'All quotation statuses',
   'quotation_has_no_financial_effect':
       'Quotations do not affect stock, balances, debts, or cash.',
+  'quotation_line_help':
+      'Add a catalog item or a custom line. Descriptions stay with this quotation.',
   'quotation_valid_until_invalid':
       'Valid until cannot be before the quotation date.',
   'quotations_load_error': 'Unable to load quotations. Please try again.',
@@ -75,9 +79,13 @@ const Map<String, String> quotationsArabicTranslations = {
   'no_quotations_found': 'لا توجد عروض أسعار.',
   'search_quotations':
       'ابحث باسم العميل أو الصنف أو الرقم أو المندوب أو التاريخ...',
+  'quotations_search_minimum': 'أدخل حرفين على الأقل للبحث.',
+  'quotations_filter': 'تصفية',
   'all_quotation_statuses': 'كل حالات عروض الأسعار',
   'quotation_has_no_financial_effect':
       'عروض الأسعار لا تؤثر على المخزون أو الأرصدة أو الديون أو النقد.',
+  'quotation_line_help':
+      'أضف صنفاً من الكتالوج أو بنداً مخصصاً. يبقى الوصف مع عرض السعر.',
   'quotation_valid_until_invalid':
       'تاريخ الصلاحية لا يمكن أن يكون قبل تاريخ عرض السعر.',
   'quotations_load_error': 'تعذر تحميل عروض الأسعار. يرجى المحاولة مرة أخرى.',
