@@ -7,6 +7,7 @@ import 'package:fatoora/features/rep_inventory/controllers/rep_inventory_control
 import 'package:fatoora/features/rep_inventory/data/models/inventory_transfer_model.dart';
 import 'package:fatoora/features/rep_inventory/data/models/rep_inventory_enums.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
+import 'package:fatoora/features/shared/inventory/inventory_presentation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -69,30 +70,7 @@ class RepInventoryScreen extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 20),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Wrap(
-                      spacing: 30,
-                      runSpacing: 12,
-                      children: [
-                        _Fact(
-                          'rep_inventory_distinct_items'.tr,
-                          controller.balances.length.toString(),
-                        ),
-                        _Fact(
-                          'rep_inventory_total_quantity'.tr,
-                          _quantity(
-                            controller.balances.fold(
-                              0,
-                              (total, balance) => total + balance.quantity,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                _RepInventoryKpis(controller: controller),
                 const SizedBox(height: 20),
                 _SectionTitle(
                   title: 'rep_inventory_balances'.tr,
@@ -101,27 +79,7 @@ class RepInventoryScreen extends StatelessWidget {
                 if (controller.balances.isEmpty)
                   const _EmptyCard(keyName: 'rep_inventory_no_balances')
                 else
-                  ...controller.balances.map(
-                    (balance) => Card(
-                      child: ListTile(
-                        leading: const CircleAvatar(
-                          child: Icon(Icons.inventory_2_outlined),
-                        ),
-                        title: Text(balance.itemNameSnapshot),
-                        subtitle: Text(
-                          '${balance.modelSnapshot} · ${balance.unitSnapshot}\n'
-                          '${'rep_inventory_last_updated'.tr}: '
-                          '${DateFormat.yMd().add_jm().format(balance.updatedAt)}',
-                        ),
-                        isThreeLine: true,
-                        trailing: Text(
-                          _quantity(balance.quantity),
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                    ),
-                  ),
+                  _CustodyBalanceGrid(controller: controller),
                 const SizedBox(height: 20),
                 _SectionTitle(
                   title: 'rep_inventory_recent_movements'.tr,
@@ -181,6 +139,81 @@ class RepInventoryScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class _RepInventoryKpis extends StatelessWidget {
+  const _RepInventoryKpis({required this.controller});
+
+  final RepInventoryController controller;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final textScale = MediaQuery.textScalerOf(context).scale(1);
+      final columns = constraints.maxWidth >= 360 && textScale <= 1.3 ? 2 : 1;
+      const spacing = 12.0;
+      final width = (constraints.maxWidth - spacing * (columns - 1)) / columns;
+      final total = controller.balances.fold<double>(
+        0,
+        (value, balance) => value + balance.quantity,
+      );
+      return Wrap(
+        spacing: spacing,
+        runSpacing: spacing,
+        children: [
+          SizedBox(
+            width: width,
+            child: InventoryKpiCard(
+              label: 'rep_inventory_distinct_items'.tr,
+              value: controller.balances.length.toString(),
+              icon: Icons.inventory_2_outlined,
+              color: AppColor.secondaryColor,
+            ),
+          ),
+          SizedBox(
+            width: width,
+            child: InventoryKpiCard(
+              label: 'rep_inventory_total_quantity'.tr,
+              value: inventoryQuantity(total),
+              icon: Icons.all_inbox_outlined,
+              color: AppColor.primaryColor,
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+class _CustodyBalanceGrid extends StatelessWidget {
+  const _CustodyBalanceGrid({required this.controller});
+
+  final RepInventoryController controller;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final columns = constraints.maxWidth >= 1050
+          ? 3
+          : constraints.maxWidth >= 680
+          ? 2
+          : 1;
+      const spacing = 12.0;
+      final width = (constraints.maxWidth - spacing * (columns - 1)) / columns;
+      return Wrap(
+        spacing: spacing,
+        runSpacing: spacing,
+        children: controller.balances
+            .map(
+              (balance) => SizedBox(
+                width: width,
+                child: CustodyInventoryItemCard(balance: balance),
+              ),
+            )
+            .toList(),
+      );
+    },
+  );
 }
 
 class InventoryTransfersScreen extends StatelessWidget {

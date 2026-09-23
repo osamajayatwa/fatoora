@@ -5,9 +5,9 @@ import 'package:fatoora/features/admin_dashboard/view/widgets/admin_dashboard_sh
 import 'package:fatoora/features/inventory/controllers/stock_movements_controller.dart';
 import 'package:fatoora/features/inventory/data/models/stock_movement_model.dart';
 import 'package:fatoora/features/shared/business/business_page_widgets.dart';
+import 'package:fatoora/features/shared/inventory/inventory_presentation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 
 class StockMovementsScreen extends StatelessWidget {
   const StockMovementsScreen({super.key});
@@ -146,46 +146,12 @@ class _MovementList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final date = DateFormat('yyyy-MM-dd HH:mm');
     return Column(
       children: movements
           .map(
-            (movement) => Card(
-              elevation: 0,
-              color: AppColor.surface,
-              margin: const EdgeInsets.only(bottom: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-                side: const BorderSide(color: Color(0xFFE4E8EF)),
-              ),
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: movement.isOut
-                      ? AppColor.error.withValues(alpha: 0.12)
-                      : AppColor.success.withValues(alpha: 0.12),
-                  child: Icon(
-                    movement.isOut
-                        ? Icons.arrow_upward_rounded
-                        : Icons.arrow_downward_rounded,
-                    color: movement.isOut ? AppColor.error : AppColor.success,
-                  ),
-                ),
-                title: Text(movement.itemName),
-                subtitle: Text(
-                  [
-                    movement.movementType.tr,
-                    movement.referenceNumber,
-                    date.format(movement.movementDate),
-                  ].where((value) => value.isNotEmpty).join(' / '),
-                ),
-                trailing: Text(
-                  '${movement.isOut ? '-' : '+'}${NumberFormat('#,##0.###').format(movement.quantity)}',
-                  style: TextStyle(
-                    color: movement.isOut ? AppColor.error : AppColor.success,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
+            (movement) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: StockMovementCard(movement: movement),
             ),
           )
           .toList(),

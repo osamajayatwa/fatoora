@@ -32,6 +32,10 @@ class CustomerDetailsController extends GetxController {
   bool isCheckingOpeningBalance = false;
   CustomerTransactionModel? openingBalance;
 
+  bool get isAdmin =>
+      _myServices.sharedPreferences.getString('role')?.trim() ==
+      AuthRepository.adminRole;
+
   @override
   void onReady() {
     super.onReady();

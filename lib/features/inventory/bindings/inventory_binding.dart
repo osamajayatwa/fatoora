@@ -24,6 +24,7 @@ class InventoryDashboardBinding extends Bindings {
     Get.lazyPut<InventoryDashboardController>(
       () => InventoryDashboardController(
         repository: Get.find<InventoryRepository>(),
+        itemRepository: Get.find<ItemRepository>(),
         myServices: Get.find<MyServices>(),
       ),
     );

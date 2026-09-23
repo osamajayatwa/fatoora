@@ -6,8 +6,10 @@ import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/customers/data/models/customer_opening_balance.dart';
 import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
 import 'package:fatoora/features/customers/view/widgets/customer_opening_balance_dialog.dart';
+import 'package:fatoora/features/customers/view/widgets/customer_list_components.dart';
 import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
+import 'package:fatoora/features/shared/dashboard/dashboard_primitives.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -52,14 +54,21 @@ class _DetailsBody extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _Header(customer: customer, controller: controller),
-              const SizedBox(height: 16),
+              const SizedBox(height: 22),
+              FatooraDashboardSectionTitle(
+                title: 'customers_financial_summary'.tr,
+              ),
               _BalanceCards(customer: customer),
               if (controller.openingBalance != null) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 22),
+                FatooraDashboardSectionTitle(
+                  title: 'customers_opening_balance'.tr,
+                ),
                 _OpeningBalanceCard(transaction: controller.openingBalance!),
               ],
-              const SizedBox(height: 16),
-              _InfoCard(customer: customer),
+              const SizedBox(height: 22),
+              FatooraDashboardSectionTitle(title: 'customers_identity'.tr),
+              _InfoCard(customer: customer, showCreator: controller.isAdmin),
             ],
           ),
         ),
@@ -78,7 +87,9 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final narrow = constraints.maxWidth < 520;
+        final narrow =
+            constraints.maxWidth < 520 ||
+            MediaQuery.textScalerOf(context).scale(1) > 1.3;
         return DashboardCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -109,17 +120,9 @@ class _Header extends StatelessWidget {
                               ),
                         ),
                         const SizedBox(height: 8),
-                        Text(
-                          customer.active
-                              ? 'items_active'.tr
-                              : 'items_inactive'.tr,
-                          style: Theme.of(context).textTheme.labelLarge
-                              ?.copyWith(
-                                color: customer.active
-                                    ? AppColor.success
-                                    : AppColor.error,
-                                fontWeight: FontWeight.w800,
-                              ),
+                        Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: CustomerStatusPill(active: customer.active),
                         ),
                       ],
                     ),
@@ -127,6 +130,14 @@ class _Header extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
+              Text(
+                'customers_actions'.tr,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: context.appMutedText,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
@@ -253,7 +264,9 @@ class _BalanceCards extends StatelessWidget {
     final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
     return LayoutBuilder(
       builder: (context, constraints) {
-        final cardWidth = constraints.maxWidth < 620
+        final cardWidth =
+            constraints.maxWidth < 620 ||
+                MediaQuery.textScalerOf(context).scale(1) > 1.3
             ? constraints.maxWidth
             : (constraints.maxWidth - 24) / 3;
         return Wrap(
@@ -262,10 +275,22 @@ class _BalanceCards extends StatelessWidget {
           children: [
             SizedBox(
               width: cardWidth,
-              child: _MetricCard(
-                label: 'customers_balance'.tr,
-                value: currency.format(customer.currentBalance),
-                icon: Icons.account_balance_wallet_outlined,
+              child: DashboardCard(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'customers_balance'.tr,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: context.appMutedText,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    CustomerBalanceBadge(balance: customer.currentBalance),
+                  ],
+                ),
               ),
             ),
             SizedBox(
@@ -305,6 +330,7 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DashboardCard(
+      padding: const EdgeInsets.all(14),
       child: Row(
         children: [
           Icon(icon, color: AppColor.primaryColor),
@@ -347,7 +373,9 @@ class _OpeningBalanceCard extends StatelessWidget {
     return DashboardCard(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final narrow = constraints.maxWidth < 560;
+          final narrow =
+              constraints.maxWidth < 560 ||
+              MediaQuery.textScalerOf(context).scale(1) > 1.3;
           final details = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -406,9 +434,10 @@ class _OpeningBalanceCard extends StatelessWidget {
 }
 
 class _InfoCard extends StatelessWidget {
-  const _InfoCard({required this.customer});
+  const _InfoCard({required this.customer, required this.showCreator});
 
   final CustomerModel customer;
+  final bool showCreator;
 
   @override
   Widget build(BuildContext context) {
@@ -429,7 +458,8 @@ class _InfoCard extends StatelessWidget {
           _InfoRow(label: 'city'.tr, value: customer.city),
           _InfoRow(label: 'customers_area'.tr, value: customer.area),
           _InfoRow(label: 'notes'.tr, value: customer.notes),
-          _InfoRow(label: 'created_by'.tr, value: customer.createdByName),
+          if (showCreator)
+            _InfoRow(label: 'created_by'.tr, value: customer.createdByName),
         ],
       ),
     );
@@ -449,7 +479,9 @@ class _InfoRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final narrow = constraints.maxWidth < 420;
+          final narrow =
+              constraints.maxWidth < 420 ||
+              MediaQuery.textScalerOf(context).scale(1) > 1.3;
           final labelWidget = Text(
             label,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(

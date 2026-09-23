@@ -1,14 +1,15 @@
-import 'package:fatoora/core/class/handilingdataview.dart';
+import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
 import 'package:fatoora/core/widgets/responsive_data_table_card.dart';
+import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
 import 'package:fatoora/features/customers/controllers/customers_controller.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
-import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dart';
+import 'package:fatoora/features/customers/view/widgets/customer_list_components.dart';
 import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 
 class CustomersListScreen extends StatelessWidget {
   const CustomersListScreen({super.key});
@@ -18,51 +19,36 @@ class CustomersListScreen extends StatelessWidget {
     return GetBuilder<CustomersController>(
       builder: (controller) => BusinessShell(
         title: 'customers'.tr,
-        child: HandilingDataView(
-          statusrequest: controller.statusRequest,
-          errorMessage: controller.loadErrorMessageKey.tr,
-          retryLabel: 'items_retry'.tr,
-          onRetry: controller.loadCustomers,
-          widget: RefreshIndicator(
-            onRefresh: controller.refreshCustomers,
-            color: AppColor.primaryColor,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final compact = constraints.maxWidth < 900;
-                final padding = constraints.maxWidth < 600 ? 14.0 : 24.0;
-                return SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(padding, padding, padding, 96),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1200),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _CustomersHeader(controller: controller),
-                          const SizedBox(height: 16),
-                          _CustomerSearch(controller: controller),
-                          const SizedBox(height: 16),
-                          if (controller.customers.isEmpty)
-                            _EmptyCustomers(searching: controller.hasSearch)
-                          else if (compact)
-                            _CustomerCards(controller: controller)
-                          else
-                            _CustomerTable(controller: controller),
-                          if (controller.hasMore) ...[
-                            const SizedBox(height: 16),
-                            BusinessLoadMoreButton(
-                              loading: controller.isLoadingMore,
-                              onPressed: controller.loadMoreCustomers,
-                            ),
-                          ],
-                        ],
-                      ),
+        child: RefreshIndicator(
+          onRefresh: controller.refreshCustomers,
+          color: AppColor.primaryColor,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final desktop = constraints.maxWidth >= 900;
+              final padding = constraints.maxWidth < 600 ? 14.0 : 24.0;
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(padding, padding, padding, 96),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1200),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _CustomersHeader(controller: controller),
+                        const SizedBox(height: 14),
+                        _CustomerSearch(controller: controller),
+                        const SizedBox(height: 14),
+                        _CustomerResults(
+                          controller: controller,
+                          desktop: desktop,
+                        ),
+                      ],
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -76,18 +62,16 @@ class _CustomersHeader extends StatelessWidget {
   final CustomersController controller;
 
   @override
-  Widget build(BuildContext context) {
-    return BusinessPageHeader(
-      title: 'customers'.tr,
-      trailing: controller.canCreateCustomer
-          ? BusinessPrimaryActionButton(
-              onPressed: controller.openCreateCustomer,
-              icon: Icons.person_add_alt_1_outlined,
-              label: 'customers_add'.tr,
-            )
-          : null,
-    );
-  }
+  Widget build(BuildContext context) => BusinessPageHeader(
+    title: 'customers'.tr,
+    trailing: controller.canCreateCustomer
+        ? BusinessPrimaryActionButton(
+            onPressed: controller.openCreateCustomer,
+            icon: Icons.person_add_alt_1_outlined,
+            label: 'customers_add'.tr,
+          )
+        : null,
+  );
 }
 
 class _CustomerSearch extends StatelessWidget {
@@ -96,27 +80,145 @@ class _CustomerSearch extends StatelessWidget {
   final CustomersController controller;
 
   @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller.searchController,
-      onChanged: controller.onSearchChanged,
-      onSubmitted: (_) => controller.submitSearch(),
-      textInputAction: TextInputAction.search,
-      decoration: InputDecoration(
-        hintText: 'customers_search_hint'.tr,
-        prefixIcon: const Icon(Icons.search_rounded),
-        suffixIcon: controller.hasSearch
-            ? IconButton(
-                onPressed: controller.clearSearch,
-                icon: const Icon(Icons.close_rounded),
-              )
-            : null,
-        filled: true,
-        fillColor: AppColor.surface,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      TextField(
+        key: const ValueKey('customer-search-field'),
+        controller: controller.searchController,
+        onChanged: controller.onSearchChanged,
+        onSubmitted: (_) => controller.submitSearch(),
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          hintText: 'customers_search_hint'.tr,
+          prefixIcon: const Icon(Icons.search_rounded),
+          suffixIcon: controller.hasSearch
+              ? IconButton(
+                  tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                  onPressed: controller.clearSearch,
+                  icon: const Icon(Icons.close_rounded),
+                )
+              : null,
+          filled: true,
+          fillColor: context.appSurface,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: context.appBorder),
+          ),
+        ),
       ),
+      if (controller.searchIsTooShort) ...[
+        const SizedBox(height: 6),
+        Text(
+          'customers_search_minimum'.tr,
+          key: const ValueKey('customer-search-minimum-hint'),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: context.appMutedText),
+        ),
+      ],
+    ],
+  );
+}
+
+class _CustomerResults extends StatelessWidget {
+  const _CustomerResults({required this.controller, required this.desktop});
+
+  final CustomersController controller;
+  final bool desktop;
+
+  @override
+  Widget build(BuildContext context) {
+    final loading = controller.statusRequest == StatusRequest.loading;
+    final failed =
+        controller.statusRequest != StatusRequest.success &&
+        controller.statusRequest != StatusRequest.loading;
+    if (loading && controller.customers.isEmpty) {
+      return const Padding(
+        key: ValueKey('customer-results-loading'),
+        padding: EdgeInsets.symmetric(vertical: 44),
+        child: Center(child: FatooraProgressIndicator()),
+      );
+    }
+    if (failed && controller.customers.isEmpty) {
+      return BusinessEmptyState(
+        key: const ValueKey('customer-results-error'),
+        icon: Icons.sync_problem_outlined,
+        title: controller.loadErrorMessageKey.tr,
+        action: FilledButton.icon(
+          key: const ValueKey('customer-retry-button'),
+          onPressed: controller.loadCustomers,
+          icon: const Icon(Icons.refresh_rounded),
+          label: Text('items_retry'.tr),
+        ),
+      );
+    }
+    if (controller.customers.isEmpty) {
+      return BusinessEmptyState(
+        key: ValueKey(
+          controller.hasAppliedSearch
+              ? 'customer-search-empty'
+              : 'customer-list-empty',
+        ),
+        icon: Icons.people_alt_outlined,
+        title: controller.hasAppliedSearch
+            ? 'customers_no_search_results'.tr
+            : 'customers_empty'.tr,
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (loading)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 10),
+            child: LinearProgressIndicator(
+              key: ValueKey('customer-results-refreshing'),
+              minHeight: 3,
+            ),
+          ),
+        if (failed) ...[
+          _InlineError(controller: controller),
+          const SizedBox(height: 10),
+        ],
+        if (desktop)
+          _CustomerTable(controller: controller)
+        else
+          _CustomerCards(controller: controller),
+        if (controller.hasMore) ...[
+          const SizedBox(height: 16),
+          BusinessLoadMoreButton(
+            key: const ValueKey('customer-load-more'),
+            loading: controller.isLoadingMore,
+            onPressed: controller.loadMoreCustomers,
+          ),
+        ],
+      ],
     );
   }
+}
+
+class _InlineError extends StatelessWidget {
+  const _InlineError({required this.controller});
+
+  final CustomersController controller;
+
+  @override
+  Widget build(BuildContext context) => DashboardCard(
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    child: Row(
+      children: [
+        const Icon(Icons.sync_problem_outlined, color: AppColor.error),
+        const SizedBox(width: 10),
+        Expanded(child: Text(controller.loadErrorMessageKey.tr)),
+        TextButton(
+          onPressed: controller.loadCustomers,
+          child: Text('items_retry'.tr),
+        ),
+      ],
+    ),
+  );
 }
 
 class _CustomerCards extends StatelessWidget {
@@ -125,91 +227,30 @@ class _CustomerCards extends StatelessWidget {
   final CustomersController controller;
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        for (final customer in controller.customers) ...[
-          _CustomerCard(
-            customer: customer,
-            onTap: () => controller.openCustomerDetails(customer),
-          ),
-          const SizedBox(height: 12),
-        ],
-      ],
-    );
-  }
-}
-
-class _CustomerCard extends StatelessWidget {
-  const _CustomerCard({required this.customer, required this.onTap});
-
-  final CustomerModel customer;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
-    return DashboardCard(
-      padding: EdgeInsets.zero,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      customer.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppColor.secondaryColor,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  _StatusPill(active: customer.active),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  if (customer.phone.isNotEmpty)
-                    _InfoPill(
-                      icon: Icons.phone_outlined,
-                      label: customer.phone,
-                    ),
-                  if (customer.city.isNotEmpty)
-                    _InfoPill(
-                      icon: Icons.location_city_outlined,
-                      label: customer.city,
-                    ),
-                  if (customer.area.isNotEmpty)
-                    _InfoPill(icon: Icons.place_outlined, label: customer.area),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Text(
-                currency.format(customer.currentBalance),
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: customer.currentBalance > 0
-                      ? AppColor.error
-                      : AppColor.success,
-                  fontWeight: FontWeight.w900,
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final textScale = MediaQuery.textScalerOf(context).scale(1);
+      final columns = constraints.maxWidth >= 650 && textScale <= 1.3 ? 2 : 1;
+      const spacing = 12.0;
+      final width = (constraints.maxWidth - spacing * (columns - 1)) / columns;
+      return Wrap(
+        spacing: spacing,
+        runSpacing: spacing,
+        children: controller.customers
+            .map(
+              (customer) => SizedBox(
+                width: width,
+                child: CustomerCompactCard(
+                  customer: customer,
+                  showCreator: controller.isAdmin,
+                  onTap: () => controller.openCustomerDetails(customer),
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+            )
+            .toList(),
+      );
+    },
+  );
 }
 
 class _CustomerTable extends StatelessWidget {
@@ -219,26 +260,29 @@ class _CustomerTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
+    final showCreator = controller.isAdmin;
     return ResponsiveDataTableCard(
-      minWidth: 860,
+      minWidth: showCreator ? 1080 : 900,
       child: DataTable(
         columnSpacing: 14,
         horizontalMargin: 14,
+        showCheckboxColumn: false,
         columns: [
-          _column('customer_name', width: 220),
+          _column('customer_name', width: 210),
           _column('Phone', width: 128),
-          _column('city', width: 120),
-          _column('customers_area', width: 120),
-          _column('customers_balance', width: 126, numeric: true),
-          _column('invoice_status', width: 92),
-          _column('actions', width: 64),
+          _column('address', width: 155),
+          _column('customers_balance', width: 190),
+          _column('invoice_status', width: 86),
+          if (showCreator) _column('created_by', width: 130),
+          _column('actions', width: 52),
         ],
         rows: controller.customers
             .map(
               (customer) => DataRow(
+                onSelectChanged: (_) =>
+                    controller.openCustomerDetails(customer),
                 cells: [
-                  DataCell(BoundedTableText(customer.name, width: 220)),
+                  DataCell(BoundedTableText(customer.name, width: 210)),
                   DataCell(
                     BoundedTableText(
                       customer.phone,
@@ -246,30 +290,38 @@ class _CustomerTable extends StatelessWidget {
                       forceLtr: true,
                     ),
                   ),
-                  DataCell(BoundedTableText(customer.city, width: 120)),
-                  DataCell(BoundedTableText(customer.area, width: 120)),
+                  DataCell(BoundedTableText(_location(customer), width: 155)),
                   DataCell(
-                    BoundedTableText(
-                      currency.format(customer.currentBalance),
-                      width: 126,
-                      textAlign: TextAlign.end,
-                      forceLtr: true,
+                    BoundedTableWidget(
+                      width: 190,
+                      child: CustomerBalanceBadge(
+                        balance: customer.currentBalance,
+                        compact: true,
+                      ),
                     ),
                   ),
                   DataCell(
                     BoundedTableWidget(
-                      width: 92,
-                      child: _StatusPill(active: customer.active),
+                      width: 86,
+                      child: CustomerStatusPill(active: customer.active),
                     ),
                   ),
+                  if (showCreator)
+                    DataCell(
+                      BoundedTableText(customer.createdByName, width: 130),
+                    ),
                   DataCell(
                     SizedBox(
-                      width: 64,
+                      width: 52,
                       child: IconButton(
-                        tooltip: 'invoice_details'.tr,
+                        tooltip: 'customers_details'.tr,
                         onPressed: () =>
                             controller.openCustomerDetails(customer),
-                        icon: const Icon(Icons.chevron_right_rounded),
+                        icon: Icon(
+                          Directionality.of(context) == TextDirection.rtl
+                              ? Icons.chevron_left_rounded
+                              : Icons.chevron_right_rounded,
+                        ),
                       ),
                     ),
                   ),
@@ -281,85 +333,20 @@ class _CustomerTable extends StatelessWidget {
     );
   }
 
+  String _location(CustomerModel customer) => [
+    customer.area.trim(),
+    customer.city.trim(),
+  ].where((value) => value.isNotEmpty).join(' · ');
+
   DataColumn _column(
     String labelKey, {
     required double width,
     bool numeric = false,
-  }) {
-    return DataColumn(
-      numeric: numeric,
-      label: SizedBox(
-        width: width,
-        child: Text(labelKey.tr, maxLines: 2, overflow: TextOverflow.ellipsis),
-      ),
-    );
-  }
-}
-
-class _EmptyCustomers extends StatelessWidget {
-  const _EmptyCustomers({required this.searching});
-
-  final bool searching;
-
-  @override
-  Widget build(BuildContext context) {
-    return BusinessEmptyState(
-      icon: Icons.people_alt_outlined,
-      title: searching
-          ? 'customers_no_search_results'.tr
-          : 'customers_empty'.tr,
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.active});
-
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: active
-            ? AppColor.success.withValues(alpha: 0.12)
-            : AppColor.error.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        active ? 'items_active'.tr : 'items_inactive'.tr,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: active ? AppColor.success : AppColor.error,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoPill extends StatelessWidget {
-  const _InfoPill({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF4F6FA),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: AppColor.grey),
-          const SizedBox(width: 6),
-          Text(label, style: Theme.of(context).textTheme.labelSmall),
-        ],
-      ),
-    );
-  }
+  }) => DataColumn(
+    numeric: numeric,
+    label: SizedBox(
+      width: width,
+      child: Text(labelKey.tr, maxLines: 2, overflow: TextOverflow.ellipsis),
+    ),
+  );
 }

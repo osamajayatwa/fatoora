@@ -46,7 +46,12 @@ class CustomersController extends GetxController {
       AuthRepository.defaultCompanyId;
 
   bool get hasSearch => searchText.trim().isNotEmpty;
+  bool get hasAppliedSearch => _appliedSearchText.isNotEmpty;
+  bool get searchIsTooShort => serverSearchIsTooShort(searchText);
   bool get canCreateCustomer => permissions.createCustomers;
+  bool get isAdmin =>
+      _myServices.sharedPreferences.getString('role')?.trim() ==
+      AuthRepository.adminRole;
 
   @override
   void onReady() {
