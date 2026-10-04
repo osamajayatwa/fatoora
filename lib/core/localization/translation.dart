@@ -10,6 +10,7 @@ import 'package:fatoora/core/localization/financial_ledger_translations.dart';
 import 'package:fatoora/core/localization/inventory_translations.dart';
 import 'package:fatoora/core/localization/invoices_translations.dart';
 import 'package:fatoora/core/localization/items_translations.dart';
+import 'package:fatoora/core/localization/operational_report_translations.dart';
 import 'package:fatoora/core/localization/pdf_translations.dart';
 import 'package:fatoora/core/localization/permissions_translations.dart';
 import 'package:fatoora/core/localization/quotations_translations.dart';
@@ -30,6 +31,7 @@ class MyTranslation extends Translations {
       ...adminDashboardArabicTranslations,
       ...adminUsersArabicTranslations,
       ...itemsArabicTranslations,
+      ...operationalReportArabicTranslations,
       ...invoicesArabicTranslations,
       ...customersArabicTranslations,
       ...financialArabicTranslations,
@@ -53,6 +55,7 @@ class MyTranslation extends Translations {
       ...adminDashboardEnglishTranslations,
       ...adminUsersEnglishTranslations,
       ...itemsEnglishTranslations,
+      ...operationalReportEnglishTranslations,
       ...invoicesEnglishTranslations,
       ...customersEnglishTranslations,
       ...financialEnglishTranslations,

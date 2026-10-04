@@ -6,6 +6,7 @@ import 'package:fatoora/features/admin_dashboard/view/widgets/dashboard_card.dar
 import 'package:fatoora/features/financial_ledger/controllers/financial_ledger_controller.dart';
 import 'package:fatoora/features/financial_ledger/data/models/financial_ledger_entry.dart';
 import 'package:fatoora/features/financial_ledger/data/models/financial_ledger_filters.dart';
+import 'package:fatoora/features/operational_report/controllers/operational_report_controller.dart';
 import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
@@ -79,6 +80,18 @@ class _Header extends StatelessWidget {
             icon: Icons.content_copy_rounded,
             label: 'ledger_copy_tsv'.tr,
           ),
+          if (Get.isRegistered<OperationalReportController>())
+            GetBuilder<OperationalReportController>(
+              builder: (operationalController) => BusinessSecondaryActionButton(
+                onPressed: () => operationalController.exportReport(
+                  fromDate: controller.filters.fromDate,
+                  toDate: controller.filters.toDate,
+                ),
+                loading: operationalController.isExporting,
+                icon: Icons.table_view_rounded,
+                label: 'operational_report'.tr,
+              ),
+            ),
           BusinessPrimaryActionButton(
             onPressed: controller.exportAccountingReport,
             loading: controller.isExporting,
