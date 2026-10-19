@@ -176,6 +176,8 @@ void main() {
     Get.put<MyServices>(services);
     final controller = _TestRepController(services)
       ..statusRequest = StatusRequest.success
+      ..balanceStatus = StatusRequest.success
+      ..summary = const RepInventorySummary(itemCount: 1, totalQuantity: 4.5)
       ..balances = [_balance(quantity: 4.5)];
     Get.put<RepInventoryController>(controller);
     await tester.pumpWidget(
@@ -609,6 +611,31 @@ class _TestDashboardController extends InventoryDashboardController {
 
 class _RepRepository implements RepInventoryRepository {
   final requestedRepIds = <String>[];
+
+  @override
+  Future<FirestorePage<RepInventoryBalanceModel>> fetchBalancesPage({
+    String companyId = 'default_company',
+    String salesRepId = '',
+    String searchText = '',
+    FirestorePageCursor? after,
+    int pageSize = 36,
+  }) async {
+    requestedRepIds.add(salesRepId);
+    return FirestorePage(
+      items: [_balance(quantity: 4)],
+      cursor: null,
+      hasMore: false,
+    );
+  }
+
+  @override
+  Future<RepInventorySummary> fetchBalanceSummary({
+    String companyId = 'default_company',
+    String salesRepId = '',
+  }) async {
+    requestedRepIds.add(salesRepId);
+    return const RepInventorySummary(itemCount: 1, totalQuantity: 4);
+  }
 
   @override
   Future<List<RepInventoryBalanceModel>> fetchBalances({

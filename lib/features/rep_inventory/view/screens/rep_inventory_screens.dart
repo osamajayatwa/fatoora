@@ -1,4 +1,5 @@
 import 'package:fatoora/core/class/statusrequest.dart';
+import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/motion/fatoora_overlays.dart';
 import 'package:fatoora/core/motion/fatoora_motion_widgets.dart';
@@ -76,10 +77,64 @@ class RepInventoryScreen extends StatelessWidget {
                   title: 'rep_inventory_balances'.tr,
                   count: controller.balances.length,
                 ),
-                if (controller.balances.isEmpty)
-                  const _EmptyCard(keyName: 'rep_inventory_no_balances')
-                else
+                TextField(
+                  key: const ValueKey('custody-search'),
+                  controller: controller.balanceSearchController,
+                  onChanged: controller.onBalanceSearchChanged,
+                  onSubmitted: (_) => controller.submitBalanceSearch(),
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    hintText: 'rep_inventory_search_items'.tr,
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    helperText: controller.balanceSearchIsTooShort
+                        ? 'items_search_minimum'.tr
+                        : null,
+                    suffixIcon: controller.balanceSearchText.isEmpty
+                        ? null
+                        : IconButton(
+                            onPressed: controller.clearBalanceSearch,
+                            tooltip: 'clear_search'.tr,
+                            icon: const Icon(Icons.clear),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (controller.balanceStatus == StatusRequest.loading)
+                  const Center(
+                    key: ValueKey('custody-loading'),
+                    child: FatooraProgressIndicator(),
+                  )
+                else if (controller.balanceStatus != StatusRequest.success)
+                  BusinessEmptyState(
+                    key: const ValueKey('custody-error'),
+                    icon: Icons.sync_problem_outlined,
+                    title: controller.balanceErrorKey.tr,
+                    action: FilledButton(
+                      onPressed: controller.loadBalances,
+                      child: Text('items_retry'.tr),
+                    ),
+                  )
+                else if (controller.balances.isEmpty)
+                  const _EmptyCard(
+                    key: ValueKey('custody-empty'),
+                    keyName: 'rep_inventory_no_balances',
+                  )
+                else ...[
                   _CustodyBalanceGrid(controller: controller),
+                  if (controller.balanceLoadMoreErrorKey != null)
+                    Text(
+                      controller.balanceLoadMoreErrorKey!.tr,
+                      key: const ValueKey('custody-page-error'),
+                    ),
+                  if (controller.hasMoreBalances) ...[
+                    const SizedBox(height: 12),
+                    BusinessLoadMoreButton(
+                      key: const ValueKey('custody-load-more'),
+                      loading: controller.isLoadingMoreBalances,
+                      onPressed: controller.loadMoreBalances,
+                    ),
+                  ],
+                ],
                 const SizedBox(height: 20),
                 _SectionTitle(
                   title: 'rep_inventory_recent_movements'.tr,
@@ -153,10 +208,7 @@ class _RepInventoryKpis extends StatelessWidget {
       final columns = constraints.maxWidth >= 360 && textScale <= 1.3 ? 2 : 1;
       const spacing = 12.0;
       final width = (constraints.maxWidth - spacing * (columns - 1)) / columns;
-      final total = controller.balances.fold<double>(
-        0,
-        (value, balance) => value + balance.quantity,
-      );
+      final total = controller.summary.totalQuantity;
       return Wrap(
         spacing: spacing,
         runSpacing: spacing,
@@ -165,7 +217,7 @@ class _RepInventoryKpis extends StatelessWidget {
             width: width,
             child: InventoryKpiCard(
               label: 'rep_inventory_distinct_items'.tr,
-              value: controller.balances.length.toString(),
+              value: controller.summary.itemCount.toString(),
               icon: Icons.inventory_2_outlined,
               color: AppColor.secondaryColor,
             ),
@@ -1212,7 +1264,7 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _EmptyCard extends StatelessWidget {
-  const _EmptyCard({required this.keyName});
+  const _EmptyCard({super.key, required this.keyName});
 
   final String keyName;
 

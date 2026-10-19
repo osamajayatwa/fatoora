@@ -23,10 +23,11 @@ class InvoiceErrorMapper {
   }
 
   static String messageKey(Object error, {String? fallback}) {
+    final stock = insufficientStock(error);
+    if (stock != null) return stock.messageKey;
     if (error is! InvoiceRepositoryException) {
       return fallback ?? 'invoice_action_error';
     }
-    if (insufficientStock(error) != null) return 'stock_not_enough';
     return switch (error.error) {
       InvoiceRepositoryError.unauthenticated => 'invoice_session_error',
       InvoiceRepositoryError.permissionDenied => 'invoice_permission_error',
@@ -42,8 +43,11 @@ class InvoiceErrorMapper {
   }
 
   static InsufficientStockFailure? insufficientStock(Object error) {
-    if (error is! InvoiceRepositoryException) return null;
-    final cause = error.cause;
-    return cause is InsufficientStockFailure ? cause : null;
+    final cause = error is InvoiceRepositoryException ? error.cause : error;
+    return cause is InsufficientStockFailure
+        ? cause
+        : cause == null
+        ? null
+        : InsufficientStockFailure.fromCallable(cause);
   }
 }

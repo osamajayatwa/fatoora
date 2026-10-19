@@ -1,4 +1,6 @@
 const Map<String, String> quotationsEnglishTranslations = {
+  'delete_quotation': 'Delete draft quotation',
+  'delete_quotation_confirmation': 'Delete this draft quotation?',
   'quotations': 'Quotations',
   'quotation': 'Quotation',
   'create_quotation': 'Create quotation',
@@ -52,6 +54,8 @@ const Map<String, String> quotationsEnglishTranslations = {
 };
 
 const Map<String, String> quotationsArabicTranslations = {
+  'delete_quotation': 'حذف مسودة عرض السعر',
+  'delete_quotation_confirmation': 'هل تريد حذف مسودة عرض السعر؟',
   'quotations': 'عروض الأسعار',
   'quotation': 'عرض سعر',
   'create_quotation': 'إنشاء عرض سعر',

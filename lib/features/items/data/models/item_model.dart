@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fatoora/core/search/normalized_search.dart';
 
 class ItemModel {
   static const String defaultWarehouseId = 'default_warehouse';
@@ -53,23 +54,10 @@ class ItemModel {
   bool get isLowStock =>
       trackStock && currentStock > 0 && currentStock <= minStock;
 
-  static String normalizeSearch(String value) => value.trim().toLowerCase();
+  static String normalizeSearch(String value) => normalizeSearchText(value);
 
   static List<String> buildSearchKeywords(Iterable<String?> values) {
-    final keywords = <String>{};
-    for (final value in values) {
-      final normalized = normalizeSearch(value ?? '');
-      if (normalized.isEmpty) continue;
-      keywords.add(normalized);
-      for (final token in normalized.split(RegExp(r'[\s\-_/]+'))) {
-        if (token.isEmpty) continue;
-        keywords.add(token);
-        for (var index = 1; index <= token.length && index <= 20; index++) {
-          keywords.add(token.substring(0, index));
-        }
-      }
-    }
-    return keywords.toList(growable: false)..sort();
+    return buildNormalizedSearchKeywords(values);
   }
 
   factory ItemModel.fromFirestore(

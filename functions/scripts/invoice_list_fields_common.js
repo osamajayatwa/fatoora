@@ -1,3 +1,4 @@
+const {buildSearchKeywords: normalizedSearchKeywords} = require("../shared/search_keywords");
 const {applicationDefault, getApps, initializeApp} = require("firebase-admin/app");
 const {FieldPath, getFirestore} = require("firebase-admin/firestore");
 
@@ -173,20 +174,7 @@ function deriveReturnStatus(data) {
 }
 
 function buildSearchKeywords(values) {
-  const keywords = new Set();
-  for (const value of values) {
-    const normalized = normalize(value);
-    if (!normalized) continue;
-    keywords.add(normalized);
-    for (const token of normalized.split(/[\s\-_/]+/u)) {
-      if (!token) continue;
-      keywords.add(token);
-      for (let length = 1; length <= token.length && length <= 20; length += 1) {
-        keywords.add(token.slice(0, length));
-      }
-    }
-  }
-  return [...keywords].sort();
+  return normalizedSearchKeywords(values);
 }
 
 async function* scanCollection(collectionReference, pageSize) {

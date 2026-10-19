@@ -1,4 +1,5 @@
 const Map<String, String> salesReturnEnglishTranslations = {
+  'edit_sales_return': 'Edit return draft',
   'sales_returns': 'Sales Returns',
   'sales_return': 'Sales Return',
   'create_sales_return': 'Create Return',
@@ -80,6 +81,7 @@ const Map<String, String> salesReturnEnglishTranslations = {
 };
 
 const Map<String, String> salesReturnArabicTranslations = {
+  'edit_sales_return': 'تعديل مسودة المرتجع',
   'sales_returns': 'فواتير الإرجاع',
   'sales_return': 'فاتورة إرجاع',
   'create_sales_return': 'إنشاء فاتورة إرجاع',

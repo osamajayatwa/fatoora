@@ -1536,6 +1536,129 @@ test("quotation draft and status workflow remains client-owned", async () => {
   await assertSucceeds(conversion.commit());
 });
 
+test("phase 1 operational drafts ignore legacy toggles and stay scoped to the rep", async () => {
+  await seedDraftCustomer("phase1-customer", repAUid);
+  await seedConfirmedInvoice("phase1-source", "phase1-customer", repAUid);
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    const settings = appSettingsPayload(adminUid);
+    for (const key of Object.keys(settings.permissionSettings)) settings.permissionSettings[key] = false;
+    await setDoc(businessDoc(context.firestore(), "settings", "app"), settings);
+  });
+  const db = authenticatedDb(repAUid);
+  const other = authenticatedDb(repBUid);
+  const invoiceRef = businessDoc(db, "invoices", "phase1-draft");
+  const payload = invoiceDraftPayload("phase1-draft", repAUid, {customerId: "phase1-customer"});
+  payload.items = [
+    {...payload.items[0], lineId: "free", lineType: "catalog", unitPrice: 0, subtotal: 0, total: 0},
+    {lineId: "custom", lineType: "custom", itemId: null, itemName: "Service",
+      description: "At site", unit: "service", quantity: 2, unitPrice: 10,
+      discount: 2, taxPercent: 0, subtotal: 20, taxAmount: 0, total: 18},
+  ];
+  Object.assign(payload, {subtotal: 20, totalDiscount: 2, grandTotal: 18, remainingAmount: 18});
+  await assertSucceeds(setDoc(invoiceRef, payload));
+  await assertSucceeds(updateDoc(invoiceRef, {notes: "Edited", updatedAt: serverTimestamp()}));
+  await assertFails(getDoc(businessDoc(other, "invoices", "phase1-draft")));
+  await assertFails(updateDoc(businessDoc(other, "invoices", "phase1-draft"),
+    {notes: "Cross rep", updatedAt: serverTimestamp()}));
+  await assertFails(deleteDoc(businessDoc(other, "invoices", "phase1-draft")));
+  await assertFails(updateDoc(invoiceRef, {salesRepId: repBUid, updatedAt: serverTimestamp()}));
+  await assertFails(updateDoc(invoiceRef, {stockSourceType: "companyWarehouse", updatedAt: serverTimestamp()}));
+  await assertFails(setDoc(businessDoc(db, "invoices", "phase1-other-customer"),
+    invoiceDraftPayload("phase1-other-customer", repAUid, {customerId: "customer-b"})));
+  await assertFails(setDoc(businessDoc(db, "invoices", "phase1-warehouse"), {
+    ...payload, id: "phase1-warehouse", stockSourceType: "companyWarehouse", stockSourceSalesRepId: "",
+  }));
+  await assertFails(setDoc(businessDoc(db, "invoices", "phase1-empty"),
+    {...payload, id: "phase1-empty", items: []}));
+  await assertFails(setDoc(businessDoc(db, "invoices", "phase1-zero"),
+    {...payload, id: "phase1-zero", grandTotal: 0, remainingAmount: 0}));
+
+  const quoteRef = businessDoc(db, "quotations", "phase1-quote");
+  await assertSucceeds(setDoc(quoteRef, {
+    ...quotationDraftPayload("phase1-quote", "phase1-customer", repAUid),
+    items: payload.items, subtotal: 20, totalDiscount: 2, grandTotal: 18,
+  }));
+  await assertFails(deleteDoc(businessDoc(other, "quotations", "phase1-quote")));
+  await assertSucceeds(deleteDoc(quoteRef));
+  await assertSucceeds(setDoc(quoteRef, {
+    ...quotationDraftPayload("phase1-quote", "phase1-customer", repAUid),
+    items: payload.items, subtotal: 20, totalDiscount: 2, grandTotal: 18,
+  }));
+  await assertSucceeds(updateDoc(quoteRef, {status: "sent", updatedAt: serverTimestamp()}));
+  await assertFails(deleteDoc(quoteRef));
+  const conversion = writeBatch(db);
+  conversion.set(businessDoc(db, "invoices", "phase1-converted"), {
+    ...payload, id: "phase1-converted", stockSourceType: "salesRep",
+    stockSourceId: repAUid, stockSourceSalesRepId: repAUid,
+  });
+  conversion.update(quoteRef, {status: "converted", convertedInvoiceId: "phase1-converted",
+    convertedInvoiceNumber: payload.invoiceNumber, updatedAt: serverTimestamp()});
+  await assertSucceeds(conversion.commit());
+  const converted = (await getDoc(businessDoc(db, "invoices", "phase1-converted"))).data();
+  assert.equal(converted.stockSourceSalesRepId, repAUid);
+  assert.equal(converted.financialPosted, false);
+  assert.equal(converted.inventoryPosted, false);
+  assert.deepEqual(converted.items, payload.items);
+  await assertFails(deleteDoc(quoteRef));
+  await assertSucceeds(setDoc(businessDoc(db, "counters", "quotations_2026"),
+    counterPayload("quotations_2026", "QUO", 1)));
+  await assertSucceeds(setDoc(businessDoc(db, "counters", "sales_returns_2026"),
+    counterPayload("sales_returns_2026", "RET", 1)));
+
+  const returnRef = businessDoc(db, "sales_returns", "phase1-return");
+  await assertSucceeds(setDoc(returnRef,
+    returnDraftPayload("phase1-return", "phase1-source", "phase1-customer", repAUid)));
+  await assertSucceeds(updateDoc(returnRef, {reason: "Edited draft", updatedAt: serverTimestamp()}));
+  await assertFails(updateDoc(businessDoc(other, "sales_returns", "phase1-return"),
+    {reason: "Cross rep", updatedAt: serverTimestamp()}));
+  await assertSucceeds(deleteDoc(invoiceRef));
+});
+
+test("posted invoices, receipts and returns cannot be edited or deleted by rep or admin", async () => {
+  await seedDraftCustomer("phase1-posted-customer", repAUid);
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(businessDoc(db, "invoices", "phase1-posted"), {
+      ...invoiceDraftPayload("phase1-posted", repAUid, {customerId: "phase1-posted-customer"}),
+      invoiceStatus: "confirmed", financialPosted: true, inventoryPosted: true, isLocked: true,
+    });
+    await setDoc(businessDoc(db, "sales_returns", "phase1-posted"), {
+      ...returnDraftPayload("phase1-posted", "phase1-posted", "phase1-posted-customer", repAUid),
+      status: "confirmed", financialPosted: true, inventoryPosted: true,
+    });
+  });
+  for (const uid of [repAUid, adminUid]) {
+    const db = authenticatedDb(uid);
+    for (const [collectionName, id] of [["invoices", "phase1-posted"],
+      ["sales_returns", "phase1-posted"], ["receipts", "receipt-a"]]) {
+      await assertFails(updateDoc(businessDoc(db, collectionName, id),
+        {notes: "Tamper", updatedAt: serverTimestamp()}));
+      await assertFails(deleteDoc(businessDoc(db, collectionName, id)));
+    }
+  }
+});
+
+test("locked drafts stay immutable while legacy drafts without a lock field remain editable", async () => {
+  await seedDraftCustomer("phase1-legacy-customer", repAUid);
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    const legacy = invoiceDraftPayload("phase1-legacy", repAUid, {customerId: "phase1-legacy-customer"});
+    delete legacy.isLocked;
+    await setDoc(businessDoc(db, "invoices", legacy.id), legacy);
+    await setDoc(businessDoc(db, "invoices", "phase1-locked"), {
+      ...invoiceDraftPayload("phase1-locked", repAUid, {customerId: "phase1-legacy-customer"}),
+      isLocked: true,
+    });
+  });
+  const db = authenticatedDb(repAUid);
+  await assertSucceeds(updateDoc(businessDoc(db, "invoices", "phase1-legacy"),
+    {notes: "Editable legacy draft", updatedAt: serverTimestamp()}));
+  await assertSucceeds(deleteDoc(businessDoc(db, "invoices", "phase1-legacy")));
+  await assertFails(updateDoc(businessDoc(db, "invoices", "phase1-locked"),
+    {notes: "Locked draft", updatedAt: serverTimestamp()}));
+  await assertFails(deleteDoc(businessDoc(db, "invoices", "phase1-locked")));
+});
+
 test("all posting, balance, reservation, audit, and lock paths fail closed", async () => {
   const db = authenticatedDb(adminUid);
   for (const [collectionName, documentId] of [

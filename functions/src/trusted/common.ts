@@ -178,8 +178,7 @@ export function requireDocumentAccess(
   }
   if (
     user.role !== "admin" &&
-    data.salesRepId !== user.uid &&
-    data.createdByUid !== user.uid
+    data.salesRepId !== user.uid
   ) {
     throw new HttpsError("permission-denied", "Document is not owned by this user.");
   }

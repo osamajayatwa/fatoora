@@ -112,6 +112,7 @@ class InvoicesListController extends GetxController {
     }
 
     statusRequest = StatusRequest.loading;
+    isLoadingMore = false;
     _pageCursor = null;
     hasMore = false;
     loadErrorMessageKey = 'invoice_load_error';
@@ -152,7 +153,13 @@ class InvoicesListController extends GetxController {
   Future<void> refreshInvoices() => loadInvoices();
 
   Future<void> loadMoreInvoices() async {
-    if (isLoadingMore || !hasMore || _pageCursor == null) return;
+    if (isLoadingMore ||
+        !hasMore ||
+        _pageCursor == null ||
+        statusRequest != StatusRequest.success ||
+        _appliedSearchText != serverSearchTerm(searchText)) {
+      return;
+    }
     isLoadingMore = true;
     final generation = _loadGeneration;
     update();
@@ -167,7 +174,7 @@ class InvoicesListController extends GetxController {
         customerId: customerFilter?.id,
         fromDate: fromDate,
         toDate: toDate,
-        searchText: serverSearchTerm(searchText),
+        searchText: _appliedSearchText,
         sortField: sortField,
         sortDirection: sortDirection,
         after: _pageCursor,
@@ -180,8 +187,10 @@ class InvoicesListController extends GetxController {
       if (generation != _loadGeneration) return;
       _showError(InvoiceErrorMapper.messageKey(error));
     } finally {
-      isLoadingMore = false;
-      if (!isClosed) update();
+      if (!isClosed && generation == _loadGeneration) {
+        isLoadingMore = false;
+        update();
+      }
     }
   }
 
@@ -189,6 +198,7 @@ class InvoicesListController extends GetxController {
     searchText = value;
     _searchDebounce?.cancel();
     _loadGeneration++;
+    isLoadingMore = false;
     update();
     if (serverSearchTerm(value).isEmpty) {
       if (_appliedSearchText.isNotEmpty ||
@@ -470,6 +480,7 @@ class InvoicesListController extends GetxController {
 
   @override
   void onClose() {
+    ++_loadGeneration;
     _searchDebounce?.cancel();
     searchController.dispose();
     super.onClose();

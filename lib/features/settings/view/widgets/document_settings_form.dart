@@ -1,5 +1,4 @@
 import 'package:fatoora/features/settings/controllers/admin_settings_controller.dart';
-import 'package:fatoora/features/settings/view/widgets/settings_switch_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -32,16 +31,6 @@ class DocumentSettingsForm extends StatelessWidget {
           controller.defaultTaxPercentController,
           'settings_default_tax_percent',
           max: 100,
-        ),
-        SettingsSwitchTile(
-          title: 'settings_allow_discount'.tr,
-          value: controller.allowDiscount,
-          onChanged: controller.setAllowDiscount,
-        ),
-        SettingsSwitchTile(
-          title: 'settings_allow_sales_rep_price_edit'.tr,
-          value: controller.allowSalesRepPriceEdit,
-          onChanged: controller.setAllowSalesRepPriceEdit,
         ),
       ],
     );

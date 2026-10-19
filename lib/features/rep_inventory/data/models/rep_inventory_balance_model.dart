@@ -1,5 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+class RepInventorySummary {
+  const RepInventorySummary({
+    required this.itemCount,
+    required this.totalQuantity,
+  });
+  const RepInventorySummary.empty() : itemCount = 0, totalQuantity = 0;
+  final int itemCount;
+  final double totalQuantity;
+}
+
 class RepInventoryBalanceModel {
   const RepInventoryBalanceModel({
     required this.id,

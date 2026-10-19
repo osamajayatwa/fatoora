@@ -18,7 +18,6 @@ import {
   documentPrefix,
   numberFrom,
   optionalString,
-  permissionValue,
   record,
   requireCallableUid,
   requireDocumentAccess,
@@ -113,7 +112,8 @@ export async function confirmSalesReturnTransaction(
           alreadyPosted: true,
         };
       }
-      if (existing?.status !== "draft") {
+      if (existing?.status !== "draft" || existing.financialPosted === true ||
+        existing.inventoryPosted === true) {
         throw new HttpsError("failed-precondition", "Sales return is not a draft.");
       }
     }
@@ -140,12 +140,6 @@ export async function confirmSalesReturnTransaction(
       firestore.doc(businessPath(companyId, "settings", "app")),
     );
     const settings = settingsSnapshot.data();
-    if (
-      user.role === "sales_rep" &&
-      !permissionValue(settings, "allowSalesRepCreateReturns")
-    ) {
-      throw new HttpsError("permission-denied", "Sales returns are disabled.");
-    }
 
     const requestedLines = source.items ?? input.items;
     const lines = normalizeReturnLines(originalInvoiceId, invoice.items, requestedLines);
@@ -174,6 +168,9 @@ export async function confirmSalesReturnTransaction(
     const customer = customerSnapshot.data() ?? {};
     if (customer.companyId !== companyId) {
       throw new HttpsError("data-loss", "Invoice customer belongs to another company.");
+    }
+    if (user.role === "sales_rep" && customer.createdByUid !== user.uid) {
+      throw new HttpsError("permission-denied", "Customer is not owned by this representative.");
     }
 
     let returnNumber = optionalString(existing?.returnNumber);

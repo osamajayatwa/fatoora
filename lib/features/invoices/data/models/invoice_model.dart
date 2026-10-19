@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fatoora/core/search/normalized_search.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_customer_snapshot.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_government_model.dart';
@@ -138,11 +139,12 @@ class InvoiceModel {
   bool get isFinancial =>
       invoiceStatus == InvoiceStatus.confirmed ||
       invoiceStatus == InvoiceStatus.accepted;
-  bool get canDelete => invoiceStatus == InvoiceStatus.draft;
+  bool get canDelete => canEdit;
   bool get canEdit =>
       !isLocked &&
-      (invoiceStatus == InvoiceStatus.draft ||
-          invoiceStatus == InvoiceStatus.rejected);
+      !financialPosted &&
+      !inventoryPosted &&
+      invoiceStatus == InvoiceStatus.draft;
   double get effectiveOutstandingAmount =>
       (remainingAmount - returnedReceivableAmount)
           .clamp(0, double.infinity)
@@ -492,27 +494,14 @@ class InvoiceModel {
     required List<String> itemNames,
     required String dateString,
   }) {
-    final keywords = <String>{};
-    for (final value in [
+    return buildNormalizedSearchKeywords([
       invoiceNumber,
       customerName,
       customerPhone,
       salesRepName,
       dateString,
       ...itemNames,
-    ]) {
-      final normalized = _normalize(value);
-      if (normalized.isEmpty) continue;
-      keywords.add(normalized);
-      for (final token in normalized.split(RegExp(r'[\s\-_/]+'))) {
-        if (token.isEmpty) continue;
-        keywords.add(token);
-        for (var i = 1; i <= token.length && i <= 20; i++) {
-          keywords.add(token.substring(0, i));
-        }
-      }
-    }
-    return keywords.toList(growable: false)..sort();
+    ]);
   }
 
   static String formatDateForSearch(DateTime date) => _formatDate(date);

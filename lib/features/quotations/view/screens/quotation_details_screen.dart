@@ -124,6 +124,13 @@ class _Details extends StatelessWidget {
                       icon: const Icon(Icons.edit_outlined),
                       label: Text('edit_quotation'.tr),
                     ),
+                  if (controller.canDelete)
+                    OutlinedButton.icon(
+                      key: const ValueKey('quotation-delete-draft'),
+                      onPressed: controller.deleteDraft,
+                      icon: const Icon(Icons.delete_outline),
+                      label: Text('delete_quotation'.tr),
+                    ),
                   if (controller.canConvert)
                     FilledButton.icon(
                       onPressed: controller.isConverting

@@ -7,8 +7,9 @@ import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
-import 'package:fatoora/features/invoices/data/models/invoice_item_snapshot.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
+import 'package:fatoora/features/invoices/data/services/invoice_totals_service.dart';
+import 'package:fatoora/features/rep_inventory/data/models/rep_inventory_enums.dart';
 import 'package:fatoora/features/items/data/models/item_model.dart';
 import 'package:fatoora/features/quotations/data/models/quotation_item_model.dart';
 import 'package:fatoora/features/quotations/data/models/quotation_model.dart';
@@ -65,9 +66,6 @@ class QuotationRepository {
 
   final FirebaseFirestore _firestore;
   final BusinessUserContextReader _contextReader;
-
-  CollectionReference<Map<String, dynamic>> get _items =>
-      _firestore.collection('items');
 
   CollectionReference<Map<String, dynamic>> _quotations(String companyId) {
     return _firestore
@@ -240,13 +238,6 @@ class QuotationRepository {
                 QuotationRepositoryError.createDisabled,
               );
             }
-            await _enforceLinePermissions(
-              transaction: transaction,
-              permissions: permissions,
-              items: quotation.items,
-              existingItems: existing?.items,
-            );
-
             final customer = await _readCustomerForQuotation(
               transaction: transaction,
               companyId: companyId,
@@ -338,6 +329,138 @@ class QuotationRepository {
     });
   }
 
+  /// Pure conversion used by the transaction below: no posting effects.
+  static InvoiceModel buildInvoiceDraft({
+    required QuotationModel quotation,
+    required CustomerModel customer,
+    required BusinessUserContext user,
+    required String invoiceId,
+    required String invoiceNumber,
+    required DocumentSettingsModel documents,
+    required DateTime now,
+  }) {
+    if (!user.canUseBusinessData ||
+        user.companyId != quotation.companyId ||
+        customer.companyId != quotation.companyId ||
+        customer.id != quotation.customerId ||
+        (!user.isAdmin &&
+            (quotation.salesRepId != user.uid ||
+                customer.createdByUid != user.uid))) {
+      throw const QuotationRepositoryException(
+        QuotationRepositoryError.permissionDenied,
+      );
+    }
+    if (!quotation.canConvert || !customer.active) {
+      throw const QuotationRepositoryException(
+        QuotationRepositoryError.invalidState,
+      );
+    }
+    late InvoiceTotals totals;
+    try {
+      totals = const InvoiceTotalsService().validateInvoice(
+        quotation.items
+            .asMap()
+            .entries
+            .map(
+              (entry) => entry.value.toInvoiceItem().copyWith(
+                lineId: entry.value.lineId.trim().isEmpty
+                    ? '$invoiceId-line-${entry.key}'
+                    : entry.value.lineId,
+              ),
+            )
+            .toList(growable: false),
+      );
+    } on FormatException {
+      throw const QuotationRepositoryException(
+        QuotationRepositoryError.invalidData,
+      );
+    }
+    return InvoiceModel(
+      id: invoiceId,
+      companyId: quotation.companyId,
+      invoiceNumber: invoiceNumber,
+      invoiceType: InvoiceType.regular,
+      invoiceStatus: InvoiceStatus.draft,
+      paymentType: PaymentType.credit,
+      paymentStatus: PaymentStatus.unpaid,
+      hasReceivedPayment: false,
+      invoiceDate: now,
+      dueDate: BusinessSettingsDefaults.invoiceDueDate(
+        now,
+        documents.defaultDueDays,
+      ),
+      createdAt: now,
+      updatedAt: now,
+      createdByUid: user.uid,
+      createdByName: user.name,
+      createdByRole: user.role,
+      salesRepId: quotation.salesRepId,
+      salesRepName: quotation.salesRepName,
+      customerId: customer.id,
+      customerSnapshot: customer.toInvoiceSnapshot(),
+      items: totals.items,
+      subtotal: totals.subtotal,
+      totalDiscount: totals.totalDiscount,
+      totalTax: totals.totalTax,
+      grandTotal: totals.grandTotal,
+      paidAmount: 0,
+      remainingAmount: totals.grandTotal,
+      notes: quotation.notes,
+      paymentMethod: PaymentType.credit.value,
+      isLocked: false,
+      financialPosted: false,
+      financialPostedByUid: '',
+      financialPostedByName: '',
+      customerTransactionIds: const [],
+      cashMovementIds: const [],
+      inventoryPosted: false,
+      inventoryPostedByUid: '',
+      inventoryPostedByName: '',
+      inventoryMovementIds: const [],
+      stockSourceType: user.isSalesRep
+          ? InventorySourceType.salesRep
+          : InventorySourceType.companyWarehouse,
+      stockSourceId: user.isSalesRep ? user.uid : ItemModel.defaultWarehouseId,
+      stockSourceSalesRepId: user.isSalesRep ? user.uid : '',
+      searchKeywords: const [],
+      customerNameLower: '',
+      itemNamesLower: const [],
+      invoiceNumberLower: '',
+      dateString: InvoiceModel.formatDateForSearch(now),
+    ).withSearchFields();
+  }
+
+  Future<void> deleteDraftQuotation({
+    required String companyId,
+    required String quotationId,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      final ref = _quotations(resolvedCompanyId).doc(quotationId);
+      await _firestore
+          .runTransaction((transaction) async {
+            final snapshot = await transaction.get(ref);
+            if (!snapshot.exists) {
+              throw const QuotationRepositoryException(
+                QuotationRepositoryError.notFound,
+              );
+            }
+            final quotation = QuotationModel.fromFirestore(snapshot);
+            _requireCanAccessQuotation(user, quotation);
+            if (!quotation.isDraft ||
+                quotation.convertedInvoiceId.isNotEmpty ||
+                quotation.convertedInvoiceNumber.isNotEmpty) {
+              throw const QuotationRepositoryException(
+                QuotationRepositoryError.locked,
+              );
+            }
+            transaction.delete(ref);
+          })
+          .timeout(const Duration(seconds: 20));
+    });
+  }
+
   Future<QuotationConversionResult> convertToInvoiceDraft({
     required String companyId,
     required String quotationId,
@@ -376,15 +499,6 @@ class QuotationRepository {
               companyId: resolvedCompanyId,
             );
             final documents = appSettings.documentSettings;
-            final permissions = EffectiveBusinessPermissions.fromUser(
-              user,
-              appSettings.permissionSettings,
-            );
-            if (!permissions.applyDiscount && quotation.totalDiscount > 0) {
-              throw const QuotationRepositoryException(
-                QuotationRepositoryError.discountDisabled,
-              );
-            }
             final numberAllocation = await _allocateInvoiceNumber(
               transaction: transaction,
               companyId: resolvedCompanyId,
@@ -392,64 +506,15 @@ class QuotationRepository {
               settings: documents,
             );
             final now = DateTime.now();
-            final invoice = InvoiceModel(
-              id: invoiceRef.id,
-              companyId: resolvedCompanyId,
+            final invoice = buildInvoiceDraft(
+              quotation: quotation,
+              customer: customer,
+              user: user,
+              invoiceId: invoiceRef.id,
               invoiceNumber: numberAllocation.number,
-              invoiceType: InvoiceType.regular,
-              invoiceStatus: InvoiceStatus.draft,
-              paymentType: PaymentType.credit,
-              paymentStatus: PaymentStatus.unpaid,
-              hasReceivedPayment: false,
-              invoiceDate: now,
-              dueDate: BusinessSettingsDefaults.invoiceDueDate(
-                now,
-                documents.defaultDueDays,
-              ),
-              createdAt: now,
-              updatedAt: now,
-              createdByUid: user.uid,
-              createdByName: user.name,
-              createdByRole: user.role,
-              salesRepId: quotation.salesRepId,
-              salesRepName: quotation.salesRepName,
-              customerId: customer.id,
-              customerSnapshot: quotation.customerSnapshot,
-              items: quotation.items
-                  .asMap()
-                  .entries
-                  .map(
-                    (entry) => entry.value.toInvoiceItem().copyWith(
-                      lineId: entry.value.lineId.trim().isEmpty
-                          ? '${invoiceRef.id}-line-${entry.key}'
-                          : entry.value.lineId,
-                    ),
-                  )
-                  .toList(growable: false),
-              subtotal: quotation.subtotal,
-              totalDiscount: quotation.totalDiscount,
-              totalTax: quotation.totalTax,
-              grandTotal: quotation.grandTotal,
-              paidAmount: 0,
-              remainingAmount: quotation.grandTotal,
-              notes: quotation.notes,
-              paymentMethod: PaymentType.credit.value,
-              isLocked: false,
-              financialPosted: false,
-              financialPostedByUid: '',
-              financialPostedByName: '',
-              customerTransactionIds: const [],
-              cashMovementIds: const [],
-              inventoryPosted: false,
-              inventoryPostedByUid: '',
-              inventoryPostedByName: '',
-              inventoryMovementIds: const [],
-              searchKeywords: const [],
-              customerNameLower: '',
-              itemNamesLower: const [],
-              invoiceNumberLower: '',
-              dateString: InvoiceModel.formatDateForSearch(now),
-            ).withSearchFields();
+              documents: documents,
+              now: now,
+            );
 
             transaction.set(
               numberAllocation.counterRef,
@@ -533,22 +598,17 @@ class QuotationRepository {
         QuotationRepositoryError.invalidData,
       );
     }
-    for (final item in quotation.items) {
-      final validCommon =
-          item.itemName.trim().isNotEmpty &&
-          item.quantity > 0 &&
-          item.unitPrice > 0;
-      final validIdentity = item.lineType == InvoiceLineType.catalog
-          ? (item.itemId?.trim().isNotEmpty ?? false)
-          : item.isLegacyManual ||
-                (item.itemId == null &&
-                    item.description.trim().isNotEmpty &&
-                    item.unit.trim().isNotEmpty);
-      if (!validCommon || !validIdentity) {
-        throw const QuotationRepositoryException(
-          QuotationRepositoryError.invalidData,
-        );
-      }
+    late InvoiceTotals totals;
+    try {
+      totals = const InvoiceTotalsService().validateInvoice(
+        quotation.items
+            .map((item) => item.toInvoiceItem())
+            .toList(growable: false),
+      );
+    } on FormatException {
+      throw const QuotationRepositoryException(
+        QuotationRepositoryError.invalidData,
+      );
     }
 
     final createdByUid = existing?.createdByUid ?? user.uid;
@@ -559,6 +619,13 @@ class QuotationRepository {
 
     return quotation
         .copyWith(
+          items: totals.items
+              .map(QuotationItemModel.fromInvoiceItem)
+              .toList(growable: false),
+          subtotal: totals.subtotal,
+          totalDiscount: totals.totalDiscount,
+          totalTax: totals.totalTax,
+          grandTotal: totals.grandTotal,
           id: id,
           companyId: companyId,
           quotationNumber: quotationNumber,
@@ -654,72 +721,12 @@ class QuotationRepository {
     return AppSettingsModel.fromMap(snapshot.data());
   }
 
-  Future<void> _enforceLinePermissions({
-    required Transaction transaction,
-    required EffectiveBusinessPermissions permissions,
-    required List<QuotationItemModel> items,
-    required List<QuotationItemModel>? existingItems,
-  }) async {
-    if (!permissions.applyDiscount && items.any((item) => item.discount > 0)) {
-      throw const QuotationRepositoryException(
-        QuotationRepositoryError.discountDisabled,
-      );
-    }
-    if (permissions.editCatalogPrice) return;
-    final catalogPrices = <String, double>{};
-    for (final item in items) {
-      if (item.lineType == InvoiceLineType.custom ||
-          (item.itemId?.startsWith('manual-') ?? false)) {
-        continue;
-      }
-      final itemId = item.itemId;
-      if (itemId == null || itemId.trim().isEmpty) {
-        throw const QuotationRepositoryException(
-          QuotationRepositoryError.invalidData,
-        );
-      }
-      QuotationItemModel? existing;
-      for (final candidate in existingItems ?? const <QuotationItemModel>[]) {
-        if (candidate.itemId == itemId) {
-          existing = candidate;
-          break;
-        }
-      }
-      if (existing != null) {
-        if ((existing.unitPrice - item.unitPrice).abs() > 0.0005) {
-          throw const QuotationRepositoryException(
-            QuotationRepositoryError.priceEditDisabled,
-          );
-        }
-        continue;
-      }
-      var catalogPrice = catalogPrices[itemId];
-      if (catalogPrice == null) {
-        final snapshot = await transaction.get(_items.doc(itemId));
-        if (!snapshot.exists) {
-          throw const QuotationRepositoryException(
-            QuotationRepositoryError.priceEditDisabled,
-          );
-        }
-        catalogPrice = ItemModel.fromFirestore(snapshot).price;
-        catalogPrices[itemId] = catalogPrice;
-      }
-      if ((catalogPrice - item.unitPrice).abs() > 0.0005) {
-        throw const QuotationRepositoryException(
-          QuotationRepositoryError.priceEditDisabled,
-        );
-      }
-    }
-  }
-
   void _requireCanAccessQuotation(
     BusinessUserContext user,
     QuotationModel quotation,
   ) {
     if (user.isAdmin) return;
-    if (user.isSalesRep &&
-        (quotation.createdByUid == user.uid ||
-            quotation.salesRepId == user.uid)) {
+    if (user.isSalesRep && quotation.salesRepId == user.uid) {
       return;
     }
     throw const QuotationRepositoryException(

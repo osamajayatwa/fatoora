@@ -1,0 +1,7 @@
+[
+  {"value":"  ACME   Trading  Company ","normalized":"acme trading company","matches":["acme tr","trading comp","company"],"misses":["company acme","cme trading"]},
+  {"value":" أَحْمَد   عَبْد الـرَّحمن ","normalized":"احمد عبد الرحمن","matches":["احمد عبد","عبد الرحم","الرحمن"],"misses":["الرحمن احمد","حمد عبد"]},
+  {"value":"INV-٢٠٢٦-۰۰۱۲۳","normalized":"inv 2026 00123","matches":["inv 2026 00","inv-2026-001","2026-0012"],"misses":["2027","inv 2026 99"]},
+  {"value":"  مضخة\tمياه\nكبرى  ","normalized":"مضخة مياه كبري","matches":["مضخة مياه","مياه كبر","كبري"],"misses":["كبرى مضخة"]},
+  {"value":"Model_AB/12","normalized":"model ab 12","matches":["model ab","ab 12","model_ab/1"],"misses":["ab 13"]}
+]

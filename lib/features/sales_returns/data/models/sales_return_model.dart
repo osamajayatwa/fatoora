@@ -79,6 +79,7 @@ class SalesReturnModel {
   final DateTime updatedAt;
 
   bool get isDraft => status == SalesReturnStatus.draft;
+  bool get canEdit => isDraft && !financialPosted && !inventoryPosted;
   bool get isConfirmed => status == SalesReturnStatus.confirmed;
 
   factory SalesReturnModel.fromFirestore(

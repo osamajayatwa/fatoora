@@ -362,16 +362,15 @@ test("unauthenticated return fails before any business effects", async () => {
   assert.equal((await fixture.returnRef("unauthenticated-return").get()).exists, false);
 });
 
-test("disabled, pending, and unauthorized users are rejected", async () => {
+test("legacy return toggle does not restrict reps; pending and unauthorized users are rejected", async () => {
   const disabledFixture = await seedReturnFixture({
     suffix: "disabled-permission",
     role: "sales_rep",
     allowSalesRepCreateReturns: false,
   });
-  await assert.rejects(
-    invokeReturn(disabledFixture, disabledFixture.uid, "disabled-permission-return"),
-    (error) => error.code === "permission-denied",
-  );
+  await invokeReturn(disabledFixture, disabledFixture.uid, "disabled-permission-return");
+  assert.equal((await disabledFixture.returnRef("disabled-permission-return").get()).data().status,
+    "confirmed");
 
   const pendingFixture = await seedReturnFixture({
     suffix: "pending",
@@ -405,7 +404,6 @@ test("disabled, pending, and unauthorized users are rejected", async () => {
   );
 
   for (const [fixture, returnId] of [
-    [disabledFixture, "disabled-permission-return"],
     [pendingFixture, "pending-return"],
     [inactiveFixture, "inactive-return"],
     [unauthorizedFixture, "wrong-owner-return"],

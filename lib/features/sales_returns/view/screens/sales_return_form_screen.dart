@@ -18,7 +18,11 @@ class SalesReturnFormScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetBuilder<SalesReturnFormController>(
       builder: (controller) => BusinessShell(
-        title: 'create_sales_return'.tr,
+        title:
+            (controller.isEditMode
+                    ? 'edit_sales_return'
+                    : 'create_sales_return')
+                .tr,
         showBackButton: true,
         child: HandilingDataView(
           statusrequest: controller.statusRequest,
@@ -87,7 +91,8 @@ class _Header extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'create_sales_return'.tr,
+          (controller.isEditMode ? 'edit_sales_return' : 'create_sales_return')
+              .tr,
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
             color: AppColor.secondaryColor,
             fontWeight: FontWeight.w900,

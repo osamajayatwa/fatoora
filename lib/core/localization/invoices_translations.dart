@@ -1,4 +1,8 @@
 const Map<String, String> invoicesEnglishTranslations = {
+  'invoice_rep_stock_shortage':
+      "You don't have enough of this item in your inventory, genius!",
+  'invoice_warehouse_stock_shortage':
+      'There is not enough of this item in warehouse stock.',
   'invoices': 'Invoices',
   'create_invoice': 'Create invoice',
   'regular_invoice': 'Regular invoice',
@@ -106,8 +110,7 @@ const Map<String, String> invoicesEnglishTranslations = {
   'invalid_quantity': 'Quantity must be greater than zero',
   'invalid_price': 'Unit price must be greater than zero',
   'invalid_discount': 'Discount cannot be negative or exceed the line amount',
-  'invoice_total_must_be_positive':
-      'Invoice total must be greater than zero',
+  'invoice_total_must_be_positive': 'Invoice total must be greater than zero',
   'regular_invoice_created': 'Invoice created successfully',
   'invoice_saved_successfully': 'Invoice saved successfully',
   'invoice_updated_successfully': 'Invoice updated successfully',
@@ -180,6 +183,9 @@ const Map<String, String> invoicesEnglishTranslations = {
 };
 
 const Map<String, String> invoicesArabicTranslations = {
+  'invoice_rep_stock_shortage': 'ما معك من هذا الصنف يا فهمان!',
+  'invoice_warehouse_stock_shortage':
+      'المخزون المتاح من هذا الصنف في المستودع غير كافٍ.',
   'invoices': 'الفواتير',
   'create_invoice': 'إنشاء فاتورة',
   'regular_invoice': 'فاتورة عادية',
@@ -287,8 +293,7 @@ const Map<String, String> invoicesArabicTranslations = {
   'invalid_quantity': 'يجب أن تكون الكمية أكبر من صفر',
   'invalid_price': 'يجب أن يكون سعر الوحدة أكبر من صفر',
   'invalid_discount': 'لا يجوز أن يكون الخصم سالباً أو أكبر من قيمة البند',
-  'invoice_total_must_be_positive':
-      'يجب أن يكون إجمالي الفاتورة أكبر من صفر',
+  'invoice_total_must_be_positive': 'يجب أن يكون إجمالي الفاتورة أكبر من صفر',
   'regular_invoice_created': 'تم إنشاء الفاتورة بنجاح',
   'invoice_saved_successfully': 'تم حفظ الفاتورة بنجاح',
   'invoice_updated_successfully': 'تم تحديث الفاتورة بنجاح',

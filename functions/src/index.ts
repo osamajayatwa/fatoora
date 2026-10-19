@@ -28,6 +28,8 @@ import {
 } from "./trusted/financial_ledger_account_reporting";
 import {getDashboardSnapshot} from "./trusted/dashboard_reporting";
 import {
+  projectInvoiceSearch,
+  projectRepInventoryBalanceSearch,
   projectInventoryTransferSearch,
   projectItemReportingFields,
   projectRepInventoryMovementSearch,
@@ -38,6 +40,8 @@ import {
 initializeApp();
 
 export {
+  projectInvoiceSearch,
+  projectRepInventoryBalanceSearch,
   auditCompanyDocumentWrite,
   auditItemWrite,
   auditUserWrite,

@@ -325,7 +325,7 @@ class QuotationFormController extends GetxController {
         _showError('invalid_quantity');
         return false;
       }
-      if (item.unitPrice <= 0) {
+      if (!_totalsService.hasValidUnitPrice(item.unitPrice)) {
         _showError('invalid_price');
         return false;
       }
@@ -352,6 +352,12 @@ class QuotationFormController extends GetxController {
       }
     }
     recalculateTotals();
+    try {
+      _totalsService.validateInvoice(invoiceItems);
+    } on FormatException {
+      _showError('quotation_invalid_data');
+      return false;
+    }
     return true;
   }
 

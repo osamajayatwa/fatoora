@@ -14,7 +14,6 @@ import {
   businessPath,
   numberFrom,
   optionalString,
-  permissionValue,
   record,
   requireCallableUid,
   requireDocumentAccess,
@@ -111,14 +110,6 @@ export async function confirmInvoiceTransaction(
       throw new HttpsError("permission-denied", "Customer is not owned by this representative.");
     }
 
-    const settingsSnapshot = await transaction.get(
-      firestore.doc(businessPath(companyId, "settings", "app")),
-    );
-    const settings = settingsSnapshot.data();
-    const canDiscount = user.role === "admin" || permissionValue(
-      settings,
-      "allowSalesRepDiscount",
-    );
     const totals = calculateInvoiceTotals(invoice.items);
     const catalogLines: CatalogLine[] = [];
     const seenLineIds = new Set<string>();
@@ -128,9 +119,6 @@ export async function confirmInvoiceTransaction(
         throw new HttpsError("invalid-argument", "Invoice lineId values must be unique.");
       }
       seenLineIds.add(line.lineId);
-      if (!canDiscount && line.discount !== 0) {
-        throw new HttpsError("permission-denied", "Discount permission is required.");
-      }
       if (line.lineType === "custom") {
         const legacyManual = !line.lineTypeExplicit &&
           (!line.itemId || line.itemId.startsWith("manual-"));
@@ -194,6 +182,12 @@ export async function confirmInvoiceTransaction(
     const sourceRepId = sourceType === "salesRep"
       ? requiredString(invoice.stockSourceSalesRepId, "stockSourceSalesRepId")
       : "";
+    // Authorize the persisted source independently of client rules, including
+    // legacy/admin-created drafts assigned to this representative.
+    if (user.role === "sales_rep" &&
+      (sourceType !== "salesRep" || sourceRepId !== user.uid)) {
+      throw new HttpsError("permission-denied", "Representatives must use their own custody stock.");
+    }
     if (sourceType === "salesRep" && sourceRepId !== salesRepId) {
       throw new HttpsError("failed-precondition", "Invoice inventory source is invalid.");
     }

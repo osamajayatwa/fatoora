@@ -1,4 +1,5 @@
 import 'package:fatoora/core/class/statusrequest.dart';
+import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/features/sales_returns/controllers/sales_return_context.dart';
@@ -27,7 +28,8 @@ class SalesReturnDetailsController extends GetxController {
   bool isConfirming = false;
   bool isPrinting = false;
 
-  bool get canConfirm => salesReturn?.isDraft == true && !isConfirming;
+  bool get canConfirm => salesReturn?.canEdit == true && !isConfirming;
+  bool get canEdit => canConfirm;
   bool get showSalesRepresentative =>
       _myServices.sharedPreferences.getString('role')?.trim() == 'admin';
 
@@ -77,7 +79,7 @@ class SalesReturnDetailsController extends GetxController {
 
   Future<void> confirmReturn() async {
     final current = salesReturn;
-    if (current == null || !current.isDraft || isConfirming) return;
+    if (current == null || !current.canEdit || isConfirming) return;
     isConfirming = true;
     update();
     try {
@@ -102,6 +104,20 @@ class SalesReturnDetailsController extends GetxController {
       isConfirming = false;
       if (!isClosed) update();
     }
+  }
+
+  Future<void> editReturn() async {
+    final current = salesReturn;
+    if (current == null || !canEdit) return;
+    final changed = await Get.toNamed(
+      AppRoute.createSalesReturn,
+      arguments: {
+        'companyId': current.companyId,
+        'originalInvoiceId': current.originalInvoiceId,
+        'returnId': current.id,
+      },
+    );
+    if (changed == true) await loadSalesReturn();
   }
 
   Future<void> printSalesReturn() async {

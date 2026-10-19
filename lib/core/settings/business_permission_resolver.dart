@@ -63,11 +63,13 @@ class EffectiveBusinessPermissions {
       isAdmin: false,
       isSalesRep: true,
       createCustomers: settings.allowSalesRepCreateCustomers,
-      createReceipts: settings.allowSalesRepCreateReceipts,
-      createReturns: settings.allowSalesRepCreateReturns,
-      createQuotations: settings.allowSalesRepCreateQuotations,
-      editCatalogPrice: settings.allowSalesRepPriceEdit,
-      applyDiscount: settings.allowSalesRepDiscount,
+      // Operational access is role-based. Retain legacy settings in the stored
+      // schema, but do not let them disable an approved rep's sales workflows.
+      createReceipts: true,
+      createReturns: true,
+      createQuotations: true,
+      editCatalogPrice: true,
+      applyDiscount: true,
     );
   }
 

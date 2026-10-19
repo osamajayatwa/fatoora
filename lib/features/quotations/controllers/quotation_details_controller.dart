@@ -1,6 +1,7 @@
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
+import 'package:fatoora/core/motion/fatoora_overlays.dart';
 import 'package:fatoora/core/services/services.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/quotations/controllers/quotation_error_mapper.dart';
@@ -9,6 +10,7 @@ import 'package:fatoora/features/quotations/data/models/quotation_status.dart';
 import 'package:fatoora/features/quotations/data/repositories/quotation_repository.dart';
 import 'package:fatoora/features/quotations/data/services/quotation_pdf_service.dart';
 import 'package:get/get.dart';
+import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 
 class QuotationDetailsController extends GetxController {
@@ -29,9 +31,12 @@ class QuotationDetailsController extends GetxController {
   bool isSavingStatus = false;
   bool isConverting = false;
   bool isPrinting = false;
+  bool isDeleting = false;
 
   bool get canEdit => quotation?.canEdit == true && !isSavingStatus;
   bool get canConvert => quotation?.canConvert == true && !isConverting;
+  bool get canDelete =>
+      quotation?.isDraft == true && !isDeleting && !isSavingStatus;
   bool get showSalesRepresentative =>
       _myServices.sharedPreferences.getString('role')?.trim() == 'admin';
 
@@ -97,6 +102,43 @@ class QuotationDetailsController extends GetxController {
       },
     );
     if (changed == true) await loadQuotation();
+  }
+
+  Future<void> deleteDraft() async {
+    final current = quotation;
+    if (current == null || !canDelete) return;
+    final confirmed = await showFatooraGetDialog<bool>(
+      AlertDialog(
+        title: Text('delete_quotation'.tr),
+        content: Text('delete_quotation_confirmation'.tr),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text('cancel'.tr),
+          ),
+          FilledButton(
+            key: const ValueKey('quotation-delete-confirm'),
+            onPressed: () => Get.back(result: true),
+            child: Text('delete_quotation'.tr),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || isClosed) return;
+    isDeleting = true;
+    update();
+    try {
+      await _repository.deleteDraftQuotation(
+        companyId: current.companyId,
+        quotationId: current.id,
+      );
+      Get.back(result: true);
+    } catch (error) {
+      _showError(QuotationErrorMapper.messageKey(error));
+    } finally {
+      isDeleting = false;
+      if (!isClosed) update();
+    }
   }
 
   Future<void> updateStatus(QuotationStatus status) async {

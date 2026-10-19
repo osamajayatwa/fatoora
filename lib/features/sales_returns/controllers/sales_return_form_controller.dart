@@ -41,6 +41,8 @@ class SalesReturnFormController extends GetxController {
   String loadErrorMessageKey = 'sales_return_load_error';
   String companyId = '';
   String originalInvoiceId = '';
+  SalesReturnModel? loadedReturn;
+  bool get isEditMode => loadedReturn != null;
   InvoiceModel? originalInvoice;
   List<SalesReturnItemModel> items = const [];
   Map<String, double> availableByLineId = const {};
@@ -81,7 +83,8 @@ class SalesReturnFormController extends GetxController {
       update();
       return;
     }
-    if (originalInvoiceId.isEmpty) {
+    if (originalInvoiceId.isEmpty &&
+        SalesReturnContext.readString(args, 'returnId').isEmpty) {
       statusRequest = StatusRequest.failure;
       loadErrorMessageKey = 'select_invoice_to_return';
       update();
@@ -91,6 +94,22 @@ class SalesReturnFormController extends GetxController {
     loadErrorMessageKey = 'sales_return_load_error';
     update();
     try {
+      final returnId = SalesReturnContext.readString(args, 'returnId');
+      if (returnId.isNotEmpty) {
+        loadedReturn = await _repository.getSalesReturnById(
+          companyId: companyId,
+          returnId: returnId,
+        );
+        if (loadedReturn == null || !loadedReturn!.canEdit) {
+          throw const SalesReturnRepositoryException(
+            SalesReturnRepositoryError.invalidState,
+          );
+        }
+        originalInvoiceId = loadedReturn!.originalInvoiceId;
+        reasonController.text = loadedReturn!.reason;
+        refundType = loadedReturn!.refundType;
+        returnDate = loadedReturn!.returnDate;
+      }
       final invoice = await _invoiceRepository.getInvoiceById(
         companyId: companyId,
         invoiceId: originalInvoiceId,
@@ -144,10 +163,20 @@ class SalesReturnFormController extends GetxController {
             ),
           ),
       ];
+      for (final controller in quantityControllers.values) {
+        controller.dispose();
+      }
+      quantityControllers.clear();
+      quantityErrors.clear();
       for (final item in items) {
         quantityControllers[item.originalInvoiceItemId] = TextEditingController(
           text: '0',
         );
+      }
+      for (final item in loadedReturn?.items ?? <SalesReturnItemModel>[]) {
+        final quantity = _formatQuantity(item.returnedQuantity);
+        quantityControllers[item.originalInvoiceItemId]?.text = quantity;
+        updateReturnedQuantity(item.originalInvoiceItemId, quantity);
       }
       statusRequest = StatusRequest.success;
     } catch (error) {
@@ -226,9 +255,17 @@ class SalesReturnFormController extends GetxController {
     update();
     try {
       final draft = _buildReturn(invoice);
-      final saved = confirm
-          ? await _repository.confirmSalesReturn(salesReturn: draft)
-          : await _repository.saveDraft(salesReturn: draft);
+      // Existing drafts must be saved before confirmation: the trusted callable
+      // deliberately reads the persisted draft, not caller replacement lines.
+      final SalesReturnModel saved;
+      if (confirm && isEditMode) {
+        final updated = await _repository.saveDraft(salesReturn: draft);
+        saved = await _repository.confirmSalesReturn(salesReturn: updated);
+      } else {
+        saved = confirm
+            ? await _repository.confirmSalesReturn(salesReturn: draft)
+            : await _repository.saveDraft(salesReturn: draft);
+      }
       _showSuccess(
         confirm ? 'return_confirmed_successfully' : 'return_draft_saved',
       );
@@ -262,9 +299,10 @@ class SalesReturnFormController extends GetxController {
   SalesReturnModel _buildReturn(InvoiceModel invoice) {
     final now = DateTime.now();
     return SalesReturnModel(
-      id: '',
+      id: loadedReturn?.id ?? '',
       companyId: companyId,
-      returnNumber: '',
+      returnNumber: loadedReturn?.returnNumber ?? '',
+      returnInvoiceId: loadedReturn?.returnInvoiceId ?? '',
       originalInvoiceId: invoice.id,
       originalInvoiceNumber: invoice.invoiceNumber,
       originalInvoiceDate: invoice.invoiceDate,
@@ -281,15 +319,15 @@ class SalesReturnFormController extends GetxController {
       status: SalesReturnStatus.draft,
       salesRepId: invoice.salesRepId,
       salesRepName: invoice.salesRepName,
-      createdByUid: '',
-      createdByName: '',
-      createdByRole: '',
+      createdByUid: loadedReturn?.createdByUid ?? '',
+      createdByName: loadedReturn?.createdByName ?? '',
+      createdByRole: loadedReturn?.createdByRole ?? '',
       financialPosted: false,
       inventoryPosted: false,
       stockMovementIds: const [],
       customerTransactionIds: const [],
       cashMovementIds: const [],
-      createdAt: now,
+      createdAt: loadedReturn?.createdAt ?? now,
       updatedAt: now,
     );
   }

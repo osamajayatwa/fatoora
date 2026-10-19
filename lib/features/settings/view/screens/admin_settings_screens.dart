@@ -198,31 +198,6 @@ class _PermissionSettingsForm extends StatelessWidget {
           value: controller.allowSalesRepCreateCustomers,
           onChanged: controller.setAllowSalesRepCreateCustomers,
         ),
-        SettingsSwitchTile(
-          title: 'settings_allow_sales_rep_create_receipts'.tr,
-          value: controller.allowSalesRepCreateReceipts,
-          onChanged: controller.setAllowSalesRepCreateReceipts,
-        ),
-        SettingsSwitchTile(
-          title: 'settings_allow_sales_rep_create_returns'.tr,
-          value: controller.allowSalesRepCreateReturns,
-          onChanged: controller.setAllowSalesRepCreateReturns,
-        ),
-        SettingsSwitchTile(
-          title: 'settings_allow_sales_rep_create_quotations'.tr,
-          value: controller.allowSalesRepCreateQuotations,
-          onChanged: controller.setAllowSalesRepCreateQuotations,
-        ),
-        SettingsSwitchTile(
-          title: 'settings_allow_sales_rep_price_edit'.tr,
-          value: controller.allowSalesRepPermissionPriceEdit,
-          onChanged: controller.setAllowSalesRepPermissionPriceEdit,
-        ),
-        SettingsSwitchTile(
-          title: 'settings_allow_sales_rep_discount'.tr,
-          value: controller.allowSalesRepDiscount,
-          onChanged: controller.setAllowSalesRepDiscount,
-        ),
       ],
     );
   }

@@ -1,6 +1,43 @@
-import {DocumentSnapshot, getFirestore} from "firebase-admin/firestore";
+import {DocumentSnapshot, Firestore, getFirestore} from "firebase-admin/firestore";
 import {onDocumentWritten} from "firebase-functions/v2/firestore";
 import {REGION, buildSearchKeywords} from "./common";
+import {documentSearchFields} from "../../shared/search_keywords";
+
+export const projectInvoiceSearch = onDocumentWritten(
+  {document: "companies/{companyId}/invoices/{invoiceId}", region: REGION, retry: true},
+  async (event) => {
+    if (event.data?.after.exists) {
+      await reconcileOperationalSearchFields(getFirestore(), event.data.after.ref.path, "invoices");
+    }
+  },
+);
+
+export const projectRepInventoryBalanceSearch = onDocumentWritten(
+  {document: "companies/{companyId}/rep_inventory_balances/{balanceId}", region: REGION, retry: true},
+  async (event) => {
+    if (event.data?.after.exists) {
+      await reconcileOperationalSearchFields(getFirestore(), event.data.after.ref.path, "rep_inventory_balances");
+    }
+  },
+);
+
+// Re-read current data transactionally so delayed events cannot restore stale
+// search/hasStock metadata after a newer stock posting. Never update quantities,
+// financial fields, ownership, updatedAt, or the existing list ordering fields.
+export async function reconcileOperationalSearchFields(
+  firestore: Firestore, path: string, collection: string,
+): Promise<void> {
+  await firestore.runTransaction(async (transaction) => {
+    const ref = firestore.doc(path);
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) return;
+    const data = snapshot.data() ?? {};
+    const expected = documentSearchFields(collection, data);
+    if (Object.entries(expected).every(([key, value]) =>
+      JSON.stringify(data[key]) === JSON.stringify(value))) return;
+    transaction.update(ref, expected);
+  });
+}
 
 export const projectStockMovementSearch = onDocumentWritten(
   {
@@ -95,13 +132,7 @@ export const projectItemReportingFields = onDocumentWritten(
           : "ok";
     const inventoryValue = Math.round(stock * cost * 1000) / 1000;
     const nameLower = String(data.name ?? "").trim().toLowerCase();
-    const searchKeywords = buildSearchKeywords([
-      data.name,
-      data.code,
-      data.description,
-      data.barcode,
-      data.category,
-    ]);
+    const searchKeywords = documentSearchFields("items", data).searchKeywords;
     const existingKeywords = Array.isArray(data.searchKeywords) ? data.searchKeywords : [];
     if (data.stockStatus === stockStatus &&
         data.inventoryValue === inventoryValue &&

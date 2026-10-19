@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:fatoora/core/data/firestore_query_pager.dart';
+import 'package:fatoora/core/search/normalized_search.dart';
 import 'package:fatoora/core/firebase/trusted_callable_client.dart';
 import 'package:fatoora/core/finance/financial_posting_calculator.dart';
 import 'package:fatoora/core/settings/business_settings_defaults.dart';
@@ -41,16 +42,34 @@ class InvoiceRepositoryException implements Exception {
   final Object? cause;
 }
 
-class InsufficientStockFailure {
-  const InsufficientStockFailure({
-    required this.itemName,
-    required this.requestedQuantity,
-    required this.availableQuantity,
-  });
+enum InvoiceStockSource { representative, warehouse }
 
-  final String itemName;
-  final double requestedQuantity;
-  final double availableQuantity;
+class InsufficientStockFailure {
+  const InsufficientStockFailure({required this.source, required this.itemId});
+  final InvoiceStockSource source;
+  final String itemId;
+  String get messageKey => source == InvoiceStockSource.representative
+      ? 'invoice_rep_stock_shortage'
+      : 'invoice_warehouse_stock_shortage';
+
+  static InsufficientStockFailure? fromCallable(Object error) {
+    if (error is! FirebaseFunctionsException ||
+        error.code != 'failed-precondition') {
+      return null;
+    }
+    // Match only the two trusted confirmation errors; other precondition
+    // failures must retain their normal error handling.
+    final match = RegExp(
+      r'^Insufficient (representative|warehouse) stock for (.+)\.$',
+    ).firstMatch(error.message?.trim() ?? '');
+    if (match == null) return null;
+    return InsufficientStockFailure(
+      source: match[1] == 'representative'
+          ? InvoiceStockSource.representative
+          : InvoiceStockSource.warehouse,
+      itemId: match[2]!,
+    );
+  }
 }
 
 class InvoiceRepository {
@@ -363,7 +382,7 @@ class InvoiceRepository {
         ),
       );
     }
-    final normalizedSearch = _normalize(searchText ?? '');
+    final normalizedSearch = normalizeSearchText(searchText ?? '');
     if (normalizedSearch.isNotEmpty) {
       query = query.where('searchKeywords', arrayContains: normalizedSearch);
     }
@@ -475,12 +494,7 @@ class InvoiceRepository {
           })
           .timeout(const Duration(seconds: 20));
       if (shouldConfirm) {
-        await _trustedCallableClient
-            .callAuthenticated<void>('confirmInvoice', {
-              'companyId': companyId,
-              'invoiceId': document.id,
-            })
-            .timeout(const Duration(seconds: 30));
+        await confirmDraftInvoice(companyId: companyId, invoiceId: document.id);
       }
       return document.id;
     });
@@ -563,13 +577,24 @@ class InvoiceRepository {
           })
           .timeout(const Duration(seconds: 20));
       if (shouldConfirm) {
-        await _trustedCallableClient
-            .callAuthenticated<void>('confirmInvoice', {
-              'companyId': companyId,
-              'invoiceId': invoice.id,
-            })
-            .timeout(const Duration(seconds: 30));
+        await confirmDraftInvoice(companyId: companyId, invoiceId: invoice.id);
       }
+    });
+  }
+
+  Future<void> confirmDraftInvoice({
+    required String companyId,
+    required String invoiceId,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      await _trustedCallableClient
+          .callAuthenticated<void>('confirmInvoice', {
+            'companyId': resolvedCompanyId,
+            'invoiceId': invoiceId,
+          })
+          .timeout(const Duration(seconds: 30));
     });
   }
 
@@ -738,35 +763,13 @@ class InvoiceRepository {
         InvoiceRepositoryError.invalidData,
       );
     }
-    if (invoice.items.isEmpty ||
-        !invoice.grandTotal.isFinite ||
-        invoice.grandTotal <= 0) {
+    late InvoiceTotals totals;
+    try {
+      totals = const InvoiceTotalsService().validateInvoice(invoice.items);
+    } on FormatException {
       throw const InvoiceRepositoryException(
         InvoiceRepositoryError.invalidData,
       );
-    }
-    for (final line in invoice.items) {
-      final validCommon =
-          line.itemName.trim().isNotEmpty &&
-          const InvoiceTotalsService().hasValidQuantity(line.quantity) &&
-          const InvoiceTotalsService().hasValidUnitPrice(line.unitPrice) &&
-          const InvoiceTotalsService().hasValidDiscount(
-            quantity: line.quantity,
-            unitPrice: line.unitPrice,
-            discount: line.discount,
-          ) &&
-          const InvoiceTotalsService().hasValidLineTotal(line.total);
-      final validIdentity = line.lineType == InvoiceLineType.catalog
-          ? (line.itemId?.trim().isNotEmpty ?? false)
-          : line.isLegacyManual ||
-                (line.itemId == null &&
-                    line.description.trim().isNotEmpty &&
-                    line.unit.trim().isNotEmpty);
-      if (!validCommon || !validIdentity) {
-        throw const InvoiceRepositoryException(
-          InvoiceRepositoryError.invalidData,
-        );
-      }
     }
     if (_dateOnly(invoice.dueDate).isBefore(_dateOnly(invoice.invoiceDate))) {
       throw const InvoiceRepositoryException(
@@ -776,7 +779,7 @@ class InvoiceRepository {
 
     final payment = _calculatePayment(
       hasReceivedPayment: invoice.hasReceivedPayment,
-      grandTotal: invoice.grandTotal,
+      grandTotal: totals.grandTotal,
       requestedPaidAmount: invoice.paidAmount,
     );
     final creatorUid = preserveCreator ? existing!.createdByUid : user.uid;
@@ -798,6 +801,11 @@ class InvoiceRepository {
 
     return invoice
         .copyWith(
+          items: totals.items,
+          subtotal: totals.subtotal,
+          totalDiscount: totals.totalDiscount,
+          totalTax: totals.totalTax,
+          grandTotal: totals.grandTotal,
           id: id,
           companyId: companyId,
           invoiceNumber: invoiceNumber,
@@ -929,7 +937,10 @@ class InvoiceRepository {
     } on TimeoutException catch (error) {
       throw InvoiceRepositoryException(InvoiceRepositoryError.timeout, error);
     } on FirebaseFunctionsException catch (error) {
-      throw InvoiceRepositoryException(_mapFunctionError(error.code), error);
+      throw InvoiceRepositoryException(
+        _mapFunctionError(error.code),
+        InsufficientStockFailure.fromCallable(error) ?? error,
+      );
     } on FirebaseException catch (error) {
       throw InvoiceRepositoryException(_mapFirebaseError(error.code), error);
     } on FormatException catch (error) {

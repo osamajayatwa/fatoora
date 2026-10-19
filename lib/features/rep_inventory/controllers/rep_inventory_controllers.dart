@@ -89,20 +89,33 @@ class RepInventoryController extends GetxController
     required MyServices myServices,
   }) : _repository = repository,
        _services = myServices;
-
   final RepInventoryRepository _repository;
   final MyServices _services;
   @override
   MyServices get services => _services;
 
   StatusRequest statusRequest = StatusRequest.loading;
+  StatusRequest balanceStatus = StatusRequest.loading;
+  final balanceSearchController = TextEditingController();
+  String balanceSearchText = '';
+  String _appliedBalanceSearch = '';
+  String balanceErrorKey = 'rep_inventory_error_unknown';
+  String? balanceLoadMoreErrorKey;
   List<AppUserModel> salesReps = const [];
   List<RepInventoryBalanceModel> balances = const [];
+  RepInventorySummary summary = const RepInventorySummary.empty();
   List<RepInventoryMovementModel> movements = const [];
   List<InventoryTransferModel> transfers = const [];
   String selectedSalesRepId = '';
   String selectedSalesRepName = '';
   String errorKey = 'rep_inventory_error_unknown';
+  bool hasMoreBalances = false;
+  bool isLoadingMoreBalances = false;
+  FirestorePageCursor? _balanceCursor;
+  int _loadGeneration = 0;
+  int _balanceGeneration = 0;
+  Timer? _balanceDebounce;
+  bool get balanceSearchIsTooShort => serverSearchIsTooShort(balanceSearchText);
 
   @override
   void onInit() {
@@ -124,65 +137,170 @@ class RepInventoryController extends GetxController
   }
 
   Future<void> load() async {
+    final generation = ++_loadGeneration;
+    ++_balanceGeneration;
+    _balanceDebounce?.cancel();
     statusRequest = StatusRequest.loading;
     update();
     try {
       if (isAdmin) {
-        salesReps = _uniqueById(
-          await _repository.fetchApprovedSalesReps(companyId: companyId),
-          (rep) => rep.uid,
+        final reps = await _repository.fetchApprovedSalesReps(
+          companyId: companyId,
         );
-        final selectedRep = salesReps
+        if (isClosed || generation != _loadGeneration) return;
+        salesReps = _uniqueById(reps, (rep) => rep.uid);
+        final selected = salesReps
             .where((rep) => rep.uid == selectedSalesRepId)
             .firstOrNull;
-        if (selectedRep == null) {
-          selectedSalesRepId = salesReps.firstOrNull?.uid ?? '';
-          selectedSalesRepName = salesReps.firstOrNull?.name ?? '';
-        } else {
-          selectedSalesRepName = selectedRep.name;
-        }
+        selectedSalesRepId = selected?.uid ?? salesReps.firstOrNull?.uid ?? '';
+        selectedSalesRepName =
+            selected?.name ?? salesReps.firstOrNull?.name ?? '';
+      } else {
+        selectedSalesRepId = currentUid;
       }
       if (selectedSalesRepId.isEmpty) {
         balances = const [];
         movements = const [];
         transfers = const [];
+        summary = const RepInventorySummary.empty();
+        balanceStatus = StatusRequest.success;
+        hasMoreBalances = false;
       } else {
-        final results = await Future.wait([
-          _repository.fetchBalances(
+        final owner = selectedSalesRepId;
+        final results = await Future.wait<Object?>([
+          _repository.fetchBalanceSummary(
             companyId: companyId,
-            salesRepId: selectedSalesRepId,
+            salesRepId: owner,
           ),
           _repository.fetchRecentMovements(
             companyId: companyId,
-            salesRepId: selectedSalesRepId,
+            salesRepId: owner,
           ),
           _repository.fetchTransfersPage(
             companyId: companyId,
-            salesRepId: selectedSalesRepId,
+            salesRepId: owner,
             pageSize: 30,
           ),
+          loadBalances(),
         ]);
-        balances = results[0] as List<RepInventoryBalanceModel>;
+        if (isClosed || generation != _loadGeneration) return;
+        summary = results[0] as RepInventorySummary;
         movements = results[1] as List<RepInventoryMovementModel>;
         transfers = (results[2] as FirestorePage<InventoryTransferModel>).items;
       }
       statusRequest = StatusRequest.success;
     } catch (error) {
+      if (isClosed || generation != _loadGeneration) return;
       statusRequest = StatusRequest.failure;
       errorKey = inventoryErrorMessage(error);
     }
     if (!isClosed) update();
   }
 
+  Future<void> loadBalances() async {
+    _balanceDebounce?.cancel();
+    final generation = ++_balanceGeneration;
+    final search = serverSearchTerm(balanceSearchText);
+    balanceStatus = StatusRequest.loading;
+    _balanceCursor = null;
+    hasMoreBalances = false;
+    isLoadingMoreBalances = false;
+    balanceLoadMoreErrorKey = null;
+    update();
+    try {
+      final page = await _repository.fetchBalancesPage(
+        companyId: companyId,
+        salesRepId: isAdmin ? selectedSalesRepId : currentUid,
+        searchText: search,
+      );
+      if (isClosed || generation != _balanceGeneration) return;
+      balances = page.items;
+      _balanceCursor = page.cursor;
+      hasMoreBalances = page.hasMore;
+      _appliedBalanceSearch = search;
+      balanceStatus = StatusRequest.success;
+    } catch (error) {
+      if (isClosed || generation != _balanceGeneration) return;
+      balanceStatus = StatusRequest.failure;
+      balanceErrorKey = inventoryErrorMessage(error);
+    }
+    if (!isClosed) update();
+  }
+
+  Future<void> loadMoreBalances() async {
+    if (balanceStatus != StatusRequest.success ||
+        isLoadingMoreBalances ||
+        !hasMoreBalances ||
+        _balanceCursor == null ||
+        _appliedBalanceSearch != serverSearchTerm(balanceSearchText)) {
+      return;
+    }
+    final generation = _balanceGeneration;
+    isLoadingMoreBalances = true;
+    balanceLoadMoreErrorKey = null;
+    update();
+    try {
+      final page = await _repository.fetchBalancesPage(
+        companyId: companyId,
+        salesRepId: isAdmin ? selectedSalesRepId : currentUid,
+        searchText: _appliedBalanceSearch,
+        after: _balanceCursor,
+      );
+      if (isClosed || generation != _balanceGeneration) return;
+      balances = _uniqueById([
+        ...balances,
+        ...page.items,
+      ], (balance) => balance.id);
+      _balanceCursor = page.cursor;
+      hasMoreBalances = page.hasMore;
+    } catch (error) {
+      if (isClosed || generation != _balanceGeneration) return;
+      balanceLoadMoreErrorKey = inventoryErrorMessage(error);
+    } finally {
+      if (!isClosed && generation == _balanceGeneration) {
+        isLoadingMoreBalances = false;
+        update();
+      }
+    }
+  }
+
+  void onBalanceSearchChanged(String value) {
+    balanceSearchText = value;
+    _balanceDebounce?.cancel();
+    ++_balanceGeneration;
+    isLoadingMoreBalances = false;
+    update();
+    if (serverSearchTerm(value).isEmpty) {
+      if (_appliedBalanceSearch.isNotEmpty ||
+          balanceStatus != StatusRequest.success) {
+        loadBalances();
+      }
+      return;
+    }
+    _balanceDebounce = Timer(serverSearchDebounce, loadBalances);
+  }
+
+  void submitBalanceSearch() {
+    _balanceDebounce?.cancel();
+    if (serverSearchTerm(balanceSearchText).isEmpty &&
+        _appliedBalanceSearch.isEmpty &&
+        balanceStatus == StatusRequest.success) {
+      return;
+    }
+    loadBalances();
+  }
+
+  void clearBalanceSearch() {
+    balanceSearchText = '';
+    balanceSearchController.clear();
+    loadBalances();
+  }
+
   Future<void> selectSalesRep(String? id) async {
-    if (id == null || id == selectedSalesRepId) return;
+    if (!isAdmin || id == null || id == selectedSalesRepId) return;
     selectedSalesRepId = id;
     selectedSalesRepName =
-        salesReps
-            .where((rep) => rep.uid == id)
-            .map((rep) => rep.name)
-            .firstOrNull ??
-        '';
+        salesReps.where((rep) => rep.uid == id).firstOrNull?.name ?? '';
     await load();
   }
 
@@ -191,6 +309,15 @@ class RepInventoryController extends GetxController
     AppRoute.inventoryTransferDetailsPath(transfer.id),
     arguments: {'transferId': transfer.id},
   );
+
+  @override
+  void onClose() {
+    ++_loadGeneration;
+    ++_balanceGeneration;
+    _balanceDebounce?.cancel();
+    balanceSearchController.dispose();
+    super.onClose();
+  }
 }
 
 class InventoryTransfersController extends GetxController

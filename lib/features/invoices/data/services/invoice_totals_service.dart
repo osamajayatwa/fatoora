@@ -23,20 +23,20 @@ class InvoiceTotalsService {
 
   InvoiceItemSnapshot calculateLine(InvoiceItemSnapshot item) {
     final quantity = item.quantity.isFinite && item.quantity > 0
-        ? item.quantity
+        ? round(item.quantity)
         : 0.0;
     final unitPrice = item.unitPrice.isFinite && item.unitPrice >= 0
-        ? item.unitPrice
+        ? round(item.unitPrice)
         : 0.0;
-    final rawSubtotal = quantity * unitPrice;
+    final rawSubtotal = round(quantity * unitPrice);
     final discount = item.discount.isFinite
-        ? item.discount.clamp(0, rawSubtotal).toDouble()
+        ? round(item.discount).clamp(0, rawSubtotal).toDouble()
         : 0.0;
-    final taxableAmount = math.max(rawSubtotal - discount, 0).toDouble();
+    final taxableAmount = round(math.max(rawSubtotal - discount, 0).toDouble());
     final taxPercent = item.taxPercent.isFinite
-        ? item.taxPercent.clamp(0, 100).toDouble()
+        ? round(item.taxPercent).clamp(0, 100).toDouble()
         : 0.0;
-    final taxAmount = taxableAmount * (taxPercent / 100);
+    final taxAmount = round(taxableAmount * (taxPercent / 100));
     final total = taxableAmount + taxAmount;
 
     return item.copyWith(
@@ -65,14 +65,53 @@ class InvoiceTotalsService {
     );
   }
 
+  /// Shared draft/conversion validation. Confirmation recalculates again on the
+  /// trusted backend; client-provided aggregate amounts are never authoritative.
+  InvoiceTotals validateInvoice(List<InvoiceItemSnapshot> items) {
+    if (items.isEmpty || items.length > 100) {
+      throw const FormatException('Invoice requires 1 to 100 valid lines.');
+    }
+    final lineIds = <String>{};
+    for (final item in items) {
+      final validIdentity = item.lineType == InvoiceLineType.catalog
+          ? (item.itemId?.trim().isNotEmpty ?? false)
+          : item.isLegacyManual ||
+                (item.itemId == null &&
+                    item.description.trim().isNotEmpty &&
+                    item.unit.trim().isNotEmpty);
+      if (!validIdentity ||
+          item.itemName.trim().isEmpty ||
+          !hasValidQuantity(item.quantity) ||
+          !hasValidUnitPrice(item.unitPrice) ||
+          !hasValidDiscount(
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discount: item.discount,
+          ) ||
+          !hasValidTaxPercent(item.taxPercent) ||
+          (item.lineId.isNotEmpty && !lineIds.add(item.lineId))) {
+        throw const FormatException('Invalid invoice line.');
+      }
+    }
+    final totals = calculateInvoice(items);
+    if (!totals.grandTotal.isFinite || totals.grandTotal <= 0) {
+      throw const FormatException('Invoice total must be positive.');
+    }
+    return totals;
+  }
+
   double round(double value) {
     if (!value.isFinite) return 0;
     return (value * 1000).roundToDouble() / 1000;
   }
 
-  bool hasValidQuantity(double value) => value.isFinite && value > 0;
+  bool hasValidQuantity(double value) =>
+      value.isFinite && value > 0 && round(value) > 0;
 
   bool hasValidUnitPrice(double value) => value.isFinite && value >= 0;
+
+  bool hasValidTaxPercent(double value) =>
+      value.isFinite && value >= 0 && value <= 100;
 
   bool hasValidDiscount({
     required double quantity,
@@ -85,7 +124,7 @@ class InvoiceTotalsService {
         discount < 0) {
       return false;
     }
-    return round(discount) <= round(quantity * unitPrice);
+    return round(discount) <= round(round(quantity) * round(unitPrice));
   }
 
   bool hasValidLineTotal(double value) => value.isFinite && value >= 0;

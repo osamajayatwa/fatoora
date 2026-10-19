@@ -294,7 +294,7 @@ class SalesReturnRepository {
             if (existingSnapshot.exists) {
               existing = SalesReturnModel.fromFirestore(existingSnapshot);
               _requireCanAccessReturn(user, existing);
-              if (!existing.isDraft) {
+              if (!existing.canEdit) {
                 throw const SalesReturnRepositoryException(
                   SalesReturnRepositoryError.invalidState,
                 );
@@ -673,9 +673,7 @@ class SalesReturnRepository {
     SalesReturnModel salesReturn,
   ) {
     if (user.isAdmin) return;
-    if (user.isSalesRep &&
-        (salesReturn.salesRepId == user.uid ||
-            salesReturn.createdByUid == user.uid)) {
+    if (user.isSalesRep && salesReturn.salesRepId == user.uid) {
       return;
     }
     throw const SalesReturnRepositoryException(

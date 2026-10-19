@@ -106,6 +106,7 @@ class InventoryDashboardController extends GetxController {
     final generation = reset ? ++_itemLoadGeneration : _itemLoadGeneration;
     final requestedSearch = serverSearchTerm(itemSearchQuery);
     if (reset) {
+      isLoadingMoreItems = false;
       itemStatusRequest = StatusRequest.loading;
       itemLoadErrorMessageKey = 'items_load_error';
       _itemPageCursor = null;
@@ -145,12 +146,20 @@ class InventoryDashboardController extends GetxController {
   }
 
   Future<void> loadMoreItems() async {
-    if (isLoadingMoreItems || !hasMoreItems || _itemPageCursor == null) return;
+    if (isLoadingMoreItems ||
+        !hasMoreItems ||
+        _itemPageCursor == null ||
+        itemStatusRequest != StatusRequest.success ||
+        _appliedItemSearch != serverSearchTerm(itemSearchQuery)) {
+      return;
+    }
+    final generation = _itemLoadGeneration;
     isLoadingMoreItems = true;
     update();
     try {
       await _fetchItemsPage(reset: false);
     } catch (error) {
+      if (isClosed || generation != _itemLoadGeneration) return;
       itemLoadErrorMessageKey = ItemErrorMapper.messageKey(
         error,
         fallback: 'items_load_error',
@@ -161,8 +170,10 @@ class InventoryDashboardController extends GetxController {
         snackPosition: SnackPosition.BOTTOM,
       );
     } finally {
-      isLoadingMoreItems = false;
-      if (!isClosed) update();
+      if (!isClosed && generation == _itemLoadGeneration) {
+        isLoadingMoreItems = false;
+        update();
+      }
     }
   }
 
@@ -170,6 +181,7 @@ class InventoryDashboardController extends GetxController {
     itemSearchQuery = value;
     _itemSearchDebounce?.cancel();
     _itemLoadGeneration++;
+    isLoadingMoreItems = false;
     update();
     if (serverSearchTerm(value).isEmpty) {
       if (_appliedItemSearch.isNotEmpty ||
@@ -213,6 +225,7 @@ class InventoryDashboardController extends GetxController {
 
   @override
   void onClose() {
+    ++_itemLoadGeneration;
     _itemSearchDebounce?.cancel();
     itemSearchController.dispose();
     super.onClose();

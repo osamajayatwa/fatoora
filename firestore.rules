@@ -331,6 +331,7 @@ service cloud.firestore {
     }
 
     function customerAllowed(companyId, customerId) {
+      // Phase 1 ownership remains createdByUid; no assignment-field fallback.
       let path =
         /databases/$(database)/documents/companies/$(companyId)/customers/$(customerId);
       let customer = get(path);
@@ -454,7 +455,6 @@ service cloud.firestore {
       return validCreator(companyId, data)
         && validInvoiceDraftData(companyId, invoiceId, data)
         && (isAdmin(companyId) || data.salesRepId == request.auth.uid)
-        && (isAdmin(companyId) || data.totalDiscount == 0 || permissionAllows(companyId, 'allowSalesRepDiscount'))
         && data.createdAt == request.time
         && data.updatedAt == request.time;
     }
@@ -466,6 +466,7 @@ service cloud.firestore {
         && resource.data.invoiceStatus == 'draft'
         && resource.data.financialPosted == false
         && resource.data.inventoryPosted == false
+        && resource.data.get('isLocked', false) == false
         && data.invoiceStatus == 'draft'
         && data.financialPosted == false
         && data.inventoryPosted == false
@@ -490,7 +491,6 @@ service cloud.firestore {
         && data.paidAmount >= 0
         && data.paidAmount <= data.grandTotal
         && data.remainingAmount == data.grandTotal - data.paidAmount
-        && (isAdmin(companyId) || data.totalDiscount == 0 || permissionAllows(companyId, 'allowSalesRepDiscount'))
         && data.updatedAt == request.time;
     }
 
@@ -573,7 +573,6 @@ service cloud.firestore {
     function validReturnDraftCreate(companyId, returnId) {
       let data = request.resource.data;
       return validCreator(companyId, data)
-        && permissionAllows(companyId, 'allowSalesRepCreateReturns')
         && validReturnDraftData(companyId, returnId, data)
         && data.createdAt == request.time
         && data.updatedAt == request.time;
@@ -586,7 +585,6 @@ service cloud.firestore {
         && resource.data.status == 'draft'
         && resource.data.financialPosted == false
         && resource.data.inventoryPosted == false
-        && permissionAllows(companyId, 'allowSalesRepCreateReturns')
         && data.status == 'draft'
         && data.financialPosted == false
         && data.inventoryPosted == false
@@ -661,8 +659,6 @@ service cloud.firestore {
     function validQuotationCreate(companyId, quotationId) {
       let data = request.resource.data;
       return validCreator(companyId, data)
-        && permissionAllows(companyId, 'allowSalesRepCreateQuotations')
-        && (isAdmin(companyId) || data.totalDiscount == 0 || permissionAllows(companyId, 'allowSalesRepDiscount'))
         && validQuotationData(companyId, quotationId, data)
         && data.status == 'draft'
         && data.convertedInvoiceId == ''
@@ -693,7 +689,6 @@ service cloud.firestore {
         && data.totalDiscount <= data.subtotal
         && data.totalTax >= 0
         && data.grandTotal > 0
-        && (isAdmin(companyId) || data.totalDiscount == 0 || permissionAllows(companyId, 'allowSalesRepDiscount'))
         && data.updatedAt == request.time;
     }
 
@@ -855,14 +850,12 @@ service cloud.firestore {
           )
           || (
             counterId.matches('^sales_returns_[0-9]{4}$')
-            && permissionAllows(companyId, 'allowSalesRepCreateReturns')
             && configuredPrefix(
               companyId, data.prefix, 'salesReturnPrefix', 'RET'
             )
           )
           || (
             counterId.matches('^quotations_[0-9]{4}$')
-            && permissionAllows(companyId, 'allowSalesRepCreateQuotations')
             && configuredPrefix(
               companyId, data.prefix, 'quotationPrefix', 'QUO'
             )
@@ -927,6 +920,7 @@ service cloud.firestore {
       allow update: if validInvoiceDraftUpdate(companyId);
       allow delete: if canReadSalesRepDocument(companyId, resource.data)
         && resource.data.invoiceStatus == 'draft'
+        && resource.data.get('isLocked', false) == false
         && resource.data.financialPosted == false
         && resource.data.inventoryPosted == false;
     }
@@ -994,7 +988,10 @@ service cloud.firestore {
           ]
           && validQuotationStatusUpdate(companyId)
         );
-      allow delete: if false;
+      allow delete: if canReadSalesRepDocument(companyId, resource.data)
+        && resource.data.status == 'draft'
+        && resource.data.convertedInvoiceId == ''
+        && resource.data.convertedInvoiceNumber == '';
     }
 
     match /companies/{companyId}/expenses/{expenseId} {

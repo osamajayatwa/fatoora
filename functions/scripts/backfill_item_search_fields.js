@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 "use strict";
+const {buildSearchKeywords: normalizedSearchKeywords} = require("../shared/search_keywords");
 
 const {applicationDefault, initializeApp} = require("firebase-admin/app");
 const {getFirestore} = require("firebase-admin/firestore");
@@ -19,20 +20,7 @@ function normalize(value) {
 }
 
 function searchKeywords(values) {
-  const result = new Set();
-  for (const value of values) {
-    const text = normalize(value);
-    if (!text) continue;
-    result.add(text);
-    for (const token of text.split(/[\s\-_/]+/u)) {
-      if (!token) continue;
-      result.add(token);
-      for (let index = 1; index <= token.length && index <= 20; index += 1) {
-        result.add(token.slice(0, index));
-      }
-    }
-  }
-  return [...result].sort();
+  return normalizedSearchKeywords(values);
 }
 
 async function main() {

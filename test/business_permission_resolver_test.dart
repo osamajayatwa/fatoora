@@ -33,42 +33,42 @@ void main() {
     expect(permissions.createCustomers, isFalse);
   });
 
-  test('sales-rep receipt creation can be disabled', () {
+  test('legacy toggle cannot disable sales-rep receipt creation', () {
     final permissions = salesRep(
       PermissionSettingsModel.defaults.copyWith(
         allowSalesRepCreateReceipts: false,
       ),
     );
-    expect(permissions.createReceipts, isFalse);
+    expect(permissions.createReceipts, isTrue);
   });
 
-  test('sales-rep return creation can be disabled', () {
+  test('legacy toggle cannot disable sales-rep return creation', () {
     final permissions = salesRep(
       PermissionSettingsModel.defaults.copyWith(
         allowSalesRepCreateReturns: false,
       ),
     );
-    expect(permissions.createReturns, isFalse);
+    expect(permissions.createReturns, isTrue);
   });
 
-  test('sales-rep quotation creation can be disabled', () {
+  test('legacy toggle cannot disable sales-rep quotation creation', () {
     final permissions = salesRep(
       PermissionSettingsModel.defaults.copyWith(
         allowSalesRepCreateQuotations: false,
       ),
     );
-    expect(permissions.createQuotations, isFalse);
+    expect(permissions.createQuotations, isTrue);
   });
 
-  test('sales-rep price editing and discounts can be disabled', () {
+  test('legacy toggles cannot restrict sales-rep prices or discounts', () {
     final permissions = salesRep(
       PermissionSettingsModel.defaults.copyWith(
         allowSalesRepPriceEdit: false,
         allowSalesRepDiscount: false,
       ),
     );
-    expect(permissions.editCatalogPrice, isFalse);
-    expect(permissions.applyDiscount, isFalse);
+    expect(permissions.editCatalogPrice, isTrue);
+    expect(permissions.applyDiscount, isTrue);
   });
 
   test('admin remains allowed when every sales-rep toggle is disabled', () {

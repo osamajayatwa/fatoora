@@ -466,12 +466,20 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     update();
     try {
       final wasCreateMode = isCreateMode || invoiceId.isEmpty;
-      final invoice = _buildInvoice(targetStatus);
+      // Capture the saved draft ID before confirming so a shortage/retry never
+      // creates another draft and entered form data remains in this controller.
+      final invoice = _buildInvoice(InvoiceStatus.draft);
       if (wasCreateMode) {
         invoiceId = await _repository.createInvoice(invoice: invoice);
         mode = 'edit';
       } else {
         await _repository.updateInvoice(invoice: invoice);
+      }
+      if (targetStatus == InvoiceStatus.confirmed) {
+        await _repository.confirmDraftInvoice(
+          companyId: companyId,
+          invoiceId: invoiceId,
+        );
       }
       _showSuccess(
         targetStatus == InvoiceStatus.draft
@@ -492,13 +500,8 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
       if (stockFailure == null) {
         _showError(InvoiceErrorMapper.messageKey(error));
       } else {
-        _showErrorText(
-          'stock_not_enough'.trParams({
-            'item': stockFailure.itemName,
-            'requested': _formatQuantity(stockFailure.requestedQuantity),
-            'available': _formatQuantity(stockFailure.availableQuantity),
-          }),
-        );
+        statusRequest = StatusRequest.success;
+        _showError(stockFailure.messageKey);
       }
       return false;
     } finally {
@@ -597,6 +600,10 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     }
     if (!_totalsService.hasValidUnitPrice(item.unitPrice)) {
       _showError('value_must_not_be_negative');
+      return false;
+    }
+    if (!_totalsService.hasValidTaxPercent(item.taxPercent)) {
+      _showError('invoice_invalid_data');
       return false;
     }
     if (!_totalsService.hasValidDiscount(
@@ -740,12 +747,6 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
       DateTime(value.year, value.month, value.day);
 
   String _formatInputAmount(double value) {
-    final rounded = _totalsService.round(value);
-    if (rounded == rounded.roundToDouble()) return rounded.toStringAsFixed(0);
-    return rounded.toStringAsFixed(3);
-  }
-
-  String _formatQuantity(double value) {
     final rounded = _totalsService.round(value);
     if (rounded == rounded.roundToDouble()) return rounded.toStringAsFixed(0);
     return rounded.toStringAsFixed(3);

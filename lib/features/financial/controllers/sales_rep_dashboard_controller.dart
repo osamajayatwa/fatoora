@@ -70,12 +70,9 @@ class SalesRepDashboardController extends GetxController {
       ]);
       permissions = results[0] as EffectiveBusinessPermissions;
       snapshot = results[1] as FinancialDashboardSnapshot;
-      final balances = results[2] as List<RepInventoryBalanceModel>?;
-      custodyItemCount = balances?.length;
-      custodyTotalQuantity = balances?.fold<double>(
-        0,
-        (total, balance) => total + balance.quantity,
-      );
+      final custody = results[2] as RepInventorySummary?;
+      custodyItemCount = custody?.itemCount;
+      custodyTotalQuantity = custody?.totalQuantity;
       statusRequest = StatusRequest.success;
     } catch (error) {
       statusRequest = FinancialErrorMapper.status(error);
@@ -86,11 +83,11 @@ class SalesRepDashboardController extends GetxController {
 
   Future<void> refreshDashboard() => loadDashboard();
 
-  Future<List<RepInventoryBalanceModel>?> _loadCustodyBalances() async {
+  Future<RepInventorySummary?> _loadCustodyBalances() async {
     final repository = _inventoryRepository;
     if (repository == null) return null;
     try {
-      return await repository.fetchBalances(companyId: companyId);
+      return await repository.fetchBalanceSummary(companyId: companyId);
     } catch (_) {
       // Custody is supplementary. Keep the dashboard usable and show its CTA.
       return null;

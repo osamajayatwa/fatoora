@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:fatoora/core/data/firestore_query_pager.dart';
+import 'package:fatoora/core/search/normalized_search.dart';
 import 'package:fatoora/core/firebase/trusted_callable_client.dart';
 import 'package:fatoora/core/settings/business_settings_defaults.dart';
 import 'package:fatoora/features/auth/data/models/app_user_model.dart';
@@ -42,6 +43,22 @@ class RepInventoryRepositoryException implements Exception {
 
   final RepInventoryRepositoryError error;
   final Object? cause;
+}
+
+/// Reps cannot select another owner, even if a route/request supplies its UID.
+String repInventoryOwnerId(BusinessUserContext user, String requested) {
+  if (!user.canUseBusinessData) {
+    throw const RepInventoryRepositoryException(
+      RepInventoryRepositoryError.permissionDenied,
+    );
+  }
+  final owner = user.isSalesRep ? user.uid : requested.trim();
+  if (owner.isEmpty) {
+    throw const RepInventoryRepositoryException(
+      RepInventoryRepositoryError.invalidRepresentative,
+    );
+  }
+  return owner;
 }
 
 class RepInventoryRepository {
@@ -292,6 +309,57 @@ class RepInventoryRepository {
         );
       }
       return transfer;
+    });
+  }
+
+  Future<FirestorePage<RepInventoryBalanceModel>> fetchBalancesPage({
+    String companyId = AuthRepository.defaultCompanyId,
+    String salesRepId = '',
+    String searchText = '',
+    FirestorePageCursor? after,
+    int pageSize = 36,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      final ownerId = repInventoryOwnerId(user, salesRepId);
+      Query<Map<String, dynamic>> query = _balances(resolvedCompanyId)
+          .where('salesRepId', isEqualTo: ownerId)
+          .where('hasStock', isEqualTo: true);
+      final search = normalizeSearchText(searchText);
+      if (search.isNotEmpty) {
+        query = query.where('searchKeywords', arrayContains: search);
+      }
+      return query
+          .orderBy('updatedAt', descending: true)
+          .orderBy(FieldPath.documentId, descending: true)
+          .getPage(
+            decode: RepInventoryBalanceModel.fromFirestore,
+            after: after,
+            pageSize: pageSize.clamp(1, 100).toInt(),
+          );
+    });
+  }
+
+  Future<RepInventorySummary> fetchBalanceSummary({
+    String companyId = AuthRepository.defaultCompanyId,
+    String salesRepId = '',
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      final ownerId = repInventoryOwnerId(user, salesRepId);
+      // Summaries cover all positive custody, independently of search/page size.
+      final result = await _balances(resolvedCompanyId)
+          .where('salesRepId', isEqualTo: ownerId)
+          .where('quantity', isGreaterThan: 0)
+          .aggregate(count(), sum('quantity'))
+          .get()
+          .timeout(const Duration(seconds: 30));
+      return RepInventorySummary(
+        itemCount: result.count ?? 0,
+        totalQuantity: result.getSum('quantity') ?? 0,
+      );
     });
   }
 

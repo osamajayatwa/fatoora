@@ -17,7 +17,6 @@ import {
   finiteNumber,
   numberFrom,
   optionalString,
-  permissionValue,
   record,
   requireCallableUid,
   requireTrustedUser,
@@ -111,12 +110,6 @@ export async function createReceiptTransaction(
     const settingsRef = firestore.doc(businessPath(companyId, "settings", "app"));
     const settingsSnapshot = await transaction.get(settingsRef);
     const settings = settingsSnapshot.data();
-    if (
-      user.role === "sales_rep" &&
-      !permissionValue(settings, "allowSalesRepCreateReceipts")
-    ) {
-      throw new HttpsError("permission-denied", "Receipt creation is disabled.");
-    }
     const currentBalance = roundMoney(numberFrom(customer, "currentBalance"));
     const payFullBalance = input.payFullBalance === true;
     const amount = payFullBalance

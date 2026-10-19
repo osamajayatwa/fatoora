@@ -149,6 +149,18 @@ class _Details extends StatelessWidget {
                   );
                 },
               ),
+              if (controller.canEdit) ...[
+                const SizedBox(height: 18),
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: OutlinedButton.icon(
+                    key: const ValueKey('return-edit-draft'),
+                    onPressed: controller.editReturn,
+                    icon: const Icon(Icons.edit_outlined),
+                    label: Text('edit_sales_return'.tr),
+                  ),
+                ),
+              ],
               if (controller.canConfirm) ...[
                 const SizedBox(height: 18),
                 Align(
