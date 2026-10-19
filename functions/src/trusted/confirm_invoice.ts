@@ -119,10 +119,6 @@ export async function confirmInvoiceTransaction(
       settings,
       "allowSalesRepDiscount",
     );
-    const canEditPrice = user.role === "admin" || permissionValue(
-      settings,
-      "allowSalesRepPriceEdit",
-    );
     const totals = calculateInvoiceTotals(invoice.items);
     const catalogLines: CatalogLine[] = [];
     const seenLineIds = new Set<string>();
@@ -161,9 +157,6 @@ export async function confirmInvoiceTransaction(
         !optionalString(item.name)
       ) {
         throw new HttpsError("failed-precondition", `Invoice item ${line.itemId} is not eligible.`);
-      }
-      if (!canEditPrice && Math.abs(numberFrom(item, "price") - line.unitPrice) > 0.0005) {
-        throw new HttpsError("permission-denied", "Catalog price editing is disabled.");
       }
       catalogLines.push({
         index,

@@ -127,6 +127,43 @@ test("invoice totals ignore forged client aggregates and reject invalid payment"
   assert.equal(custom.lineType, "custom");
   assert.equal(custom.itemId, null);
   assert.equal(custom.description, "Installation at customer site");
+  const withFreeLines = calculateInvoiceTotals([
+    {
+      lineId: "paid-catalog",
+      lineType: "catalog",
+      itemId: "item-a",
+      itemName: "Paid item",
+      quantity: 1,
+      unitPrice: 116,
+      discount: 0,
+      taxPercent: 0,
+    },
+    {
+      lineId: "free-catalog",
+      lineType: "catalog",
+      itemId: "item-b",
+      itemName: "Free catalog item",
+      quantity: 1,
+      unitPrice: 0,
+      discount: 0,
+      taxPercent: 0,
+    },
+    {
+      lineId: "free-custom",
+      lineType: "custom",
+      itemId: null,
+      itemName: "Free accessory",
+      description: "Included at no charge",
+      unit: "piece",
+      quantity: 1,
+      unitPrice: 0,
+      discount: 0,
+      taxPercent: 0,
+    },
+  ]);
+  assert.equal(withFreeLines.grandTotal, 116);
+  assert.equal(withFreeLines.items[1].total, 0);
+  assert.equal(withFreeLines.items[2].total, 0);
   assert.throws(() => calculateInvoiceTotals([{
     lineType: "informational",
     quantity: 1,
@@ -137,6 +174,28 @@ test("invoice totals ignore forged client aggregates and reject invalid payment"
     lineType: "custom",
     quantity: 1,
     unitPrice: 0,
+    discount: 0,
+    taxPercent: 0,
+  }]));
+  assert.throws(() => calculateInvoiceTotals([{
+    lineType: "custom",
+    quantity: 1,
+    unitPrice: -0.001,
+    discount: 0,
+    taxPercent: 0,
+  }]));
+  assert.throws(() => calculateInvoiceTotals([{
+    lineType: "custom",
+    quantity: 0,
+    unitPrice: 1,
+    discount: 0,
+    taxPercent: 0,
+  }]));
+  assert.throws(() => calculateInvoiceTotals([{
+    lineType: "custom",
+    quantity: 1,
+    unitPrice: 0,
+    discount: 0.001,
     taxPercent: 0,
   }]));
 });
@@ -1231,6 +1290,255 @@ test("concurrent invoice confirmations post totals and stock exactly once", asyn
   assert.equal(removedSummary.metricSales, 0);
 });
 
+test("confirmed pricing preserves chosen catalog prices and posts free lines safely", async () => {
+  const companyId = "trusted-invoice-pricing";
+  const uid = "invoice-pricing-admin";
+  const customerId = "invoice-pricing-customer";
+  const invoiceId = "invoice-pricing-mixed";
+  const paidItemId = "invoice-pricing-paid";
+  const freeItemId = "invoice-pricing-free";
+  await seedUser(uid, "admin", companyId);
+  await seedCustomer(companyId, customerId, uid, 0);
+  await db.doc(`items/${paidItemId}`).set({
+    id: paidItemId,
+    name: "Paid catalog item",
+    code: "PAID",
+    unit: "piece",
+    price: 100,
+    active: true,
+    deleted: false,
+    trackStock: true,
+    currentStock: 5,
+  });
+  await db.doc(`items/${freeItemId}`).set({
+    id: freeItemId,
+    name: "Free catalog item",
+    code: "FREE",
+    unit: "piece",
+    price: 25,
+    active: true,
+    deleted: false,
+    trackStock: true,
+    currentStock: 3,
+  });
+  await db.doc(`companies/${companyId}/invoices/${invoiceId}`).set({
+    ...invoiceDraft({id: invoiceId, companyId, customerId, uid, quantity: 1}),
+    items: [
+      {
+        lineId: "paid-line",
+        lineType: "catalog",
+        itemId: paidItemId,
+        itemName: "Paid catalog item",
+        description: "Chosen while the catalog price was 100",
+        unit: "piece",
+        quantity: 1,
+        unitPrice: 95,
+        discount: 0,
+        taxPercent: 0,
+      },
+      {
+        lineId: "free-catalog-line",
+        lineType: "catalog",
+        itemId: freeItemId,
+        itemName: "Free catalog item",
+        description: "Promotional item",
+        unit: "piece",
+        quantity: 1,
+        unitPrice: 0,
+        discount: 0,
+        taxPercent: 0,
+      },
+      {
+        lineId: "free-custom-line",
+        lineType: "custom",
+        itemId: null,
+        itemName: "Free accessory",
+        description: "Included at no charge",
+        unit: "piece",
+        quantity: 1,
+        unitPrice: 0,
+        discount: 0,
+        taxPercent: 0,
+      },
+    ],
+    hasReceivedPayment: true,
+    paidAmount: 95,
+  });
+
+  // A later catalog change must not replace the price chosen on the draft.
+  await db.doc(`items/${paidItemId}`).update({price: 120});
+  await confirmInvoiceTransaction(db, uid, companyId, invoiceId);
+  const replay = await confirmInvoiceTransaction(db, uid, companyId, invoiceId);
+
+  const invoice = (await db.doc(
+    `companies/${companyId}/invoices/${invoiceId}`,
+  ).get()).data();
+  const customer = (await db.doc(
+    `companies/${companyId}/customers/${customerId}`,
+  ).get()).data();
+  assert.equal(replay.alreadyPosted, true);
+  assert.equal(invoice.invoiceStatus, "confirmed");
+  assert.equal(invoice.isLocked, true);
+  assert.equal(invoice.financialPosted, true);
+  assert.equal(invoice.inventoryPosted, true);
+  assert.equal(invoice.items[0].unitPrice, 95);
+  assert.equal(invoice.items[1].unitPrice, 0);
+  assert.equal(invoice.items[2].unitPrice, 0);
+  assert.equal(invoice.grandTotal, 95);
+  assert.equal(invoice.paidAmount, 95);
+  assert.equal(invoice.remainingAmount, 0);
+  assert.equal(customer.currentBalance, 0);
+  assert.equal(customer.totalSales, 95);
+  assert.equal(customer.totalPaid, 95);
+  assert.equal((await db.doc(`items/${paidItemId}`).get()).data().currentStock, 4);
+  assert.equal((await db.doc(`items/${freeItemId}`).get()).data().currentStock, 2);
+  assert.equal((await db.collection(
+    `companies/${companyId}/stock_movements`,
+  ).get()).size, 2);
+  assert.equal((await db.collection(
+    `companies/${companyId}/customer_transactions`,
+  ).get()).size, 2);
+  assert.equal((await db.collection(
+    `companies/${companyId}/cash_movements`,
+  ).get()).size, 1);
+  assert.equal((await db.doc(
+    `companies/${companyId}/cash_balances/company_cash`,
+  ).get()).data().amount, 95);
+  assert.equal((await db.collection(
+    `companies/${companyId}/financial_ledger_entries`,
+  ).get()).size, 1);
+});
+
+test("trusted confirmation rejects invalid prices, quantities, discounts, and zero totals", async () => {
+  const companyId = "trusted-invoice-pricing-invalid";
+  const uid = "invoice-pricing-invalid-admin";
+  const customerId = "invoice-pricing-invalid-customer";
+  const itemId = "invoice-pricing-invalid-item";
+  await seedUser(uid, "admin", companyId);
+  await seedCustomer(companyId, customerId, uid, 0);
+  await db.doc(`items/${itemId}`).set({
+    id: itemId,
+    name: "Pricing validation item",
+    code: "VALIDATE",
+    unit: "piece",
+    price: 100,
+    active: true,
+    deleted: false,
+    trackStock: true,
+    currentStock: 10,
+  });
+
+  const scenarios = [
+    {
+      id: "negative-price",
+      items: [{
+        lineId: "negative-price-line",
+        lineType: "catalog",
+        itemId,
+        itemName: "Pricing validation item",
+        unit: "piece",
+        quantity: 1,
+        unitPrice: -1,
+        discount: 0,
+        taxPercent: 0,
+      }],
+    },
+    {
+      id: "zero-quantity",
+      items: [{
+        lineId: "zero-quantity-line",
+        lineType: "catalog",
+        itemId,
+        itemName: "Pricing validation item",
+        unit: "piece",
+        quantity: 0,
+        unitPrice: 10,
+        discount: 0,
+        taxPercent: 0,
+      }],
+    },
+    {
+      id: "invalid-discount",
+      items: [{
+        lineId: "invalid-discount-line",
+        lineType: "catalog",
+        itemId,
+        itemName: "Pricing validation item",
+        unit: "piece",
+        quantity: 1,
+        unitPrice: 10,
+        discount: 10.001,
+        taxPercent: 0,
+      }],
+    },
+    {
+      id: "zero-grand-total",
+      items: [
+        {
+          lineId: "zero-catalog-line",
+          lineType: "catalog",
+          itemId,
+          itemName: "Pricing validation item",
+          unit: "piece",
+          quantity: 1,
+          unitPrice: 0,
+          discount: 0,
+          taxPercent: 0,
+        },
+        {
+          lineId: "zero-custom-line",
+          lineType: "custom",
+          itemId: null,
+          itemName: "Free accessory",
+          description: "Included at no charge",
+          unit: "piece",
+          quantity: 1,
+          unitPrice: 0,
+          discount: 0,
+          taxPercent: 0,
+        },
+      ],
+    },
+  ];
+
+  for (const scenario of scenarios) {
+    await db.doc(`companies/${companyId}/invoices/${scenario.id}`).set({
+      ...invoiceDraft({
+        id: scenario.id,
+        companyId,
+        customerId,
+        uid,
+        quantity: 1,
+      }),
+      items: scenario.items,
+    });
+    await assert.rejects(
+      () => confirmInvoiceTransaction(db, uid, companyId, scenario.id),
+      (error) => error.code === "invalid-argument",
+    );
+    const invoice = (await db.doc(
+      `companies/${companyId}/invoices/${scenario.id}`,
+    ).get()).data();
+    assert.equal(invoice.invoiceStatus, "draft");
+    assert.equal(invoice.financialPosted, false);
+    assert.equal(invoice.inventoryPosted, false);
+    assert.equal(invoice.isLocked, false);
+  }
+  assert.equal((await db.doc(`items/${itemId}`).get()).data().currentStock, 10);
+  assert.equal((await db.doc(
+    `companies/${companyId}/customers/${customerId}`,
+  ).get()).data().currentBalance, 0);
+  assert.equal((await db.collection(
+    `companies/${companyId}/stock_movements`,
+  ).get()).size, 0);
+  assert.equal((await db.collection(
+    `companies/${companyId}/cash_movements`,
+  ).get()).size, 0);
+  assert.equal((await db.collection(
+    `companies/${companyId}/financial_ledger_entries`,
+  ).get()).size, 0);
+});
+
 test("mixed catalog and custom invoice posts trusted totals without custom inventory", async () => {
   const companyId = "trusted-custom-lines-admin";
   const uid = "custom-lines-admin";
@@ -1375,7 +1683,7 @@ test("mixed catalog and custom invoice posts trusted totals without custom inven
   assert.equal(legacyManual.description, "");
 });
 
-test("sales rep custom pricing is independent from catalog price permission", async () => {
+test("sales rep invoice pricing ignores catalog price permission and posts inventory once", async () => {
   const companyId = "trusted-custom-lines-rep";
   const uid = "custom-lines-rep";
   const customerId = "custom-lines-rep-customer";
@@ -1397,8 +1705,18 @@ test("sales rep custom pricing is independent from catalog price permission", as
     price: 13,
     active: true,
     deleted: false,
-    trackStock: false,
+    trackStock: true,
     currentStock: 0,
+  });
+  await db.doc(
+    `companies/${companyId}/rep_inventory_balances/${uid}_custom-lines-untracked`,
+  ).set({
+    id: `${uid}_custom-lines-untracked`,
+    companyId,
+    salesRepId: uid,
+    itemId: "custom-lines-untracked",
+    quantity: 5,
+    createdAt: now,
   });
   await db.doc(`companies/${companyId}/invoices/${invoiceId}`).set({
     ...invoiceDraft({id: invoiceId, companyId, customerId, uid, quantity: 1}),
@@ -1441,7 +1759,7 @@ test("sales rep custom pricing is independent from catalog price permission", as
   assert.equal(invoice.remainingAmount, 20);
   assert.equal((await db.collection(
     `companies/${companyId}/rep_inventory_movements`,
-  ).get()).size, 0);
+  ).get()).size, 1);
 
   const forbiddenCatalogPriceId = "rep-catalog-price-forbidden";
   await db.doc(`companies/${companyId}/invoices/${forbiddenCatalogPriceId}`).set({
@@ -1468,15 +1786,30 @@ test("sales rep custom pricing is independent from catalog price permission", as
       taxPercent: 0,
     }],
   });
-  await assert.rejects(
-    () => confirmInvoiceTransaction(
-      db,
-      uid,
-      companyId,
-      forbiddenCatalogPriceId,
-    ),
-    (error) => error.code === "permission-denied",
+  await confirmInvoiceTransaction(
+    db,
+    uid,
+    companyId,
+    forbiddenCatalogPriceId,
   );
+  const replay = await confirmInvoiceTransaction(
+    db,
+    uid,
+    companyId,
+    forbiddenCatalogPriceId,
+  );
+  const repricedInvoice = (await db.doc(
+    `companies/${companyId}/invoices/${forbiddenCatalogPriceId}`,
+  ).get()).data();
+  assert.equal(replay.alreadyPosted, true);
+  assert.equal(repricedInvoice.items[0].unitPrice, 14);
+  assert.equal(repricedInvoice.grandTotal, 14);
+  assert.equal((await db.doc(
+    `companies/${companyId}/rep_inventory_balances/${uid}_custom-lines-untracked`,
+  ).get()).data().quantity, 3);
+  assert.equal((await db.collection(
+    `companies/${companyId}/rep_inventory_movements`,
+  ).get()).size, 2);
 });
 
 test("custom line return reverses finance and never creates stock IN", async () => {

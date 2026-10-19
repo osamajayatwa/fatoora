@@ -118,10 +118,18 @@ class _CustomLineEditorState extends State<_CustomLineEditor> {
                   children: [
                     _sized(_numberField(_quantity, 'quantity'.tr), 150),
                     _sized(_textField(_unit, 'unit'.tr, required: true), 150),
-                    _sized(_numberField(_price, 'unit_price'.tr), 170),
+                    _sized(
+                      _numberField(_price, 'unit_price'.tr, positive: false),
+                      170,
+                    ),
                     if (widget.canApplyDiscount)
                       _sized(
-                        _numberField(_discount, 'discount'.tr, positive: false),
+                        _numberField(
+                          _discount,
+                          'discount'.tr,
+                          positive: false,
+                          maximum: () => _number(_quantity) * _number(_price),
+                        ),
                         150,
                       ),
                     _sized(_numberField(_tax, 'tax'.tr, positive: false), 130),
@@ -148,6 +156,7 @@ class _CustomLineEditorState extends State<_CustomLineEditor> {
     TextEditingController controller,
     String label, {
     bool positive = true,
+    double Function()? maximum,
   }) => TextFormField(
     controller: controller,
     keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -160,6 +169,9 @@ class _CustomLineEditorState extends State<_CustomLineEditor> {
         return positive
             ? 'value_must_be_positive'.tr
             : 'value_must_not_be_negative'.tr;
+      }
+      if (maximum != null && number > maximum()) {
+        return 'invalid_discount'.tr;
       }
       return null;
     },

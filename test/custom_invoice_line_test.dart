@@ -60,6 +60,35 @@ void main() {
     expect(result.items.where((line) => line.itemId == null), hasLength(3));
   });
 
+  test('invoice totals allow free catalog and custom lines on a positive invoice', () {
+    final result = totals.calculateInvoice([
+      _catalogLine(price: 116),
+      _catalogLine(price: 0).copyWith(
+        lineId: 'free-catalog-line',
+        itemId: 'free-item',
+        itemName: 'Free catalog item',
+      ),
+      _customLine(
+        name: 'Free accessory',
+        description: 'Included at no charge',
+        price: 0,
+      ),
+    ]);
+
+    expect(result.grandTotal, 116);
+    expect(result.items[1].unitPrice, 0);
+    expect(result.items[1].total, 0);
+    expect(result.items[2].itemId, isNull);
+    expect(result.items[2].total, 0);
+    expect(totals.hasValidUnitPrice(0), isTrue);
+    expect(totals.hasValidUnitPrice(-0.001), isFalse);
+    expect(totals.hasValidQuantity(0), isFalse);
+    expect(
+      totals.hasValidDiscount(quantity: 1, unitPrice: 0, discount: 0.001),
+      isFalse,
+    );
+  });
+
   test('quotation and return snapshots preserve custom metadata', () {
     final custom = totals.calculateLine(_customLine());
     final quotation = QuotationItemModel.fromInvoiceItem(custom);
@@ -192,6 +221,46 @@ void main() {
     },
   );
 
+  testWidgets('desktop catalog price is editable when invoice enables it', (
+    tester,
+  ) async {
+    double? price;
+    await tester.pumpWidget(
+      GetMaterialApp(
+        translations: MyTranslation(),
+        locale: const Locale('en'),
+        home: Scaffold(
+          body: SizedBox(
+            width: 1000,
+            child: InvoiceItemsTable(
+              items: [_catalogLine(price: 100)],
+              editable: true,
+              canEditUnitPrice: true,
+              onUpdateItem:
+                  ({
+                    required index,
+                    quantity,
+                    unitPrice,
+                    discount,
+                    taxPercent,
+                    description,
+                    itemName,
+                    unit,
+                  }) => price = unitPrice,
+              onRemoveItem: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const ValueKey('catalog-line-price-table')),
+      '95',
+    );
+    expect(price, 95);
+  });
+
   testWidgets(
     'custom line editor requires name and description and returns financial fields',
     (tester) async {
@@ -236,6 +305,43 @@ void main() {
       expect(result?.unitPrice, 50);
     },
   );
+
+  testWidgets('custom line editor accepts a zero unit price', (tester) async {
+    InvoiceItemSnapshot? result;
+    await tester.pumpWidget(
+      GetMaterialApp(
+        translations: MyTranslation(),
+        locale: const Locale('en'),
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => FilledButton(
+              onPressed: () async {
+                result = await showCustomLineEditor(
+                  context,
+                  canApplyDiscount: true,
+                );
+              },
+              child: const Text('open-free-line'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open-free-line'));
+    await tester.pumpAndSettle();
+    await tester.enterText(_fieldWithLabel('Line name'), 'Free accessory');
+    await tester.enterText(
+      _fieldWithLabel('Description'),
+      'Included at no charge',
+    );
+    await tester.enterText(_fieldWithLabel('Unit price'), '0');
+    await tester.tap(find.text('Add custom line'));
+    await tester.pumpAndSettle();
+
+    expect(result?.lineType, InvoiceLineType.custom);
+    expect(result?.itemId, isNull);
+    expect(result?.unitPrice, 0);
+  });
 
   testWidgets(
     'mobile mixed lines support RTL and large text without overflow',

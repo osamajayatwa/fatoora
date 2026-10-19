@@ -25,7 +25,7 @@ class InvoiceTotalsService {
     final quantity = item.quantity.isFinite && item.quantity > 0
         ? item.quantity
         : 0.0;
-    final unitPrice = item.unitPrice.isFinite && item.unitPrice > 0
+    final unitPrice = item.unitPrice.isFinite && item.unitPrice >= 0
         ? item.unitPrice
         : 0.0;
     final rawSubtotal = quantity * unitPrice;
@@ -69,4 +69,24 @@ class InvoiceTotalsService {
     if (!value.isFinite) return 0;
     return (value * 1000).roundToDouble() / 1000;
   }
+
+  bool hasValidQuantity(double value) => value.isFinite && value > 0;
+
+  bool hasValidUnitPrice(double value) => value.isFinite && value >= 0;
+
+  bool hasValidDiscount({
+    required double quantity,
+    required double unitPrice,
+    required double discount,
+  }) {
+    if (!hasValidQuantity(quantity) ||
+        !hasValidUnitPrice(unitPrice) ||
+        !discount.isFinite ||
+        discount < 0) {
+      return false;
+    }
+    return round(discount) <= round(quantity * unitPrice);
+  }
+
+  bool hasValidLineTotal(double value) => value.isFinite && value >= 0;
 }

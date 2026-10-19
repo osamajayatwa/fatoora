@@ -39,7 +39,11 @@ export function calculateInvoiceTotals(rawLines: unknown): TrustedInvoiceTotals 
     throw new HttpsError("invalid-argument", "Invoice must contain 1 to 100 lines.");
   }
   const items = rawLines.map((raw, index) => calculateInvoiceLine(raw, index));
-  return totalsFromTrustedLines(items);
+  const totals = totalsFromTrustedLines(items);
+  if (totals.grandTotal <= 0) {
+    throw new HttpsError("invalid-argument", "Invoice grand total must be greater than zero.");
+  }
+  return totals;
 }
 
 export function totalsFromTrustedLines(items: TrustedInvoiceLine[]): TrustedInvoiceTotals {
@@ -63,13 +67,19 @@ export function calculateInvoiceLine(raw: unknown, index: number): TrustedInvoic
     ? rawLineType
     :
     (rawItemId && !rawItemId.startsWith("manual-") ? "catalog" : "custom");
-  const quantity = roundQuantity(finiteNumber(data.quantity, `items[${index}].quantity`));
-  const unitPrice = roundMoney(finiteNumber(data.unitPrice, `items[${index}].unitPrice`));
-  const taxPercent = roundMoney(finiteNumber(data.taxPercent, `items[${index}].taxPercent`));
-  const requestedDiscount = roundMoney(
-    finiteNumber(data.discount ?? 0, `items[${index}].discount`),
-  );
-  if (quantity <= 0 || unitPrice <= 0 || taxPercent < 0 || taxPercent > 100) {
+  const rawQuantity = finiteNumber(data.quantity, `items[${index}].quantity`);
+  const rawUnitPrice = finiteNumber(data.unitPrice, `items[${index}].unitPrice`);
+  const rawTaxPercent = finiteNumber(data.taxPercent, `items[${index}].taxPercent`);
+  const rawDiscount = finiteNumber(data.discount ?? 0, `items[${index}].discount`);
+  if (rawQuantity <= 0 || rawUnitPrice < 0 || rawDiscount < 0 ||
+    rawTaxPercent < 0 || rawTaxPercent > 100) {
+    throw new HttpsError("invalid-argument", `Invoice line ${index + 1} is invalid.`);
+  }
+  const quantity = roundQuantity(rawQuantity);
+  const unitPrice = roundMoney(rawUnitPrice);
+  const taxPercent = roundMoney(rawTaxPercent);
+  const requestedDiscount = roundMoney(rawDiscount);
+  if (quantity <= 0) {
     throw new HttpsError("invalid-argument", `Invoice line ${index + 1} is invalid.`);
   }
   const subtotal = roundMoney(quantity * unitPrice);
@@ -78,6 +88,10 @@ export function calculateInvoiceLine(raw: unknown, index: number): TrustedInvoic
   }
   const taxable = roundMoney(subtotal - requestedDiscount);
   const taxAmount = roundMoney(taxable * taxPercent / 100);
+  const total = roundMoney(taxable + taxAmount);
+  if (total < 0) {
+    throw new HttpsError("invalid-argument", `Invoice line ${index + 1} total is invalid.`);
+  }
   return {
     lineId: optionalString(data.lineId) || `legacy-line-${index}`,
     lineType,
@@ -92,7 +106,7 @@ export function calculateInvoiceLine(raw: unknown, index: number): TrustedInvoic
     taxPercent,
     subtotal,
     taxAmount,
-    total: roundMoney(taxable + taxAmount),
+    total,
     lineTypeExplicit: Boolean(rawLineType),
   };
 }

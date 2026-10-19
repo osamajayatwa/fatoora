@@ -109,7 +109,7 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
       invoiceType == InvoiceType.electronic && AppFeatureFlags.jofotaraEnabled;
   bool get canSubmitElectronic =>
       canUseElectronic && !readOnly && !isSaving && items.isNotEmpty;
-  bool get canEditCatalogPrice => !readOnly && permissions.editCatalogPrice;
+  bool get canEditCatalogPrice => !readOnly;
   bool get canApplyDiscount => !readOnly && permissions.applyDiscount;
 
   @override
@@ -298,6 +298,10 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
 
   void addCatalogItem(ItemModel item) {
     if (readOnly || !item.active || item.deleted) return;
+    if (!_totalsService.hasValidUnitPrice(item.price)) {
+      _showError('value_must_not_be_negative');
+      return;
+    }
     final rawItem = InvoiceItemSnapshot(
       lineId: _newLineId(),
       lineType: InvoiceLineType.catalog,
@@ -332,17 +336,25 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
       _showError('description_required');
       return;
     }
-    if (quantity <= 0) {
+    if (!_totalsService.hasValidQuantity(quantity)) {
       _showError('invalid_quantity');
       return;
     }
-    if (price <= 0) {
-      _showError('invalid_price');
+    if (!_totalsService.hasValidUnitPrice(price)) {
+      _showError('value_must_not_be_negative');
       return;
     }
     final discount = _parseDouble(itemDiscountController.text);
     if (!canApplyDiscount && discount > 0) {
       _showError('sales_rep_discount_disabled');
+      return;
+    }
+    if (!_totalsService.hasValidDiscount(
+      quantity: quantity,
+      unitPrice: price,
+      discount: discount,
+    )) {
+      _showError('invalid_discount');
       return;
     }
 
@@ -374,6 +386,7 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
 
   void addCustomLine(InvoiceItemSnapshot line) {
     if (readOnly || line.lineType != InvoiceLineType.custom) return;
+    if (!_validateLinePricing(line)) return;
     items = [...items, _totalsService.calculateLine(line)];
     recalculateTotals();
   }
@@ -395,12 +408,6 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
     String? unit,
   }) {
     if (readOnly || index < 0 || index >= items.length) return;
-    if (unitPrice != null &&
-        items[index].lineType == InvoiceLineType.catalog &&
-        !canEditCatalogPrice) {
-      _showError('sales_rep_price_edit_disabled');
-      return;
-    }
     if (discount != null && !canApplyDiscount) {
       _showError('sales_rep_discount_disabled');
       return;
@@ -416,6 +423,7 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
           : null,
       unit: items[index].lineType == InvoiceLineType.custom ? unit : null,
     );
+    if (!_validateLinePricing(item)) return;
     final next = [...items];
     next[index] = _totalsService.calculateLine(item);
     items = next;
@@ -550,14 +558,7 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
       return false;
     }
     for (final item in items) {
-      if (item.quantity <= 0) {
-        _showError('invalid_quantity');
-        return false;
-      }
-      if (item.unitPrice <= 0) {
-        _showError('invalid_price');
-        return false;
-      }
+      if (!_validateLinePricing(item)) return false;
       if (item.itemName.trim().isEmpty) {
         _showError('item_name_required');
         return false;
@@ -581,7 +582,35 @@ class InvoiceFormController extends GetxController with InvoicePageNavigation {
       }
     }
     recalculateTotals();
+    if (grandTotal <= 0) {
+      _showError('invoice_total_must_be_positive');
+      return false;
+    }
     if (!_validatePayment()) return false;
+    return true;
+  }
+
+  bool _validateLinePricing(InvoiceItemSnapshot item) {
+    if (!_totalsService.hasValidQuantity(item.quantity)) {
+      _showError('invalid_quantity');
+      return false;
+    }
+    if (!_totalsService.hasValidUnitPrice(item.unitPrice)) {
+      _showError('value_must_not_be_negative');
+      return false;
+    }
+    if (!_totalsService.hasValidDiscount(
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      discount: item.discount,
+    )) {
+      _showError('invalid_discount');
+      return false;
+    }
+    if (!_totalsService.hasValidLineTotal(item.total)) {
+      _showError('invoice_invalid_data');
+      return false;
+    }
     return true;
   }
 

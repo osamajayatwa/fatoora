@@ -105,6 +105,9 @@ const Map<String, String> invoicesEnglishTranslations = {
   'items_required': 'Add at least one item',
   'invalid_quantity': 'Quantity must be greater than zero',
   'invalid_price': 'Unit price must be greater than zero',
+  'invalid_discount': 'Discount cannot be negative or exceed the line amount',
+  'invoice_total_must_be_positive':
+      'Invoice total must be greater than zero',
   'regular_invoice_created': 'Invoice created successfully',
   'invoice_saved_successfully': 'Invoice saved successfully',
   'invoice_updated_successfully': 'Invoice updated successfully',
@@ -283,6 +286,9 @@ const Map<String, String> invoicesArabicTranslations = {
   'items_required': 'أضف صنفا واحدا على الأقل',
   'invalid_quantity': 'يجب أن تكون الكمية أكبر من صفر',
   'invalid_price': 'يجب أن يكون سعر الوحدة أكبر من صفر',
+  'invalid_discount': 'لا يجوز أن يكون الخصم سالباً أو أكبر من قيمة البند',
+  'invoice_total_must_be_positive':
+      'يجب أن يكون إجمالي الفاتورة أكبر من صفر',
   'regular_invoice_created': 'تم إنشاء الفاتورة بنجاح',
   'invoice_saved_successfully': 'تم حفظ الفاتورة بنجاح',
   'invoice_updated_successfully': 'تم تحديث الفاتورة بنجاح',

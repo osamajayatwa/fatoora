@@ -11,7 +11,6 @@ class InvoiceErrorMapper {
     return switch (error.error) {
       InvoiceRepositoryError.unauthenticated ||
       InvoiceRepositoryError.permissionDenied ||
-      InvoiceRepositoryError.priceEditDisabled ||
       InvoiceRepositoryError.discountDisabled => StatusRequest.unauthorized,
       InvoiceRepositoryError.unavailable => StatusRequest.offlinefailure,
       InvoiceRepositoryError.timeout => StatusRequest.timeout,
@@ -31,8 +30,6 @@ class InvoiceErrorMapper {
     return switch (error.error) {
       InvoiceRepositoryError.unauthenticated => 'invoice_session_error',
       InvoiceRepositoryError.permissionDenied => 'invoice_permission_error',
-      InvoiceRepositoryError.priceEditDisabled =>
-        'sales_rep_price_edit_disabled',
       InvoiceRepositoryError.discountDisabled => 'sales_rep_discount_disabled',
       InvoiceRepositoryError.unavailable => 'invoice_offline_error',
       InvoiceRepositoryError.timeout => 'invoice_timeout_error',

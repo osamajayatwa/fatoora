@@ -13,6 +13,7 @@ import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_item_snapshot.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_list_query.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
+import 'package:fatoora/features/invoices/data/services/invoice_totals_service.dart';
 import 'package:fatoora/features/items/data/models/item_model.dart';
 import 'package:fatoora/features/rep_inventory/data/models/rep_inventory_enums.dart';
 import 'package:fatoora/features/settings/data/models/app_settings_model.dart';
@@ -23,7 +24,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 enum InvoiceRepositoryError {
   unauthenticated,
   permissionDenied,
-  priceEditDisabled,
   discountDisabled,
   unavailable,
   timeout,
@@ -91,9 +91,6 @@ class InvoiceRepository {
         .doc(companyId)
         .collection('customers');
   }
-
-  CollectionReference<Map<String, dynamic>> get _items =>
-      _firestore.collection('items');
 
   DocumentReference<Map<String, dynamic>> _invoiceCounter(
     String companyId,
@@ -430,8 +427,6 @@ class InvoiceRepository {
       await _firestore
           .runTransaction((transaction) async {
             final now = DateTime.now();
-            final itemSnapshots =
-                <String, DocumentSnapshot<Map<String, dynamic>>>{};
             final settingsSnapshot = await transaction.get(
               _appSettings(companyId),
             );
@@ -441,11 +436,8 @@ class InvoiceRepository {
               settings.permissionSettings,
             );
             await _enforceLinePermissions(
-              transaction: transaction,
               permissions: permissions,
               items: invoice.items,
-              existingItems: null,
-              itemSnapshots: itemSnapshots,
             );
             final rawCustomerId = invoice.customerSnapshot?.id.trim() ?? '';
             await _readCustomerForInvoice(
@@ -507,8 +499,6 @@ class InvoiceRepository {
       final document = _invoices(companyId).doc(invoice.id);
       await _firestore
           .runTransaction((transaction) async {
-            final itemSnapshots =
-                <String, DocumentSnapshot<Map<String, dynamic>>>{};
             final snapshot = await transaction.get(document);
             if (!snapshot.exists) {
               throw const InvoiceRepositoryException(
@@ -543,11 +533,8 @@ class InvoiceRepository {
               ).permissionSettings,
             );
             await _enforceLinePermissions(
-              transaction: transaction,
               permissions: permissions,
               items: invoice.items,
-              existingItems: existing.items,
-              itemSnapshots: itemSnapshots,
             );
 
             final normalized = _normalizeInvoice(
@@ -723,60 +710,13 @@ class InvoiceRepository {
   }
 
   Future<void> _enforceLinePermissions({
-    required Transaction transaction,
     required EffectiveBusinessPermissions permissions,
     required List<InvoiceItemSnapshot> items,
-    required List<InvoiceItemSnapshot>? existingItems,
-    required Map<String, DocumentSnapshot<Map<String, dynamic>>> itemSnapshots,
   }) async {
     if (!permissions.applyDiscount && items.any((item) => item.discount > 0)) {
       throw const InvoiceRepositoryException(
         InvoiceRepositoryError.discountDisabled,
       );
-    }
-    if (permissions.editCatalogPrice) return;
-    for (final item in items) {
-      if (item.lineType == InvoiceLineType.custom ||
-          (item.itemId?.startsWith('manual-') ?? false)) {
-        continue;
-      }
-      final itemId = item.itemId;
-      if (itemId == null || itemId.trim().isEmpty) {
-        throw const InvoiceRepositoryException(
-          InvoiceRepositoryError.invalidData,
-        );
-      }
-      InvoiceItemSnapshot? existing;
-      for (final candidate in existingItems ?? const <InvoiceItemSnapshot>[]) {
-        if (candidate.itemId == itemId) {
-          existing = candidate;
-          break;
-        }
-      }
-      if (existing != null) {
-        if ((existing.unitPrice - item.unitPrice).abs() > 0.0005) {
-          throw const InvoiceRepositoryException(
-            InvoiceRepositoryError.priceEditDisabled,
-          );
-        }
-        continue;
-      }
-      final snapshot = await _readItemOnce(
-        transaction: transaction,
-        itemId: itemId,
-        itemSnapshots: itemSnapshots,
-      );
-      if (!snapshot.exists) {
-        throw const InvoiceRepositoryException(
-          InvoiceRepositoryError.priceEditDisabled,
-        );
-      }
-      final catalogItem = ItemModel.fromFirestore(snapshot);
-      if ((catalogItem.price - item.unitPrice).abs() > 0.0005) {
-        throw const InvoiceRepositoryException(
-          InvoiceRepositoryError.priceEditDisabled,
-        );
-      }
     }
   }
 
@@ -798,7 +738,9 @@ class InvoiceRepository {
         InvoiceRepositoryError.invalidData,
       );
     }
-    if (invoice.items.isEmpty || invoice.grandTotal < 0) {
+    if (invoice.items.isEmpty ||
+        !invoice.grandTotal.isFinite ||
+        invoice.grandTotal <= 0) {
       throw const InvoiceRepositoryException(
         InvoiceRepositoryError.invalidData,
       );
@@ -806,8 +748,14 @@ class InvoiceRepository {
     for (final line in invoice.items) {
       final validCommon =
           line.itemName.trim().isNotEmpty &&
-          line.quantity > 0 &&
-          line.unitPrice > 0;
+          const InvoiceTotalsService().hasValidQuantity(line.quantity) &&
+          const InvoiceTotalsService().hasValidUnitPrice(line.unitPrice) &&
+          const InvoiceTotalsService().hasValidDiscount(
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+            discount: line.discount,
+          ) &&
+          const InvoiceTotalsService().hasValidLineTotal(line.total);
       final validIdentity = line.lineType == InvoiceLineType.catalog
           ? (line.itemId?.trim().isNotEmpty ?? false)
           : line.isLegacyManual ||
@@ -920,19 +868,6 @@ class InvoiceRepository {
         InvoiceRepositoryError.invalidData,
       );
     }
-  }
-
-  Future<DocumentSnapshot<Map<String, dynamic>>> _readItemOnce({
-    required Transaction transaction,
-    required String itemId,
-    required Map<String, DocumentSnapshot<Map<String, dynamic>>> itemSnapshots,
-  }) async {
-    final cached = itemSnapshots[itemId];
-    if (cached != null) return cached;
-
-    final snapshot = await transaction.get(_items.doc(itemId));
-    itemSnapshots[itemId] = snapshot;
-    return snapshot;
   }
 
   void _requireCanAccessInvoice(
