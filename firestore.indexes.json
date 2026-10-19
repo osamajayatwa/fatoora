@@ -1,6 +1,52 @@
 {
   "indexes": [
     {
+      "collectionGroup": "customer_transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cash_movements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "cashAccount", "order": "ASCENDING"},
+        {"fieldPath": "direction", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cash_movements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "cashAccount", "order": "ASCENDING"},
+        {"fieldPath": "direction", "order": "ASCENDING"},
+        {"fieldPath": "salesRepId", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "receipts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "status", "order": "ASCENDING"},
+        {"fieldPath": "receiptDate", "order": "ASCENDING"},
+        {"fieldPath": "amount", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "receipts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "status", "order": "ASCENDING"},
+        {"fieldPath": "salesRepId", "order": "ASCENDING"},
+        {"fieldPath": "receiptDate", "order": "ASCENDING"},
+        {"fieldPath": "amount", "order": "ASCENDING"}
+      ]
+    },
+    {
       "collectionGroup": "cash_movements",
       "queryScope": "COLLECTION",
       "fields": [

@@ -66,6 +66,25 @@ class ReceiptPdfService {
             loc: loc,
             items: [
               PdfInfoItem(
+                loc.t('status'),
+                loc.t(
+                  receipt.isCancelled ? 'receipt_cancelled' : 'receipt_posted',
+                ),
+                bold: true,
+              ),
+              if (receipt.isCancelled) ...[
+                PdfInfoItem(
+                  loc.t('cancellation_reason'),
+                  receipt.cancellationReason,
+                ),
+                PdfInfoItem(loc.t('cancelled_by'), receipt.cancelledByName),
+                if (receipt.cancelledAt != null)
+                  PdfInfoItem(
+                    loc.t('cancelled_at'),
+                    loc.date(receipt.cancelledAt!),
+                  ),
+              ],
+              PdfInfoItem(
                 loc.t('receipt_number'),
                 receipt.receiptNumber,
                 bold: true,
@@ -85,7 +104,11 @@ class ReceiptPdfService {
               PdfInfoItem(loc.t('sales_rep'), receipt.salesRepName),
               if (receipt.resultingCustomerBalance != null)
                 PdfInfoItem(
-                  loc.t('resulting_customer_balance'),
+                  loc.t(
+                    receipt.isCancelled
+                        ? 'original_resulting_customer_balance'
+                        : 'resulting_customer_balance',
+                  ),
                   loc.money(receipt.resultingCustomerBalance!),
                   bold: true,
                 ),

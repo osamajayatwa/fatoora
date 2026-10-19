@@ -1,4 +1,25 @@
 import 'package:fatoora/features/receipts/data/models/receipt_model.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+class ReceiptStatusBadge extends StatelessWidget {
+  const ReceiptStatusBadge({super.key, required this.receipt});
+  final ReceiptModel receipt;
+  @override
+  Widget build(BuildContext context) => Text(
+    (receipt.isCancelled
+            ? 'receipts_status_cancelled'
+            : receipt.isPosted
+            ? 'receipts_status_posted'
+            : receipt.status)
+        .tr,
+    key: ValueKey('receipt-status-${receipt.id}'),
+    style: TextStyle(
+      color: receipt.isCancelled ? Colors.red.shade700 : Colors.green.shade700,
+      fontWeight: FontWeight.bold,
+    ),
+  );
+}
 
 /// Read-only presentation of the allocation snapshot stored with a receipt.
 List<ReceiptInvoiceAllocation> receiptAllocationRows(ReceiptModel receipt) {

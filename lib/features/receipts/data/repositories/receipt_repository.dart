@@ -209,6 +209,42 @@ class ReceiptRepository {
     });
   }
 
+  Future<ReceiptModel> cancelReceipt({
+    required String companyId,
+    required String receiptId,
+    required String reason,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      if (!user.isAdmin) {
+        throw const ReceiptRepositoryException(
+          ReceiptRepositoryError.permissionDenied,
+        );
+      }
+      if (reason.trim().isEmpty || reason.trim().length > 500) {
+        throw const ReceiptRepositoryException(
+          ReceiptRepositoryError.invalidData,
+        );
+      }
+      await _trustedCallableClient
+          .callAuthenticated<Map<String, dynamic>>('cancelReceipt', {
+            'companyId': resolvedCompanyId,
+            'receiptId': receiptId,
+            'reason': reason.trim(),
+          })
+          .timeout(const Duration(seconds: 30));
+      final snapshot = await _receipts(resolvedCompanyId)
+          .doc(receiptId)
+          .get(const GetOptions(source: Source.server))
+          .timeout(const Duration(seconds: 20));
+      if (!snapshot.exists) {
+        throw const ReceiptRepositoryException(ReceiptRepositoryError.notFound);
+      }
+      return ReceiptModel.fromFirestore(snapshot);
+    });
+  }
+
   void _requireCanAccessReceipt(
     BusinessUserContext user,
     ReceiptModel receipt,

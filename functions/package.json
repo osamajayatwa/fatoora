@@ -13,6 +13,7 @@
     "test:maintenance": "node --test test/invoice_sales_rep_maintenance.test.js test/invoice_list_fields_maintenance.test.js test/cash_reconciliation.test.js",
     "test:search": "node --test test/search_keywords.test.js",
     "test:search:emulator": "npm run build && node --test test/search_inventory.test.js",
+    "test:receipt-cancellation": "npm run build && node --test test/cancel_receipt.test.js",
     "test:performance": "npm run build && node --test test/performance_reporting.test.js",
     "test:audit": "npm run build && node --test test/audit.test.js",
     "test:financial-ledger": "npm run build && node --test test/financial_ledger.test.js",

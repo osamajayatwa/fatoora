@@ -23,6 +23,11 @@ class ReceiptModel {
     this.invoiceAllocationDetails = const [],
     this.payFullBalance = false,
     this.resultingCustomerBalance,
+    this.status = 'posted',
+    this.cancelledAt,
+    this.cancelledByUid = '',
+    this.cancelledByName = '',
+    this.cancellationReason = '',
     required this.createdAt,
     required this.updatedAt,
   });
@@ -47,6 +52,14 @@ class ReceiptModel {
   final List<ReceiptInvoiceAllocation> invoiceAllocationDetails;
   final bool payFullBalance;
   final double? resultingCustomerBalance;
+  final String status;
+  final DateTime? cancelledAt;
+  final String cancelledByUid;
+  final String cancelledByName;
+  final String cancellationReason;
+  bool get isCancelled => status == 'cancelled';
+  bool get isPosted => status == 'posted';
+  double get effectiveAmount => isCancelled ? 0 : amount;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -78,6 +91,15 @@ class ReceiptModel {
         data['invoiceAllocationDetails'],
       ),
       payFullBalance: data['payFullBalance'] == true,
+      status: _readString(data, 'status').isEmpty
+          ? 'posted'
+          : _readString(data, 'status'),
+      cancelledAt: data['cancelledAt'] == null
+          ? null
+          : _readDate(data, 'cancelledAt'),
+      cancelledByUid: _readString(data, 'cancelledByUid'),
+      cancelledByName: _readString(data, 'cancelledByName'),
+      cancellationReason: _readString(data, 'cancellationReason'),
       resultingCustomerBalance: _readNullableDouble(
         data['resultingCustomerBalance'],
       ),
@@ -108,6 +130,11 @@ class ReceiptModel {
         .map((allocation) => allocation.toMap())
         .toList(growable: false),
     'payFullBalance': payFullBalance,
+    'status': status,
+    if (cancelledAt != null) 'cancelledAt': Timestamp.fromDate(cancelledAt!),
+    if (cancelledByUid.isNotEmpty) 'cancelledByUid': cancelledByUid,
+    if (cancelledByName.isNotEmpty) 'cancelledByName': cancelledByName,
+    if (cancellationReason.isNotEmpty) 'cancellationReason': cancellationReason,
     if (resultingCustomerBalance != null)
       'resultingCustomerBalance': resultingCustomerBalance,
     'createdAt': Timestamp.fromDate(createdAt),

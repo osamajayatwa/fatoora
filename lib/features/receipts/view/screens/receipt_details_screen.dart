@@ -147,6 +147,34 @@ class _ReceiptDetails extends StatelessWidget {
                     },
                   ),
                   const SizedBox(height: 18),
+                  ReceiptStatusBadge(receipt: receipt),
+                  if (receipt.isCancelled) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      '${'receipts_cancel_reason'.tr}: ${receipt.cancellationReason}',
+                      key: const ValueKey('receipt-cancellation-reason'),
+                    ),
+                    Text(
+                      '${'receipts_cancelled_by'.tr}: ${receipt.cancelledByName}',
+                    ),
+                    if (receipt.cancelledAt != null)
+                      Text(
+                        DateFormat.yMd().add_jm().format(receipt.cancelledAt!),
+                      ),
+                    Text('receipts_cancelled_history'.tr),
+                  ],
+                  if (controller.canCancel || controller.isCancelling) ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      key: const ValueKey('receipt-cancel-action'),
+                      onPressed: controller.isCancelling
+                          ? null
+                          : controller.requestCancellation,
+                      icon: const Icon(Icons.cancel_outlined),
+                      label: Text('receipts_cancel_title'.tr),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
                   Text(
                     'receipt_amount'.tr,
                     style: Theme.of(
@@ -208,7 +236,10 @@ class _ReceiptDetails extends StatelessWidget {
                   if (receipt.resultingCustomerBalance != null) ...[
                     const SizedBox(height: 18),
                     Text(
-                      'receipts_balance_after'.tr,
+                      (receipt.isCancelled
+                              ? 'receipts_original_balance_after'
+                              : 'receipts_balance_after')
+                          .tr,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         color: AppColor.secondaryColor,
                         fontWeight: FontWeight.w800,

@@ -48,6 +48,7 @@ export const ENTITY_CONFIGS: Record<string, EntityAuditConfig> = {
   receipts: config("receipt", "financial", [
     "receiptNumber", "customerId", "customerName", "salesRepId", "salesRepName",
     "amount", "paymentMethod", "allocations", "status", "notes", "operationId",
+    "cancelledByUid", "cancelledByName", "cancelledAt", "cancellationReason",
     ...commonActorFields,
   ], AuditActions.receipt.created, AuditActions.receipt.updated,
   AuditActions.receipt.deleted, ["receiptNumber"], ["receiptNumber"]),

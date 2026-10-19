@@ -117,6 +117,11 @@ class OperationalReportExcelService {
     'Created By Role / دور المنشئ',
     'Notes / الملاحظات',
     'Created At / تاريخ الإنشاء',
+    'Status / الحالة',
+    'Original Receipt Amount / مبلغ الإيصال الأصلي',
+    'Cancellation Reason / سبب الإلغاء',
+    'Cancelled By / ألغاه',
+    'Cancelled At / تاريخ الإلغاء',
   ];
 
   final OperationalReportFileSaver _fileSaver;
@@ -358,7 +363,7 @@ class OperationalReportExcelService {
         DateCellValue.fromDateTime(receipt.receiptDate),
         TextCellValue(receipt.customerSnapshot.name),
         TextCellValue(receipt.customerSnapshot.phone),
-        DoubleCellValue(receipt.amount),
+        DoubleCellValue(receipt.effectiveAmount),
         TextCellValue(_paymentMethod(receipt.paymentMethod)),
         TextCellValue(operationalCashDestination(receipt)),
         TextCellValue(receipt.payFullBalance ? 'Yes / نعم' : 'No / لا'),
@@ -373,14 +378,23 @@ class OperationalReportExcelService {
         TextCellValue(_role(receipt.createdByRole)),
         TextCellValue(receipt.notes),
         DateTimeCellValue.fromDateTime(receipt.createdAt),
+        TextCellValue(
+          receipt.isCancelled ? 'Cancelled / ملغى' : 'Posted / مرحّل',
+        ),
+        DoubleCellValue(receipt.amount),
+        TextCellValue(receipt.cancellationReason),
+        TextCellValue(receipt.cancelledByName),
+        receipt.cancelledAt == null
+            ? TextCellValue('')
+            : DateTimeCellValue.fromDateTime(receipt.cancelledAt!),
       ];
       _writeRow(
         sheet,
         index + 1,
         values,
-        moneyColumns: const {4, 8, 10, 11},
+        moneyColumns: const {4, 8, 10, 11, 18},
         dateColumns: const {1},
-        dateTimeColumns: const {16},
+        dateTimeColumns: const {16, 21},
       );
     }
     _setWidths(sheet, const [
@@ -401,6 +415,11 @@ class OperationalReportExcelService {
       18,
       34,
       21,
+      22,
+      22,
+      40,
+      24,
+      24,
     ]);
   }
 

@@ -193,11 +193,24 @@ class ReceiptsListController extends GetxController {
     if (changed == true) await loadReceipts();
   }
 
-  Future<void> openDetails(ReceiptModel receipt) async {
+  bool canCancelReceipt(ReceiptModel receipt) =>
+      showSalesRepresentative && receipt.isPosted;
+
+  Future<void> openCancellation(ReceiptModel receipt) async {
+    if (!canCancelReceipt(receipt)) return;
+    await openDetails(receipt, cancel: true);
+  }
+
+  Future<void> openDetails(ReceiptModel receipt, {bool cancel = false}) async {
     await Get.toNamed(
       AppRoute.receiptDetailsPath(receipt.id),
-      arguments: {'companyId': receipt.companyId, 'receiptId': receipt.id},
+      arguments: {
+        'companyId': receipt.companyId,
+        'receiptId': receipt.id,
+        if (cancel && canCancelReceipt(receipt)) 'cancelReceipt': true,
+      },
     );
+    await loadReceipts();
   }
 
   void _showError(String messageKey) {

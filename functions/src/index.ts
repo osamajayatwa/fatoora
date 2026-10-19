@@ -9,6 +9,7 @@ import {confirmInventoryTransfer} from "./trusted/confirm_inventory_transfer";
 import {confirmSalesReturn} from "./trusted/confirm_sales_return";
 import {createCustomer, updateCustomer} from "./trusted/customer_profiles";
 import {createReceipt} from "./trusted/create_receipt";
+import {cancelReceipt} from "./trusted/cancel_receipt";
 import {approveExpense, createExpense} from "./trusted/expenses";
 import {adjustStock, createItem} from "./trusted/inventory";
 import {postCustomerOpeningBalance} from "./trusted/post_opening_balance";
@@ -54,6 +55,7 @@ export {
   createExpense,
   createItem,
   createReceipt,
+  cancelReceipt,
   getFinancialLedgerOpeningBalances,
   getCashOpeningBalance,
   getReceivableBalances,

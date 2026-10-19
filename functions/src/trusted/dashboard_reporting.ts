@@ -262,7 +262,13 @@ async function receiptTotals(
     .where("receiptDate", ">=", from)
     .where("receiptDate", "<=", to);
   if (salesRepId) query = query.where("salesRepId", "==", salesRepId);
-  return aggregateAmount(query, "amount");
+  // Legacy receipts have no status. Subtract only explicit cancellations so
+  // both legacy and current posted receipts remain included without a backfill.
+  const [all, cancelled] = await Promise.all([
+    aggregateAmount(query, "amount"),
+    aggregateAmount(query.where("status", "==", "cancelled"), "amount"),
+  ]);
+  return {amount: roundMoney(all.amount - cancelled.amount), count: all.count - cancelled.count};
 }
 
 async function expenseTotals(

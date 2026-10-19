@@ -220,7 +220,7 @@ void main() {
       );
 
       final archive = ZipDecoder().decodeBytes(bytes);
-      final expectedFilters = ['A1:AP3', 'A1:S2', 'A1:Q2'];
+      final expectedFilters = ['A1:AP3', 'A1:S2', 'A1:V2'];
       for (var index = 0; index < 3; index += 1) {
         final file = archive.findFile('xl/worksheets/sheet${index + 1}.xml');
         expect(file, isNotNull);

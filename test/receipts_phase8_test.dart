@@ -44,6 +44,7 @@ void main() {
     expect(find.text('Representative One'), findsOneWidget);
     expect(find.textContaining('JOD 35.000'), findsOneWidget);
     expect(find.byType(DataTable), findsNothing);
+    expect(find.text('receipts_cancel_title'.tr), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -53,6 +54,7 @@ void main() {
     await _pumpList(tester, const Size(320, 640), textScale: 2);
     expect(find.byType(ReceiptListCard), findsOneWidget);
     expect(find.text('Representative One'), findsNothing);
+    expect(find.text('receipts_cancel_title'.tr), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

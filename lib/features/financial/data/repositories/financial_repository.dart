@@ -1147,7 +1147,7 @@ class FinancialRepository {
     for (final receipt in receipts) {
       if (receipt.salesRepId.isEmpty) continue;
       rowFor(receipt.salesRepId, receipt.salesRepName).receiptsCollected +=
-          receipt.amount;
+          receipt.effectiveAmount;
     }
 
     for (final movement in movements) {

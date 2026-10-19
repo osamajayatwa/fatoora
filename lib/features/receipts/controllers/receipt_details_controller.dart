@@ -6,6 +6,7 @@ import 'package:fatoora/features/receipts/controllers/receipt_error_mapper.dart'
 import 'package:fatoora/features/receipts/data/models/receipt_model.dart';
 import 'package:fatoora/features/receipts/data/repositories/receipt_repository.dart';
 import 'package:fatoora/features/receipts/data/services/receipt_pdf_service.dart';
+import 'package:fatoora/features/receipts/view/widgets/receipt_cancel_dialog.dart';
 import 'package:get/get.dart';
 import 'package:printing/printing.dart';
 
@@ -23,6 +24,9 @@ class ReceiptDetailsController extends GetxController {
   String loadErrorMessageKey = 'receipts_load_error';
   ReceiptModel? receipt;
   bool isPrinting = false;
+  bool isCancelling = false;
+  bool get canCancel =>
+      showSalesRepresentative && receipt?.isPosted == true && !isCancelling;
   bool get showSalesRepresentative =>
       _myServices.sharedPreferences.getString('role')?.trim() == 'admin';
 
@@ -48,7 +52,24 @@ class ReceiptDetailsController extends GetxController {
   @override
   void onReady() {
     super.onReady();
-    loadReceipt();
+    _loadAndPrompt();
+  }
+
+  Future<void> _loadAndPrompt() async {
+    await loadReceipt();
+    final args = Get.arguments;
+    if (!isClosed && args is Map && args['cancelReceipt'] == true) {
+      await requestCancellation();
+    }
+  }
+
+  Future<void> requestCancellation() async {
+    if (!canCancel) return;
+    final reason = await Get.dialog<String>(
+      const ReceiptCancelDialog(),
+      barrierDismissible: false,
+    );
+    if (reason != null) await cancelReceipt(reason);
   }
 
   Future<void> loadReceipt() async {
@@ -101,6 +122,37 @@ class ReceiptDetailsController extends GetxController {
       );
     } finally {
       isPrinting = false;
+      if (!isClosed) update();
+    }
+  }
+
+  Future<void> cancelReceipt(String reason) async {
+    final current = receipt;
+    if (!canCancel || current == null) return;
+    if (reason.trim().isEmpty || reason.trim().length > 500) return;
+    isCancelling = true;
+    update();
+    try {
+      receipt = await _repository.cancelReceipt(
+        companyId: current.companyId,
+        receiptId: current.id,
+        reason: reason.trim(),
+      );
+      Get.snackbar(
+        'receipts'.tr,
+        'receipts_cancel_success'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } catch (error) {
+      Get.snackbar(
+        'receipts'.tr,
+        ReceiptErrorMapper.messageKey(error).tr,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColor.error,
+        colorText: AppColor.surface,
+      );
+    } finally {
+      isCancelling = false;
       if (!isClosed) update();
     }
   }

@@ -133,12 +133,14 @@ String operationalReceiptInvoiceNumbers(
 }
 
 double operationalReceiptAllocatedAmount(ReceiptModel receipt) =>
-    operationalReceiptAllocations(
-      receipt,
-    ).fold(0, (sum, allocation) => sum + allocation.amount);
+    receipt.isCancelled
+    ? 0
+    : operationalReceiptAllocations(
+        receipt,
+      ).fold(0, (sum, allocation) => sum + allocation.amount);
 
 double operationalReceiptUnallocatedAmount(ReceiptModel receipt) =>
-    (receipt.amount - operationalReceiptAllocatedAmount(receipt))
+    (receipt.effectiveAmount - operationalReceiptAllocatedAmount(receipt))
         .clamp(0, double.infinity)
         .toDouble();
 
@@ -155,7 +157,7 @@ List<OperationalReceiptRow> buildOperationalReceiptRows(
         legacyInvoiceNumbers,
       ),
       totalAllocatedAmount: allocated,
-      unallocatedAmount: (receipt.amount - allocated)
+      unallocatedAmount: (receipt.effectiveAmount - allocated)
           .clamp(0, double.infinity)
           .toDouble(),
     );

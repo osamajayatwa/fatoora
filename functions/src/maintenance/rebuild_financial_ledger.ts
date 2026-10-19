@@ -265,6 +265,24 @@ async function buildReceiptEntries(
 ): Promise<void> {
   const data = document.data();
   const stats = context.sourceStats.receipts;
+  // A cancelled receipt still contributes its original entry. Its linked
+  // immutable inverse snapshot contributes on the cancellation date, including
+  // when the original payment falls outside this rebuild's date range.
+  if (data.status === "cancelled") {
+    const inverse = Array.isArray(data.cancellationFinancialLedgerEntries) ? data.cancellationFinancialLedgerEntries : [];
+    const inverseIds = stringArray(data.cancellationFinancialLedgerEntryIds);
+    const cancellationDate = authoritativeTimestamp(data.cancelledAt);
+    if (data.cancellationVersion !== 1 || !cancellationDate || !inverse.length ||
+        inverse.length !== inverseIds.length || inverse.some((entry: DocumentData) =>
+          entry.companyId !== context.options.companyId || entry.sourceId !== document.id ||
+          entry.isReversal !== true || !inverseIds.includes(entry.id) || !authoritativeTimestamp(entry.occurredAt))) {
+      return invalid(context, stats, document.ref.path, "Cancelled receipt has incomplete immutable reversal evidence.");
+    }
+    if (inDateRange(context.options, cancellationDate)) {
+      for (const entry of inverse) recordAuthoritativeMetrics(context, cancellationDate, metricsFromEntry(entry));
+      addEntries(context, stats, document.ref.path, inverse);
+    }
+  }
   stats.eligible += 1;
   const date = authoritativeTimestamp(data.receiptDate);
   if (!date) return invalid(context, stats, document.ref.path, "Receipt has no receiptDate Timestamp.");

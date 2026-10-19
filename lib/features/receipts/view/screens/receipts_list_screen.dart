@@ -248,6 +248,9 @@ class _Results extends StatelessWidget {
                       showSalesRepresentative:
                           controller.showSalesRepresentative,
                       onTap: () => controller.openDetails(receipt),
+                      onCancel: controller.canCancelReceipt(receipt)
+                          ? () => controller.openCancellation(receipt)
+                          : null,
                     ),
                   ),
               ],
@@ -286,10 +289,12 @@ class ReceiptListCard extends StatelessWidget {
     required this.receipt,
     required this.showSalesRepresentative,
     required this.onTap,
+    this.onCancel,
   });
   final ReceiptModel receipt;
   final bool showSalesRepresentative;
   final VoidCallback onTap;
+  final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -326,6 +331,7 @@ class ReceiptListCard extends StatelessWidget {
                     ),
                   ),
                   _PaymentMethodChip(method: receipt.paymentMethod),
+                  ReceiptStatusBadge(receipt: receipt),
                 ],
               ),
               const SizedBox(height: 6),
@@ -364,6 +370,15 @@ class ReceiptListCard extends StatelessWidget {
                 _ReceiptMeta(
                   icon: Icons.person_outline,
                   text: receipt.salesRepName,
+                ),
+              if (onCancel != null)
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: TextButton.icon(
+                    onPressed: onCancel,
+                    icon: const Icon(Icons.cancel_outlined),
+                    label: Text('receipts_cancel_title'.tr),
+                  ),
                 ),
             ],
           ),
@@ -439,10 +454,17 @@ class _ReceiptTable extends StatelessWidget {
               onSelectChanged: (_) => controller.openDetails(receipt),
               cells: [
                 DataCell(
-                  BoundedTableText(
-                    receipt.receiptNumber,
-                    width: 120,
-                    forceLtr: true,
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      BoundedTableText(
+                        receipt.receiptNumber,
+                        width: 120,
+                        forceLtr: true,
+                      ),
+                      ReceiptStatusBadge(receipt: receipt),
+                    ],
                   ),
                 ),
                 DataCell(
@@ -474,10 +496,21 @@ class _ReceiptTable extends StatelessWidget {
                 if (showRep)
                   DataCell(BoundedTableText(receipt.salesRepName, width: 130)),
                 DataCell(
-                  IconButton.filledTonal(
-                    tooltip: 'receipt_details'.tr,
-                    onPressed: () => controller.openDetails(receipt),
-                    icon: const Icon(Icons.visibility_outlined),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton.filledTonal(
+                        tooltip: 'receipt_details'.tr,
+                        onPressed: () => controller.openDetails(receipt),
+                        icon: const Icon(Icons.visibility_outlined),
+                      ),
+                      if (controller.canCancelReceipt(receipt))
+                        IconButton(
+                          tooltip: 'receipts_cancel_title'.tr,
+                          onPressed: () => controller.openCancellation(receipt),
+                          icon: const Icon(Icons.cancel_outlined),
+                        ),
+                    ],
                   ),
                 ),
               ],

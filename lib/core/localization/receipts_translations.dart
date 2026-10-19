@@ -1,4 +1,28 @@
 const Map<String, String> receiptsEnglishTranslations = {
+  'receipts_status_posted': 'Posted',
+  'receipts_status_cancelled': 'Cancelled',
+  'receipts_cancel_title': 'Cancel receipt',
+  'receipts_cancel_warning':
+      'This reverses the receipt payment and its allocations. The original receipt and financial history will be preserved. Confirm cancellation only if the payment should be undone.',
+  'receipts_cancel_reason': 'Cancellation reason',
+  'receipts_cancel_reason_required': 'Enter a cancellation reason.',
+  'receipts_cancel_confirm': 'Confirm cancellation',
+  'receipts_keep': 'Keep receipt',
+  'receipts_cancel_success': 'Receipt cancelled. Financial effects reversed.',
+  'receipts_cancelled_by': 'Cancelled by',
+  'receipts_cancelled_history':
+      'Cancelled receipt: amounts and allocations below show the original payment and no longer apply.',
+  'receipts_original_balance_after': 'Balance after original payment',
+  'receipts_cancel_blocked_returns':
+      'This receipt cannot be cancelled because an allocated invoice has sales returns.',
+  'receipts_cancel_blocked_cash':
+      'This receipt cannot be cancelled because its collection account has subsequent spending or settlements, or insufficient funds.',
+  'receipts_cancel_blocked_credit':
+      'This receipt cannot be cancelled because the customer credit has subsequent transactions.',
+  'receipts_cancel_blocked_history':
+      'This receipt cannot be safely cancelled because its posting history is incomplete or inconsistent. No balances were changed.',
+  'receipt_cancellation': 'Receipt cancellation',
+  'financial_movement_receipt_cancellation': 'Receipt cancellation',
   'receipts': 'Receipts',
   'create_receipt': 'Create receipt',
   'create_receipt_subtitle':
@@ -55,6 +79,30 @@ const Map<String, String> receiptsEnglishTranslations = {
 };
 
 const Map<String, String> receiptsArabicTranslations = {
+  'receipts_status_posted': 'مرحّل',
+  'receipts_status_cancelled': 'ملغى',
+  'receipts_cancel_title': 'إلغاء الإيصال',
+  'receipts_cancel_warning':
+      'سيتم عكس الدفعة وتوزيعاتها مع الاحتفاظ بالإيصال الأصلي والسجل المالي. أكد الإلغاء فقط إذا كان يجب التراجع عن الدفعة.',
+  'receipts_cancel_reason': 'سبب الإلغاء',
+  'receipts_cancel_reason_required': 'أدخل سبب الإلغاء.',
+  'receipts_cancel_confirm': 'تأكيد الإلغاء',
+  'receipts_keep': 'الاحتفاظ بالإيصال',
+  'receipts_cancel_success': 'تم إلغاء الإيصال وعكس أثره المالي.',
+  'receipts_cancelled_by': 'ألغاه',
+  'receipts_cancelled_history':
+      'إيصال ملغى: المبالغ والتوزيعات أدناه توضح الدفعة الأصلية ولم تعد سارية.',
+  'receipts_original_balance_after': 'الرصيد بعد الدفعة الأصلية',
+  'receipts_cancel_blocked_returns':
+      'لا يمكن إلغاء الإيصال لوجود مرتجعات مبيعات على فاتورة موزع عليها.',
+  'receipts_cancel_blocked_cash':
+      'لا يمكن إلغاء الإيصال لوجود صرف أو تسويات لاحقة على حساب التحصيل أو لعدم كفاية الرصيد.',
+  'receipts_cancel_blocked_credit':
+      'لا يمكن إلغاء الإيصال لوجود حركات لاحقة على رصيد العميل الدائن.',
+  'receipts_cancel_blocked_history':
+      'لا يمكن إلغاء الإيصال بأمان لأن سجل ترحيله غير مكتمل أو غير متطابق. لم تتغير الأرصدة.',
+  'receipt_cancellation': 'إلغاء إيصال',
+  'financial_movement_receipt_cancellation': 'إلغاء إيصال',
   'receipts': 'الإيصالات',
   'create_receipt': 'إنشاء إيصال',
   'create_receipt_subtitle':
