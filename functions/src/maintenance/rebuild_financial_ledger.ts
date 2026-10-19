@@ -329,12 +329,21 @@ async function buildReceiptEntries(
     return invalid(context, stats, document.ref.path, "Receipt allocations exceed its amount.");
   }
   const unallocated = money(amount - allocated);
-  const groups = receiptAllocationGroups(
+  let groups = receiptAllocationGroups(
     allocationEntries,
     unallocated,
     scalarString(data.salesRepId),
     scalarString(data.salesRepName),
   );
+  if (data.receiptLedgerOwnershipVersion === 1) {
+    const stored = Array.isArray(data.financialLedgerOwnerGroups) ? data.financialLedgerOwnerGroups : [];
+    if (!stored.length || stored.some((group: DocumentData) => typeof group.salesRepId !== "string" ||
+        typeof group.salesRepName !== "string" || typeof group.ownershipSource !== "string" || !positiveMoney(group.amount)) ||
+        money(stored.reduce((sum: number, group: DocumentData) => sum + positiveMoney(group.amount), 0)) !== amount) {
+      return invalid(context, stats, document.ref.path, "Receipt has inconsistent immutable ledger ownership evidence.");
+    }
+    groups = stored;
+  }
   if (groups.length === 0 || money(groups.reduce((sum, group) => sum + group.amount, 0)) !== amount) {
     return invalid(context, stats, document.ref.path, "Receipt ownership groups do not reconcile to the receipt amount.");
   }

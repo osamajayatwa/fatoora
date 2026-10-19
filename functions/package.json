@@ -14,6 +14,8 @@
     "test:search": "node --test test/search_keywords.test.js",
     "test:search:emulator": "npm run build && node --test test/search_inventory.test.js",
     "test:receipt-cancellation": "npm run build && node --test test/cancel_receipt.test.js",
+    "test:customer-assignment": "npm run build && node --test test/customer_assignment.test.js",
+    "backfill:customer-assignment": "npm run build && node scripts/backfill_customer_assignment.js",
     "test:performance": "npm run build && node --test test/performance_reporting.test.js",
     "test:audit": "npm run build && node --test test/audit.test.js",
     "test:financial-ledger": "npm run build && node --test test/financial_ledger.test.js",

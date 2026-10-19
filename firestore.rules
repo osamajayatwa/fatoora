@@ -57,6 +57,17 @@ service cloud.firestore {
         && data.salesRepId == request.auth.uid;
     }
 
+    function ownsAssignedCustomer(data) {
+      return data.get('assignmentVersion', 0) == 1
+        ? data.get('assignedToUid', '') == request.auth.uid
+        : ownsCreatedDocument(data);
+    }
+
+    function canReadCustomer(companyId, data) {
+      return isApprovedCompanyUser(companyId)
+        && (isAdmin(companyId) || ownsAssignedCustomer(data));
+    }
+
     function canReadCreatedDocument(companyId, data) {
       return isApprovedCompanyUser(companyId)
         && (isAdmin(companyId) || ownsCreatedDocument(data));
@@ -73,12 +84,11 @@ service cloud.firestore {
       return isApprovedCompanyUser(companyId)
         && (
           isAdmin(companyId)
-          || ownsSalesRepDocument(data)
           || (
             data.keys().hasAny(['customerId'])
             && data.customerId is string
             && exists(customerPath)
-            && get(customerPath).data.createdByUid == request.auth.uid
+            && ownsAssignedCustomer(get(customerPath).data)
           )
         );
     }
@@ -331,7 +341,6 @@ service cloud.firestore {
     }
 
     function customerAllowed(companyId, customerId) {
-      // Phase 1 ownership remains createdByUid; no assignment-field fallback.
       let path =
         /databases/$(database)/documents/companies/$(companyId)/customers/$(customerId);
       let customer = get(path);
@@ -342,8 +351,14 @@ service cloud.firestore {
         && customer.data.active == true
         && (
           user().role == 'admin'
-          || customer.data.createdByUid == request.auth.uid
+          || ownsAssignedCustomer(customer.data)
         );
+    }
+
+    function currentCustomerAccess(companyId, customerId) {
+      let path = /databases/$(database)/documents/companies/$(companyId)/customers/$(customerId);
+      return user().role == 'admin'
+        || (exists(path) && ownsAssignedCustomer(get(path).data));
     }
 
     function validCreator(companyId, data) {
@@ -582,6 +597,7 @@ service cloud.firestore {
       let data = request.resource.data;
       let changed = data.diff(resource.data).affectedKeys();
       return canReadSalesRepDocument(companyId, resource.data)
+        && currentCustomerAccess(companyId, resource.data.customerId)
         && resource.data.status == 'draft'
         && resource.data.financialPosted == false
         && resource.data.inventoryPosted == false
@@ -672,6 +688,7 @@ service cloud.firestore {
       let data = request.resource.data;
       let changed = data.diff(resource.data).affectedKeys();
       return canReadSalesRepDocument(companyId, resource.data)
+        && currentCustomerAccess(companyId, resource.data.customerId)
         && resource.data.status == 'draft'
         && data.status == 'draft'
         && data.convertedInvoiceId == ''
@@ -694,6 +711,7 @@ service cloud.firestore {
 
     function validQuotationStatusUpdate(companyId) {
       return canReadSalesRepDocument(companyId, resource.data)
+        && currentCustomerAccess(companyId, resource.data.customerId)
         && resource.data.status != 'converted'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'status', 'updatedAt'
@@ -716,6 +734,7 @@ service cloud.firestore {
         )
         && canReadSalesRepDocument(companyId, resource.data)
         && resource.data.status in ['sent', 'accepted']
+        && currentCustomerAccess(companyId, resource.data.customerId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'status', 'convertedInvoiceId', 'convertedInvoiceNumber', 'updatedAt'
         ])
@@ -897,9 +916,18 @@ service cloud.firestore {
           !exists(
             /databases/$(database)/documents/companies/$(companyId)/customers/$(customerId)
           )
-          || canReadCreatedDocument(companyId, resource.data)
+          || canReadCustomer(companyId, resource.data)
         );
-      allow list: if canReadCreatedDocument(companyId, resource.data);
+      // Query authorization must use an explicit assignment field. Legacy
+      // creator fallback is for point reads only, until the audited backfill.
+      allow list: if isApprovedCompanyUser(companyId)
+        && (isAdmin(companyId) || (resource.data.assignmentVersion == 1
+          && resource.data.assignedToUid == request.auth.uid));
+      allow write: if false;
+    }
+
+    match /companies/{companyId}/customer_assignment_events/{eventId} {
+      allow read: if isAdmin(companyId);
       allow write: if false;
     }
 
@@ -920,6 +948,7 @@ service cloud.firestore {
       allow update: if validInvoiceDraftUpdate(companyId);
       allow delete: if canReadSalesRepDocument(companyId, resource.data)
         && resource.data.invoiceStatus == 'draft'
+        && currentCustomerAccess(companyId, resource.data.customerId)
         && resource.data.get('isLocked', false) == false
         && resource.data.financialPosted == false
         && resource.data.inventoryPosted == false;
@@ -990,6 +1019,7 @@ service cloud.firestore {
         );
       allow delete: if canReadSalesRepDocument(companyId, resource.data)
         && resource.data.status == 'draft'
+        && currentCustomerAccess(companyId, resource.data.customerId)
         && resource.data.convertedInvoiceId == ''
         && resource.data.convertedInvoiceNumber == '';
     }

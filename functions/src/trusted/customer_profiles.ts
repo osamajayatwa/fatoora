@@ -1,3 +1,4 @@
+import {customerAssignedTo, initialCustomerAssignment} from "./customer_assignment";
 import {DocumentData, FieldValue, Firestore, getFirestore} from "firebase-admin/firestore";
 import {HttpsError, onCall} from "firebase-functions/v2/https";
 import {
@@ -125,6 +126,9 @@ export async function createCustomerTransaction(
       companyId,
       idempotencyKey,
       ...profile,
+      ...initialCustomerAssignment(user.uid, user.name, user.role),
+      assignedAt: FieldValue.serverTimestamp(),
+      assignedByUid: user.uid,
       currentBalance: 0,
       totalSales: 0,
       totalPaid: 0,
@@ -164,7 +168,7 @@ export async function updateCustomerTransaction(
     if (
       existing.companyId !== companyId ||
       existing.id !== customerId ||
-      (user.role === "sales_rep" && existing.createdByUid !== user.uid)
+      (user.role === "sales_rep" && !customerAssignedTo(existing, user.uid))
     ) {
       throw new HttpsError("permission-denied", "Customer is not accessible.");
     }

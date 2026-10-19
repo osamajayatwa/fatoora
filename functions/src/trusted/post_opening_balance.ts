@@ -1,3 +1,4 @@
+import {customerAssignedTo} from "./customer_assignment";
 import {FieldValue, Firestore, Timestamp, getFirestore} from "firebase-admin/firestore";
 import {HttpsError, onCall} from "firebase-functions/v2/https";
 import {
@@ -60,7 +61,7 @@ export async function postOpeningBalanceTransaction(
     if (customer.companyId !== companyId || customer.active !== true) {
       throw new HttpsError("failed-precondition", "Customer is inactive or invalid.");
     }
-    if (user.role === "sales_rep" && customer.createdByUid !== user.uid) {
+    if (user.role === "sales_rep" && !customerAssignedTo(customer, user.uid)) {
       throw new HttpsError("permission-denied", "Customer is not owned by this representative.");
     }
     const type = requiredString(input.openingBalanceType, "openingBalanceType");

@@ -240,7 +240,9 @@ class FinancialRepository {
           .where('active', isEqualTo: true)
           .where('currentBalance', isGreaterThan: 0);
       if (user.isSalesRep) {
-        query = query.where('createdByUid', isEqualTo: user.uid);
+        query = query
+            .where('assignedToUid', isEqualTo: user.uid)
+            .where('assignmentVersion', isEqualTo: 1);
       }
       final results = await Future.wait<Object>([
         query
@@ -595,7 +597,9 @@ class FinancialRepository {
         .where('active', isEqualTo: true)
         .where('currentBalance', isGreaterThan: 0);
     if (user.isSalesRep) {
-      query = query.where('createdByUid', isEqualTo: user.uid);
+      query = query
+          .where('assignedToUid', isEqualTo: user.uid)
+          .where('assignmentVersion', isEqualTo: 1);
     }
     final snapshot = await query
         .orderBy('currentBalance', descending: true)
@@ -671,7 +675,9 @@ class FinancialRepository {
   ) async {
     Query<Map<String, dynamic>> query = _customers(companyId);
     if (user.isSalesRep) {
-      query = query.where('createdByUid', isEqualTo: user.uid);
+      query = query
+          .where('assignedToUid', isEqualTo: user.uid)
+          .where('assignmentVersion', isEqualTo: 1);
     }
     final documents = await query.orderBy(FieldPath.documentId).getAllPages();
     final customers = documents

@@ -168,11 +168,12 @@ class CustomerCompactCard extends StatelessWidget {
                 child: CustomerBalanceBadge(balance: customer.currentBalance),
               ),
             ),
-            if (showCreator && customer.createdByName.trim().isNotEmpty) ...[
+            if (showCreator &&
+                customer.effectiveAssigneeName.trim().isNotEmpty) ...[
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  '${'created_by'.tr}: ${customer.createdByName}',
+                  '${'customers_current_assignee'.tr}: ${customer.effectiveAssigneeName}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(

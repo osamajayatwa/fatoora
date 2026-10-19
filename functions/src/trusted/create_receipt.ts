@@ -1,3 +1,4 @@
+import {customerAssignedTo, customerAssigneeUid} from "./customer_assignment";
 import {
   FieldPath,
   FieldValue,
@@ -104,7 +105,7 @@ export async function createReceiptTransaction(
     if (customer.companyId !== companyId || customer.active !== true) {
       throw new HttpsError("failed-precondition", "Customer is inactive or invalid.");
     }
-    if (user.role === "sales_rep" && customer.createdByUid !== user.uid) {
+    if (user.role === "sales_rep" && !customerAssignedTo(customer, user.uid)) {
       throw new HttpsError("permission-denied", "Customer is not owned by this representative.");
     }
     const settingsRef = firestore.doc(businessPath(companyId, "settings", "app"));
@@ -128,9 +129,8 @@ export async function createReceiptTransaction(
       .collection(`companies/${companyId}/invoices`)
       .where("customerId", "==", customerId)
       .where("financialPosted", "==", true);
-    if (user.role === "sales_rep") {
-      invoicesQuery = invoicesQuery.where("salesRepId", "==", user.uid);
-    }
+    // Current customer assignment authorizes collection; allocation is trusted
+    // across all of this customer's invoices without exposing their documents.
     invoicesQuery = invoicesQuery
       .orderBy("dueDate")
       .orderBy("invoiceDate")
@@ -163,18 +163,29 @@ export async function createReceiptTransaction(
       throw new HttpsError("data-loss", "Receipt cash movement already exists without receipt.");
     }
 
-    const allocationGroups = receiptAllocationGroups(
+    let allocationGroups = receiptAllocationGroups(
       allocation.entries,
       allocation.unallocated,
       user.role === "sales_rep" ? user.uid : "",
       user.role === "sales_rep" ? user.name : "",
     );
+    // A transfer does not rewrite the original invoices. A new representative's
+    // collection is their new activity and cash, even when paying an older
+    // representative's invoice. Keep existing same-owner/admin mapping intact.
+    const transferredCollection = user.role === "sales_rep" && allocationGroups.some((group) => group.salesRepId !== user.uid);
+    if (transferredCollection) {
+      allocationGroups = [{salesRepId: user.uid, salesRepName: user.name, amount,
+        ownershipSource: "receipt.assignedCustomer.collector"}];
+    }
     const assignedGroups = allocationGroups.filter((entry) => entry.salesRepId);
     const salesRepIds = [...new Set(assignedGroups.map((entry) => entry.salesRepId))];
-    const salesRepId = assignedGroups.length === 1 && allocationGroups.length === 1
+    const explicitAssignment = customer.assignmentVersion === 1;
+    const salesRepId = user.role === "sales_rep" ? user.uid : explicitAssignment ? customerAssigneeUid(customer) :
+      assignedGroups.length === 1 && allocationGroups.length === 1
       ? assignedGroups[0].salesRepId
       : "";
-    const salesRepName = salesRepId ? assignedGroups[0].salesRepName : "";
+    const salesRepName = user.role === "sales_rep" ? user.name : explicitAssignment ? optionalString(customer.assignedToName) :
+      salesRepId ? assignedGroups[0].salesRepName : "";
     const cashAccount: CashAccount = user.role === "admin" ? "company_cash" : "rep_cash";
     const cashBalance = paymentMethod === "cash"
       ? await applyCashChange(
@@ -248,6 +259,8 @@ export async function createReceiptTransaction(
       cashMovementIds: paymentMethod === "cash" ? [cashRef.id] : [],
       invoiceAllocations,
       invoiceAllocationDetails,
+      receiptLedgerOwnershipVersion: 1,
+      financialLedgerOwnerGroups: allocationGroups,
       payFullBalance,
       idempotencyKey,
       resultingCustomerBalance: balanceAfter,

@@ -13,6 +13,7 @@ import 'package:fatoora/features/customers/data/models/customer_transaction_mode
 import 'package:fatoora/features/settings/data/models/app_settings_model.dart';
 import 'package:fatoora/features/shared/business/business_user_context.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fatoora/features/auth/data/models/app_user_model.dart';
 
 enum CustomerRepositoryError {
   unauthenticated,
@@ -90,6 +91,66 @@ class CustomerRepository {
   final TrustedCallableClient _trustedCallableClient;
   final BusinessUserContextReader _contextReader;
 
+  Future<List<AppUserModel>> fetchAssignmentCandidates({
+    required String companyId,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final company = _resolveCompanyId(companyId, user);
+      if (!user.isAdmin) {
+        throw const CustomerRepositoryException(
+          CustomerRepositoryError.permissionDenied,
+        );
+      }
+      final docs = await _firestore
+          .collection('users')
+          .where('companyId', isEqualTo: company)
+          .where('active', isEqualTo: true)
+          .where('approvalStatus', isEqualTo: 'approved')
+          .where('role', whereIn: ['admin', 'sales_rep'])
+          .orderBy(FieldPath.documentId)
+          .getAllPages(pageSize: 100);
+      final candidates = docs.map(AppUserModel.fromFirestore).toList();
+      if (!candidates.any((candidate) => candidate.uid == user.uid)) {
+        final current = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        candidates.add(AppUserModel.fromFirestore(current));
+      }
+      candidates.sort((a, b) => a.name.compareTo(b.name));
+      return candidates;
+    });
+  }
+
+  Future<CustomerModel> reassignCustomer({
+    required CustomerModel customer,
+    required String assignedToUid,
+    required String reason,
+  }) {
+    return _run(() async {
+      final user = await _contextReader.requireApprovedUser();
+      final company = _resolveCompanyId(customer.companyId, user);
+      if (!user.isAdmin) {
+        throw const CustomerRepositoryException(
+          CustomerRepositoryError.permissionDenied,
+        );
+      }
+      await _trustedCallableClient
+          .callAuthenticated<Map<String, dynamic>>('reassignCustomer', {
+            'companyId': company,
+            'customerId': customer.id,
+            'assignedToUid': assignedToUid,
+            'reason': reason.trim(),
+            'expectedAssignedToUid': customer.effectiveAssigneeUid,
+            'expectedAssignmentRevision': customer.assignmentRevision,
+            'idempotencyKey': _customers(company).doc().id,
+          })
+          .timeout(const Duration(seconds: 30));
+      return getCustomer(companyId: company, customerId: customer.id);
+    });
+  }
+
   CollectionReference<Map<String, dynamic>> _customers(String companyId) {
     return _firestore
         .collection('companies')
@@ -124,7 +185,9 @@ class CustomerRepository {
       Query<Map<String, dynamic>> query = _customers(resolvedCompanyId);
       if (activeOnly) query = query.where('active', isEqualTo: true);
       if (user.isSalesRep) {
-        query = query.where('createdByUid', isEqualTo: user.uid);
+        query = query
+            .where('assignedToUid', isEqualTo: user.uid)
+            .where('assignmentVersion', isEqualTo: 1);
       }
       final normalizedSearch = CustomerModel.normalizeText(searchText);
       if (normalizedSearch.isNotEmpty) {
@@ -151,7 +214,9 @@ class CustomerRepository {
       Query<Map<String, dynamic>> query = _customers(resolvedCompanyId);
       if (activeOnly) query = query.where('active', isEqualTo: true);
       if (user.isSalesRep) {
-        query = query.where('createdByUid', isEqualTo: user.uid);
+        query = query
+            .where('assignedToUid', isEqualTo: user.uid)
+            .where('assignmentVersion', isEqualTo: 1);
       }
       final normalizedSearch = CustomerModel.normalizeText(searchText);
       if (normalizedSearch.isNotEmpty) {
@@ -604,7 +669,7 @@ class CustomerRepository {
     CustomerModel customer,
   ) {
     if (user.isAdmin) return;
-    if (user.isSalesRep && customer.createdByUid == user.uid) return;
+    if (user.isSalesRep && customer.isAssignedTo(user.uid)) return;
     throw const CustomerRepositoryException(
       CustomerRepositoryError.permissionDenied,
     );

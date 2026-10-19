@@ -221,7 +221,9 @@ class InvoiceRepository {
         resolvedCompanyId,
       ).where('active', isEqualTo: true);
       if (user.isSalesRep) {
-        query = query.where('createdByUid', isEqualTo: user.uid);
+        query = query
+            .where('assignedToUid', isEqualTo: user.uid)
+            .where('assignmentVersion', isEqualTo: 1);
       }
       final normalizedSearch = _normalize(searchText);
       if (normalizedSearch.isNotEmpty) {
@@ -896,7 +898,7 @@ class InvoiceRepository {
     CustomerModel customer,
   ) {
     if (user.isAdmin) return;
-    if (user.isSalesRep && customer.createdByUid == user.uid) return;
+    if (user.isSalesRep && customer.isAssignedTo(user.uid)) return;
     throw const InvoiceRepositoryException(
       InvoiceRepositoryError.permissionDenied,
     );

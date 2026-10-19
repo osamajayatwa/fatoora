@@ -23,6 +23,8 @@ export const ENTITY_CONFIGS: Record<string, EntityAuditConfig> = {
     "name", "phone", "email", "address", "taxNumber", "active",
     "openingBalance", "currentBalance", "balance", "creditBalance",
     "lastOpeningBalanceTransactionId", "notes", ...commonActorFields,
+    "assignedToUid", "assignedToName", "assignedToRole", "assignmentRevision",
+    "assignedByUid", "assignedByName", "assignedAt", "assignmentReason",
   ], AuditActions.customer.created, AuditActions.customer.updated,
   AuditActions.customer.archived, ["customerNumber"], ["name"]),
   invoices: config("invoice", "sales", [

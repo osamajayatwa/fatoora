@@ -25,6 +25,11 @@ class CustomerModel {
     required this.phoneNormalized,
     required this.cityLower,
     required this.areaLower,
+    this.assignedToUid,
+    this.assignedToName,
+    this.assignedToRole,
+    this.assignmentRevision = 0,
+    this.assignmentVersion = 0,
   });
 
   final String id;
@@ -49,6 +54,19 @@ class CustomerModel {
   final String phoneNormalized;
   final String cityLower;
   final String areaLower;
+  final String? assignedToUid;
+  final String? assignedToName;
+  final String? assignedToRole;
+  final int assignmentRevision;
+  final int assignmentVersion;
+  bool get hasExplicitAssignment => assignmentVersion == 1;
+  String get effectiveAssigneeUid =>
+      hasExplicitAssignment ? assignedToUid ?? '' : createdByUid;
+  String get effectiveAssigneeName =>
+      hasExplicitAssignment ? assignedToName ?? '' : createdByName;
+  String get effectiveAssigneeRole =>
+      hasExplicitAssignment ? assignedToRole ?? '' : createdByRole;
+  bool isAssignedTo(String uid) => effectiveAssigneeUid == uid;
 
   factory CustomerModel.empty({
     required String companyId,
@@ -113,6 +131,17 @@ class CustomerModel {
       phoneNormalized: _readString(data, 'phoneNormalized'),
       cityLower: _readString(data, 'cityLower'),
       areaLower: _readString(data, 'areaLower'),
+      assignedToUid: data.containsKey('assignedToUid')
+          ? _readString(data, 'assignedToUid')
+          : null,
+      assignedToName: data.containsKey('assignedToUid')
+          ? _readString(data, 'assignedToName')
+          : null,
+      assignedToRole: data.containsKey('assignedToUid')
+          ? _readString(data, 'assignedToRole')
+          : null,
+      assignmentRevision: (data['assignmentRevision'] as num?)?.toInt() ?? 0,
+      assignmentVersion: (data['assignmentVersion'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -139,6 +168,13 @@ class CustomerModel {
     'phoneNormalized': phoneNormalized,
     'cityLower': cityLower,
     'areaLower': areaLower,
+    if (assignedToUid != null || hasExplicitAssignment) ...{
+      'assignedToUid': assignedToUid,
+      'assignedToName': assignedToName ?? '',
+      'assignedToRole': assignedToRole ?? '',
+      if (assignmentVersion != 0) 'assignmentVersion': assignmentVersion,
+      'assignmentRevision': assignmentRevision,
+    },
   };
 
   CustomerModel copyWith({
@@ -164,6 +200,11 @@ class CustomerModel {
     String? phoneNormalized,
     String? cityLower,
     String? areaLower,
+    String? assignedToUid,
+    String? assignedToName,
+    String? assignedToRole,
+    int? assignmentRevision,
+    int? assignmentVersion,
   }) {
     return CustomerModel(
       id: id ?? this.id,
@@ -188,6 +229,13 @@ class CustomerModel {
       phoneNormalized: phoneNormalized ?? this.phoneNormalized,
       cityLower: cityLower ?? this.cityLower,
       areaLower: areaLower ?? this.areaLower,
+      assignedToUid: assignedToUid ?? this.assignedToUid,
+      assignedToName: assignedToName ?? this.assignedToName,
+      assignedToRole: assignedToRole ?? this.assignedToRole,
+      assignmentRevision: assignmentRevision ?? this.assignmentRevision,
+      assignmentVersion:
+          assignmentVersion ??
+          (assignedToUid != null ? 1 : this.assignmentVersion),
     );
   }
 

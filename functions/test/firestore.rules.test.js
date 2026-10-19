@@ -14,9 +14,11 @@ const {
   doc,
   getDoc,
   getDocs,
+  limit,
   orderBy,
   query,
   serverTimestamp,
+  startAfter,
   setDoc,
   updateDoc,
   where,
@@ -71,11 +73,11 @@ beforeEach(async () => {
       }),
       setDoc(
         businessDoc(db, "customers", "customer-a"),
-        createdByOwned("customer-a", repAUid),
+        {...createdByOwned("customer-a", repAUid), assignedToUid: repAUid, assignedToRole: "sales_rep", assignmentVersion: 1},
       ),
       setDoc(
         businessDoc(db, "customers", "customer-b"),
-        createdByOwned("customer-b", repBUid),
+        {...createdByOwned("customer-b", repBUid), assignedToUid: repBUid, assignedToRole: "sales_rep", assignmentVersion: 1},
       ),
       setDoc(
         businessDoc(db, "invoices", "invoice-a"),
@@ -337,7 +339,6 @@ test("sales reps must use owner-constrained collection queries", async () => {
       "invoices",
       "receipts",
       "sales_returns",
-      "customer_transactions",
     ]) {
       await assertSucceeds(
         getDocs(
@@ -357,6 +358,9 @@ test("sales reps must use owner-constrained collection queries", async () => {
       );
       await assertFails(getDocs(businessCollection(db, collectionName)));
     }
+    await assertSucceeds(getDocs(query(businessCollection(db, "customer_transactions"),
+      where("customerId", "==", uid === repAUid ? "customer-a" : "customer-b"))));
+    await assertFails(getDocs(query(businessCollection(db, "customer_transactions"), where("salesRepId", "==", uid))));
     await assertSucceeds(
       getDocs(
         query(
@@ -433,7 +437,7 @@ test("sales reps must use owner-constrained collection queries", async () => {
       getDocs(
         query(
           businessCollection(db, "customers"),
-          where("createdByUid", "==", uid),
+          where("assignedToUid", "==", uid), where("assignmentVersion", "==", 1),
         ),
       ),
     );
@@ -443,7 +447,7 @@ test("sales reps must use owner-constrained collection queries", async () => {
           businessCollection(db, "customers"),
           where("active", "==", true),
           where("phoneNormalized", "==", "0790000000"),
-          where("createdByUid", "==", uid),
+          where("assignedToUid", "==", uid), where("assignmentVersion", "==", 1),
         ),
       ),
     );
@@ -2426,3 +2430,89 @@ function businessCollection(db, collectionName) {
 function businessDoc(db, collectionName, documentId) {
   return doc(db, "companies", companyId, collectionName, documentId);
 }
+
+
+test("assignment scopes customer pages/statements while keeping historical document ownership", async () => {
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await updateDoc(businessDoc(db, "customers", "customer-a"), {
+      assignedToUid: repBUid, assignedToName: "Rep B", assignedToRole: "sales_rep", assignmentVersion: 1, assignmentRevision: 1,
+      nameLower: "transferred", searchKeywords: ["transferred"], active: true,
+    });
+    await setDoc(businessDoc(db, "customer_transactions", "transferred-ledger"), {
+      companyId, customerId: "customer-a", salesRepId: repAUid, debitAmount: 100, creditAmount: 0,
+    });
+  });
+  const old = authenticatedDb(repAUid), current = authenticatedDb(repBUid), admin = authenticatedDb(adminUid);
+  const customer = (db) => businessDoc(db, "customers", "customer-a");
+  await assertFails(getDoc(customer(old)));
+  await assertSucceeds(getDoc(customer(current)));
+  await assertSucceeds(getDoc(customer(admin)));
+  const matching = query(collection(current, "companies", companyId, "customers"),
+    where("assignedToUid", "==", repBUid), where("assignmentVersion", "==", 1), where("active", "==", true),
+    where("searchKeywords", "array-contains", "transferred"), orderBy("nameLower"));
+  assert.equal((await assertSucceeds(getDocs(matching))).size, 1);
+  await assertFails(getDocs(query(collection(old, "companies", companyId, "customers"), where("createdByUid", "==", repAUid))));
+  await assertFails(getDoc(businessDoc(old, "customer_transactions", "transferred-ledger")));
+  await assertSucceeds(getDoc(businessDoc(current, "customer_transactions", "transferred-ledger")));
+  // Full historical sales documents still belong to their original sales rep.
+  await assertSucceeds(getDoc(businessDoc(old, "invoices", "invoice-a")));
+  await assertFails(getDoc(businessDoc(current, "invoices", "invoice-a")));
+  await assertFails(getDoc(businessDoc(current, "receipts", "receipt-a")));
+  await assertFails(updateDoc(customer(current), {assignedToUid: repBUid}));
+  await assertFails(updateDoc(customer(admin), {assignedToUid: repAUid}));
+  await assertFails(setDoc(businessDoc(admin, "customer_assignment_events", "forged"), {actorUid: adminUid}));
+});
+
+test("current assignee can create invoice and quotation drafts; former creator cannot", async () => {
+  await seedDraftCustomer("transferred", repAUid);
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    await updateDoc(businessDoc(context.firestore(), "customers", "transferred"), {
+      assignedToUid: repBUid, assignedToRole: "sales_rep", assignedToName: "Rep B", assignmentVersion: 1,
+    });
+  });
+  for (const [uid, allowed] of [[repAUid, false], [repBUid, true]]) {
+    const db = authenticatedDb(uid);
+    const invoice = writeBatch(db);
+    invoice.set(businessDoc(db, "counters", "invoices_2026"), counterPayload("invoices_2026", "INV", 1));
+    invoice.set(businessDoc(db, "invoices", `assignment-invoice-${uid}`), invoiceDraftPayload(`assignment-invoice-${uid}`, uid, {customerId: "transferred"}));
+    if (allowed) await assertSucceeds(invoice.commit()); else await assertFails(invoice.commit());
+    const quote = writeBatch(db);
+    quote.set(businessDoc(db, "counters", "quotations_2026"), counterPayload("quotations_2026", "QUO", 1));
+    quote.set(businessDoc(db, "quotations", `assignment-quote-${uid}`), quotationDraftPayload(`assignment-quote-${uid}`, "transferred", uid));
+    if (allowed) await assertSucceeds(quote.commit()); else await assertFails(quote.commit());
+  }
+});
+
+
+test("assignment-scoped searches paginate across transferred customers using stored sort order", async () => {
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    for (let index = 0; index < 5; index++) {
+      await setDoc(businessDoc(db, "customers", `page-${index}`), {
+        id: `page-${index}`, companyId, createdByUid: repAUid, assignedToUid: repBUid,
+        assignmentVersion: 1, assignedToRole: "sales_rep", active: true,
+        nameLower: `transferred ${index}`, searchKeywords: ["transferred"],
+      });
+    }
+  });
+  const db = authenticatedDb(repBUid);
+  const base = businessCollection(db, "customers");
+  const filters = [where("assignedToUid", "==", repBUid), where("assignmentVersion", "==", 1),
+    where("active", "==", true), where("searchKeywords", "array-contains", "transferred"), orderBy("nameLower")];
+  const first = await getDocs(query(base, ...filters, limit(2)));
+  const second = await getDocs(query(base, ...filters, startAfter(first.docs.at(-1)), limit(2)));
+  const third = await getDocs(query(base, ...filters, startAfter(second.docs.at(-1)), limit(2)));
+  assert.deepEqual([...first.docs, ...second.docs, ...third.docs].map((doc) => doc.id),
+    ["page-0", "page-1", "page-2", "page-3", "page-4"]);
+});
+
+
+test("unused unversioned assignment metadata never silently transfers legacy customer access", async () => {
+  await seedDraftCustomer("legacy-ambiguous", repAUid);
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    await updateDoc(businessDoc(context.firestore(), "customers", "legacy-ambiguous"), {assignedToUid: repBUid});
+  });
+  await assertSucceeds(getDoc(businessDoc(authenticatedDb(repAUid), "customers", "legacy-ambiguous")));
+  await assertFails(getDoc(businessDoc(authenticatedDb(repBUid), "customers", "legacy-ambiguous")));
+});

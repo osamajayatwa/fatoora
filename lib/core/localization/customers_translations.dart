@@ -1,4 +1,22 @@
 const Map<String, String> customersEnglishTranslations = {
+  'customers_reassign': 'Reassign customer',
+  'customers_assignment_review':
+      'Legacy assignment metadata requires Admin review before transfer. No data was changed.',
+  'customers_current_assignee': 'Current assignee',
+  'customers_new_assignee': 'New assignee',
+  'customers_reassign_confirm': 'Confirm reassignment',
+  'customers_assignee_required': 'Choose a different assignee.',
+  'customers_assignment_reason': 'Transfer reason',
+  'customers_assignment_reason_required': 'Enter a transfer reason.',
+  'customers_reassign_warning':
+      'The new assignee will manage this customer. The previous rep loses customer access. Historical documents, their sales rep, cash and custody remain unchanged. Returns for another rep’s invoices require Admin.',
+  'customers_reassigned': 'Customer reassigned successfully.',
+  'customers_reassign_error':
+      'Could not reassign this customer. Refresh and try again.',
+  'customers_assignment_stale':
+      'Assignment changed while you were reviewing it. Refresh the customer and try again.',
+  'customers_legacy_assignment':
+      'Legacy assignment follows the original creator until explicitly reassigned or migrated.',
   'customers_edit_opening_balance': 'Edit opening balance',
   'customers_opening_balance_new_amount': 'New opening balance amount',
   'customers_opening_balance_edit_warning':
@@ -121,6 +139,23 @@ const Map<String, String> customersEnglishTranslations = {
 };
 
 const Map<String, String> customersArabicTranslations = {
+  'customers_reassign': 'نقل مسؤولية العميل',
+  'customers_assignment_review':
+      'تتطلب بيانات التعيين القديمة مراجعة المدير قبل النقل. لم تتغير البيانات.',
+  'customers_current_assignee': 'المسؤول الحالي',
+  'customers_new_assignee': 'المسؤول الجديد',
+  'customers_reassign_confirm': 'تأكيد النقل',
+  'customers_assignee_required': 'اختر مسؤولاً آخر.',
+  'customers_assignment_reason': 'سبب النقل',
+  'customers_assignment_reason_required': 'أدخل سبب النقل.',
+  'customers_reassign_warning':
+      'سيدير المسؤول الجديد هذا العميل، ويفقد المندوب السابق صلاحية الوصول إليه. تبقى المستندات السابقة ومندوبوها والنقد والعهدة دون تغيير. مرتجعات فواتير مندوب آخر تتطلب المدير.',
+  'customers_reassigned': 'تم نقل مسؤولية العميل بنجاح.',
+  'customers_reassign_error': 'تعذر نقل العميل. حدّث البيانات وحاول مجدداً.',
+  'customers_assignment_stale':
+      'تغيّر المسؤول أثناء المراجعة. حدّث بيانات العميل وحاول مجدداً.',
+  'customers_legacy_assignment':
+      'يتبع العميل القديم منشئه الأصلي حتى نقله أو ترحيل بيانات تعيينه صراحةً.',
   'customers_edit_opening_balance': 'تعديل الرصيد الافتتاحي',
   'customers_opening_balance_new_amount': 'مبلغ الرصيد الافتتاحي الجديد',
   'customers_opening_balance_edit_warning':

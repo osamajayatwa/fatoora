@@ -54,6 +54,26 @@ class _DetailsBody extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _Header(customer: customer, controller: controller),
+              const SizedBox(height: 12),
+              if (controller.isAdmin)
+                Text(
+                  '${'customers_current_assignee'.tr}: ${customer.effectiveAssigneeName} (${customer.effectiveAssigneeRole.tr})',
+                  key: const ValueKey('customer-current-assignee'),
+                ),
+              if (!customer.hasExplicitAssignment)
+                Text('customers_legacy_assignment'.tr),
+              if (controller.isAdmin)
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: OutlinedButton.icon(
+                    key: const ValueKey('customer-reassign-action'),
+                    onPressed: controller.isReassigning
+                        ? null
+                        : controller.reassignCustomer,
+                    icon: const Icon(Icons.manage_accounts_outlined),
+                    label: Text('customers_reassign'.tr),
+                  ),
+                ),
               const SizedBox(height: 22),
               FatooraDashboardSectionTitle(
                 title: 'customers_financial_summary'.tr,

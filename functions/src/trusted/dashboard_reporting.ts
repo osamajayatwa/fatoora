@@ -307,7 +307,7 @@ async function receivableTotals(
 ): Promise<{amount: number; customerCount: number}> {
   let active: Query = firestore.collection(companyCollectionPath(companyId, "customers"))
     .where("active", "==", true);
-  if (salesRepId) active = active.where("createdByUid", "==", salesRepId);
+  if (salesRepId) active = active.where("assignedToUid", "==", salesRepId).where("assignmentVersion", "==", 1);
   const [customers, receivables] = await Promise.all([
     active.count().get(),
     active.where("currentBalance", ">", 0)

@@ -273,7 +273,7 @@ class _CustomerTable extends StatelessWidget {
           _column('address', width: 155),
           _column('customers_balance', width: 190),
           _column('invoice_status', width: 86),
-          if (showCreator) _column('created_by', width: 130),
+          if (showCreator) _column('customers_current_assignee', width: 130),
           _column('actions', width: 52),
         ],
         rows: controller.customers
@@ -308,7 +308,10 @@ class _CustomerTable extends StatelessWidget {
                   ),
                   if (showCreator)
                     DataCell(
-                      BoundedTableText(customer.createdByName, width: 130),
+                      BoundedTableText(
+                        customer.effectiveAssigneeName,
+                        width: 130,
+                      ),
                     ),
                   DataCell(
                     SizedBox(

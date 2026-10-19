@@ -1,3 +1,4 @@
+import {customerAssignedTo} from "./customer_assignment";
 import {
   DocumentData,
   DocumentReference,
@@ -169,7 +170,7 @@ export async function confirmSalesReturnTransaction(
     if (customer.companyId !== companyId) {
       throw new HttpsError("data-loss", "Invoice customer belongs to another company.");
     }
-    if (user.role === "sales_rep" && customer.createdByUid !== user.uid) {
+    if (user.role === "sales_rep" && !customerAssignedTo(customer, user.uid)) {
       throw new HttpsError("permission-denied", "Customer is not owned by this representative.");
     }
 

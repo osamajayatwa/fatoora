@@ -345,7 +345,7 @@ class QuotationRepository {
         customer.id != quotation.customerId ||
         (!user.isAdmin &&
             (quotation.salesRepId != user.uid ||
-                customer.createdByUid != user.uid))) {
+                !customer.isAssignedTo(user.uid)))) {
       throw const QuotationRepositoryException(
         QuotationRepositoryError.permissionDenied,
       );
@@ -739,7 +739,7 @@ class QuotationRepository {
     CustomerModel customer,
   ) {
     if (user.isAdmin) return;
-    if (user.isSalesRep && customer.createdByUid == user.uid) return;
+    if (user.isSalesRep && customer.isAssignedTo(user.uid)) return;
     throw const QuotationRepositoryException(
       QuotationRepositoryError.permissionDenied,
     );

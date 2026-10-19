@@ -11,6 +11,7 @@ import 'package:fatoora/features/customers/data/models/customer_opening_balance.
 import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
 import 'package:fatoora/features/customers/data/repositories/customer_repository.dart';
 import 'package:get/get.dart';
+import 'package:fatoora/features/customers/view/widgets/customer_reassignment_dialog.dart';
 
 class CustomerDetailsController extends GetxController {
   CustomerDetailsController({
@@ -28,6 +29,45 @@ class CustomerDetailsController extends GetxController {
   String customerId = '';
   CustomerModel? customer;
   bool isUpdating = false;
+  bool isReassigning = false;
+
+  Future<void> reassignCustomer() async {
+    final current = customer;
+    if (!isAdmin || current == null || isReassigning) return;
+    isReassigning = true;
+    update();
+    try {
+      final candidates = await _repository.fetchAssignmentCandidates(
+        companyId: current.companyId,
+      );
+      if (isClosed) return;
+      final request = await Get.dialog<CustomerReassignmentRequest>(
+        CustomerReassignmentDialog(customer: current, candidates: candidates),
+      );
+      if (request == null || isClosed) return;
+      customer = await _repository.reassignCustomer(
+        customer: current,
+        assignedToUid: request.uid,
+        reason: request.reason,
+      );
+      Get.snackbar(
+        'customers'.tr,
+        'customers_reassigned'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } catch (error) {
+      _showError(
+        CustomerErrorMapper.messageKey(
+          error,
+          fallback: 'customers_reassign_error',
+        ),
+      );
+    } finally {
+      isReassigning = false;
+      if (!isClosed) update();
+    }
+  }
+
   bool isPostingOpeningBalance = false;
   bool isCheckingOpeningBalance = false;
   CustomerTransactionModel? openingBalance;

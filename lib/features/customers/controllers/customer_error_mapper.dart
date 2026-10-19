@@ -1,4 +1,5 @@
 import 'package:fatoora/core/class/statusrequest.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:fatoora/features/customers/data/repositories/customer_repository.dart';
 
 class CustomerErrorMapper {
@@ -27,6 +28,17 @@ class CustomerErrorMapper {
   static String messageKey(Object error, {String? fallback}) {
     if (error is! CustomerRepositoryException) {
       return fallback ?? 'customers_action_error';
+    }
+    final cause = error.cause;
+    if (cause is FirebaseFunctionsException &&
+        cause.details is Map &&
+        (cause.details as Map)['reason'] == 'customer-assignment-review') {
+      return 'customers_assignment_review';
+    }
+    if (cause is FirebaseFunctionsException &&
+        cause.details is Map &&
+        (cause.details as Map)['reason'] == 'customer-assignment-stale') {
+      return 'customers_assignment_stale';
     }
     return switch (error.error) {
       CustomerRepositoryError.unauthenticated => 'customers_session_error',

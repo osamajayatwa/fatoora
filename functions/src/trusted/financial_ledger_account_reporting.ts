@@ -1,3 +1,4 @@
+import {customerAssignedTo} from "./customer_assignment";
 import {createHash} from "node:crypto";
 import {
   DocumentData,
@@ -239,14 +240,14 @@ export const getReceivableBalances = onCall(
         throw new HttpsError("not-found", "A requested customer was not found.");
       }
       if (user.role === "sales_rep" &&
-          optionalString(customer.data()?.createdByUid) !== user.uid) {
+          !customerAssignedTo(customer.data() ?? {}, user.uid)) {
         throw new HttpsError("permission-denied", "Customer access is denied.");
       }
     }
     const openings = await loadAccountOpenings(
       firestore,
       companyId,
-      user.role === "admin" ? "all" : representativeScopeId(user.uid),
+      "all",
       customerIds.map((customerId) => `customer:${customerId}`),
       atExclusive,
     );
