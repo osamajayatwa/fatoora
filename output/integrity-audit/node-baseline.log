@@ -1,0 +1,1474 @@
+TAP version 13
+# Subtest: deterministic IDs make duplicate deliveries idempotent
+ok 1 - deterministic IDs make duplicate deliveries idempotent
+  ---
+  duration_ms: 1.0833
+  type: 'test'
+  ...
+# Subtest: infers create and confirmation actions with shared operation ID
+ok 2 - infers create and confirmation actions with shared operation ID
+  ---
+  duration_ms: 1.6619
+  type: 'test'
+  ...
+# Subtest: infers user role, approval, deactivation, expense, and transfer transitions
+ok 3 - infers user role, approval, deactivation, expense, and transfer transitions
+  ---
+  duration_ms: 0.8148
+  type: 'test'
+  ...
+# Subtest: whitelists diffs and removes secrets and control characters
+ok 4 - whitelists diffs and removes secrets and control characters
+  ---
+  duration_ms: 0.6397
+  type: 'test'
+  ...
+# Subtest: derived events are hidden and capture inventory snapshots
+ok 5 - derived events are hidden and capture inventory snapshots
+  ---
+  duration_ms: 0.2676
+  type: 'test'
+  ...
+# Subtest: create-time confirmations and representative returns are semantic
+ok 6 - create-time confirmations and representative returns are semantic
+  ---
+  duration_ms: 0.8052
+  type: 'test'
+  ...
+# Subtest: opening balance and settings semantic actions are inferred
+ok 7 - opening balance and settings semantic actions are inferred
+  ---
+  duration_ms: 0.2883
+  type: 'test'
+  ...
+# Subtest: company cash opening balance is a visible financial audit event
+ok 8 - company cash opening balance is a visible financial audit event
+  ---
+  duration_ms: 0.1852
+  type: 'test'
+  ...
+# Subtest: normal cash receipt cancellation appends inverse history and is idempotent
+ok 9 - normal cash receipt cancellation appends inverse history and is idempotent
+  ---
+  duration_ms: 3166.6906
+  type: 'test'
+  ...
+# Subtest: multiple invoice and partial allocations restore only the original receipt amounts
+ok 10 - multiple invoice and partial allocations restore only the original receipt amounts
+  ---
+  duration_ms: 407.5694
+  type: 'test'
+  ...
+# Subtest: unallocated opening receivable and rep cash are restored to their original accounts
+ok 11 - unallocated opening receivable and rep cash are restored to their original accounts
+  ---
+  duration_ms: 435.4496
+  type: 'test'
+  ...
+# Subtest: unused legacy customer credit can be reversed; subsequent credit use is blocked atomically
+ok 12 - unused legacy customer credit can be reversed; subsequent credit use is blocked atomically
+  ---
+  duration_ms: 610.1394
+  type: 'test'
+  ...
+# Subtest: later receipts remain allocated when cancelling an earlier receipt
+ok 13 - later receipts remain allocated when cancelling an earlier receipt
+  ---
+  duration_ms: 400.6711
+  type: 'test'
+  ...
+# Subtest: initial invoice payments survive cancellation of a later partial receipt
+ok 14 - initial invoice payments survive cancellation of a later partial receipt
+  ---
+  duration_ms: 314.3252
+  type: 'test'
+  ...
+# Subtest: check and CliQ reverse clearing entries without introducing cash movements
+ok 15 - check and CliQ reverse clearing entries without introducing cash movements
+  ---
+  duration_ms: 735.9603
+  type: 'test'
+  ...
+# Subtest: unauthorized, cross-company, inactive, missing reason and unposted requests have no effects
+ok 16 - unauthorized, cross-company, inactive, missing reason and unposted requests have no effects
+  ---
+  duration_ms: 315.4182
+  type: 'test'
+  ...
+# Subtest: sales returns and inconsistent original history reject without partial writes
+ok 17 - sales returns and inconsistent original history reject without partial writes
+  ---
+  duration_ms: 1174.0129
+  type: 'test'
+  ...
+# Subtest: settled rep cash blocks cancellation even when later collections replenish cash
+ok 18 - settled rep cash blocks cancellation even when later collections replenish cash
+  ---
+  duration_ms: 720.9368
+  type: 'test'
+  ...
+# Subtest: concurrent cancellation callers reverse once and retain the winning actor/reason
+ok 19 - concurrent cancellation callers reverse once and retain the winning actor/reason
+  ---
+  duration_ms: 3817.7699
+  type: 'test'
+  ...
+# Subtest: concurrent new receipt and cancellation serialize without losing allocations
+ok 20 - concurrent new receipt and cancellation serialize without losing allocations
+  ---
+  duration_ms: 3760.9262
+  type: 'test'
+  ...
+# {"functionName":"cancelReceipt","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# Subtest: concurrent settlement and cancellation cannot both consume the original rep cash
+ok 21 - concurrent settlement and cancellation cannot both consume the original rep cash
+  ---
+  duration_ms: 9320.8109
+  type: 'test'
+  ...
+# [2026-11-02T09:22:14.373Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x26d3f885 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L980, false for 'update' @ L1173
+# [2026-11-02T09:22:14.389Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x26d3f886 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L980, false for 'delete' @ L1173
+# [2026-11-02T09:22:14.411Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x26d3f887 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L968, false for 'update' @ L1173
+# [2026-11-02T09:22:14.440Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x26d3f888 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L968, false for 'create' @ L1173, false for 'update' @ L968, false for 'update' @ L1173
+# [2026-11-02T09:22:14.466Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x26d3f889 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L1051, false for 'update' @ L1173
+# [2026-11-02T09:22:14.483Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x26d3f88a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1051, false for 'create' @ L1173, false for 'update' @ L1051, false for 'update' @ L1173
+# [2026-11-02T09:22:14.496Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x26d3f88b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L1074, false for 'update' @ L1173
+# [2026-11-02T09:22:14.505Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x26d3f88c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1074, false for 'create' @ L1173, false for 'update' @ L1074, false for 'update' @ L1173
+# [2026-11-02T09:22:14.529Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x26d3f88d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L980, false for 'update' @ L1173
+# [2026-11-02T09:22:14.543Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x26d3f88e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L980, false for 'delete' @ L1173
+# [2026-11-02T09:22:14.563Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x26d3f88f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L968, false for 'update' @ L1173
+# [2026-11-02T09:22:14.572Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x26d3f890 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L968, false for 'create' @ L1173, false for 'update' @ L968, false for 'update' @ L1173
+# [2026-11-02T09:22:14.593Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x26d3f891 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L1051, false for 'update' @ L1173
+# [2026-11-02T09:22:14.606Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x26d3f892 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1051, false for 'create' @ L1173, false for 'update' @ L1051, false for 'update' @ L1173
+# [2026-11-02T09:22:14.636Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x26d3f893 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L1074, false for 'update' @ L1173
+# [2026-11-02T09:22:14.652Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x26d3f894 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1074, false for 'create' @ L1173, false for 'update' @ L1074, false for 'update' @ L1173
+# Subtest: callable authentication and existing rules prevent UI bypass and direct history changes
+ok 22 - callable authentication and existing rules prevent UI bypass and direct history changes
+  ---
+  duration_ms: 2904.9971
+  type: 'test'
+  ...
+# {"functionName":"getDashboardSnapshot","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# Subtest: dashboard totals, ledger projections and historical rebuild include cancellation correctly
+ok 23 - dashboard totals, ledger projections and historical rebuild include cancellation correctly
+  ---
+  duration_ms: 779.2195
+  type: 'test'
+  ...
+# Subtest: empty movement history produces an explicit zero company balance
+ok 24 - empty movement history produces an explicit zero company balance
+  ---
+  duration_ms: 2.2969
+  type: 'test'
+  ...
+# Subtest: company cash totals mixed IN and OUT movements
+ok 25 - company cash totals mixed IN and OUT movements
+  ---
+  duration_ms: 0.4317
+  type: 'test'
+  ...
+# Subtest: company cash opening balance is accepted as full-history cash in
+ok 26 - company cash opening balance is accepted as full-history cash in
+  ---
+  duration_ms: 0.1474
+  type: 'test'
+  ...
+# Subtest: multiple representative accounts remain isolated
+ok 27 - multiple representative accounts remain isolated
+  ---
+  duration_ms: 8.4042
+  type: 'test'
+  ...
+# Subtest: malformed, missing-rep, ambiguous, unsupported, and duplicate movements block apply
+ok 28 - malformed, missing-rep, ambiguous, unsupported, and duplicate movements block apply
+  ---
+  duration_ms: 0.5484
+  type: 'test'
+  ...
+# Subtest: a negative full-history cash balance is unresolved
+ok 29 - a negative full-history cash balance is unresolved
+  ---
+  duration_ms: 0.1964
+  type: 'test'
+  ...
+# Subtest: a reconciled balance is idempotently recognized on a second run
+ok 30 - a reconciled balance is idempotently recognized on a second run
+  ---
+  duration_ms: 0.296
+  type: 'test'
+  ...
+# Subtest: maintenance CLI is dry-run by default and apply requires exact confirmation
+ok 31 - maintenance CLI is dry-run by default and apply requires exact confirmation
+  ---
+  duration_ms: 0.5731
+  type: 'test'
+  ...
+# Subtest: cash balance document IDs match the trusted ledger contract
+ok 32 - cash balance document IDs match the trusted ledger contract
+  ---
+  duration_ms: 0.3247
+  type: 'test'
+  ...
+# {"functionName":"approveExpense","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"confirmInvoice","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"confirmInventoryTransfer","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"confirmSalesReturn","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"createCustomer","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"createExpense","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"createItem","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"createReceipt","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"getCashOpeningBalance","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"getDashboardSnapshot","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"getFinancialLedgerOpeningBalances","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"getFinancialLedgerSummary","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"getReceivableBalances","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"postCustomerOpeningBalance","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"postCompanyCashOpeningBalance","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"recordCashSettlement","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"searchFinancialLedger","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"updateCustomerOpeningBalance","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"updateCustomer","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# Subtest: all trusted callables use the same v2 authentication pathway and options
+ok 33 - all trusted callables use the same v2 authentication pathway and options
+  ---
+  duration_ms: 6.861
+  type: 'test'
+  ...
+# {"functionName":"getFinancialLedgerOpeningBalances","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"getFinancialLedgerOpeningBalances","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"getFinancialLedgerOpeningBalances","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"postCompanyCashOpeningBalance","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"postCompanyCashOpeningBalance","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# Subtest: opening-balance API is admin-only, readiness-guarded, and strictly before cutoff
+ok 34 - opening-balance API is admin-only, readiness-guarded, and strictly before cutoff
+  ---
+  duration_ms: 919.5197
+  type: 'test'
+  ...
+# Subtest: company cash opening callable rejects every non-designated identity without effects
+ok 35 - company cash opening callable rejects every non-designated identity without effects
+  ---
+  duration_ms: 24.344
+  type: 'test'
+  ...
+# {"functionName":"postCompanyCashOpeningBalance","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"createReceipt","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"createExpense","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# Subtest: designated token and approved stored profile can invoke the company cash opening callable
+ok 36 - designated token and approved stored profile can invoke the company cash opening callable
+  ---
+  duration_ms: 138.58
+  type: 'test'
+  ...
+# Subtest: unauthenticated receipt and expense calls create no effects
+ok 37 - unauthenticated receipt and expense calls create no effects
+  ---
+  duration_ms: 14.7081
+  type: 'test'
+  ...
+# {"functionName":"confirmSalesReturn","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# Subtest: authenticated admin confirms a valid sales return
+ok 38 - authenticated admin confirms a valid sales return
+  ---
+  duration_ms: 251.5642
+  type: 'test'
+  ...
+# {"functionName":"confirmSalesReturn","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# Subtest: authenticated sales representative confirms an allowed sales return
+ok 39 - authenticated sales representative confirms an allowed sales return
+  ---
+  duration_ms: 206.1687
+  type: 'test'
+  ...
+# {"functionName":"confirmSalesReturn","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# Subtest: unauthenticated return fails before any business effects
+ok 40 - unauthenticated return fails before any business effects
+  ---
+  duration_ms: 61.8664
+  type: 'test'
+  ...
+# {"functionName":"confirmSalesReturn","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"confirmSalesReturn","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"confirmSalesReturn","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"confirmSalesReturn","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# Subtest: legacy return toggle does not restrict reps; pending and unauthorized users are rejected
+ok 41 - legacy return toggle does not restrict reps; pending and unauthorized users are rejected
+  ---
+  duration_ms: 417.2509
+  type: 'test'
+  ...
+# Subtest: trusted custom line preserves metadata and participates in totals
+ok 42 - trusted custom line preserves metadata and participates in totals
+  ---
+  duration_ms: 1.3957
+  type: 'test'
+  ...
+# Subtest: trusted totals preserve legacy classification and reject unsupported types
+ok 43 - trusted totals preserve legacy classification and reject unsupported types
+  ---
+  duration_ms: 0.3251
+  type: 'test'
+  ...
+# Subtest: mixed legacy and assigned customer pages fill past transferred records without leaks or duplicates
+ok 44 - mixed legacy and assigned customer pages fill past transferred records without leaks or duplicates
+  ---
+  duration_ms: 1397.509
+  type: 'test'
+  ...
+# {"functionName":"getDashboardSnapshot","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# Subtest: legacy receivable pages, totals and dashboard include old debt without transferred balances
+ok 45 - legacy receivable pages, totals and dashboard include old debt without transferred balances
+  ---
+  duration_ms: 271.6183
+  type: 'test'
+  ...
+# {"functionName":"listAccessibleCustomers","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# Subtest: customer callable enforces current role/company and rejects forged cursor/filter scope
+ok 46 - customer callable enforces current role/company and rejects forged cursor/filter scope
+  ---
+  duration_ms: 358.7684
+  type: 'test'
+  ...
+# Subtest: unmigrated customer can update, invoice and collect with creator authorization, other rep is denied
+ok 47 - unmigrated customer can update, invoice and collect with creator authorization, other rep is denied
+  ---
+  duration_ms: 438.4309
+  type: 'test'
+  ...
+# Subtest: Admin-created legacy customers stay Admin-only until an explicit transfer, and Rep-to-Admin revokes Rep access
+ok 48 - Admin-created legacy customers stay Admin-only until an explicit transfer, and Rep-to-Admin revokes Rep access
+  ---
+  duration_ms: 365.1019
+  type: 'test'
+  ...
+# Subtest: Admin to Rep, Rep to Rep, and Rep to Admin preserve creator and record each transfer
+ok 49 - Admin to Rep, Rep to Rep, and Rep to Admin preserve creator and record each transfer
+  ---
+  duration_ms: 373.8385
+  type: 'test'
+  ...
+# Subtest: reassignment is idempotent and a stale competing transfer cannot overwrite the winner
+ok 50 - reassignment is idempotent and a stale competing transfer cannot overwrite the winner
+  ---
+  duration_ms: 300.0461
+  type: 'test'
+  ...
+# {"functionName":"reassignCustomer","authenticated":false,"uidPresent":false,"severity":"INFO","message":"Trusted callable authentication state"}
+# Subtest: unapproved, inactive, foreign-company, Sales Rep and unauthenticated requests cannot transfer
+ok 51 - unapproved, inactive, foreign-company, Sales Rep and unauthenticated requests cannot transfer
+  ---
+  duration_ms: 437.5818
+  type: 'test'
+  ...
+# Subtest: explicit assignment wins over creator; legacy migration copies the creator without financial changes
+ok 52 - explicit assignment wins over creator; legacy migration copies the creator without financial changes
+  ---
+  duration_ms: 271.1543
+  type: 'test'
+  ...
+# Subtest: legacy customers can be explicitly transferred without first changing their original creator
+ok 53 - legacy customers can be explicitly transferred without first changing their original creator
+  ---
+  duration_ms: 190.5403
+  type: 'test'
+  ...
+# Subtest: transfer itself leaves historical invoices, receipts, returns, cash, custody and ledgers unchanged
+ok 54 - transfer itself leaves historical invoices, receipts, returns, cash, custody and ledgers unchanged
+  ---
+  duration_ms: 258.5957
+  type: 'test'
+  ...
+# Subtest: new rep operates; old rep cannot edit customer or confirm stale drafts after transfer
+ok 55 - new rep operates; old rep cannot edit customer or confirm stale drafts after transfer
+  ---
+  duration_ms: 423.276
+  type: 'test'
+  ...
+# Subtest: new collector pays historical invoices without reassigning them, using only the new rep cash
+ok 56 - new collector pays historical invoices without reassigning them, using only the new rep cash
+  ---
+  duration_ms: 927.8621
+  type: 'test'
+  ...
+# Subtest: returns require both current customer assignment and original invoice ownership; Admin handles cross-rep history
+ok 57 - returns require both current customer assignment and original invoice ownership; Admin handles cross-rep history
+  ---
+  duration_ms: 662.0439
+  type: 'test'
+  ...
+# Subtest: Admin collections after transfer are visible to the current customer assignee, not the historical invoice rep
+ok 58 - Admin collections after transfer are visible to the current customer assignee, not the historical invoice rep
+  ---
+  duration_ms: 875.9316
+  type: 'test'
+  ...
+# Subtest: concurrent different transfers use revision compare-and-set; one wins without rewriting history
+ok 59 - concurrent different transfers use revision compare-and-set; one wins without rewriting history
+  ---
+  duration_ms: 3203.8313
+  type: 'test'
+  ...
+# {"functionName":"getDashboardSnapshot","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"getDashboardSnapshot","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"getDashboardSnapshot","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"getDashboardSnapshot","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"getDashboardSnapshot","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"getDashboardSnapshot","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"getDashboardSnapshot","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"getDashboardSnapshot","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"getDashboardSnapshot","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"getReceivableBalances","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# {"functionName":"getReceivableBalances","authenticated":true,"uidPresent":true,"severity":"INFO","message":"Trusted callable authentication state"}
+# Subtest: original sales KPIs survive transfer; new collections are not sales and global debt/statement stay accurate
+ok 60 - original sales KPIs survive transfer; new collections are not sales and global debt/statement stay accurate
+  ---
+  duration_ms: 1376.119
+  type: 'test'
+  ...
+# Subtest: migration CLI dry-run, apply, repeat and rollback preserve every original customer field
+ok 61 - migration CLI dry-run, apply, repeat and rollback preserve every original customer field
+  ---
+  duration_ms: 6123.4233
+  type: 'test'
+  ...
+# Subtest: migration update-time guard cannot overwrite a real transfer
+ok 62 - migration update-time guard cannot overwrite a real transfer
+  ---
+  duration_ms: 178.8887
+  type: 'test'
+  ...
+# Subtest: collection racing transfer either posts before transfer or is denied, with consistent debt and cash
+ok 63 - collection racing transfer either posts before transfer or is denied, with consistent debt and cash
+  ---
+  duration_ms: 3425.4523
+  type: 'test'
+  ...
+# Subtest: ledger query keys combine only type, account, customer, and payment
+ok 64 - ledger query keys combine only type, account, customer, and payment
+  ---
+  duration_ms: 2.2252
+  type: 'test'
+  ...
+# Subtest: ledger SHA-256 query hashes match the Flutter cross-platform vectors
+ok 65 - ledger SHA-256 query hashes match the Flutter cross-platform vectors
+  ---
+  duration_ms: 0.147
+  type: 'test'
+  ...
+# Subtest: schema-v3 query and search guards enforce compact fixed-width arrays
+ok 66 - schema-v3 query and search guards enforce compact fixed-width arrays
+  ---
+  duration_ms: 1.4877
+  type: 'test'
+  ...
+# Subtest: base query key maximum remains 24 regardless of searchable text
+ok 67 - base query key maximum remains 24 regardless of searchable text
+  ---
+  duration_ms: 0.2207
+  type: 'test'
+  ...
+# Subtest: derived projection separates bounded search tokens from compact query keys
+ok 68 - derived projection separates bounded search tokens from compact query keys
+  ---
+  duration_ms: 17.6828
+  type: 'test'
+  ...
+# Subtest: account activity projection creates balanced debit and credit activity
+ok 69 - account activity projection creates balanced debit and credit activity
+  ---
+  duration_ms: 1.5183
+  type: 'test'
+  ...
+# Subtest: opening balance combines monthly, daily, and same-day projected activity
+ok 70 - opening balance combines monthly, daily, and same-day projected activity
+  ---
+  duration_ms: 0.5581
+  type: 'test'
+  ...
+# Subtest: one ledger row carries equal debit and credit amounts without guessing ownership
+ok 71 - one ledger row carries equal debit and credit amounts without guessing ownership
+  ---
+  duration_ms: 0.3125
+  type: 'test'
+  ...
+# Subtest: admin-created receipts inherit financial ownership from allocated invoices
+ok 72 - admin-created receipts inherit financial ownership from allocated invoices
+  ---
+  duration_ms: 0.4126
+  type: 'test'
+  ...
+# Subtest: shared invoice mapping preserves deterministic cash and credit components
+ok 73 - shared invoice mapping preserves deterministic cash and credit components
+  ---
+  duration_ms: 0.7273
+  type: 'test'
+  ...
+# Subtest: shared opening mapping keeps initial and adjustment semantics distinct
+ok 74 - shared opening mapping keeps initial and adjustment semantics distinct
+  ---
+  duration_ms: 0.699
+  type: 'test'
+  ...
+# Subtest: shared sales-return mapping preserves quantity and net metrics
+ok 75 - shared sales-return mapping preserves quantity and net metrics
+  ---
+  duration_ms: 0.8906
+  type: 'test'
+  ...
+# Subtest: approved active admin can read every financial repository collection
+ok 76 - approved active admin can read every financial repository collection
+  ---
+  duration_ms: 1112.7709
+  type: 'test'
+  ...
+# Subtest: legacy active admin profile remains compatible with default company
+ok 77 - legacy active admin profile remains compatible with default company
+  ---
+  duration_ms: 91.1311
+  type: 'test'
+  ...
+# Subtest: rep A can directly read own documents and cannot read rep B documents
+ok 78 - rep A can directly read own documents and cannot read rep B documents
+  ---
+  duration_ms: 298.5151
+  type: 'test'
+  ...
+# Subtest: rep B has the inverse direct-read boundary
+ok 79 - rep B has the inverse direct-read boundary
+  ---
+  duration_ms: 266.527
+  type: 'test'
+  ...
+# Subtest: sales reps must use owner-constrained collection queries
+ok 80 - sales reps must use owner-constrained collection queries
+  ---
+  duration_ms: 774.2929
+  type: 'test'
+  ...
+# Subtest: pending and inactive users cannot read financial data
+ok 81 - pending and inactive users cannot read financial data
+  ---
+  duration_ms: 494.4569
+  type: 'test'
+  ...
+# Subtest: sales representatives read only their own custody documents
+ok 82 - sales representatives read only their own custody documents
+  ---
+  duration_ms: 140.029
+  type: 'test'
+  ...
+# Subtest: clients cannot probe missing function-owned custody documents
+ok 83 - clients cannot probe missing function-owned custody documents
+  ---
+  duration_ms: 123.2418
+  type: 'test'
+  ...
+# Subtest: admin reads all representative custody documents
+ok 84 - admin reads all representative custody documents
+  ---
+  duration_ms: 92.4297
+  type: 'test'
+  ...
+# Subtest: pending and inactive users cannot read representative custody
+ok 85 - pending and inactive users cannot read representative custody
+  ---
+  duration_ms: 93.443
+  type: 'test'
+  ...
+# Subtest: approved admin can create, edit, cancel, and delete transfer drafts
+ok 86 - approved admin can create, edit, cancel, and delete transfer drafts
+  ---
+  duration_ms: 93.726
+  type: 'test'
+  ...
+# [2026-11-02T09:22:45.793Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e0c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L1115:24 for 'create' @ L1115, false for 'create' @ L1173, evaluation error at L1116:24 for 'update' @ L1116, false for 'update' @ L1173, false for 'create' @ L1115, false for 'create' @ L1173
+# [2026-11-02T09:22:45.809Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e0d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L1116:24 for 'update' @ L1116, false for 'update' @ L1173, false for 'update' @ L1116, false for 'update' @ L1173
+# [2026-11-02T09:22:45.814Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e0e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L1126, false for 'update' @ L1173
+# Subtest: representatives cannot manage transfers or directly change balances
+ok 87 - representatives cannot manage transfers or directly change balances
+  ---
+  duration_ms: 77.1452
+  type: 'test'
+  ...
+# [2026-11-02T09:22:45.876Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e10 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L1135, false for 'update' @ L1173
+# [2026-11-02T09:22:45.879Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e11 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L1135, false for 'delete' @ L1173
+# [2026-11-02T09:22:45.896Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e12 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L1135, false for 'update' @ L1173
+# [2026-11-02T09:22:45.900Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e13 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L1135, false for 'delete' @ L1173
+# Subtest: representative movements are immutable for admins and reps
+ok 88 - representative movements are immutable for admins and reps
+  ---
+  duration_ms: 86.4357
+  type: 'test'
+  ...
+# [2026-11-02T09:22:45.960Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e15 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L910:24 for 'update' @ L910, false for 'update' @ L1173, false for 'create' @ L1126, false for 'create' @ L1173, false for 'update' @ L1126, false for 'update' @ L1173
+# Subtest: client-side inventory transfer posting is denied atomically
+ok 89 - client-side inventory transfer posting is denied atomically
+  ---
+  duration_ms: 121.0018
+  type: 'test'
+  ...
+# Subtest: stock movement queries are scoped only by createdByUid
+ok 90 - stock movement queries are scoped only by createdByUid
+  ---
+  duration_ms: 104.3222
+  type: 'test'
+  ...
+# Subtest: customer owner fallback supports legacy transactions without salesRepId
+ok 91 - customer owner fallback supports legacy transactions without salesRepId
+  ---
+  duration_ms: 142.2125
+  type: 'test'
+  ...
+# [2026-11-02T09:22:46.346Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e1e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L928, false for 'update' @ L1173
+# Subtest: clients cannot post an opening balance directly
+ok 92 - clients cannot post an opening balance directly
+  ---
+  duration_ms: 78.0157
+  type: 'test'
+  ...
+# [2026-11-02T09:22:46.446Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e22 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L928, false for 'update' @ L1173
+# [2026-11-02T09:22:46.461Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e23 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L928, false for 'update' @ L1173
+# Subtest: sales rep cannot directly post customer credit
+ok 93 - sales rep cannot directly post customer credit
+  ---
+  duration_ms: 114.7274
+  type: 'test'
+  ...
+# [2026-11-02T09:22:46.531Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e26 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L968, false for 'create' @ L1173, false for 'update' @ L968, false for 'update' @ L1173
+# [2026-11-02T09:22:46.553Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e27 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L928, false for 'update' @ L1173
+# Subtest: opening balance requires its matching customer update and ledger create
+ok 94 - opening balance requires its matching customer update and ledger create
+  ---
+  duration_ms: 91.9722
+  type: 'test'
+  ...
+# [2026-11-02T09:22:46.642Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e2a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L928, false for 'update' @ L1173
+# [2026-11-02T09:22:46.648Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e2b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L928, false for 'update' @ L1173
+# [2026-11-02T09:22:46.661Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e2c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L928, false for 'update' @ L1173
+# Subtest: opening balance cannot change sales totals or be posted twice
+ok 95 - opening balance cannot change sales totals or be posted twice
+  ---
+  duration_ms: 107.7017
+  type: 'test'
+  ...
+# [2026-11-02T09:22:46.748Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e2f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L928, false for 'update' @ L1173
+# Subtest: clients cannot directly mutate customer financial projections
+ok 96 - clients cannot directly mutate customer financial projections
+  ---
+  duration_ms: 87.0897
+  type: 'test'
+  ...
+# [2026-11-02T09:22:46.807Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e31 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L928, false for 'create' @ L1173, false for 'update' @ L928, false for 'update' @ L1173
+# [2026-11-02T09:22:46.816Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e32 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L937, false for 'create' @ L1173, false for 'update' @ L937, false for 'update' @ L1173
+# [2026-11-02T09:22:46.840Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e34 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L928, false for 'update' @ L1173
+# Subtest: customer profiles and phone reservations are server-owned
+ok 97 - customer profiles and phone reservations are server-owned
+  ---
+  duration_ms: 92.0873
+  type: 'test'
+  ...
+# [2026-11-02T09:22:46.905Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e36 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L968, false for 'create' @ L1173, false for 'update' @ L968, false for 'update' @ L1173
+# Subtest: clients cannot create an arbitrary customer ledger entry
+ok 98 - clients cannot create an arbitrary customer ledger entry
+  ---
+  duration_ms: 65.2465
+  type: 'test'
+  ...
+# [2026-11-02T09:22:46.966Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e38 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1051, false for 'create' @ L1173, false for 'update' @ L1051, false for 'update' @ L1173
+# [2026-11-02T09:22:46.973Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e39 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1051, false for 'create' @ L1173, false for 'update' @ L1051, false for 'update' @ L1173
+# Subtest: clients cannot create arbitrary or partial settlement cash movements
+ok 99 - clients cannot create arbitrary or partial settlement cash movements
+  ---
+  duration_ms: 67.6199
+  type: 'test'
+  ...
+# [2026-11-02T09:22:47.045Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e3b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1051, false for 'create' @ L1173, false for 'update' @ L1051, false for 'update' @ L1173
+# [2026-11-02T09:22:47.049Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e3c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L1063, false for 'update' @ L1173
+# Subtest: even admins cannot directly write the company cash opening balance
+ok 100 - even admins cannot directly write the company cash opening balance
+  ---
+  duration_ms: 75.3406
+  type: 'test'
+  ...
+# [2026-11-02T09:22:47.109Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e3e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L910:24 for 'update' @ L910, false for 'update' @ L1173, false for 'update' @ L910, false for 'update' @ L1173
+# [2026-11-02T09:22:47.131Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e3f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L910:24 for 'update' @ L910, false for 'update' @ L1173, false for 'update' @ L910, false for 'update' @ L1173
+# Subtest: clients cannot forge warehouse invoice or return stock deltas
+ok 101 - clients cannot forge warehouse invoice or return stock deltas
+  ---
+  duration_ms: 82.676
+  type: 'test'
+  ...
+# [2026-11-02T09:22:47.199Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e41 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1110, false for 'create' @ L1173, false for 'update' @ L1110, false for 'update' @ L1173
+# [2026-11-02T09:22:47.206Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e42 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L910:24 for 'update' @ L910, false for 'update' @ L1173, false for 'create' @ L1110, false for 'create' @ L1173, false for 'update' @ L1110, false for 'update' @ L1173
+# [2026-11-02T09:22:47.221Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e43 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L910:24 for 'update' @ L910, false for 'update' @ L1173, false for 'create' @ L1110, false for 'create' @ L1173, false for 'update' @ L1110, false for 'update' @ L1173
+# Subtest: all client-side stock corrections are denied
+ok 102 - all client-side stock corrections are denied
+  ---
+  duration_ms: 89.2224
+  type: 'test'
+  ...
+# [2026-11-02T09:22:47.281Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e45 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L909, false for 'create' @ L1173, evaluation error at L910:24 for 'update' @ L910, false for 'update' @ L1173, false for 'create' @ L909, false for 'create' @ L1173
+# [2026-11-02T09:22:47.302Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e46 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L909, false for 'create' @ L1173, evaluation error at L910:24 for 'update' @ L910, false for 'update' @ L1173, false for 'create' @ L1110, false for 'create' @ L1173, false for 'update' @ L1110, false for 'update' @ L1173
+# Subtest: opening stock creation is reserved for the trusted server
+ok 103 - opening stock creation is reserved for the trusted server
+  ---
+  duration_ms: 80.9409
+  type: 'test'
+  ...
+# Subtest: an admin-created invoice assigned to rep A is visible only to rep A
+ok 104 - an admin-created invoice assigned to rep A is visible only to rep A
+  ---
+  duration_ms: 119.2815
+  type: 'test'
+  ...
+# Subtest: invoice ownership follows salesRepId rather than createdByUid
+ok 105 - invoice ownership follows salesRepId rather than createdByUid
+  ---
+  duration_ms: 109.3935
+  type: 'test'
+  ...
+# Subtest: sales reps cannot read company cash movements even when salesRepId matches
+ok 106 - sales reps cannot read company cash movements even when salesRepId matches
+  ---
+  duration_ms: 62.4824
+  type: 'test'
+  ...
+# [2026-11-02T09:22:47.658Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e51 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1038, false for 'create' @ L1173, evaluation error at L1039:24 for 'update' @ L1039, false for 'update' @ L1173, false for 'create' @ L1038, false for 'create' @ L1173
+# [2026-11-02T09:22:47.680Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e52 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1038, false for 'create' @ L1173, evaluation error at L1039:24 for 'update' @ L1039, false for 'update' @ L1173, false for 'create' @ L1038, false for 'create' @ L1173
+# Subtest: expense creation is callable-owned for every client role
+ok 107 - expense creation is callable-owned for every client role
+  ---
+  duration_ms: 86.9935
+  type: 'test'
+  ...
+# [2026-11-02T09:22:47.742Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e54 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1038, false for 'create' @ L1173, evaluation error at L1039:24 for 'update' @ L1039, false for 'update' @ L1173, false for 'create' @ L1038, false for 'create' @ L1173
+# Subtest: admin cannot directly create posted company cash expenses
+ok 108 - admin cannot directly create posted company cash expenses
+  ---
+  duration_ms: 62.148
+  type: 'test'
+  ...
+# [2026-11-02T09:22:47.798Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e56 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L1039:24 for 'update' @ L1039, false for 'update' @ L1173, false for 'update' @ L1039, false for 'update' @ L1173
+# [2026-11-02T09:22:47.821Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e57 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L1039:24 for 'update' @ L1039, false for 'update' @ L1173, false for 'update' @ L1039, false for 'update' @ L1173
+# [2026-11-02T09:22:47.847Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e58 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L1039:24 for 'update' @ L1039, false for 'update' @ L1173, false for 'update' @ L1039, false for 'update' @ L1173
+# Subtest: expense approval financial effects are server-only
+ok 109 - expense approval financial effects are server-only
+  ---
+  duration_ms: 105.4073
+  type: 'test'
+  ...
+# [2026-11-02T09:22:47.913Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e5a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L1039:24 for 'update' @ L1039, false for 'update' @ L1173, false for 'update' @ L1039, false for 'update' @ L1173
+# Subtest: admin can reject pending expenses without changing financial fields
+ok 110 - admin can reject pending expenses without changing financial fields
+  ---
+  duration_ms: 65.4321
+  type: 'test'
+  ...
+# [2026-11-02T09:22:48.038Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e5d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L949, false for 'create' @ L1173, false for 'update' @ L950, false for 'update' @ L1173
+# Subtest: unauthenticated users cannot read or write application data
+ok 111 - unauthenticated users cannot read or write application data
+  ---
+  duration_ms: 125.228
+  type: 'test'
+  ...
+# [2026-11-02T09:22:48.115Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e5f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L902, false for 'create' @ L1173, false for 'update' @ L902, false for 'update' @ L1173
+# [2026-11-02T09:22:48.140Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e60 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L895:24 for 'update' @ L895, false for 'update' @ L1173, false for 'update' @ L895, false for 'update' @ L1173
+# [2026-11-02T09:22:48.211Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e63 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L1154:32 for 'create' @ L1154, false for 'create' @ L1173, evaluation error at L1154:32 for 'update' @ L1154, false for 'update' @ L1173, false for 'update' @ L1154, false for 'update' @ L1173
+# Subtest: safe profile, preference, user-management, and settings writes remain available
+ok 112 - safe profile, preference, user-management, and settings writes remain available
+  ---
+  duration_ms: 172.6109
+  type: 'test'
+  ...
+# [2026-11-02T09:22:48.314Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e66 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L910:24 for 'update' @ L910, false for 'update' @ L1173, false for 'update' @ L910, false for 'update' @ L1173
+# [2026-11-02T09:22:48.349Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e67 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L910:24 for 'update' @ L910, false for 'update' @ L1173, false for 'update' @ L910, false for 'update' @ L1173
+# Subtest: admin catalog edits remain allowed but inventory effects are server-owned
+ok 113 - admin catalog edits remain allowed but inventory effects are server-owned
+  ---
+  duration_ms: 137.7305
+  type: 'test'
+  ...
+# [2026-11-02T09:22:48.458Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e6a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L950:24 for 'update' @ L950, false for 'update' @ L1173, false for 'update' @ L950, false for 'update' @ L1173
+# [2026-11-02T09:22:48.465Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e6b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L950:24 for 'update' @ L950, false for 'update' @ L1173, false for 'update' @ L950, false for 'update' @ L1173
+# Subtest: invoice drafts support current Flutter CRUD but direct posting is denied
+ok 114 - invoice drafts support current Flutter CRUD but direct posting is denied
+  ---
+  duration_ms: 121.6077
+  type: 'test'
+  ...
+# [2026-11-02T09:22:48.553Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e70 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L950:24 for 'update' @ L950, false for 'update' @ L1173, false for 'update' @ L950, false for 'update' @ L1173
+# [2026-11-02T09:22:48.566Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e71 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L951:24 for 'delete' @ L951, false for 'delete' @ L1173, false for 'delete' @ L951, false for 'delete' @ L1173
+# Subtest: confirmed and legacy financial documents are readable but immutable
+ok 115 - confirmed and legacy financial documents are readable but immutable
+  ---
+  duration_ms: 95.0073
+  type: 'test'
+  ...
+# [2026-11-02T09:22:48.677Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e75 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L993:24 for 'update' @ L993, false for 'update' @ L1173, false for 'update' @ L993, false for 'update' @ L1173
+# Subtest: sales return drafts remain editable and confirmation remains callable-only
+ok 116 - sales return drafts remain editable and confirmation remains callable-only
+  ---
+  duration_ms: 111.2196
+  type: 'test'
+  ...
+# [2026-11-02T09:22:48.790Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e78 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L1007, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L1173, false for 'update' @ L1007, false for 'update' @ L1173
+# Subtest: quotation draft and status workflow remains client-owned
+ok 117 - quotation draft and status workflow remains client-owned
+  ---
+  duration_ms: 133.765
+  type: 'test'
+  ...
+# [2026-11-02T09:22:48.992Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e80 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L950:24 for 'update' @ L950, false for 'update' @ L1173, false for 'update' @ L950, false for 'update' @ L1173
+# [2026-11-02T09:22:48.997Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e81 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L951:24 for 'delete' @ L951, false for 'delete' @ L1173, false for 'delete' @ L951, false for 'delete' @ L1173
+# [2026-11-02T09:22:49.004Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e7e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L950:24 for 'update' @ L950, false for 'update' @ L1173, false for 'update' @ L950, false for 'update' @ L1173
+# [2026-11-02T09:22:49.022Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e82 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L950:24 for 'update' @ L950, false for 'update' @ L1173, false for 'update' @ L950, false for 'update' @ L1173
+# [2026-11-02T09:22:49.034Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e83 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L949:24 for 'create' @ L949, false for 'create' @ L1173, evaluation error at L950:24 for 'update' @ L950, false for 'update' @ L1173, false for 'create' @ L949, false for 'create' @ L1173
+# [2026-11-02T09:22:49.059Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e84 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L949:24 for 'create' @ L949, false for 'create' @ L1173, evaluation error at L950:24 for 'update' @ L950, false for 'update' @ L1173, false for 'create' @ L949, false for 'create' @ L1173
+# [2026-11-02T09:22:49.071Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e85 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L949:24 for 'create' @ L949, false for 'create' @ L1173, evaluation error at L950:24 for 'update' @ L950, false for 'update' @ L1173, false for 'create' @ L949, false for 'create' @ L1173
+# [2026-11-02T09:22:49.080Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e86 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L949:24 for 'create' @ L949, false for 'create' @ L1173, evaluation error at L950:24 for 'update' @ L950, false for 'update' @ L1173, false for 'create' @ L949, false for 'create' @ L1173
+# [2026-11-02T09:22:49.115Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e88 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L1022:24 for 'delete' @ L1022, false for 'delete' @ L1173, false for 'delete' @ L1022, false for 'delete' @ L1173
+# [2026-11-02T09:22:49.134Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e87 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L1022:24 for 'delete' @ L1022, false for 'delete' @ L1173, false for 'delete' @ L1022, false for 'delete' @ L1173
+# [2026-11-02T09:22:49.169Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e89 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L1022:24 for 'delete' @ L1022, false for 'delete' @ L1173, false for 'delete' @ L1022, false for 'delete' @ L1173
+# [2026-11-02T09:22:49.214Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e8c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L993:24 for 'update' @ L993, false for 'update' @ L1173, false for 'update' @ L993, false for 'update' @ L1173
+# Subtest: phase 1 operational drafts ignore legacy toggles and stay scoped to the rep
+ok 118 - phase 1 operational drafts ignore legacy toggles and stay scoped to the rep
+  ---
+  duration_ms: 407.364
+  type: 'test'
+  ...
+# [2026-11-02T09:22:49.314Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e90 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L950:24 for 'update' @ L950, false for 'update' @ L1173, false for 'update' @ L950, false for 'update' @ L1173
+# [2026-11-02T09:22:49.336Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e91 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L951:24 for 'delete' @ L951, false for 'delete' @ L1173, false for 'delete' @ L951, false for 'delete' @ L1173
+# [2026-11-02T09:22:49.354Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e92 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L993:24 for 'update' @ L993, false for 'update' @ L1173, false for 'update' @ L993, false for 'update' @ L1173
+# [2026-11-02T09:22:49.358Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e93 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L994, false for 'delete' @ L1173
+# [2026-11-02T09:22:49.365Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e94 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L980, false for 'update' @ L1173
+# [2026-11-02T09:22:49.382Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e95 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L980, false for 'delete' @ L1173
+# [2026-11-02T09:22:49.408Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e96 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L950:24 for 'update' @ L950, false for 'update' @ L1173, false for 'update' @ L950, false for 'update' @ L1173
+# [2026-11-02T09:22:49.416Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e97 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L951:24 for 'delete' @ L951, false for 'delete' @ L1173, false for 'delete' @ L951, false for 'delete' @ L1173
+# [2026-11-02T09:22:49.434Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e98 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L993:24 for 'update' @ L993, false for 'update' @ L1173, false for 'update' @ L993, false for 'update' @ L1173
+# [2026-11-02T09:22:49.446Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e99 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L994, false for 'delete' @ L1173
+# [2026-11-02T09:22:49.462Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e9a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L980, false for 'update' @ L1173
+# [2026-11-02T09:22:49.478Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e9b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L980, false for 'delete' @ L1173
+# Subtest: posted invoices, receipts and returns cannot be edited or deleted by rep or admin
+ok 119 - posted invoices, receipts and returns cannot be edited or deleted by rep or admin
+  ---
+  duration_ms: 259.8101
+  type: 'test'
+  ...
+# [2026-11-02T09:22:49.606Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782e9f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L950:24 for 'update' @ L950, false for 'update' @ L1173, false for 'update' @ L950, false for 'update' @ L1173
+# [2026-11-02T09:22:49.613Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ea0 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L951:24 for 'delete' @ L951, false for 'delete' @ L1173, false for 'delete' @ L951, false for 'delete' @ L1173
+# Subtest: locked drafts stay immutable while legacy drafts without a lock field remain editable
+ok 120 - locked drafts stay immutable while legacy drafts without a lock field remain editable
+  ---
+  duration_ms: 134.9138
+  type: 'test'
+  ...
+# [2026-11-02T09:22:49.679Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ea2 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L928, false for 'create' @ L1173, false for 'update' @ L928, false for 'update' @ L1173
+# [2026-11-02T09:22:49.698Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ea3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L937, false for 'create' @ L1173, false for 'update' @ L937, false for 'update' @ L1173
+# [2026-11-02T09:22:49.703Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ea4 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L968, false for 'create' @ L1173, false for 'update' @ L968, false for 'update' @ L1173
+# [2026-11-02T09:22:49.707Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ea5 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L980, false for 'create' @ L1173, false for 'update' @ L980, false for 'update' @ L1173
+# [2026-11-02T09:22:49.712Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ea6 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1051, false for 'create' @ L1173, false for 'update' @ L1051, false for 'update' @ L1173
+# [2026-11-02T09:22:49.720Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ea7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1063, false for 'create' @ L1173, false for 'update' @ L1063, false for 'update' @ L1173
+# [2026-11-02T09:22:49.729Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ea8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1069, false for 'create' @ L1173, false for 'update' @ L1069, false for 'update' @ L1173
+# [2026-11-02T09:22:49.744Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ea9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1074, false for 'create' @ L1173, false for 'update' @ L1074, false for 'update' @ L1173
+# [2026-11-02T09:22:49.759Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782eaa error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1110, false for 'create' @ L1173, false for 'update' @ L1110, false for 'update' @ L1173
+# [2026-11-02T09:22:49.763Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782eab error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1126, false for 'create' @ L1173, false for 'update' @ L1126, false for 'update' @ L1173
+# [2026-11-02T09:22:49.768Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782eac error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1135, false for 'create' @ L1173, false for 'update' @ L1135, false for 'update' @ L1173
+# [2026-11-02T09:22:49.771Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ead error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1160, false for 'create' @ L1173, false for 'update' @ L1160, false for 'update' @ L1173
+# [2026-11-02T09:22:49.788Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782eae error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1169, false for 'create' @ L1173, false for 'update' @ L1169, false for 'update' @ L1173
+# [2026-11-02T09:22:49.805Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782eaf error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1164, false for 'create' @ L1173, false for 'update' @ L1164, false for 'update' @ L1173
+# [2026-11-02T09:22:49.821Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782eb0 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1140, false for 'create' @ L1173, false for 'update' @ L1142, false for 'update' @ L1173
+# Subtest: all posting, balance, reservation, audit, and lock paths fail closed
+ok 121 - all posting, balance, reservation, audit, and lock paths fail closed
+  ---
+  duration_ms: 208.261
+  type: 'test'
+  ...
+# [2026-11-02T09:22:49.921Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782eb4 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L949:24 for 'create' @ L949, false for 'create' @ L1173, evaluation error at L950:24 for 'update' @ L950, false for 'update' @ L1173, false for 'create' @ L949, false for 'create' @ L1173
+# Subtest: cross-company reads and writes are denied
+ok 122 - cross-company reads and writes are denied
+  ---
+  duration_ms: 99.3713
+  type: 'test'
+  ...
+# [2026-11-02T09:22:50.150Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ebd error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1160, false for 'create' @ L1173, false for 'update' @ L1160, false for 'update' @ L1173
+# [2026-11-02T09:22:50.174Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ebe error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L1160, false for 'update' @ L1173
+# [2026-11-02T09:22:50.179Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ebf error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L1160, false for 'delete' @ L1173
+# Subtest: audit events are admin-readable and immutable to every client
+ok 123 - audit events are admin-readable and immutable to every client
+  ---
+  duration_ms: 257.9241
+  type: 'test'
+  ...
+# [2026-11-02T09:22:50.370Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ec6 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L1074, false for 'update' @ L1173
+# [2026-11-02T09:22:50.384Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ec7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L1074, false for 'delete' @ L1173
+# Subtest: financial ledger is admin-readable and immutable to every client
+ok 124 - financial ledger is admin-readable and immutable to every client
+  ---
+  duration_ms: 204.9188
+  type: 'test'
+  ...
+# [2026-11-02T09:22:50.480Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ecb error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1078, false for 'create' @ L1173, false for 'update' @ L1078, false for 'update' @ L1173
+# [2026-11-02T09:22:50.495Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ecc error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L1078, false for 'update' @ L1173
+# [2026-11-02T09:22:50.498Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ecd error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L1078, false for 'delete' @ L1173
+# [2026-11-02T09:22:50.557Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ecf error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1082, false for 'create' @ L1173, false for 'update' @ L1082, false for 'update' @ L1173
+# [2026-11-02T09:22:50.560Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ed0 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L1082, false for 'update' @ L1173
+# [2026-11-02T09:22:50.569Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ed1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L1082, false for 'delete' @ L1173
+# [2026-11-02T09:22:50.618Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ed3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1090, false for 'create' @ L1173, false for 'update' @ L1090, false for 'update' @ L1173
+# [2026-11-02T09:22:50.631Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ed4 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L1090, false for 'update' @ L1173
+# [2026-11-02T09:22:50.635Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ed5 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L1090, false for 'delete' @ L1173
+# [2026-11-02T09:22:50.695Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ed7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1094, false for 'create' @ L1173, false for 'update' @ L1094, false for 'update' @ L1173
+# [2026-11-02T09:22:50.711Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ed8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L1094, false for 'update' @ L1173
+# [2026-11-02T09:22:50.716Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ed9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L1094, false for 'delete' @ L1173
+# [2026-11-02T09:22:50.757Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782edb error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1086, false for 'create' @ L1173, false for 'update' @ L1086, false for 'update' @ L1173
+# [2026-11-02T09:22:50.772Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782edc error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L1086, false for 'update' @ L1173
+# [2026-11-02T09:22:50.786Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782edd error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L1086, false for 'delete' @ L1173
+# [2026-11-02T09:22:50.818Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782edf error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L1098, false for 'create' @ L1173, false for 'update' @ L1098, false for 'update' @ L1173
+# [2026-11-02T09:22:50.834Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ee0 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L1098, false for 'update' @ L1173
+# [2026-11-02T09:22:50.849Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ee1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L1098, false for 'delete' @ L1173
+# Subtest: financial ledger reporting projections are backend-only
+ok 125 - financial ledger reporting projections are backend-only
+  ---
+  duration_ms: 465.1382
+  type: 'test'
+  ...
+# Subtest: admin ledger representative filter is evaluated in the Firestore query
+ok 126 - admin ledger representative filter is evaluated in the Firestore query
+  ---
+  duration_ms: 117.1967
+  type: 'test'
+  ...
+# [2026-11-02T09:22:51.218Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782eeb error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L928, false for 'update' @ L1173
+# [2026-11-02T09:22:51.233Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782eec error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L928, false for 'update' @ L1173
+# [2026-11-02T09:22:51.248Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782eed error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L933, false for 'create' @ L1173, false for 'update' @ L933, false for 'update' @ L1173
+# Subtest: assignment scopes customer pages/statements while keeping historical document ownership
+ok 127 - assignment scopes customer pages/statements while keeping historical document ownership
+  ---
+  duration_ms: 281.6466
+  type: 'test'
+  ...
+# [2026-11-02T09:22:51.347Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ef1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L1140:24 for 'create' @ L1140, false for 'create' @ L1173, evaluation error at L1142:24 for 'update' @ L1142, false for 'update' @ L1173, evaluation error at L949:24 for 'create' @ L949, false for 'create' @ L1173, evaluation error at L950:24 for 'update' @ L950, false for 'update' @ L1173, false for 'create' @ L949, false for 'create' @ L1173
+# [2026-11-02T09:22:51.364Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x2a782ef2 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L1140:24 for 'create' @ L1140, false for 'create' @ L1173, evaluation error at L1142:24 for 'update' @ L1142, false for 'update' @ L1173, evaluation error at L1006:24 for 'create' @ L1006, false for 'create' @ L1173, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L1007, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L1173, false for 'create' @ L1006, false for 'create' @ L1173
+# Subtest: current assignee can create invoice and quotation drafts; former creator cannot
+ok 128 - current assignee can create invoice and quotation drafts; former creator cannot
+  ---
+  duration_ms: 152.6733
+  type: 'test'
+  ...
+# Subtest: assignment-scoped searches paginate across transferred customers using stored sort order
+ok 129 - assignment-scoped searches paginate across transferred customers using stored sort order
+  ---
+  duration_ms: 128.4622
+  type: 'test'
+  ...
+# Subtest: unused unversioned assignment metadata never silently transfers legacy customer access
+ok 130 - unused unversioned assignment metadata never silently transfers legacy customer access
+  ---
+  duration_ms: 111.4881
+  type: 'test'
+  ...
+# Subtest: legacy customer profile and statement use creator fallback; Admin can list unmigrated company customers
+ok 131 - legacy customer profile and statement use creator fallback; Admin can list unmigrated company customers
+  ---
+  duration_ms: 300.0495
+  type: 'test'
+  ...
+# Subtest: backfill adds safe query fields without overwriting stored values
+ok 132 - backfill adds safe query fields without overwriting stored values
+  ---
+  duration_ms: 1.5439
+  type: 'test'
+  ...
+# Subtest: backfill flags ambiguous returned legacy invoices for review
+ok 133 - backfill flags ambiguous returned legacy invoices for review
+  ---
+  duration_ms: 0.2029
+  type: 'test'
+  ...
+# Subtest: search keywords include prefixes for all required search fields
+ok 134 - search keywords include prefixes for all required search fields
+  ---
+  duration_ms: 0.195
+  type: 'test'
+  ...
+# Subtest: apply mode requires exact project and company confirmation
+ok 135 - apply mode requires exact project and company confirmation
+  ---
+  duration_ms: 0.3983
+  type: 'test'
+  ...
+# Subtest: audit distinguishes missing, empty, and conflicting ownership
+ok 136 - audit distinguishes missing, empty, and conflicting ownership
+  ---
+  duration_ms: 1.117
+  type: 'test'
+  ...
+# Subtest: backfill prefers converted quotation ownership over admin creator
+ok 137 - backfill prefers converted quotation ownership over admin creator
+  ---
+  duration_ms: 0.1579
+  type: 'test'
+  ...
+# Subtest: backfill uses a valid creator when no quotation evidence exists
+ok 138 - backfill uses a valid creator when no quotation evidence exists
+  ---
+  duration_ms: 0.0763
+  type: 'test'
+  ...
+# Subtest: backfill skips ambiguous, unknown, and name-only ownership
+ok 139 - backfill skips ambiguous, unknown, and name-only ownership
+  ---
+  duration_ms: 0.1535
+  type: 'test'
+  ...
+# Subtest: maintenance commands require an explicit project
+ok 140 - maintenance commands require an explicit project
+  ---
+  duration_ms: 0.4148
+  type: 'test'
+  ...
+# Subtest: dashboard totals net confirmed returns from matching payment buckets
+ok 141 - dashboard totals net confirmed returns from matching payment buckets
+  ---
+  duration_ms: 1.0615
+  type: 'test'
+  ...
+# Subtest: dashboard aggregation rejects missing payment buckets
+ok 142 - dashboard aggregation rejects missing payment buckets
+  ---
+  duration_ms: 0.2818
+  type: 'test'
+  ...
+# Subtest: dashboard reports missing indexes as a deployment precondition
+ok 143 - dashboard reports missing indexes as a deployment precondition
+  ---
+  duration_ms: 0.1339
+  type: 'test'
+  ...
+# Subtest: bounded mapper never exceeds the requested concurrency
+ok 144 - bounded mapper never exceeds the requested concurrency
+  ---
+  duration_ms: 17.3228
+  type: 'test'
+  ...
+# Subtest: item search projection is normalized and deterministic
+ok 145 - item search projection is normalized and deterministic
+  ---
+  duration_ms: 0.5339
+  type: 'test'
+  ...
+# Subtest: dashboard day buckets use Asia/Amman boundaries
+ok 146 - dashboard day buckets use Asia/Amman boundaries
+  ---
+  duration_ms: 1.0443
+  type: 'test'
+  ...
+# Subtest: index manifest covers every dashboard aggregate query
+ok 147 - index manifest covers every dashboard aggregate query
+  ---
+  duration_ms: 0.9911
+  type: 'test'
+  ...
+# Subtest: item reporting backfill handles legacy unscoped items only explicitly
+ok 148 - item reporting backfill handles legacy unscoped items only explicitly
+  ---
+  duration_ms: 1.1383
+  type: 'test'
+  ...
+# Subtest: sales_rep: custom-only, catalog-only and mixed invoices accept chosen prices and discounts
+ok 149 - sales_rep: custom-only, catalog-only and mixed invoices accept chosen prices and discounts
+  ---
+  duration_ms: 1049.1953
+  type: 'test'
+  ...
+# Subtest: sales_rep: invalid quantities, prices, totals and empty invoices reject atomically
+ok 150 - sales_rep: invalid quantities, prices, totals and empty invoices reject atomically
+  ---
+  duration_ms: 546.7901
+  type: 'test'
+  ...
+# Subtest: admin: custom-only, catalog-only and mixed invoices accept chosen prices and discounts
+ok 151 - admin: custom-only, catalog-only and mixed invoices accept chosen prices and discounts
+  ---
+  duration_ms: 297.4112
+  type: 'test'
+  ...
+# Subtest: admin: invalid quantities, prices, totals and empty invoices reject atomically
+ok 152 - admin: invalid quantities, prices, totals and empty invoices reject atomically
+  ---
+  duration_ms: 561.9193
+  type: 'test'
+  ...
+# Subtest: rep custody uses cumulative quantities, fails safely and posts once under concurrency
+ok 153 - rep custody uses cumulative quantities, fails safely and posts once under concurrency
+  ---
+  duration_ms: 3325.4506
+  type: 'test'
+  ...
+# Subtest: rep cannot confirm warehouse-source, missing-source or another rep's source, even for custom-only drafts
+ok 154 - rep cannot confirm warehouse-source, missing-source or another rep's source, even for custom-only drafts
+  ---
+  duration_ms: 232.2353
+  type: 'test'
+  ...
+# Subtest: admin warehouse confirmation preserves stock source and rejects cumulative shortages
+ok 155 - admin warehouse confirmation preserves stock source and rejects cumulative shortages
+  ---
+  duration_ms: 259.2895
+  type: 'test'
+  ...
+# Subtest: backend denies cross-rep documents and customers even when creator or assignment is forged
+ok 156 - backend denies cross-rep documents and customers even when creator or assignment is forged
+  ---
+  duration_ms: 166.0872
+  type: 'test'
+  ...
+# Subtest: rep receipts and returns ignore obsolete toggles and retain financial limits and idempotency
+ok 157 - rep receipts and returns ignore obsolete toggles and retain financial limits and idempotency
+  ---
+  duration_ms: 858.4556
+  type: 'test'
+  ...
+# Subtest: Arabic multi-word invoice search paginates across all owned results and preserves status filters
+ok 158 - Arabic multi-word invoice search paginates across all owned results and preserves status filters
+  ---
+  duration_ms: 1302.8894
+  type: 'test'
+  ...
+# Subtest: warehouse and custody searches page through the authorized dataset using the correct quantity
+ok 159 - warehouse and custody searches page through the authorized dataset using the correct quantity
+  ---
+  duration_ms: 145.6512
+  type: 'test'
+  ...
+# Subtest: search projection repairs current metadata idempotently without changing posting fields or ordering
+ok 160 - search projection repairs current metadata idempotently without changing posting fields or ordering
+  ---
+  duration_ms: 194.3027
+  type: 'test'
+  ...
+# Subtest: normalized phrase prefixes:   ACME   Trading  Company 
+ok 161 - normalized phrase prefixes:   ACME   Trading  Company 
+  ---
+  duration_ms: 1.5558
+  type: 'test'
+  ...
+# Subtest: normalized phrase prefixes:  أَحْمَد   عَبْد الـرَّحمن 
+ok 162 - normalized phrase prefixes:  أَحْمَد   عَبْد الـرَّحمن 
+  ---
+  duration_ms: 0.3551
+  type: 'test'
+  ...
+# Subtest: normalized phrase prefixes: INV-٢٠٢٦-۰۰۱۲۳
+ok 163 - normalized phrase prefixes: INV-٢٠٢٦-۰۰۱۲۳
+  ---
+  duration_ms: 0.7329
+  type: 'test'
+  ...
+# Subtest: normalized phrase prefixes:   مضخة\\tمياه\\nكبرى  
+ok 164 - normalized phrase prefixes:   مضخة\\tمياه\\nكبرى  
+  ---
+  duration_ms: 0.1908
+  type: 'test'
+  ...
+# Subtest: normalized phrase prefixes: Model_AB/12
+ok 165 - normalized phrase prefixes: Model_AB/12
+  ---
+  duration_ms: 0.2625
+  type: 'test'
+  ...
+# Subtest: search backfill changes metadata only, preserves stock/finance/ordering, and is idempotent
+ok 166 - search backfill changes metadata only, preserves stock/finance/ordering, and is idempotent
+  ---
+  duration_ms: 0.7878
+  type: 'test'
+  ...
+# Subtest: keyword budget bounds Firestore array index entries and prioritizes identifiers/names
+ok 167 - keyword budget bounds Firestore array index entries and prioritizes identifiers/names
+  ---
+  duration_ms: 3.2409
+  type: 'test'
+  ...
+# Subtest: invoice totals ignore forged client aggregates and reject invalid payment
+ok 168 - invoice totals ignore forged client aggregates and reject invalid payment
+  ---
+  duration_ms: 1.6416
+  type: 'test'
+  ...
+# Subtest: JoFotara is not exported and its retained callable fails without writes
+ok 169 - JoFotara is not exported and its retained callable fails without writes
+  ---
+  duration_ms: 0.8917
+  type: 'test'
+  ...
+# Subtest: customer profiles normalize and reserve phones server-side under concurrency
+ok 170 - customer profiles normalize and reserve phones server-side under concurrency
+  ---
+  duration_ms: 7353.0749
+  type: 'test'
+  ...
+# Subtest: missing materialized cash balance fails closed when movement history exists
+ok 171 - missing materialized cash balance fails closed when movement history exists
+  ---
+  duration_ms: 98.6937
+  type: 'test'
+  ...
+# Subtest: cash reconciliation apply refuses unresolved movements without writing
+ok 172 - cash reconciliation apply refuses unresolved movements without writing
+  ---
+  duration_ms: 57.5516
+  type: 'test'
+  ...
+# Subtest: trusted cash operations continue after idempotent full-history reconciliation
+ok 173 - trusted cash operations continue after idempotent full-history reconciliation
+  ---
+  duration_ms: 1652.8807
+  type: 'test'
+  ...
+# Subtest: item opening stock is server-owned, paired, and idempotent
+ok 174 - item opening stock is server-owned, paired, and idempotent
+  ---
+  duration_ms: 3349.7097
+  type: 'test'
+  ...
+# Subtest: manual stock adjustments are admin-only, atomic, and idempotent
+ok 175 - manual stock adjustments are admin-only, atomic, and idempotent
+  ---
+  duration_ms: 3663.2022
+  type: 'test'
+  ...
+# Subtest: inventory transfers post atomically through the trusted server
+ok 176 - inventory transfers post atomically through the trusted server
+  ---
+  duration_ms: 232.6085
+  type: 'test'
+  ...
+# Subtest: an insufficient inventory transfer creates no partial effects
+ok 177 - an insufficient inventory transfer creates no partial effects
+  ---
+  duration_ms: 112.2966
+  type: 'test'
+  ...
+# Subtest: opening balance is permission checked, one-time, and idempotent
+ok 178 - opening balance is permission checked, one-time, and idempotent
+  ---
+  duration_ms: 213.4629
+  type: 'test'
+  ...
+# Subtest: opening balance edits post only signed differences and retain one original
+ok 179 - opening balance edits post only signed differences and retain one original
+  ---
+  duration_ms: 423.3783
+  type: 'test'
+  ...
+# Subtest: concurrent invoice confirmations post totals and stock exactly once
+ok 180 - concurrent invoice confirmations post totals and stock exactly once
+  ---
+  duration_ms: 3882.7181
+  type: 'test'
+  ...
+# Subtest: confirmed pricing preserves chosen catalog prices and posts free lines safely
+ok 181 - confirmed pricing preserves chosen catalog prices and posts free lines safely
+  ---
+  duration_ms: 390.1747
+  type: 'test'
+  ...
+# Subtest: trusted confirmation rejects invalid prices, quantities, discounts, and zero totals
+ok 182 - trusted confirmation rejects invalid prices, quantities, discounts, and zero totals
+  ---
+  duration_ms: 334.6362
+  type: 'test'
+  ...
+# Subtest: mixed catalog and custom invoice posts trusted totals without custom inventory
+ok 183 - mixed catalog and custom invoice posts trusted totals without custom inventory
+  ---
+  duration_ms: 460.9857
+  type: 'test'
+  ...
+# Subtest: sales rep invoice pricing ignores catalog price permission and posts inventory once
+ok 184 - sales rep invoice pricing ignores catalog price permission and posts inventory once
+  ---
+  duration_ms: 326.2622
+  type: 'test'
+  ...
+# Subtest: custom line return reverses finance and never creates stock IN
+ok 185 - custom line return reverses finance and never creates stock IN
+  ---
+  duration_ms: 235.5422
+  type: 'test'
+  ...
+# Subtest: receipt allocates across more than 250 outstanding invoices
+ok 186 - receipt allocates across more than 250 outstanding invoices
+  ---
+  duration_ms: 313.6263
+  type: 'test'
+  ...
+# Subtest: expenses post once and approval never overdrafts cash
+ok 187 - expenses post once and approval never overdrafts cash
+  ---
+  duration_ms: 3947.6301
+  type: 'test'
+  ...
+# Subtest: settlement is atomic, concurrency-safe, replay-safe, and balance checked
+ok 188 - settlement is atomic, concurrency-safe, replay-safe, and balance checked
+  ---
+  duration_ms: 3584.2837
+  type: 'test'
+  ...
+# Subtest: company cash opening balance is atomic, unique, replay-safe, and reconciled
+ok 189 - company cash opening balance is atomic, unique, replay-safe, and reconciled
+  ---
+  duration_ms: 3478.3031
+  type: 'test'
+  ...
+# Subtest: cash refund uses the original admin collection account, not assigned rep cash
+ok 190 - cash refund uses the original admin collection account, not assigned rep cash
+  ---
+  duration_ms: 432.2124
+  type: 'test'
+  ...
+1..190
+# tests 190
+# suites 0
+# pass 190
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 112905.7372

@@ -1,0 +1,218 @@
+TAP version 13
+# Subtest: representative sale deducts custody only, including replay after success
+ok 1 - representative sale deducts custody only, including replay after success
+  ---
+  duration_ms: 1016.5024
+  type: 'test'
+  ...
+# Subtest: duplicate transfer items are rejected without any stock effects
+not ok 2 - duplicate transfer items are rejected without any stock effects
+  ---
+  duration_ms: 102.7981
+  type: 'test'
+  location: 'C:\\src\\fatoora\\functions\\test\\inventory_financial_integrity.test.js:78:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async TestContext.<anonymous> (C:\src\fatoora\functions\test\inventory_financial_integrity.test.js:81:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: journal collision aborts the complete invoice instead of overwriting history
+not ok 3 - journal collision aborts the complete invoice instead of overwriting history
+  ---
+  duration_ms: 119.9816
+  type: 'test'
+  location: 'C:\\src\\fatoora\\functions\\test\\inventory_financial_integrity.test.js:87:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (C:\src\fatoora\functions\test\inventory_financial_integrity.test.js:91:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: invoice rejects another company's catalog stock
+not ok 4 - invoice rejects another company's catalog stock
+  ---
+  duration_ms: 125.0257
+  type: 'test'
+  location: 'C:\\src\\fatoora\\functions\\test\\inventory_financial_integrity.test.js:97:50'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async TestContext.<anonymous> (C:\src\fatoora\functions\test\inventory_financial_integrity.test.js:101:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: transfer rejects another company's catalog stock
+not ok 5 - transfer rejects another company's catalog stock
+  ---
+  duration_ms: 91.2058
+  type: 'test'
+  location: 'C:\\src\\fatoora\\functions\\test\\inventory_financial_integrity.test.js:97:50'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async TestContext.<anonymous> (C:\src\fatoora\functions\test\inventory_financial_integrity.test.js:101:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: malformed or mismatched custody is never silently replaced by a balance
+not ok 6 - malformed or mismatched custody is never silently replaced by a balance
+  ---
+  duration_ms: 125.5093
+  type: 'test'
+  location: 'C:\\src\\fatoora\\functions\\test\\inventory_financial_integrity.test.js:105:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async TestContext.<anonymous> (C:\src\fatoora\functions\test\inventory_financial_integrity.test.js:108:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: malformed cash balance fails closed without inventing cash
+not ok 7 - malformed cash balance fails closed without inventing cash
+  ---
+  duration_ms: 170.2284
+  type: 'test'
+  location: 'C:\\src\\fatoora\\functions\\test\\inventory_financial_integrity.test.js:112:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async TestContext.<anonymous> (C:\src\fatoora\functions\test\inventory_financial_integrity.test.js:115:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: split returns allocate the original amount exactly, including rounding residuals
+not ok 8 - split returns allocate the original amount exactly, including rounding residuals
+  ---
+  duration_ms: 464.4062
+  type: 'test'
+  location: 'C:\\src\\fatoora\\functions\\test\\inventory_financial_integrity.test.js:119:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    0.999 !== 0.998
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0.998
+  actual: 0.999
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (C:\src\fatoora\functions\test\inventory_financial_integrity.test.js:127:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: free tracked lines can be returned without zero-valued financial journals
+not ok 9 - free tracked lines can be returned without zero-valued financial journals
+  ---
+  duration_ms: 326.7006
+  type: 'test'
+  location: 'C:\\src\\fatoora\\functions\\test\\inventory_financial_integrity.test.js:131:1'
+  failureType: 'testCodeFailure'
+  error: 'Financial ledger amount must be positive.'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    buildFinancialLedgerEntry (C:\src\fatoora\functions\lib\trusted\financial_ledger.js:75:15)
+    buildSalesReturnFinancialLedgerEntries (C:\src\fatoora\functions\lib\trusted\financial_ledger_mappings.js:188:71)
+    C:\src\fatoora\functions\lib\trusted\confirm_sales_return.js:290:102
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Transaction.runTransactionOnce (C:\src\fatoora\functions\node_modules\@google-cloud\firestore\build\src\transaction.js:440:28)
+    async C:\src\fatoora\functions\node_modules\@google-cloud\firestore\build\src\transaction.js:412:28
+    async TestContext.<anonymous> (C:\src\fatoora\functions\test\inventory_financial_integrity.test.js:136:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: missing referenced sale movement prevents a return from silently skipping inventory
+not ok 10 - missing referenced sale movement prevents a return from silently skipping inventory
+  ---
+  duration_ms: 268.4653
+  type: 'test'
+  location: 'C:\\src\\fatoora\\functions\\test\\inventory_financial_integrity.test.js:143:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async TestContext.<anonymous> (C:\src\fatoora\functions\test\inventory_financial_integrity.test.js:148:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: item creation replay survives later stock movements
+not ok 11 - item creation replay survives later stock movements
+  ---
+  duration_ms: 170.5069
+  type: 'test'
+  location: 'C:\\src\\fatoora\\functions\\test\\inventory_financial_integrity.test.js:152:1'
+  failureType: 'testCodeFailure'
+  error: 'Idempotency key is already in use.'
+  code: 'already-exists'
+  stack: |-
+    C:\src\fatoora\functions\lib\trusted\inventory.js:38:23
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Transaction.runTransactionOnce (C:\src\fatoora\functions\node_modules\@google-cloud\firestore\build\src\transaction.js:440:28)
+    async C:\src\fatoora\functions\node_modules\@google-cloud\firestore\build\src\transaction.js:412:28
+    async TestContext.<anonymous> (C:\src\fatoora\functions\test\inventory_financial_integrity.test.js:160:17)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: delayed item reporting event uses current stock and current name
+not ok 12 - delayed item reporting event uses current stock and current name
+  ---
+  duration_ms: 27.7078
+  type: 'test'
+  location: 'C:\\src\\fatoora\\functions\\test\\inventory_financial_integrity.test.js:165:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    'ok' !== 'out'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'out'
+  actual: 'ok'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (C:\src\fatoora\functions\test\inventory_financial_integrity.test.js:171:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: representative cannot confirm a warehouse-sourced draft
+ok 13 - representative cannot confirm a warehouse-sourced draft
+  ---
+  duration_ms: 78.5211
+  type: 'test'
+  ...
+# Subtest: receipts and linked settlement conserve cash and receivables
+ok 14 - receipts and linked settlement conserve cash and receivables
+  ---
+  duration_ms: 612.5871
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 3
+# fail 11
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4097.8401

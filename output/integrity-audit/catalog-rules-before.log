@@ -1,0 +1,28 @@
+TAP version 13
+# [2026-11-02T09:26:47.082Z]  @firebase/firestore: Firestore (12.15.0): GrpcConnection RPC 'Write' stream 0x203494b7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L910:24 for 'update' @ L910, false for 'update' @ L1173, false for 'update' @ L910, false for 'update' @ L1173
+# Subtest: admin catalog edits remain allowed but inventory effects are server-owned
+not ok 1 - admin catalog edits remain allowed but inventory effects are server-owned
+  ---
+  duration_ms: 593.8618
+  type: 'test'
+  location: 'C:\\src\\fatoora\\functions\\test\\firestore.rules.test.js:1360:1'
+  failureType: 'testCodeFailure'
+  error: 'Expected request to fail, but it succeeded.'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    C:\src\fatoora\functions\node_modules\@firebase\rules-unit-testing\dist\index.cjs.js:580:31
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async TestContext.<anonymous> (C:\src\fatoora\functions\test\firestore.rules.test.js:1397:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 874.1611

@@ -1,3 +1,5 @@
+import 'package:fatoora/core/firebase/pending_posting_keys.dart';
+import 'package:fatoora/core/finance/exact_decimal.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -325,6 +327,7 @@ class SalesReturnRepository {
               createdAt: existing?.createdAt ?? DateTime.now(),
               updatedAt: DateTime.now(),
               existing: existing,
+              alreadyReturned: fallbackQuantities,
             );
             _validateAvailableQuantities(
               salesReturn: normalized,
@@ -358,17 +361,24 @@ class SalesReturnRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final companyId = _resolveCompanyId(salesReturn.companyId, user);
-      final idempotencyKey = _returns(companyId).doc().id;
+      final payload = <String, dynamic>{
+        'companyId': companyId,
+        'returnId': salesReturn.id.trim(),
+        'originalInvoiceId': salesReturn.originalInvoiceId,
+        'items': salesReturn.items.map((item) => item.toMap()).toList(),
+        'refundType': salesReturn.refundType.value,
+        'returnDate': salesReturn.returnDate.millisecondsSinceEpoch,
+        'reason': salesReturn.reason,
+      };
+      final idempotencyKey = await PendingPostingKeys.acquire(
+        'confirmSalesReturn',
+        user.uid,
+        payload,
+      );
       final result = await _trustedCallableClient
           .callAuthenticated<Map<String, dynamic>>('confirmSalesReturn', {
-            'companyId': companyId,
-            'returnId': salesReturn.id.trim(),
+            ...payload,
             'idempotencyKey': idempotencyKey,
-            'originalInvoiceId': salesReturn.originalInvoiceId,
-            'items': salesReturn.items.map((item) => item.toMap()).toList(),
-            'refundType': salesReturn.refundType.value,
-            'returnDate': salesReturn.returnDate.millisecondsSinceEpoch,
-            'reason': salesReturn.reason,
           })
           .timeout(const Duration(seconds: 30));
       final returnId = result.data['returnId'] as String?;
@@ -385,7 +395,14 @@ class SalesReturnRepository {
           SalesReturnRepositoryError.notFound,
         );
       }
-      return SalesReturnModel.fromFirestore(snapshot);
+      final posted = SalesReturnModel.fromFirestore(snapshot);
+      await PendingPostingKeys.complete(
+        'confirmSalesReturn',
+        user.uid,
+        payload,
+        idempotencyKey,
+      );
+      return posted;
     });
   }
 
@@ -479,6 +496,7 @@ class SalesReturnRepository {
     required DateTime createdAt,
     required DateTime updatedAt,
     SalesReturnModel? existing,
+    Map<String, double> alreadyReturned = const {},
   }) {
     if (originalInvoice.invoiceStatus != InvoiceStatus.confirmed ||
         originalInvoice.customerSnapshot == null ||
@@ -524,8 +542,19 @@ class SalesReturnRepository {
       final taxPercent = _round(
         invoiceItem.taxPercent.clamp(0, 100).toDouble(),
       );
-      final subtotal = _round(quantity * unitPrice);
-      final taxAmount = _round(subtotal * taxPercent / 100);
+      final prior = alreadyReturned[lineId] ?? 0;
+      double allocate(double amount) => _round(
+        ExactDecimal.prorate(
+              amount,
+              _round(prior + quantity),
+              invoiceItem.quantity,
+            ) -
+            ExactDecimal.prorate(amount, prior, invoiceItem.quantity),
+      );
+      final subtotal = allocate(
+        _round(invoiceItem.subtotal - invoiceItem.discount),
+      );
+      final taxAmount = allocate(invoiceItem.taxAmount);
       normalizedItems.add(
         SalesReturnItemModel(
           lineId: invoiceItem.lineId,
@@ -538,7 +567,7 @@ class SalesReturnRepository {
           returnedQuantity: quantity,
           unitPrice: unitPrice,
           discountPerUnit: discountPerUnit,
-          discountAmount: _round(quantity * discountPerUnit),
+          discountAmount: allocate(invoiceItem.discount),
           taxPercent: taxPercent,
           subtotal: subtotal,
           taxAmount: taxAmount,
@@ -560,7 +589,7 @@ class SalesReturnRepository {
       ),
     );
     final grandTotal = _round(subtotal + totalTax);
-    if (grandTotal <= 0) {
+    if (grandTotal < 0) {
       throw const SalesReturnRepositoryException(
         SalesReturnRepositoryError.invalidData,
       );

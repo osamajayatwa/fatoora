@@ -1,0 +1,442 @@
+{
+  "schemaVersion": 1,
+  "companyId": "default_company",
+  "fullHistory": true,
+  "status": "PASS",
+  "issues": [],
+  "warnings": [],
+  "checks": [
+    {
+      "code": "movement-equation",
+      "collection": "stock_movements",
+      "id": "item_integrity-create-item_opening_balance",
+      "expected": 5,
+      "actual": 5,
+      "pass": true
+    },
+    {
+      "code": "movement-equation",
+      "collection": "stock_movements",
+      "id": "item_lifecycle-item_opening_balance",
+      "expected": 20,
+      "actual": 20,
+      "pass": true
+    },
+    {
+      "code": "movement-equation",
+      "collection": "stock_movements",
+      "id": "life-delivery_item_lifecycle-item_warehouse",
+      "expected": 12,
+      "actual": 12,
+      "pass": true
+    },
+    {
+      "code": "movement-equation",
+      "collection": "stock_movements",
+      "id": "life-stock-return_item_lifecycle-item_warehouse",
+      "expected": 14,
+      "actual": 14,
+      "pass": true
+    },
+    {
+      "code": "movement-equation",
+      "collection": "stock_movements",
+      "id": "stock_adjustment_integrity-adjust-item",
+      "expected": 7,
+      "actual": 7,
+      "pass": true
+    },
+    {
+      "code": "movement-equation",
+      "collection": "rep_inventory_movements",
+      "id": "life-delivery_lifecycle-rep_item_lifecycle-item",
+      "expected": 8,
+      "actual": 8,
+      "pass": true
+    },
+    {
+      "code": "movement-equation",
+      "collection": "rep_inventory_movements",
+      "id": "life-return_line_0_lifecycle-rep_item_lifecycle-item_sales_return",
+      "expected": 6,
+      "actual": 6,
+      "pass": true
+    },
+    {
+      "code": "movement-equation",
+      "collection": "rep_inventory_movements",
+      "id": "life-sale_line_000_lifecycle-rep_item_lifecycle-item_invoice_sale",
+      "expected": 5,
+      "actual": 5,
+      "pass": true
+    },
+    {
+      "code": "movement-equation",
+      "collection": "rep_inventory_movements",
+      "id": "life-stock-return_lifecycle-rep_item_lifecycle-item",
+      "expected": 4,
+      "actual": 4,
+      "pass": true
+    },
+    {
+      "code": "movement-equation",
+      "collection": "cash_movements",
+      "id": "expense_life-fuel_cash_out",
+      "expected": 28,
+      "actual": 28,
+      "pass": true
+    },
+    {
+      "code": "movement-equation",
+      "collection": "cash_movements",
+      "id": "expense_life-office_cash_out",
+      "expected": 17,
+      "actual": 17,
+      "pass": true
+    },
+    {
+      "code": "movement-equation",
+      "collection": "cash_movements",
+      "id": "life-sale_cash",
+      "expected": 10,
+      "actual": 10,
+      "pass": true
+    },
+    {
+      "code": "movement-equation",
+      "collection": "cash_movements",
+      "id": "receipt_life-receipt_cash_in",
+      "expected": 30,
+      "actual": 30,
+      "pass": true
+    },
+    {
+      "code": "movement-equation",
+      "collection": "cash_movements",
+      "id": "settlement_life-settlement_company_in",
+      "expected": 20,
+      "actual": 20,
+      "pass": true
+    },
+    {
+      "code": "movement-equation",
+      "collection": "cash_movements",
+      "id": "settlement_life-settlement_rep_out",
+      "expected": 8,
+      "actual": 8,
+      "pass": true
+    },
+    {
+      "code": "balance-from-movements",
+      "collection": "items",
+      "id": "item_integrity-create-item",
+      "expected": 7,
+      "actual": 7,
+      "pass": true
+    },
+    {
+      "code": "warehouse-balance-from-movements",
+      "collection": "items",
+      "id": "item_integrity-create-item",
+      "expected": 7,
+      "actual": 7,
+      "pass": true
+    },
+    {
+      "code": "balance-from-movements",
+      "collection": "items",
+      "id": "item_lifecycle-item",
+      "expected": 14,
+      "actual": 14,
+      "pass": true
+    },
+    {
+      "code": "warehouse-balance-from-movements",
+      "collection": "items",
+      "id": "item_lifecycle-item",
+      "expected": 14,
+      "actual": 14,
+      "pass": true
+    },
+    {
+      "code": "balance-from-movements",
+      "collection": "rep_inventory_balances",
+      "id": "lifecycle-rep_item_lifecycle-item",
+      "expected": 4,
+      "actual": 4,
+      "pass": true
+    },
+    {
+      "code": "balance-from-movements",
+      "collection": "cash_balances",
+      "id": "company_cash",
+      "expected": 17,
+      "actual": 17,
+      "pass": true
+    },
+    {
+      "code": "balance-from-movements",
+      "collection": "cash_balances",
+      "id": "rep_lifecycle-rep",
+      "expected": 8,
+      "actual": 8,
+      "pass": true
+    },
+    {
+      "code": "initial-invoice-payment",
+      "collection": "invoices",
+      "id": "life-sale",
+      "expected": 10,
+      "actual": 10,
+      "pass": true
+    },
+    {
+      "code": "invoice-stock:item_lifecycle-item",
+      "collection": "invoices",
+      "id": "life-sale",
+      "expected": 3,
+      "actual": 3,
+      "pass": true
+    },
+    {
+      "code": "transfer-warehouse",
+      "collection": "inventory_transfers",
+      "id": "life-delivery",
+      "expected": -8,
+      "actual": -8,
+      "pass": true
+    },
+    {
+      "code": "transfer-custody",
+      "collection": "inventory_transfers",
+      "id": "life-delivery",
+      "expected": 8,
+      "actual": 8,
+      "pass": true
+    },
+    {
+      "code": "transfer-warehouse",
+      "collection": "inventory_transfers",
+      "id": "life-stock-return",
+      "expected": 2,
+      "actual": 2,
+      "pass": true
+    },
+    {
+      "code": "transfer-custody",
+      "collection": "inventory_transfers",
+      "id": "life-stock-return",
+      "expected": -2,
+      "actual": -2,
+      "pass": true
+    },
+    {
+      "code": "returned-stock",
+      "collection": "sales_returns",
+      "id": "life-return",
+      "expected": 1,
+      "actual": 1,
+      "pass": true
+    },
+    {
+      "code": "company-owned-stock",
+      "collection": "items",
+      "id": "item_integrity-create-item",
+      "expected": 7,
+      "actual": 7,
+      "pass": true
+    },
+    {
+      "code": "company-owned-stock",
+      "collection": "items",
+      "id": "item_lifecycle-item",
+      "expected": 18,
+      "actual": 18,
+      "pass": true
+    },
+    {
+      "code": "receivable-from-sources",
+      "collection": "customers",
+      "id": "life-customer",
+      "expected": -10,
+      "actual": -10,
+      "pass": true
+    },
+    {
+      "code": "customer-ledger-from-sources",
+      "collection": "customers",
+      "id": "life-customer",
+      "expected": -10,
+      "actual": -10,
+      "pass": true
+    },
+    {
+      "code": "general-ledger-receivable",
+      "collection": "customers",
+      "id": "life-customer",
+      "expected": -10,
+      "actual": -10,
+      "pass": true
+    },
+    {
+      "code": "receivable-from-sources",
+      "collection": "customers",
+      "id": "life-opening-customer",
+      "expected": 10,
+      "actual": 10,
+      "pass": true
+    },
+    {
+      "code": "customer-ledger-from-sources",
+      "collection": "customers",
+      "id": "life-opening-customer",
+      "expected": 10,
+      "actual": 10,
+      "pass": true
+    },
+    {
+      "code": "general-ledger-receivable",
+      "collection": "customers",
+      "id": "life-opening-customer",
+      "expected": 10,
+      "actual": 10,
+      "pass": true
+    },
+    {
+      "code": "cash-from-sources",
+      "collection": "cash_balances",
+      "id": "rep_lifecycle-rep",
+      "expected": 8,
+      "actual": 8,
+      "pass": true
+    },
+    {
+      "code": "general-ledger-cash",
+      "collection": "cash_balances",
+      "id": "rep_lifecycle-rep",
+      "expected": 8,
+      "actual": 8,
+      "pass": true
+    },
+    {
+      "code": "cash-from-sources",
+      "collection": "cash_balances",
+      "id": "company_cash",
+      "expected": 17,
+      "actual": 17,
+      "pass": true
+    },
+    {
+      "code": "general-ledger-cash",
+      "collection": "cash_balances",
+      "id": "company_cash",
+      "expected": 17,
+      "actual": 17,
+      "pass": true
+    },
+    {
+      "code": "report-metric:sales",
+      "collection": "financial_ledger_entries",
+      "id": "all",
+      "expected": 20,
+      "actual": 20,
+      "pass": true
+    },
+    {
+      "code": "report-metric:receipts",
+      "collection": "financial_ledger_entries",
+      "id": "all",
+      "expected": 20,
+      "actual": 20,
+      "pass": true
+    },
+    {
+      "code": "report-metric:returns",
+      "collection": "financial_ledger_entries",
+      "id": "all",
+      "expected": 10,
+      "actual": 10,
+      "pass": true
+    },
+    {
+      "code": "report-metric:expenses",
+      "collection": "financial_ledger_entries",
+      "id": "all",
+      "expected": 6,
+      "actual": 6,
+      "pass": true
+    },
+    {
+      "code": "report-metric:settlements",
+      "collection": "financial_ledger_entries",
+      "id": "all",
+      "expected": 20,
+      "actual": 20,
+      "pass": true
+    },
+    {
+      "code": "export-metric:sales",
+      "collection": "reports",
+      "id": "sales",
+      "expected": 20,
+      "actual": 20,
+      "pass": true
+    },
+    {
+      "code": "export-metric:receipts",
+      "collection": "reports",
+      "id": "receipts",
+      "expected": 20,
+      "actual": 20,
+      "pass": true
+    },
+    {
+      "code": "export-metric:returns",
+      "collection": "reports",
+      "id": "returns",
+      "expected": 10,
+      "actual": 10,
+      "pass": true
+    },
+    {
+      "code": "export-metric:expenses",
+      "collection": "reports",
+      "id": "expenses",
+      "expected": 6,
+      "actual": 6,
+      "pass": true
+    },
+    {
+      "code": "export-metric:settlements",
+      "collection": "reports",
+      "id": "settlements",
+      "expected": 20,
+      "actual": 20,
+      "pass": true
+    }
+  ],
+  "totals": {
+    "sales": 20,
+    "receipts": 20,
+    "returns": 10,
+    "expenses": 6,
+    "settlements": 20
+  },
+  "recordCounts": {
+    "items": 2,
+    "invoices": 1,
+    "inventory_transfers": 2,
+    "sales_returns": 1,
+    "stock_movements": 5,
+    "rep_inventory_movements": 4,
+    "rep_inventory_balances": 1,
+    "customers": 2,
+    "customer_transactions": 7,
+    "receipts": 2,
+    "expenses": 3,
+    "settlements": 1,
+    "cash_movements": 6,
+    "cash_balances": 2,
+    "financial_ledger_entries": 11
+  }
+}

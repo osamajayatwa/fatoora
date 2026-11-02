@@ -2276,6 +2276,9 @@ test("cash refund uses the original admin collection account, not assigned rep c
     companyId,
     itemId: "return-item",
     sourceLineId: `${invoiceId}_line_000`,
+    direction: "out",
+    referenceId: invoiceId,
+    quantity: 1,
   });
   await db.doc(`companies/${companyId}/invoices/${invoiceId}`).set({
     id: invoiceId,

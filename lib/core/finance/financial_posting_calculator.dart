@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:fatoora/core/finance/exact_decimal.dart';
 
 enum FinancialPaymentState { unpaid, partiallyPaid, paid }
 
@@ -97,6 +98,6 @@ class FinancialPostingCalculator {
 
   static double _round(double value) {
     if (!value.isFinite) return 0;
-    return (value * 1000).roundToDouble() / 1000;
+    return ExactDecimal.round(value);
   }
 }

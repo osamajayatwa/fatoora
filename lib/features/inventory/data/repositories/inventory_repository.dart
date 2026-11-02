@@ -1,3 +1,4 @@
+import 'package:fatoora/core/firebase/pending_posting_keys.dart';
 import 'dart:async';
 
 import 'package:cloud_functions/cloud_functions.dart';
@@ -234,17 +235,30 @@ class InventoryRepository {
         );
       }
       final movementType = _normalizeAdjustmentType(adjustmentType);
-      final idempotencyKey = _stockMovements(resolvedCompanyId).doc().id;
+      final payload = <String, dynamic>{
+        'companyId': resolvedCompanyId,
+        'itemId': itemId.trim(),
+        'adjustmentType': movementType,
+        'quantity': roundedQuantity,
+        'notes': notes.trim(),
+      };
+      final idempotencyKey = await PendingPostingKeys.acquire(
+        'adjustStock',
+        user.uid,
+        payload,
+      );
       await _trustedCallableClient
           .callAuthenticated<Map<String, dynamic>>('adjustStock', {
-            'companyId': resolvedCompanyId,
+            ...payload,
             'idempotencyKey': idempotencyKey,
-            'itemId': itemId.trim(),
-            'adjustmentType': movementType,
-            'quantity': roundedQuantity,
-            'notes': notes.trim(),
           })
           .timeout(const Duration(seconds: 30));
+      await PendingPostingKeys.complete(
+        'adjustStock',
+        user.uid,
+        payload,
+        idempotencyKey,
+      );
     });
   }
 

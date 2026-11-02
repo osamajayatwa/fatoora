@@ -1,3 +1,4 @@
+import 'package:fatoora/core/firebase/pending_posting_keys.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -489,18 +490,31 @@ class FinancialRepository {
           FinancialRepositoryError.permissionDenied,
         );
       }
-      final idempotencyKey = _cashMovements(resolvedCompanyId).doc().id;
+      final payload = <String, dynamic>{
+        'companyId': resolvedCompanyId,
+        'salesRepId': salesRepId,
+        'salesRepName': salesRepName,
+        'amount': amount,
+        'settlementDate': settlementDate.millisecondsSinceEpoch,
+        'notes': notes,
+      };
+      final idempotencyKey = await PendingPostingKeys.acquire(
+        'recordCashSettlement',
+        user.uid,
+        payload,
+      );
       await _trustedCallableClient
           .callAuthenticated<void>('recordCashSettlement', {
-            'companyId': resolvedCompanyId,
+            ...payload,
             'idempotencyKey': idempotencyKey,
-            'salesRepId': salesRepId,
-            'salesRepName': salesRepName,
-            'amount': amount,
-            'settlementDate': settlementDate.millisecondsSinceEpoch,
-            'notes': notes,
           })
           .timeout(const Duration(seconds: 30));
+      await PendingPostingKeys.complete(
+        'recordCashSettlement',
+        user.uid,
+        payload,
+        idempotencyKey,
+      );
     });
   }
 

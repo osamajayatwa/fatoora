@@ -1,4 +1,5 @@
 import {DocumentData, Timestamp} from "firebase-admin/firestore";
+import {roundMoney} from "./common";
 import {
   buildFinancialLedgerEntry,
   cashAccount,
@@ -283,7 +284,7 @@ export interface SalesReturnLedgerMappingInput {
 export function buildSalesReturnFinancialLedgerEntries(
   input: SalesReturnLedgerMappingInput,
 ): DocumentData[] {
-  const entries = [buildFinancialLedgerEntry({
+  const entries = input.grandTotal > 0 ? [buildFinancialLedgerEntry({
     id: `sales_return_${input.returnId}_reversal`,
     companyId: input.companyId,
     occurredAt: input.returnDate,
@@ -311,7 +312,7 @@ export function buildSalesReturnFinancialLedgerEntries(
       returns: input.grandTotal,
       receivables: -input.grandTotal,
     },
-  })];
+  })] : [];
   if (input.cashRefundAmount > 0) {
     entries.push(buildFinancialLedgerEntry({
       id: `sales_return_${input.returnId}_cash_refund`,
@@ -481,10 +482,6 @@ export function buildCompanyCashOpeningFinancialLedgerEntry(
     notes: input.notes,
     metrics: {companyCashNet: input.amount},
   });
-}
-
-function roundMoney(value: number): number {
-  return Math.round(value * 1000) / 1000;
 }
 
 function scalarString(value: unknown): string {

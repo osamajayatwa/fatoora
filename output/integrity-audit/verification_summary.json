@@ -1,0 +1,106 @@
+{
+  "auditDate": "2026-11-02",
+  "timezone": "Asia/Amman",
+  "repository": "C:/src/fatoora",
+  "environment": "local Firestore emulator v1.19.8; JBR 21; synthetic projects only",
+  "finalTests": {
+    "backend": {
+      "tests": 223,
+      "passed": 223,
+      "failed": 0,
+      "skipped": 0
+    },
+    "flutter": {
+      "tests": 423,
+      "passed": 423,
+      "failed": 0,
+      "skipped": 0
+    },
+    "combinedTests": 646
+  },
+  "baselineTests": {
+    "backendPassed": 190,
+    "flutterPassed": 411
+  },
+  "beforeFixEvidence": {
+    "initialSuite": {
+      "tests": 14,
+      "passed": 3,
+      "failed": 11
+    },
+    "additionalExpectedFailures": {
+      "disabledTracking": 1,
+      "catalogPolicy": 1,
+      "decimalMidpoint": 1,
+      "missingCustodyProjection": 1,
+      "returnHistoryAndRounding": 2
+    }
+  },
+  "independentSyntheticReconciliation": {
+    "status": "PASS",
+    "comparisons": 51,
+    "discrepancies": 0,
+    "warnings": 0,
+    "recordCounts": {
+      "items": 2,
+      "invoices": 1,
+      "inventory_transfers": 2,
+      "sales_returns": 1,
+      "stock_movements": 5,
+      "rep_inventory_movements": 4,
+      "rep_inventory_balances": 1,
+      "customers": 2,
+      "customer_transactions": 7,
+      "receipts": 2,
+      "expenses": 3,
+      "settlements": 1,
+      "cash_movements": 6,
+      "cash_balances": 2,
+      "financial_ledger_entries": 11
+    },
+    "totals": {
+      "sales": 20,
+      "receipts": 20,
+      "returns": 10,
+      "expenses": 6,
+      "settlements": 20
+    }
+  },
+  "gates": {
+    "typescriptBuild": "PASS",
+    "flutterAnalysis": "PASS",
+    "releaseWebBuildWithTestEnvironment": "PASS",
+    "offlineReconciliationCLI": "PASS",
+    "historicalProductionVerification": "BLOCKED",
+    "completeFinancialSystemAcceptance": "FAIL_INCOMPLETE"
+  },
+  "production": {
+    "readsPerformed": false,
+    "writesPerformed": false,
+    "deploymentPerformed": false,
+    "repairPerformed": false
+  },
+  "commitsCreated": false,
+  "referenceRepositoryModified": false,
+  "manualHistoricalReconciliationRequired": true,
+  "report": "docs/audits/inventory_financial_integrity_audit.md",
+  "sha256": {
+    "node-baseline.log": "0f5544291e4aad4648cd1a5f2f2bd8b3138a1d87a3a5c9afea36588f1eca8608",
+    "flutter-regression.log": "af076f4fbd92e485aac57e87ab5747b1e8c13ed0293d5b1f87e592879f3db94b",
+    "integrity-before.log": "6fa7135ce12a6f9e162fb7251ebcad1f315b8db3437072a67dff4d6cc8900b2f",
+    "tracking-before.log": "5c2a724468dab94281ebff033a07711beef72996c19783b025ca20bac2412f72",
+    "catalog-rules-before.log": "7bee354c2b07b5fe3389bf16d336ed2209a46d35bcc659d6521d8251532b733b",
+    "decimal-before.log": "30fb02b598ce74c86fd688505360a58b2afb219bd14bb9f4bd0b56e1ea8b627f",
+    "missing-custody-before.log": "22aa91deb74c0be93abaadb339d98bf334faaa5ea511bab5f2d8b776928d23bf",
+    "legacy-return-before.log": "336702dd3fa25346afe69132335108d42a67e7d2aa46999a83cb670d7e56582c",
+    "node-final.log": "174cf16459f88509deb1d9dd08758f499cb99f913ee43fb7cd84a74faf54a65c",
+    "flutter-final.log": "8895b5545492f1ceae50bee8c0f56c4035df608678b7aeba1943e96e305b7e5f",
+    "flutter-analyze-final.log": "b6d4f5c7f5e4eaea81bbb1a87e7495762d0cf4e0d73af6d90f28eef0606ddff3",
+    "flutter-web-build.log": "147abcb21d1f70eac2edcee235a954ec904549454197b6fc9a9f79c69b2078de",
+    "synthetic-lifecycle-snapshot.json": "b580dbaee3facc26fb85777c6c6fe252df0c1737844b3ae002e936dc878580f7",
+    "synthetic-lifecycle-reconciliation.json": "d114bd175b9cd514eb0495073b2759b3fd857cbc29ee85b6128f3649c36f39e2",
+    "historical_scope_status.json": "24077417c833019d9b9c87c32d0317934591e96e77bb8be904cdfd00e828d06e",
+    "README.md": "9642d7219ada945268ae71a2ae441c6435555621cca7e3b8d264fa93a9a04f9b",
+    "auditReport": "5ae7f884fd227de60acea64a25e2d9d9da3fceac398b2ecd89b6ae7bb0ad8600"
+  }
+}

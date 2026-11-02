@@ -1,3 +1,4 @@
+import 'package:fatoora/core/firebase/pending_posting_keys.dart';
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -104,13 +105,6 @@ class ItemRepository {
   CollectionReference<Map<String, dynamic>> get _items =>
       _firestore.collection('items');
 
-  CollectionReference<Map<String, dynamic>> _stockMovements(String companyId) {
-    return _firestore
-        .collection('companies')
-        .doc(companyId)
-        .collection('stock_movements');
-  }
-
   Future<List<ItemModel>> fetchItems() async {
     return _run(() async {
       await _contextReader.requireApprovedUser();
@@ -205,32 +199,45 @@ class ItemRepository {
         minStock: inventory.minStock,
         costPrice: cost,
       );
-      final document = _items.doc();
+      final payload = <String, dynamic>{
+        'companyId': user.companyId,
+        'name': name,
+        'code': code,
+        'description': description,
+        'unit': unit,
+        'price': price,
+        'taxRate': taxRate,
+        'active': active,
+        'currentStock': inventory.currentStock,
+        'openingStock': inventory.openingStock,
+        'minStock': inventory.minStock,
+        'trackStock': trackStock,
+        'costPrice': cost,
+        'barcode': barcode,
+        'category': category,
+        'warehouseId': _warehouseId(warehouseId),
+      };
+      final idempotencyKey = await PendingPostingKeys.acquire(
+        'createItem',
+        user.uid,
+        payload,
+      );
       final result = await _trustedCallableClient
           .callAuthenticated<Map<String, dynamic>>('createItem', {
-            'companyId': user.companyId,
-            'idempotencyKey': document.id,
-            'name': name,
-            'code': code,
-            'description': description,
-            'unit': unit,
-            'price': price,
-            'taxRate': taxRate,
-            'active': active,
-            'currentStock': inventory.currentStock,
-            'openingStock': inventory.openingStock,
-            'minStock': inventory.minStock,
-            'trackStock': trackStock,
-            'costPrice': cost,
-            'barcode': barcode,
-            'category': category,
-            'warehouseId': _warehouseId(warehouseId),
+            ...payload,
+            'idempotencyKey': idempotencyKey,
           })
           .timeout(const Duration(seconds: 30));
       final itemId = result.data['itemId'] as String?;
       if (itemId == null || itemId.isEmpty) {
         throw const ItemRepositoryException(ItemRepositoryError.invalidData);
       }
+      await PendingPostingKeys.complete(
+        'createItem',
+        user.uid,
+        payload,
+        idempotencyKey,
+      );
       return itemId;
     });
   }
@@ -253,7 +260,7 @@ class ItemRepository {
     String? category,
     String warehouseId = ItemModel.defaultWarehouseId,
   }) => _run(() async {
-    final user = await _requireAdmin();
+    await _requireAdmin();
     final stock = _round(currentStock);
     final opening = _round(openingStock);
     final minimum = _round(minStock);
@@ -276,16 +283,13 @@ class ItemRepository {
             throw const ItemRepositoryException(ItemRepositoryError.notFound);
           }
           final resolvedWarehouseId = _warehouseId(warehouseId);
-          final beforeStock = existing.currentStock;
-          final stockChanged = (stock - beforeStock).abs() >= 0.001;
-          if (stockChanged && (!existing.trackStock || !trackStock)) {
+          if (trackStock != existing.trackStock ||
+              resolvedWarehouseId != existing.warehouseId) {
             throw const ItemRepositoryException(
               ItemRepositoryError.invalidData,
             );
           }
-          final movementRef = stockChanged
-              ? _stockMovements(user.companyId).doc()
-              : null;
+          // Preserve live server-owned quantities when saving catalog metadata.
           transaction.update(document, {
             'name': name.trim(),
             'code': code.trim(),
@@ -295,49 +299,11 @@ class ItemRepository {
             'taxRate': taxRate,
             'active': active,
             'updatedAt': FieldValue.serverTimestamp(),
-            'currentStock': stock,
-            'openingStock': opening,
             'minStock': minimum,
-            'trackStock': trackStock,
             'costPrice': cost,
             'barcode': _optionalText(barcode),
             'category': _optionalText(category),
-            'warehouseId': resolvedWarehouseId,
-            if (stockChanged)
-              'inventoryUpdatedAt': FieldValue.serverTimestamp(),
-            if (movementRef != null) ...{
-              'lastInventoryReferenceType': 'itemCorrection',
-              'lastInventoryReferenceId': existing.id,
-              'lastStockMovementId': movementRef.id,
-            },
           });
-          if (movementRef != null) {
-            final diff = _round(stock - beforeStock);
-            transaction.set(
-              movementRef,
-              _stockMovementData(
-                id: movementRef.id,
-                companyId: user.companyId,
-                warehouseId: resolvedWarehouseId,
-                itemId: existing.id,
-                itemName: name.trim(),
-                itemCode: code.trim(),
-                movementType: 'correction',
-                direction: diff >= 0 ? 'in' : 'out',
-                quantity: diff.abs(),
-                quantityBefore: beforeStock,
-                quantityAfter: stock,
-                referenceType: 'item',
-                referenceId: existing.id,
-                referenceNumber: code.trim(),
-                movementDate: DateTime.now(),
-                notes: 'Item stock correction',
-                createdByUid: user.uid,
-                createdByName: user.name,
-                createdByRole: user.role,
-              ),
-            );
-          }
         })
         .timeout(const Duration(seconds: 20));
   });
@@ -384,51 +350,6 @@ class ItemRepository {
   String? _optionalText(String? value) {
     final text = value?.trim() ?? '';
     return text.isEmpty ? null : text;
-  }
-
-  Map<String, dynamic> _stockMovementData({
-    required String id,
-    required String companyId,
-    required String warehouseId,
-    required String itemId,
-    required String itemName,
-    required String itemCode,
-    required String movementType,
-    required String direction,
-    required double quantity,
-    required double quantityBefore,
-    required double quantityAfter,
-    required String referenceType,
-    required String referenceId,
-    required String referenceNumber,
-    required DateTime movementDate,
-    required String notes,
-    required String createdByUid,
-    required String createdByName,
-    required String createdByRole,
-  }) {
-    return {
-      'id': id,
-      'companyId': companyId,
-      'warehouseId': warehouseId,
-      'itemId': itemId,
-      'itemName': itemName,
-      'itemCode': itemCode,
-      'movementType': movementType,
-      'direction': direction,
-      'quantity': quantity,
-      'quantityBefore': quantityBefore,
-      'quantityAfter': quantityAfter,
-      'referenceType': referenceType,
-      'referenceId': referenceId,
-      'referenceNumber': referenceNumber,
-      'movementDate': Timestamp.fromDate(movementDate),
-      'notes': notes,
-      'createdByUid': createdByUid,
-      'createdByName': createdByName,
-      'createdByRole': createdByRole,
-      'createdAt': FieldValue.serverTimestamp(),
-    };
   }
 
   double _round(double value) {

@@ -338,6 +338,73 @@ void main() {
     },
   );
 
+  for (final locale in [const Locale('en'), const Locale('ar')]) {
+    for (final width in [320.0, 1366.0]) {
+      testWidgets(
+        'existing inventory metadata is locked ${locale.languageCode} ${width}px',
+        (tester) async {
+          await tester.binding.setSurfaceSize(Size(width, 800));
+          addTearDown(() => tester.binding.setSurfaceSize(null));
+          final fields = _Fields();
+          addTearDown(fields.dispose);
+          await tester.pumpWidget(
+            _app(
+              locale: locale,
+              scale: width == 320 ? 2 : 1,
+              child: Scaffold(
+                body: SingleChildScrollView(
+                  child: fields.form(
+                    GlobalKey<FormState>(),
+                    tracked: true,
+                    saving: false,
+                    locked: true,
+                    onTrack: (_) => fail('Existing tracking must stay locked'),
+                  ),
+                ),
+              ),
+            ),
+          );
+          final toggle = tester.widget<Switch>(
+            find.descendant(
+              of: find.byKey(const ValueKey('item-track-switch')),
+              matching: find.byType(Switch),
+            ),
+          );
+          expect(toggle.onChanged, isNull);
+          for (final key in [
+            'item-current-stock-field',
+            'item-opening-stock-field',
+            'item-warehouse-field',
+          ]) {
+            expect(
+              tester
+                  .widget<TextField>(
+                    find.descendant(
+                      of: find.byKey(ValueKey(key)),
+                      matching: find.byType(TextField),
+                    ),
+                  )
+                  .readOnly,
+              isTrue,
+            );
+          }
+          expect(
+            tester
+                .widget<TextField>(
+                  find.descendant(
+                    of: find.byKey(const ValueKey('item-price-field')),
+                    matching: find.byType(TextField),
+                  ),
+                )
+                .readOnly,
+            isFalse,
+          );
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+
   testWidgets('picker shows description and excludes warehouse stock for rep', (
     tester,
   ) async {
@@ -659,6 +726,7 @@ class _Fields {
     required bool tracked,
     required bool saving,
     required ValueChanged<bool> onTrack,
+    bool locked = false,
   }) => ItemForm(
     formKey: key,
     nameController: name,
@@ -681,6 +749,7 @@ class _Fields {
     onSubmit: () {},
     submitLabel: 'Save',
     loading: saving,
+    inventoryLocked: locked,
   );
 
   void dispose() {

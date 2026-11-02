@@ -6,6 +6,7 @@ import {
   getFirestore,
 } from "firebase-admin/firestore";
 import {HttpsError, onCall} from "firebase-functions/v2/https";
+import {requireNewCustodyBalance} from "./custody";
 import {
   TRUSTED_CALLABLE_OPTIONS,
   businessPath,
@@ -172,6 +173,7 @@ export async function confirmInventoryTransferTransaction(
           "Inventory transfer has existing posting records.",
         );
       }
+      if (!balanceSnapshot.exists) await requireNewCustodyBalance(transaction, firestore, companyId, salesRepId, line.itemId);
       preparedLines.push({
         ...line,
         item: itemSnapshot.data() ?? {},
@@ -189,6 +191,7 @@ export async function confirmInventoryTransferTransaction(
       const item = line.item;
       if (
         item.id !== line.itemId ||
+        (optionalString(item.companyId) && item.companyId !== companyId) ||
         item.deleted === true ||
         item.active !== true ||
         item.trackStock !== true
@@ -345,13 +348,14 @@ function validateLines(rawLines: unknown[]): TransferLine[] {
   return rawLines.map((value, index) => {
     const data = record(value);
     const itemId = requiredDocumentId(data.itemId, `lines[${index}].itemId`);
-    if (!itemIds.add(itemId)) {
+    if (itemIds.has(itemId)) {
       throw new HttpsError(
         "invalid-argument",
         "Inventory transfer contains a duplicate item.",
         {reason: "duplicate-item"},
       );
     }
+    itemIds.add(itemId);
     if (typeof data.quantity !== "number" || !Number.isFinite(data.quantity)) {
       throw new HttpsError(
         "invalid-argument",

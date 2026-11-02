@@ -1,0 +1,22 @@
+{
+  "status": "BLOCKED",
+  "auditDate": "2026-11-02",
+  "timezone": "Asia/Amman",
+  "projectFromRepositoryConfiguration": "fatoora-6b192",
+  "productionReadsPerformed": false,
+  "productionWritesPerformed": false,
+  "reportedRepresentative": "Jihad",
+  "reportedInvoiceId": null,
+  "verifiedHistoricalRootCause": null,
+  "affectedHistoricalRecords": null,
+  "reason": "Automatic approval review rejected the proposed read-only lookup because explicit approval for the sensitive production data scope is required.",
+  "requestedReadScope": {
+    "identifyRepresentativeFromProfiles": true,
+    "maximumRepresentativeInvoices": 200,
+    "maximumRepresentativeCustodyBalances": 500,
+    "maximumRepresentativeCustodyMovements": 1000,
+    "writesAllowed": false
+  },
+  "manualHistoricalReconciliationRequired": true,
+  "repairPolicy": "Do not infer repairs from fixtures. Identify exact source records, reconstruct complete history, and obtain approval for compensating transactions separately."
+}

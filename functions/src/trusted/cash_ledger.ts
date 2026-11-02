@@ -6,7 +6,7 @@ import {
   Transaction,
 } from "firebase-admin/firestore";
 import {HttpsError} from "firebase-functions/v2/https";
-import {numberFrom, roundMoney} from "./common";
+import {roundMoney} from "./common";
 
 export type CashAccount = "company_cash" | "rep_cash";
 
@@ -51,7 +51,10 @@ export async function readCashBalance(
     if (data.cashAccount !== account || (data.salesRepId ?? "") !== salesRepId) {
       throw new HttpsError("data-loss", "Cash balance identity is inconsistent.");
     }
-    return {ref, amount: roundMoney(numberFrom(data, "amount")), account, salesRepId};
+    if (typeof data.amount !== "number" || !Number.isFinite(data.amount)) {
+      throw new HttpsError("data-loss", "Cash balance amount is invalid; reconcile before posting.");
+    }
+    return {ref, amount: roundMoney(data.amount), account, salesRepId};
   }
 
   let query = firestore

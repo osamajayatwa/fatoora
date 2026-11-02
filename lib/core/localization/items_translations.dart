@@ -1,4 +1,6 @@
 const Map<String, String> itemsEnglishTranslations = {
+  'items_inventory_locked':
+      'Use Inventory adjustments to change stock. Tracking and warehouse are fixed for existing items.',
   'items_title': 'Items',
   'items_add': 'Add item',
   'items_edit': 'Edit item',
@@ -73,6 +75,8 @@ const Map<String, String> itemsEnglishTranslations = {
 };
 
 const Map<String, String> itemsArabicTranslations = {
+  'items_inventory_locked':
+      'استخدم تسويات المخزون لتغيير الكميات. لا يمكن تغيير تتبع المخزون والمستودع للأصناف الحالية.',
   'items_title': 'الأصناف',
   'items_add': 'إضافة صنف',
   'items_edit': 'تعديل الصنف',

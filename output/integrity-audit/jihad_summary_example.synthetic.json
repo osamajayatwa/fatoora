@@ -1,0 +1,40 @@
+{
+  "formatVersion": 1,
+  "runId": "52a454442a209fab846aa65f",
+  "environment": "SYNTHETIC_EMULATOR",
+  "status": "PASS",
+  "readTime": "2026-11-02T12:17:38.951150Z",
+  "stage": "complete",
+  "invoiceCount": 1,
+  "recordsReturned": 26,
+  "missingDocuments": 0,
+  "uniqueScopedRecordCounts": {
+    "invoices": 1,
+    "rep_inventory_movements": 4,
+    "rep_inventory_balances": 1,
+    "inventory_transfers": 2,
+    "sales_returns": 1,
+    "stock_movements": 2,
+    "items": 1,
+    "audit_events": 1,
+    "receipts": 1,
+    "customers": 1,
+    "customer_transactions": 4,
+    "cash_movements": 2,
+    "financial_ledger_entries": 4
+  },
+  "coverage": {
+    "inventory": "COMPLETE_WITHIN_BOUNDED_RECORDED_HISTORY",
+    "associatedFinance": "COMPLETE_WITHIN_APPROVED_SOURCES",
+    "customerReceivables": "COMPLETE_WITHIN_APPROVED_SOURCES",
+    "globalWarehouseClosing": "OUTSIDE_APPROVED_SCOPE",
+    "companyAndRepCashClosing": "OUTSIDE_APPROVED_SCOPE"
+  },
+  "comparisons": 62,
+  "findingCountsByCode": {},
+  "blockerCountsByCode": {},
+  "auditRecordCount": 1,
+  "productionWritesPerformed": false,
+  "rawExportsWritten": false,
+  "localFixDeployment": "NOT_QUERIED_OR_ASSUMED"
+}

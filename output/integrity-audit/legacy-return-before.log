@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: legacy return rounding discrepancy blocks further posting without compensating silently
+not ok 1 - legacy return rounding discrepancy blocks further posting without compensating silently
+  ---
+  duration_ms: 2503.6644
+  type: 'test'
+  location: 'C:\\src\\fatoora\\functions\\test\\inventory_financial_integrity.test.js:247:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async TestContext.<anonymous> (C:\src\fatoora\functions\test\inventory_financial_integrity.test.js:255:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: incomplete returned-quantity projection cannot permit an over-return
+not ok 2 - incomplete returned-quantity projection cannot permit an over-return
+  ---
+  duration_ms: 562.9366
+  type: 'test'
+  location: 'C:\\src\\fatoora\\functions\\test\\inventory_financial_integrity.test.js:260:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async TestContext.<anonymous> (C:\src\fatoora\functions\test\inventory_financial_integrity.test.js:264:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 0
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3527.5984

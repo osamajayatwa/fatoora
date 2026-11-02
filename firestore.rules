@@ -377,8 +377,8 @@ service cloud.firestore {
       return isAdmin('default_company')
         && changed.hasOnly([
           'name', 'code', 'description', 'unit', 'price', 'taxRate',
-          'active', 'minStock', 'trackStock', 'costPrice', 'barcode',
-          'category', 'warehouseId', 'deleted', 'updatedAt'
+          'active', 'minStock', 'costPrice', 'barcode',
+          'category', 'deleted', 'updatedAt'
         ])
         && data.name is string
         && data.name.size() > 0
@@ -558,7 +558,7 @@ service cloud.firestore {
         && data.totalTax is number
         && data.totalTax >= 0
         && data.grandTotal is number
-        && data.grandTotal > 0
+        && data.grandTotal >= 0
         && data.refundType in ['credit_customer_balance', 'cash_refund']
         && data.returnDate is timestamp
         && data.reason is string
@@ -614,7 +614,7 @@ service cloud.firestore {
         && data.subtotal >= 0
         && data.totalDiscount >= 0
         && data.totalTax >= 0
-        && data.grandTotal > 0
+        && data.grandTotal >= 0
         && data.refundType in ['credit_customer_balance', 'cash_refund']
         && data.reason is string
         && data.reason.size() > 0

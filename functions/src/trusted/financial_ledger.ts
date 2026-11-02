@@ -195,7 +195,9 @@ export function writeFinancialLedgerEntries(
     const id = String(entry.id ?? "");
     const companyId = String(entry.companyId ?? "");
     if (!id || !companyId) throw new Error("Financial ledger identity is required.");
-    transaction.set(
+    // A pre-existing row with a new/unposted source is a reconciliation error.
+    // Create preconditions abort every business/stock/cash write in this commit.
+    transaction.create(
       firestore.doc(businessPath(companyId, "financial_ledger_entries", id)),
       entry,
     );

@@ -1,0 +1,413 @@
+00:00 +0: loading C:/src/fatoora/test/accessible_customer_query_test.dart
+00:00 +0: C:/src/fatoora/test/accessible_customer_query_test.dart: mixed customer pages preserve server order and forward the opaque cursor
+00:00 +1: C:/src/fatoora/test/accessible_customer_query_test.dart: receivable page keeps server totals and balance cursor without local filtering
+00:00 +2: C:/src/fatoora/test/accessible_customer_query_test.dart: empty pages terminate and unrelated callable errors propagate
+00:00 +3: C:/src/fatoora/test/accessible_customer_query_test.dart: malformed continuation cannot cause an infinite picker/export loop
+00:01 +4: C:/src/fatoora/test/adaptive_business_shell_test.dart: More destinations are scoped to effective role permissions
+00:01 +5: C:/src/fatoora/test/adaptive_business_shell_test.dart: admin mobile shell exposes persistent primary navigation
+00:01 +6: C:/src/fatoora/test/add_customer_return_flow_test.dart: customer list creation continues to customer details
+00:02 +7: C:/src/fatoora/test/add_customer_return_flow_test.dart: customer list creation continues to customer details
+00:02 +8: C:/src/fatoora/test/add_customer_return_flow_test.dart: customer list creation continues to customer details
+00:02 +9: C:/src/fatoora/test/add_customer_return_flow_test.dart: customer list creation continues to customer details
+00:02 +10: C:/src/fatoora/test/admin_utility_phase14_test.dart: Audit 320px 2x keeps compact filter and complete event card
+00:02 +11: C:/src/fatoora/test/admin_utility_phase14_test.dart: Audit 320px 2x keeps compact filter and complete event card
+00:02 +12: C:/src/fatoora/test/admin_utility_phase14_test.dart: Audit 320px 2x keeps compact filter and complete event card
+00:02 +13: C:/src/fatoora/test/admin_utility_phase14_test.dart: Audit 320px 2x keeps compact filter and complete event card
+00:02 +14: C:/src/fatoora/test/admin_utility_phase14_test.dart: Audit 320px 2x keeps compact filter and complete event card
+00:02 +15: C:/src/fatoora/test/admin_utility_phase14_test.dart: Audit 320px 2x keeps compact filter and complete event card
+00:03 +16: C:/src/fatoora/test/app_pdf_assets_test.dart: Cairo shapes every Arabic letter in context (false)
+00:03 +17: C:/src/fatoora/test/app_pdf_assets_test.dart: Cairo shapes every Arabic letter in context (false)
+00:03 +18: C:/src/fatoora/test/app_pdf_assets_test.dart: Cairo shapes every Arabic letter in context (false)
+00:03 +19: C:/src/fatoora/test/app_pdf_assets_test.dart: Cairo shapes every Arabic letter in context (false)
+00:03 +20: C:/src/fatoora/test/admin_utility_phase14_test.dart: Audit filter sheet and RTL do not overflow
+00:03 +21: C:/src/fatoora/test/admin_utility_phase14_test.dart: Audit filter sheet and RTL do not overflow
+00:03 +22: C:/src/fatoora/test/admin_utility_phase14_test.dart: Audit filter sheet and RTL do not overflow
+00:03 +23: C:/src/fatoora/test/admin_utility_phase14_test.dart: Audit filter sheet and RTL do not overflow
+00:03 +24: C:/src/fatoora/test/app_pdf_assets_test.dart: Cairo shapes every Arabic letter in context (true)
+00:03 +25: C:/src/fatoora/test/app_pdf_assets_test.dart: Cairo shapes every Arabic letter in context (true)
+00:03 +26: C:/src/fatoora/test/admin_utility_phase14_test.dart: Pending Users desktop keeps table and actions
+00:03 +27: C:/src/fatoora/test/admin_utility_phase14_test.dart: Pending Users desktop keeps table and actions
+00:03 +28: C:/src/fatoora/test/admin_utility_phase14_test.dart: Pending Users desktop keeps table and actions
+00:03 +29: C:/src/fatoora/test/admin_utility_phase14_test.dart: Pending Users desktop keeps table and actions
+00:03 +30: C:/src/fatoora/test/admin_utility_phase14_test.dart: Pending Users desktop keeps table and actions
+00:05 +31: C:/src/fatoora/test/audit_log_foundation_test.dart: audit route is protected by the admin middleware
+00:05 +32: C:/src/fatoora/test/audit_log_foundation_test.dart: audit UI and emitted action codes are localized in both languages
+00:05 +33: C:/src/fatoora/test/business_pdf_configuration_test.dart: PDF defaults preserve the existing company identity and visibility
+00:05 +34: C:/src/fatoora/test/business_pdf_configuration_test.dart: PDF visibility combines company and PDF settings safely
+00:05 +35: C:/src/fatoora/test/business_pdf_configuration_test.dart: PDF notes preserve document, personal, and company defaults
+00:05 +36: C:/src/fatoora/test/business_pdf_configuration_test.dart: PDF localization can force Arabic or English
+00:05 +37: C:/src/fatoora/test/business_permission_resolver_test.dart: missing-settings defaults preserve current sales-rep behavior
+00:05 +38: C:/src/fatoora/test/business_permission_resolver_test.dart: sales-rep customer creation can be disabled
+00:05 +39: C:/src/fatoora/test/business_permission_resolver_test.dart: legacy toggle cannot disable sales-rep receipt creation
+00:05 +40: C:/src/fatoora/test/business_permission_resolver_test.dart: legacy toggle cannot disable sales-rep return creation
+00:05 +41: C:/src/fatoora/test/business_permission_resolver_test.dart: legacy toggle cannot disable sales-rep quotation creation
+00:05 +42: C:/src/fatoora/test/business_permission_resolver_test.dart: legacy toggles cannot restrict sales-rep prices or discounts
+00:05 +43: C:/src/fatoora/test/business_permission_resolver_test.dart: admin remains allowed when every sales-rep toggle is disabled
+00:05 +44: C:/src/fatoora/test/business_permission_resolver_test.dart: pending and inactive users receive no business permissions
+00:06 +45: C:/src/fatoora/test/business_settings_defaults_test.dart: document numbering defaults falls back to legacy prefixes when settings are missing or invalid
+00:06 +46: C:/src/fatoora/test/business_settings_defaults_test.dart: document numbering defaults formats configured prefixes without changing the counter sequence
+00:06 +47: C:/src/fatoora/test/business_settings_defaults_test.dart: document numbering defaults invoice number preview uses the configured invoice prefix
+00:06 +48: C:/src/fatoora/test/business_settings_defaults_test.dart: new document defaults applies invoice due days only when positive
+00:06 +49: C:/src/fatoora/test/business_settings_defaults_test.dart: new document defaults default tax fills a missing value but preserves existing item tax
+00:06 +50: C:/src/fatoora/test/business_settings_defaults_test.dart: new document defaults personal note prefills only an empty new form
+00:06 +51: C:/src/fatoora/test/business_settings_defaults_test.dart: new document defaults inventory defaults retain safe non-negative fallbacks
+00:06 +52: C:/src/fatoora/test/cash_ledger_calculator_test.dart: company cash company cash opening balance increases only company cash
+00:06 +53: C:/src/fatoora/test/cash_ledger_calculator_test.dart: company cash admin cash invoice increases company cash only
+00:06 +54: C:/src/fatoora/test/cash_ledger_calculator_test.dart: company cash explicit company cash account is counted as company cash
+00:06 +55: C:/src/fatoora/test/cash_ledger_calculator_test.dart: company cash admin cash receipt increases company cash only
+00:06 +56: C:/src/fatoora/test/cash_ledger_calculator_test.dart: company cash company/admin cash refund decreases company cash
+00:06 +57: C:/src/fatoora/test/cash_ledger_calculator_test.dart: sales rep outstanding cash rep cash invoice increases rep outstanding only
+00:06 +58: C:/src/fatoora/test/cash_ledger_calculator_test.dart: sales rep outstanding cash rep partial invoice and cash receipt increase rep outstanding
+00:06 +59: C:/src/fatoora/test/cash_ledger_calculator_test.dart: sales rep outstanding cash rep-paid cash refund decreases rep outstanding
+00:06 +60: C:/src/fatoora/test/cash_ledger_calculator_test.dart: settlement transfer rep settlement decreases rep outstanding and increases company cash
+00:06 +61: C:/src/fatoora/test/cash_ledger_calculator_test.dart: settlement transfer dashboard totals and per-rep outstanding stay separated
+00:06 +62: C:/src/fatoora/test/cash_ledger_calculator_test.dart: settlement transfer two-record settlement transfers rep cash into company cash
+00:06 +63: C:/src/fatoora/test/cash_ledger_calculator_test.dart: expenses company cash expense decreases company cash
+00:06 +64: C:/src/fatoora/test/cash_ledger_calculator_test.dart: expenses rep collected-cash expense decreases rep outstanding cash
+00:06 +65: C:/src/fatoora/test/cash_ledger_calculator_test.dart: expenses personal-cash expense has no cash movement effect
+00:06 +66: C:/src/fatoora/test/cash_ledger_calculator_test.dart: return kept as customer credit has no cash movement effect
+00:06 +67: C:/src/fatoora/test/cash_ledger_calculator_test.dart: cash totals remain complete beyond the former report caps
+00:07 +68: C:/src/fatoora/test/cash_movement_index_manifest_test.dart: cash total aggregates have unfiltered admin and rep indexes
+00:07 +69: C:/src/fatoora/test/cash_phase11_test.dart: only verified settlement sides are paired
+00:07 +70: C:/src/fatoora/test/cash_phase11_test.dart: Admin 320px sees both settlement sides and separate balances
+00:08 +71: C:/src/fatoora/test/cash_phase11_test.dart: Admin 320px sees both settlement sides and separate balances
+00:08 +72: C:/src/fatoora/test/cash_phase11_test.dart: Admin 320px sees both settlement sides and separate balances
+00:08 +73: C:/src/fatoora/test/cash_phase11_test.dart: Admin 320px sees both settlement sides and separate balances
+00:08 +74: C:/src/fatoora/test/cash_phase11_test.dart: Rep 320px only sees own cash view and textual OUT
+00:08 +75: C:/src/fatoora/test/cash_phase11_test.dart: Admin desktop table keeps direction, account and reference
+00:08 +76: C:/src/fatoora/test/cash_phase11_test.dart: Admin desktop table keeps direction, account and reference
+00:08 +77: C:/src/fatoora/test/cash_phase11_test.dart: Admin desktop table keeps direction, account and reference
+00:08 +78: C:/src/fatoora/test/custody_search_test.dart: custody multi-word search follows 450ms/minimum, Enter and clear
+00:08 +79: C:/src/fatoora/test/cash_phase11_test.dart: Load More failure remains retryable inline
+00:08 +80: C:/src/fatoora/test/cash_phase11_test.dart: Load More failure remains retryable inline
+00:09 +81: C:/src/fatoora/test/cash_phase11_test.dart: Load More failure remains retryable inline
+00:09 +82: C:/src/fatoora/test/customer_assignment_test.dart: assignment overrides creator; legacy fallback and serialization preserve original history
+00:09 +83: C:/src/fatoora/test/customer_assignment_test.dart: stale assignment conflict has a dedicated translated error
+00:09 +84: C:/src/fatoora/test/customer_assignment_test.dart: Admin en confirms current/new assignees and reason without changing creator/balances
+00:10 +85: C:/src/fatoora/test/customer_assignment_test.dart: Admin en confirms current/new assignees and reason without changing creator/balances
+00:10 +86: C:/src/fatoora/test/customer_assignment_test.dart: Admin en confirms current/new assignees and reason without changing creator/balances
+00:10 +87: C:/src/fatoora/test/customer_assignment_test.dart: Admin en confirms current/new assignees and reason without changing creator/balances
+00:10 +88: C:/src/fatoora/test/customer_assignment_test.dart: Admin en confirms current/new assignees and reason without changing creator/balances
+00:10 +89: C:/src/fatoora/test/customer_assignment_test.dart: Admin en confirms current/new assignees and reason without changing creator/balances
+00:10 +90: C:/src/fatoora/test/customer_opening_balance_dialog_test.dart: successful save closes the opening balance dialog exactly once
+00:10 +91: C:/src/fatoora/test/customer_opening_balance_dialog_test.dart: successful save closes the opening balance dialog exactly once
+00:10 +92: C:/src/fatoora/test/customer_opening_balance_dialog_test.dart: successful save closes the opening balance dialog exactly once
+00:10 +93: C:/src/fatoora/test/customer_assignment_test.dart: Admin ar confirms current/new assignees and reason without changing creator/balances
+00:11 +94: C:/src/fatoora/test/customer_assignment_test.dart: Admin ar confirms current/new assignees and reason without changing creator/balances
+00:11 +95: C:/src/fatoora/test/customer_phase5_test.dart: balance badges explain due, credit, and zero without signs
+00:11 +96: C:/src/fatoora/test/customer_phase5_test.dart: balance badges explain due, credit, and zero without signs
+00:11 +97: C:/src/fatoora/test/customer_phase5_test.dart: balance badges explain due, credit, and zero without signs
+00:11 +98: C:/src/fatoora/test/customer_assignment_test.dart: dismissed reassignment confirmation performs no mutation
+00:11 +99: C:/src/fatoora/test/customer_assignment_test.dart: dismissed reassignment confirmation performs no mutation
+00:11 +100: C:/src/fatoora/test/customer_phase5_test.dart: Admin customer cards show creator and open details
+00:11 +101: C:/src/fatoora/test/customer_phase5_test.dart: Admin customer cards show creator and open details
+00:11 +102: C:/src/fatoora/test/customer_phase5_test.dart: Admin customer cards show creator and open details
+00:11 +103: C:/src/fatoora/test/customer_statement_phase12_test.dart: 320px 2x statement uses transaction cards and balance label
+00:11 +104: C:/src/fatoora/test/customer_statement_phase12_test.dart: 320px 2x statement uses transaction cards and balance label
+00:11 +105: C:/src/fatoora/test/customer_statement_phase12_test.dart: 320px 2x statement uses transaction cards and balance label
+00:11 +106: C:/src/fatoora/test/customer_statement_phase12_test.dart: 320px 2x statement uses transaction cards and balance label
+00:11 +107: C:/src/fatoora/test/customer_statement_phase12_test.dart: 320px 2x statement uses transaction cards and balance label
+00:11 +108: C:/src/fatoora/test/customer_statement_phase12_test.dart: 320px 2x statement uses transaction cards and balance label
+00:11 +109: C:/src/fatoora/test/customer_statement_phase12_test.dart: 320px 2x statement uses transaction cards and balance label
+00:11 +110: C:/src/fatoora/test/customer_statement_phase12_test.dart: 320px 2x statement uses transaction cards and balance label
+00:11 +111: C:/src/fatoora/test/customer_statement_phase12_test.dart: 320px 2x statement uses transaction cards and balance label
+00:11 +112: C:/src/fatoora/test/customer_statement_phase12_test.dart: 320px 2x statement uses transaction cards and balance label
+00:12 +113: C:/src/fatoora/test/customer_statement_phase12_test.dart: 320px 2x statement uses transaction cards and balance label
+00:12 +114: C:/src/fatoora/test/customer_phase5_test.dart: customer list is overflow-safe at 1366.0px en 1.0x
+00:12 +115: C:/src/fatoora/test/customer_phase5_test.dart: customer list is overflow-safe at 1366.0px en 1.0x
+00:12 +116: C:/src/fatoora/test/customer_statement_phase12_test.dart: desktop statement keeps dense table and PDF action
+00:12 +117: C:/src/fatoora/test/customer_statement_phase12_test.dart: desktop statement keeps dense table and PDF action
+00:12 +118: C:/src/fatoora/test/customer_statement_phase12_test.dart: desktop statement keeps dense table and PDF action
+00:12 +119: C:/src/fatoora/test/customer_statement_phase12_test.dart: desktop statement keeps dense table and PDF action
+00:12 +120: C:/src/fatoora/test/customer_statement_phase12_test.dart: desktop statement keeps dense table and PDF action
+00:12 +121: C:/src/fatoora/test/customer_phase5_test.dart: desktop table row opens existing customer details callback
+00:12 +122: C:/src/fatoora/test/custom_invoice_line_test.dart: desktop permissions keep quantity editable and protect catalog price and discount
+00:12 +123: C:/src/fatoora/test/custom_invoice_line_test.dart: desktop permissions keep quantity editable and protect catalog price and discount
+00:12 +124: C:/src/fatoora/test/custom_invoice_line_test.dart: desktop permissions keep quantity editable and protect catalog price and discount
+00:12 +125: C:/src/fatoora/test/custom_invoice_line_test.dart: desktop permissions keep quantity editable and protect catalog price and discount
+00:12 +126: C:/src/fatoora/test/custom_invoice_line_test.dart: desktop permissions keep quantity editable and protect catalog price and discount
+00:12 +127: C:/src/fatoora/test/custom_invoice_line_test.dart: desktop permissions keep quantity editable and protect catalog price and discount
+00:12 +128: C:/src/fatoora/test/custom_invoice_line_test.dart: desktop permissions keep quantity editable and protect catalog price and discount
+00:12 +129: C:/src/fatoora/test/custom_invoice_line_test.dart: desktop permissions keep quantity editable and protect catalog price and discount
+00:13 +130: C:/src/fatoora/test/custom_invoice_line_test.dart: desktop permissions keep quantity editable and protect catalog price and discount
+00:13 +131: C:/src/fatoora/test/custom_invoice_line_test.dart: desktop custom line price remains editable without catalog price permission
+00:13 +132: C:/src/fatoora/test/custom_invoice_line_test.dart: desktop catalog price is editable when invoice enables it
+00:13 +133: C:/src/fatoora/test/custom_invoice_line_test.dart: custom line editor requires name and description and returns financial fields
+00:13 +134: C:/src/fatoora/test/dashboard_phase2_test.dart: admin KPI is compact, tappable, and has no fake trend
+00:13 +135: C:/src/fatoora/test/custom_invoice_line_test.dart: custom line editor accepts a zero unit price
+00:13 +136: C:/src/fatoora/test/expenses_phase10_test.dart: rep expense card distinguishes personal cash at 320px 2x
+00:13 +137: C:/src/fatoora/test/expenses_phase10_test.dart: rep expense card distinguishes personal cash at 320px 2x
+00:14 +138: C:/src/fatoora/test/expenses_phase10_test.dart: rep expense card distinguishes personal cash at 320px 2x
+00:14 +139: C:/src/fatoora/test/expenses_phase10_test.dart: rep expense card distinguishes personal cash at 320px 2x
+00:14 +140: C:/src/fatoora/test/expenses_phase10_test.dart: rep expense card distinguishes personal cash at 320px 2x
+00:14 +141: C:/src/fatoora/test/expenses_phase10_test.dart: rep expense card distinguishes personal cash at 320px 2x
+00:14 +142: C:/src/fatoora/test/expenses_phase10_test.dart: rep expense card distinguishes personal cash at 320px 2x
+00:14 +143: C:/src/fatoora/test/financial_ledger_phase13_test.dart: 320px 2x ledger keeps compact filters and entry card
+00:14 +144: C:/src/fatoora/test/financial_ledger_phase13_test.dart: 320px 2x ledger keeps compact filters and entry card
+00:14 +145: C:/src/fatoora/test/financial_ledger_phase13_test.dart: 320px 2x ledger keeps compact filters and entry card
+00:14 +146: C:/src/fatoora/test/financial_ledger_phase13_test.dart: 320px 2x ledger keeps compact filters and entry card
+00:14 +147: C:/src/fatoora/test/financial_ledger_phase13_test.dart: 320px 2x ledger keeps compact filters and entry card
+00:14 +148: C:/src/fatoora/test/financial_ledger_phase13_test.dart: 320px 2x ledger keeps compact filters and entry card
+00:14 +149: C:/src/fatoora/test/financial_ledger_phase13_test.dart: 320px 2x ledger keeps compact filters and entry card
+00:14 +150: C:/src/fatoora/test/financial_ledger_phase13_test.dart: 320px 2x ledger keeps compact filters and entry card
+00:15 +151: C:/src/fatoora/test/financial_ledger_phase13_test.dart: 320px 2x ledger keeps compact filters and entry card
+00:15 +152: C:/src/fatoora/test/financial_ledger_phase13_test.dart: 320px 2x ledger keeps compact filters and entry card
+00:15 +153: C:/src/fatoora/test/financial_ledger_phase13_test.dart: 320px 2x ledger keeps compact filters and entry card
+00:15 +154: C:/src/fatoora/test/financial_ledger_phase13_test.dart: 320px 2x ledger keeps compact filters and entry card
+00:15 +155: C:/src/fatoora/test/financial_ledger_phase13_test.dart: 320px 2x ledger keeps compact filters and entry card
+00:15 +156: C:/src/fatoora/test/financial_ledger_phase13_test.dart: 320px 2x ledger keeps compact filters and entry card
+00:15 +157: C:/src/fatoora/test/financial_ledger_phase13_test.dart: 320px 2x ledger keeps compact filters and entry card
+00:15 +158: C:/src/fatoora/test/financial_ledger_phase13_test.dart: 320px 2x ledger keeps compact filters and entry card
+00:15 +159: C:/src/fatoora/test/financial_ledger_phase13_test.dart: 320px 2x ledger keeps compact filters and entry card
+00:15 +160: C:/src/fatoora/test/expenses_phase10_test.dart: filter sheet applies one server query and chips remove filters
+00:15 +161: C:/src/fatoora/test/expenses_phase10_test.dart: filter sheet applies one server query and chips remove filters
+00:15 +162: C:/src/fatoora/test/financial_ledger_phase13_test.dart: filter sheet preserves server filter set and applies once
+00:15 +163: C:/src/fatoora/test/financial_ledger_phase13_test.dart: filter sheet preserves server filter set and applies once
+00:15 +164: C:/src/fatoora/test/financial_ledger_phase13_test.dart: filter sheet preserves server filter set and applies once
+00:15 +165: C:/src/fatoora/test/financial_ledger_phase13_test.dart: filter sheet preserves server filter set and applies once
+00:15 +166: C:/src/fatoora/test/financial_ledger_phase13_test.dart: filter sheet preserves server filter set and applies once
+00:15 +167: C:/src/fatoora/test/financial_ledger_phase13_test.dart: filter sheet preserves server filter set and applies once
+00:15 +168: C:/src/fatoora/test/financial_ledger_phase13_test.dart: filter sheet preserves server filter set and applies once
+00:15 +169: C:/src/fatoora/test/financial_ledger_phase13_test.dart: filter sheet preserves server filter set and applies once
+00:15 +170: C:/src/fatoora/test/financial_ledger_phase13_test.dart: filter sheet preserves server filter set and applies once
+00:15 +171: C:/src/fatoora/test/financial_ledger_phase13_test.dart: filter sheet preserves server filter set and applies once
+00:15 +172: C:/src/fatoora/test/financial_ledger_phase13_test.dart: filter sheet preserves server filter set and applies once
+00:15 +173: C:/src/fatoora/test/expenses_phase10_test.dart: rep form explains personal cash and guards saving
+00:15 +174: C:/src/fatoora/test/financial_ledger_phase13_test.dart: desktop table retains all ledger columns
+00:16 +175: C:/src/fatoora/test/financial_ledger_phase13_test.dart: desktop table retains all ledger columns
+00:16 +176: C:/src/fatoora/test/financial_ledger_phase13_test.dart: desktop table retains all ledger columns
+00:16 +177: C:/src/fatoora/test/financial_ledger_phase13_test.dart: desktop table retains all ledger columns
+00:16 +178: C:/src/fatoora/test/financial_ledger_phase13_test.dart: desktop table retains all ledger columns
+00:16 +179: C:/src/fatoora/test/financial_ledger_phase13_test.dart: desktop table retains all ledger columns
+00:16 +180: C:/src/fatoora/test/financial_ledger_phase13_test.dart: desktop table retains all ledger columns
+00:16 +181: C:/src/fatoora/test/financial_ledger_phase13_test.dart: desktop table retains all ledger columns
+00:16 +182: C:/src/fatoora/test/financial_ledger_phase13_test.dart: desktop table retains all ledger columns
+00:16 +183: C:/src/fatoora/test/financial_ledger_phase13_test.dart: Load More failure is inline and retry appends
+00:16 +184: C:/src/fatoora/test/inventory_phase4_test.dart: Admin item query uses the existing 36-record cursor convention
+00:16 +185: C:/src/fatoora/test/inventory_phase4_test.dart: Admin search and sort stay server-backed and discard stale results
+00:16 +186: C:/src/fatoora/test/inventory_phase4_test.dart: Sales Representative inventory requests only the signed-in rep scope
+00:16 +187: C:/src/fatoora/test/inventory_phase4_test.dart: warehouse cards show real quantity, unit, minimum, and statuses
+00:17 +188: C:/src/fatoora/test/invoices_list_responsive_test.dart: invoice list uses cards at narrow mobile width
+00:17 +189: C:/src/fatoora/test/invoices_list_responsive_test.dart: invoice list uses cards at narrow mobile width
+00:17 +190: C:/src/fatoora/test/invoices_list_responsive_test.dart: invoice list uses cards at narrow mobile width
+00:17 +191: C:/src/fatoora/test/invoices_list_responsive_test.dart: invoice list uses cards at narrow mobile width
+00:17 +192: C:/src/fatoora/test/invoices_list_responsive_test.dart: invoice list uses cards at narrow mobile width
+00:17 +193: C:/src/fatoora/test/invoices_list_responsive_test.dart: invoice list uses cards at narrow mobile width
+00:17 +194: C:/src/fatoora/test/invoice_actions_menu_test.dart: invoice menu exposes a disabled tax conversion in en
+00:18 +195: C:/src/fatoora/test/invoice_actions_menu_test.dart: invoice menu exposes a disabled tax conversion in en
+00:18 +196: C:/src/fatoora/test/invoice_actions_menu_test.dart: invoice menu exposes a disabled tax conversion in en
+00:18 +197: C:/src/fatoora/test/invoice_filter_option_picker_test.dart: filter option search debounces, requires two chars, and submits
+00:18 +198: C:/src/fatoora/test/invoice_filter_option_picker_test.dart: filter option search debounces, requires two chars, and submits
+00:18 +199: C:/src/fatoora/test/invoice_filter_option_picker_test.dart: filter option search debounces, requires two chars, and submits
+00:18 +200: C:/src/fatoora/test/invoice_filter_option_picker_test.dart: filter option search debounces, requires two chars, and submits
+00:18 +201: C:/src/fatoora/test/invoice_filter_option_picker_test.dart: filter option search debounces, requires two chars, and submits
+00:18 +202: C:/src/fatoora/test/invoice_filter_option_picker_test.dart: filter option search debounces, requires two chars, and submits
+00:18 +203: C:/src/fatoora/test/invoice_filter_option_picker_test.dart: filter option search debounces, requires two chars, and submits
+00:18 +204: C:/src/fatoora/test/invoice_filter_option_picker_test.dart: filter option search debounces, requires two chars, and submits
+00:18 +205: C:/src/fatoora/test/invoice_filter_option_picker_test.dart: filter option search debounces, requires two chars, and submits
+00:18 +206: C:/src/fatoora/test/invoice_filter_option_picker_test.dart: filter option search debounces, requires two chars, and submits
+00:18 +207: C:/src/fatoora/test/invoice_filter_option_picker_test.dart: filter option search debounces, requires two chars, and submits
+00:18 +208: C:/src/fatoora/test/invoice_filter_option_picker_test.dart: filter option search debounces, requires two chars, and submits
+00:18 +209: C:/src/fatoora/test/invoice_list_query_contract_test.dart: create invoice opens the form directly as a regular invoice
+00:18 +210: C:/src/fatoora/test/invoice_list_query_contract_test.dart: create invoice opens the form directly as a regular invoice
+00:18 +211: C:/src/fatoora/test/invoice_list_query_contract_test.dart: create invoice opens the form directly as a regular invoice
+00:18 +212: C:/src/fatoora/test/invoices_list_responsive_test.dart: invoice list keeps actions visible at 1366 web width
+00:18 +213: C:/src/fatoora/test/invoices_list_responsive_test.dart: invoice list keeps actions visible at 1366 web width
+00:18 +214: C:/src/fatoora/test/invoices_list_responsive_test.dart: invoice list keeps actions visible at 1366 web width
+00:19 +215: C:/src/fatoora/test/invoices_list_responsive_test.dart: invoice list keeps actions visible at 1366 web width
+00:19 +216: C:/src/fatoora/test/invoices_list_responsive_test.dart: invoice table supports Arabic customer names without overflow
+00:19 +217: C:/src/fatoora/test/invoices_list_responsive_test.dart: mobile uses compact controls and exposes every relevant filter
+00:19 +218: C:/src/fatoora/test/invoice_pdf_layout_test.dart: English one-item invoice fits on one page without QR
+00:19 +219: C:/src/fatoora/test/invoices_list_responsive_test.dart: admin sees sales representative filters and card metadata
+00:19 +220: C:/src/fatoora/test/invoice_pdf_layout_test.dart: Arabic one-item electronic invoice fits on one page with QR
+00:19 +221: C:/src/fatoora/test/invoice_pdf_layout_test.dart: Arabic one-item electronic invoice fits on one page with QR
+00:19 +222: C:/src/fatoora/test/invoices_list_responsive_test.dart: active filters can be removed individually or cleared together
+00:19 +223: C:/src/fatoora/test/invoices_list_responsive_test.dart: active filters can be removed individually or cleared together
+00:20 +224: C:/src/fatoora/test/invoice_pdf_layout_test.dart: Arabic customer names fit on invoices in ar
+00:20 +225: C:/src/fatoora/test/invoice_stock_error_test.dart: sales_rep/ar shortage shows translated snackbar and retries the same intact draft
+00:20 +226: C:/src/fatoora/test/invoice_stock_error_test.dart: sales_rep/ar shortage shows translated snackbar and retries the same intact draft
+00:20 +227: C:/src/fatoora/test/invoice_stock_error_test.dart: sales_rep/ar shortage shows translated snackbar and retries the same intact draft
+00:20 +228: C:/src/fatoora/test/invoice_stock_error_test.dart: sales_rep/ar shortage shows translated snackbar and retries the same intact draft
+00:20 +229: C:/src/fatoora/test/invoice_stock_error_test.dart: sales_rep/ar shortage shows translated snackbar and retries the same intact draft
+00:20 +230: C:/src/fatoora/test/invoices_list_responsive_test.dart: filter sheet reset applies through authoritative controller state
+00:20 +231: C:/src/fatoora/test/invoices_list_responsive_test.dart: filter sheet reset applies through authoritative controller state
+00:20 +232: C:/src/fatoora/test/invoices_list_responsive_test.dart: filter sheet reset applies through authoritative controller state
+00:20 +233: C:/src/fatoora/test/invoices_list_responsive_test.dart: filter sheet reset applies through authoritative controller state
+00:20 +234: C:/src/fatoora/test/invoices_list_responsive_test.dart: filter sheet reset applies through authoritative controller state
+00:20 +235: C:/src/fatoora/test/invoices_list_responsive_test.dart: filter sheet reset applies through authoritative controller state
+00:20 +236: C:/src/fatoora/test/invoices_list_responsive_test.dart: filter sheet reset applies through authoritative controller state
+00:20 +237: C:/src/fatoora/test/invoices_list_responsive_test.dart: filter sheet reset applies through authoritative controller state
+00:20 +238: C:/src/fatoora/test/invoices_list_responsive_test.dart: filter sheet reset applies through authoritative controller state
+00:20 +239: C:/src/fatoora/test/item_phase6_test.dart: compact cards show description, price and truthful stock
+00:20 +240: C:/src/fatoora/test/item_phase6_test.dart: compact cards show description, price and truthful stock
+00:20 +241: C:/src/fatoora/test/item_phase6_test.dart: compact cards show description, price and truthful stock
+00:20 +242: C:/src/fatoora/test/item_phase6_test.dart: compact cards show description, price and truthful stock
+00:20 +243: C:/src/fatoora/test/invoices_list_responsive_test.dart: normal and filtered empty states remain distinct
+00:21 +244: C:/src/fatoora/test/item_phase6_test.dart: Items layout 320.0px en 2.0x
+00:21 +245: C:/src/fatoora/test/item_phase6_test.dart: Items layout 320.0px en 2.0x
+00:21 +246: C:/src/fatoora/test/item_phase6_test.dart: Items layout 320.0px en 2.0x
+00:21 +247: C:/src/fatoora/test/item_phase6_test.dart: Items layout 320.0px en 2.0x
+00:21 +248: C:/src/fatoora/test/invoices_list_responsive_test.dart: tablet keeps the compact card workflow without overflow
+00:21 +249: C:/src/fatoora/test/item_phase6_test.dart: Items layout 320.0px ar 2.0x
+00:21 +250: C:/src/fatoora/test/invoices_list_responsive_test.dart: mobile card and desktop row open existing invoice details
+00:21 +251: C:/src/fatoora/test/invoices_list_responsive_test.dart: mobile card and desktop row open existing invoice details
+00:21 +252: C:/src/fatoora/test/invoices_list_responsive_test.dart: mobile card and desktop row open existing invoice details
+00:21 +253: C:/src/fatoora/test/invoices_list_responsive_test.dart: mobile card and desktop row open existing invoice details
+00:21 +254: C:/src/fatoora/test/invoices_list_responsive_test.dart: mobile card and desktop row open existing invoice details
+00:21 +255: C:/src/fatoora/test/invoices_list_responsive_test.dart: mobile card and desktop row open existing invoice details
+00:21 +256: C:/src/fatoora/test/item_phase6_test.dart: Items layout 1366.0px en 1.0x
+00:21 +257: C:/src/fatoora/test/item_phase6_test.dart: card and desktop row open Item Details
+00:22 +258: C:/src/fatoora/test/item_phase6_test.dart: card and desktop row open Item Details
+00:22 +259: C:/src/fatoora/test/motion_system_test.dart: surface motion is omitted when animations are disabled
+00:22 +260: C:/src/fatoora/test/motion_system_test.dart: surface motion is omitted when animations are disabled
+00:22 +261: C:/src/fatoora/test/item_phase6_test.dart: sort sheet keeps all four server sort choices
+00:22 +262: C:/src/fatoora/test/item_phase6_test.dart: sort sheet keeps all four server sort choices
+00:22 +263: C:/src/fatoora/test/item_phase6_test.dart: sort sheet keeps all four server sort choices
+00:22 +264: C:/src/fatoora/test/item_phase6_test.dart: sort sheet keeps all four server sort choices
+00:22 +265: C:/src/fatoora/test/item_phase6_test.dart: sort sheet keeps all four server sort choices
+00:22 +266: C:/src/fatoora/test/item_phase6_test.dart: sort sheet keeps all four server sort choices
+00:22 +267: C:/src/fatoora/test/item_phase6_test.dart: sort sheet keeps all four server sort choices
+00:22 +268: C:/src/fatoora/test/item_phase6_test.dart: sort sheet keeps all four server sort choices
+00:22 +269: C:/src/fatoora/test/item_phase6_test.dart: sort sheet keeps all four server sort choices
+00:22 +270: C:/src/fatoora/test/item_phase6_test.dart: sort sheet keeps all four server sort choices
+00:22 +271: C:/src/fatoora/test/item_phase6_test.dart: sort sheet keeps all four server sort choices
+00:22 +272: C:/src/fatoora/test/item_phase6_test.dart: sort sheet keeps all four server sort choices
+00:22 +273: C:/src/fatoora/test/motion_system_test.dart: obsolete Lottie integration stays removed
+00:22 +274: C:/src/fatoora/test/item_phase6_test.dart: details keep full description and hide untracked quantities
+00:22 +275: C:/src/fatoora/test/item_phase6_test.dart: shared form keeps required description and stock values when disabled
+00:22 +276: C:/src/fatoora/test/item_phase6_test.dart: picker shows description and excludes warehouse stock for rep
+00:23 +277: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen is scroll-safe at 320px with 2x Arabic text
+00:23 +278: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen is scroll-safe at 320px with 2x Arabic text
+00:23 +279: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen is scroll-safe at 320px with 2x Arabic text
+00:23 +280: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen is scroll-safe at 320px with 2x Arabic text
+00:23 +281: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen is scroll-safe at 320px with 2x Arabic text
+00:23 +282: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen is scroll-safe at 320px with 2x Arabic text
+00:23 +283: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen is scroll-safe at 320px with 2x Arabic text
+00:23 +284: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen is scroll-safe at 320px with 2x Arabic text
+00:23 +285: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen is scroll-safe at 320px with 2x Arabic text
+00:23 +286: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen is scroll-safe at 320px with 2x Arabic text
+00:23 +287: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen is scroll-safe at 320px with 2x Arabic text
+00:23 +288: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen is scroll-safe at 320px with 2x Arabic text
+00:23 +289: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen is scroll-safe at 320px with 2x Arabic text
+00:23 +290: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen is scroll-safe at 320px with 2x Arabic text
+00:23 +291: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen is scroll-safe at 320px with 2x Arabic text
+00:23 +292: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen is scroll-safe at 320px with 2x Arabic text
+00:23 +293: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen is scroll-safe at 320px with 2x Arabic text
+00:23 +294: C:/src/fatoora/test/operational_report_test.dart: Workbook contains exactly the four required formatted sheets
+00:23 +295: C:/src/fatoora/test/operational_report_test.dart: Workbook contains exactly the four required formatted sheets
+00:23 +296: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen uses its balanced desktop composition
+00:23 +297: C:/src/fatoora/test/operational_report_test.dart: Workbook exports monetary values as numeric cells
+00:23 +298: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: splash screen uses its balanced tablet and desktop composition
+00:23 +299: C:/src/fatoora/test/operational_report_test.dart: Workbook exports return references, item amounts, and refund breakdowns
+00:23 +300: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen stays horizontal on a wide portrait display
+00:23 +301: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: language screen stays horizontal on a wide portrait display
+00:23 +302: C:/src/fatoora/test/operational_report_test.dart: Workbook supports legacy returns without a customer snapshot or invoice date
+00:23 +303: C:/src/fatoora/test/operational_report_test.dart: Workbook supports legacy returns without a customer snapshot or invoice date
+00:23 +304: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: selected language and continue navigation remain unchanged
+00:23 +305: C:/src/fatoora/test/onboarding_screens_responsive_test.dart: selected language and continue navigation remain unchanged
+00:24 +306: C:/src/fatoora/test/paged_search_race_test.dart: invoice phrase pagination ignores old load-more and errors during a newer search
+00:24 +307: C:/src/fatoora/test/paged_search_race_test.dart: invoice phrase pagination ignores old load-more and errors during a newer search
+00:24 +308: C:/src/fatoora/test/paged_search_race_test.dart: warehouse phrases retain sorting, debounce, Enter and the active search cursor
+00:24 +309: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:24 +310: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:24 +311: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:24 +312: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:24 +313: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:24 +314: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:24 +315: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:24 +316: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:24 +317: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:25 +318: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:25 +319: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:25 +320: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:25 +321: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:25 +322: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:25 +323: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:25 +324: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:25 +325: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:26 +326: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:27 +327: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:27 +328: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:27 +329: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:27 +330: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:27 +331: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:27 +332: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:27 +333: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:27 +334: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:27 +335: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:27 +336: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +337: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +338: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +339: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +340: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +341: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +342: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +343: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +344: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +345: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +346: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +347: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +348: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +349: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +350: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +351: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +352: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +353: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +354: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +355: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +356: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:28 +357: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:29 +358: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:29 +359: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:29 +360: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:29 +361: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:29 +362: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:29 +363: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:29 +364: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:29 +365: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:29 +366: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:29 +367: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:29 +368: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:29 +369: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:29 +370: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:29 +371: C:/src/fatoora/test/pdf_services_settings_test.dart: Arabic names preserve embedded glyphs in all six PDF services
+00:29 +372: C:/src/fatoora/test/sales_returns_phase9_test.dart: 320px rep card is compact and hides own name
+00:29 +373: C:/src/fatoora/test/sales_returns_phase9_test.dart: 320px rep card is compact and hides own name
+00:29 +374: C:/src/fatoora/test/sales_returns_phase9_test.dart: 320px rep card is compact and hides own name
+00:29 +375: C:/src/fatoora/test/sales_returns_phase9_test.dart: 320px rep card is compact and hides own name
+00:29 +376: C:/src/fatoora/test/sales_returns_phase9_test.dart: 320px rep card is compact and hides own name
+00:29 +377: C:/src/fatoora/test/sales_returns_phase9_test.dart: 320px rep card is compact and hides own name
+00:29 +378: C:/src/fatoora/test/sales_returns_phase9_test.dart: 320px rep card is compact and hides own name
+00:29 +379: C:/src/fatoora/test/sales_returns_phase9_test.dart: 320px rep card is compact and hides own name
+00:29 +380: C:/src/fatoora/test/sales_returns_phase9_test.dart: 320px rep card is compact and hides own name
+00:30 +381: C:/src/fatoora/test/sales_returns_phase9_test.dart: 320px rep card is compact and hides own name
+00:30 +382: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:30 +383: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:30 +384: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:30 +385: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:30 +386: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:30 +387: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:30 +388: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:31 +389: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:31 +390: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:31 +391: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:31 +392: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:31 +393: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:31 +394: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:31 +395: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:31 +396: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:31 +397: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:31 +398: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:31 +399: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:31 +400: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:32 +401: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:32 +402: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:32 +403: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:32 +404: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:32 +405: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:32 +406: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:32 +407: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:32 +408: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:32 +409: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:33 +410: C:/src/fatoora/test/pdf_services_settings_test.dart: long bilingual business documents paginate without truncation
+00:35 +411: All tests passed!

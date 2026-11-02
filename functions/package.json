@@ -8,6 +8,10 @@
   "scripts": {
     "build": "tsc",
     "lint": "tsc --noEmit",
+    "test:integrity": "npm run build && node scripts/run_integrity_tests.js",
+    "audit:integrity": "node scripts/integrity_reconciliation.js",
+    "audit:jihad:readonly": "node scripts/audit_jihad_readonly.js",
+    "test:jihad-readonly": "node --test test/audit_jihad_readonly.test.js test/integrity_reconciliation.test.js",
     "test:rules": "node --test test/firestore.rules.test.js",
     "test:trusted": "npm run build && node --test test/trusted_transactions.test.js test/confirm_sales_return_auth.test.js test/phase1_permissions.test.js",
     "test:maintenance": "node --test test/invoice_sales_rep_maintenance.test.js test/invoice_list_fields_maintenance.test.js test/cash_reconciliation.test.js",

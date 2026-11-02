@@ -30,6 +30,7 @@ class ItemForm extends StatelessWidget {
     required this.submitLabel,
     required this.loading,
     this.showCurrentStock = true,
+    this.inventoryLocked = false,
   });
 
   final GlobalKey<FormState> formKey;
@@ -54,6 +55,7 @@ class ItemForm extends StatelessWidget {
   final String submitLabel;
   final bool loading;
   final bool showCurrentStock;
+  final bool inventoryLocked;
 
   @override
   Widget build(BuildContext context) => Form(
@@ -140,6 +142,11 @@ class ItemForm extends StatelessWidget {
         ]),
         const SizedBox(height: 14),
         _section(context, 'items_inventory'.tr, [
+          if (inventoryLocked)
+            _FormFieldSpec(
+              wide: true,
+              child: Text('items_inventory_locked'.tr),
+            ),
           _switchTile(
             context,
             'track_stock'.tr,
@@ -147,6 +154,7 @@ class ItemForm extends StatelessWidget {
             trackStock,
             onTrackStockChanged,
             key: 'item-track-switch',
+            locked: inventoryLocked,
           ),
           if (trackStock) ...[
             if (showCurrentStock)
@@ -276,6 +284,7 @@ class ItemForm extends StatelessWidget {
       controller: controller,
       enabled: !loading,
       maxLines: maxLines,
+      readOnly: inventoryLocked && key == 'item-warehouse-field',
       textInputAction: maxLines > 1
           ? TextInputAction.newline
           : TextInputAction.next,
@@ -297,6 +306,10 @@ class ItemForm extends StatelessWidget {
       controller: controller,
       enabled: !loading,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      readOnly:
+          inventoryLocked &&
+          (key == 'item-current-stock-field' ||
+              key == 'item-opening-stock-field'),
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
       ],
@@ -313,6 +326,7 @@ class ItemForm extends StatelessWidget {
     bool value,
     ValueChanged<bool> onChanged, {
     required String key,
+    bool locked = false,
   }) => _FormFieldSpec(
     child: Container(
       key: ValueKey(key),
@@ -332,7 +346,7 @@ class ItemForm extends StatelessWidget {
           ),
           Switch(
             value: value,
-            onChanged: loading ? null : onChanged,
+            onChanged: loading || locked ? null : onChanged,
             activeTrackColor: AppColor.success,
           ),
         ],

@@ -456,6 +456,9 @@ async function seedReturnFixture({
     companyId,
     itemId,
     sourceLineId: `${invoiceId}_line_000`,
+    direction: "out",
+    referenceId: invoiceId,
+    quantity: 1,
   });
   const invoiceRef = db.doc(`companies/${companyId}/invoices/${invoiceId}`);
   await invoiceRef.set({

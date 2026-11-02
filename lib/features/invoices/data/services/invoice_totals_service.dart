@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:fatoora/core/finance/exact_decimal.dart';
 
 import 'package:fatoora/features/invoices/data/models/invoice_item_snapshot.dart';
 
@@ -28,7 +29,7 @@ class InvoiceTotalsService {
     final unitPrice = item.unitPrice.isFinite && item.unitPrice >= 0
         ? round(item.unitPrice)
         : 0.0;
-    final rawSubtotal = round(quantity * unitPrice);
+    final rawSubtotal = ExactDecimal.multiply(quantity, unitPrice);
     final discount = item.discount.isFinite
         ? round(item.discount).clamp(0, rawSubtotal).toDouble()
         : 0.0;
@@ -36,7 +37,7 @@ class InvoiceTotalsService {
     final taxPercent = item.taxPercent.isFinite
         ? round(item.taxPercent).clamp(0, 100).toDouble()
         : 0.0;
-    final taxAmount = round(taxableAmount * (taxPercent / 100));
+    final taxAmount = ExactDecimal.percentage(taxableAmount, taxPercent);
     final total = taxableAmount + taxAmount;
 
     return item.copyWith(
@@ -52,10 +53,10 @@ class InvoiceTotalsService {
 
   InvoiceTotals calculateInvoice(List<InvoiceItemSnapshot> rawItems) {
     final items = rawItems.map(calculateLine).toList(growable: false);
-    final subtotal = items.fold<double>(0, (sum, item) => sum + item.subtotal);
-    final discount = items.fold<double>(0, (sum, item) => sum + item.discount);
-    final tax = items.fold<double>(0, (sum, item) => sum + item.taxAmount);
-    final total = items.fold<double>(0, (sum, item) => sum + item.total);
+    final subtotal = ExactDecimal.sum(items.map((item) => item.subtotal));
+    final discount = ExactDecimal.sum(items.map((item) => item.discount));
+    final tax = ExactDecimal.sum(items.map((item) => item.taxAmount));
+    final total = ExactDecimal.sum(items.map((item) => item.total));
     return InvoiceTotals(
       items: items,
       subtotal: round(subtotal),
@@ -102,7 +103,7 @@ class InvoiceTotalsService {
 
   double round(double value) {
     if (!value.isFinite) return 0;
-    return (value * 1000).roundToDouble() / 1000;
+    return ExactDecimal.round(value);
   }
 
   bool hasValidQuantity(double value) =>
@@ -124,7 +125,8 @@ class InvoiceTotalsService {
         discount < 0) {
       return false;
     }
-    return round(discount) <= round(round(quantity) * round(unitPrice));
+    return round(discount) <=
+        ExactDecimal.multiply(round(quantity), round(unitPrice));
   }
 
   bool hasValidLineTotal(double value) => value.isFinite && value >= 0;

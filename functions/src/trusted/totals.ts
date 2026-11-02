@@ -1,4 +1,5 @@
 import {HttpsError} from "firebase-functions/v2/https";
+import {multiplyDecimal, percentageDecimal, sumDecimals} from "./exact_decimal";
 import {
   finiteNumber,
   optionalString,
@@ -49,10 +50,10 @@ export function calculateInvoiceTotals(rawLines: unknown): TrustedInvoiceTotals 
 export function totalsFromTrustedLines(items: TrustedInvoiceLine[]): TrustedInvoiceTotals {
   return {
     items,
-    subtotal: roundMoney(items.reduce((sum, item) => sum + item.subtotal, 0)),
-    totalDiscount: roundMoney(items.reduce((sum, item) => sum + item.discount, 0)),
-    totalTax: roundMoney(items.reduce((sum, item) => sum + item.taxAmount, 0)),
-    grandTotal: roundMoney(items.reduce((sum, item) => sum + item.total, 0)),
+    subtotal: sumDecimals(items.map((item) => item.subtotal)),
+    totalDiscount: sumDecimals(items.map((item) => item.discount)),
+    totalTax: sumDecimals(items.map((item) => item.taxAmount)),
+    grandTotal: sumDecimals(items.map((item) => item.total)),
   };
 }
 
@@ -82,12 +83,12 @@ export function calculateInvoiceLine(raw: unknown, index: number): TrustedInvoic
   if (quantity <= 0) {
     throw new HttpsError("invalid-argument", `Invoice line ${index + 1} is invalid.`);
   }
-  const subtotal = roundMoney(quantity * unitPrice);
+  const subtotal = multiplyDecimal(quantity, unitPrice);
   if (requestedDiscount < 0 || requestedDiscount > subtotal) {
     throw new HttpsError("invalid-argument", `Invoice line ${index + 1} discount is invalid.`);
   }
   const taxable = roundMoney(subtotal - requestedDiscount);
-  const taxAmount = roundMoney(taxable * taxPercent / 100);
+  const taxAmount = percentageDecimal(taxable, taxPercent);
   const total = roundMoney(taxable + taxAmount);
   if (total < 0) {
     throw new HttpsError("invalid-argument", `Invoice line ${index + 1} total is invalid.`);

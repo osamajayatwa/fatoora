@@ -7,6 +7,7 @@ import {
   Transaction,
 } from "firebase-admin/firestore";
 import {logger} from "firebase-functions";
+import {roundDecimal} from "./exact_decimal";
 import {
   CallableOptions,
   CallableRequest,
@@ -104,21 +105,25 @@ export function finiteNumber(value: unknown, field: string): number {
 
 export function numberFrom(data: DocumentData, field: string): number {
   const value = data[field];
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+  if (value === undefined) return 0;
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new HttpsError("data-loss", `${field} contains invalid numeric data.`);
+  }
+  return value;
 }
 
 export function roundMoney(value: number): number {
   if (!Number.isFinite(value)) {
     throw new HttpsError("invalid-argument", "A money value is invalid.");
   }
-  return Math.round((value + Number.EPSILON) * 1000) / 1000;
+  return roundDecimal(value);
 }
 
 export function roundQuantity(value: number): number {
   if (!Number.isFinite(value)) {
     throw new HttpsError("invalid-argument", "A quantity is invalid.");
   }
-  return Math.round((value + Number.EPSILON) * 1000) / 1000;
+  return roundDecimal(value);
 }
 
 export function timestampFrom(value: unknown, field: string): Timestamp {

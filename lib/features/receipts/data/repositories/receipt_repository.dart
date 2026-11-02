@@ -1,3 +1,4 @@
+import 'package:fatoora/core/firebase/pending_posting_keys.dart';
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -180,17 +181,24 @@ class ReceiptRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
-      final idempotencyKey = _receipts(resolvedCompanyId).doc().id;
+      final payload = <String, dynamic>{
+        'companyId': resolvedCompanyId,
+        'customerId': customerId,
+        'amount': amount,
+        'paymentMethod': paymentMethod,
+        'receiptDate': receiptDate.millisecondsSinceEpoch,
+        'notes': notes,
+        'payFullBalance': payFullBalance,
+      };
+      final idempotencyKey = await PendingPostingKeys.acquire(
+        'createReceipt',
+        user.uid,
+        payload,
+      );
       final result = await _trustedCallableClient
           .callAuthenticated<Map<String, dynamic>>('createReceipt', {
-            'companyId': resolvedCompanyId,
+            ...payload,
             'idempotencyKey': idempotencyKey,
-            'customerId': customerId,
-            'amount': amount,
-            'paymentMethod': paymentMethod,
-            'receiptDate': receiptDate.millisecondsSinceEpoch,
-            'notes': notes,
-            'payFullBalance': payFullBalance,
           })
           .timeout(const Duration(seconds: 30));
       final receiptId = result.data['receiptId'] as String?;
@@ -205,7 +213,14 @@ class ReceiptRepository {
       if (!snapshot.exists) {
         throw const ReceiptRepositoryException(ReceiptRepositoryError.notFound);
       }
-      return ReceiptModel.fromFirestore(snapshot);
+      final posted = ReceiptModel.fromFirestore(snapshot);
+      await PendingPostingKeys.complete(
+        'createReceipt',
+        user.uid,
+        payload,
+        idempotencyKey,
+      );
+      return posted;
     });
   }
 

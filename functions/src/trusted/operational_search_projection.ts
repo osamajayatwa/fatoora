@@ -118,6 +118,17 @@ export const projectItemReportingFields = onDocumentWritten(
   async (event) => {
     const snapshot = event.data?.after;
     if (!snapshot?.exists) return;
+    await reconcileItemReportingFields(getFirestore(), snapshot.ref.path);
+  },
+);
+
+export async function reconcileItemReportingFields(firestore: Firestore, path: string): Promise<void> {
+  // Delivery order is not guaranteed. Derive from the current document and
+  // participate in conflicts with stock posting rather than using event data.
+  await firestore.runTransaction(async (transaction) => {
+    const ref = firestore.doc(path);
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) return;
     const data = snapshot.data() ?? {};
     const stock = finiteNumber(data.currentStock);
     const minimum = finiteNumber(data.minStock);
@@ -138,14 +149,14 @@ export const projectItemReportingFields = onDocumentWritten(
         data.inventoryValue === inventoryValue &&
         data.nameLower === nameLower &&
         arraysEqual(existingKeywords, searchKeywords)) return;
-    await getFirestore().doc(snapshot.ref.path).update({
+    transaction.update(ref, {
       stockStatus,
       inventoryValue,
       nameLower,
       searchKeywords,
     });
-  },
-);
+  });
+}
 
 async function projectSearchFields(
   snapshot: DocumentSnapshot | undefined,

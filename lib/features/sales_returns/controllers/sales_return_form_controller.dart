@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:fatoora/core/finance/exact_decimal.dart';
 
 import 'package:fatoora/app/routes/app_routes.dart';
 import 'package:fatoora/core/class/statusrequest.dart';
@@ -215,14 +216,25 @@ class SalesReturnFormController extends GetxController {
       quantityErrors.remove(lineId);
     }
     final current = items[index];
-    final subtotal = _round(math.max(quantity, 0) * current.unitPrice);
+    final source = originalInvoice!.items[index];
+    final prior = _round(source.quantity - available);
+    double allocate(double amount) => _round(
+      ExactDecimal.prorate(
+            amount,
+            _round(prior + math.max(quantity, 0)),
+            source.quantity,
+          ) -
+          ExactDecimal.prorate(amount, prior, source.quantity),
+    );
+    final subtotal = allocate(_round(source.subtotal - source.discount));
+    final tax = allocate(source.taxAmount);
     final next = [...items];
     next[index] = current.copyWith(
       returnedQuantity: quantity,
-      discountAmount: _round(math.max(quantity, 0) * current.discountPerUnit),
+      discountAmount: allocate(source.discount),
       subtotal: subtotal,
-      taxAmount: _round(subtotal * current.taxPercent / 100),
-      total: _round(subtotal + (subtotal * current.taxPercent / 100)),
+      taxAmount: tax,
+      total: _round(subtotal + tax),
     );
     items = next;
     update();

@@ -1,0 +1,309 @@
+
+> test:jihad-readonly
+> node --test test/audit_jihad_readonly.test.js test/integrity_reconciliation.test.js
+
+TAP version 13
+# Subtest: bounded trusted lifecycle reconciles stock and associated finance without raw output
+ok 1 - bounded trusted lifecycle reconciles stock and associated finance without raw output
+  ---
+  duration_ms: 487.1388
+  type: 'test'
+  ...
+# SYNTHETIC_BASELINE_SUMMARY {"formatVersion":1,"runId":"52a454442a209fab846aa65f","environment":"SYNTHETIC_EMULATOR","status":"PASS","readTime":"2026-11-02T12:17:38.951150Z","stage":"complete","invoiceCount":1,"recordsReturned":26,"missingDocuments":0,"uniqueScopedRecordCounts":{"invoices":1,"rep_inventory_movements":4,"rep_inventory_balances":1,"inventory_transfers":2,"sales_returns":1,"stock_movements":2,"items":1,"audit_events":1,"receipts":1,"customers":1,"customer_transactions":4,"cash_movements":2,"financial_ledger_entries":4},"coverage":{"inventory":"COMPLETE_WITHIN_BOUNDED_RECORDED_HISTORY","associatedFinance":"COMPLETE_WITHIN_APPROVED_SOURCES","customerReceivables":"COMPLETE_WITHIN_APPROVED_SOURCES","globalWarehouseClosing":"OUTSIDE_APPROVED_SCOPE","companyAndRepCashClosing":"OUTSIDE_APPROVED_SCOPE"},"comparisons":62,"findingCountsByCode":{},"blockerCountsByCode":{},"auditRecordCount":1,"productionWritesPerformed":false,"rawExportsWritten":false,"localFixDeployment":"NOT_QUERIED_OR_ASSUMED"}
+# Subtest: missing sale deduction is detected independently even when movements match the cache
+ok 2 - missing sale deduction is detected independently even when movements match the cache
+  ---
+  duration_ms: 82.9818
+  type: 'test'
+  ...
+# Subtest: duplicated custody deduction is detected with expected and actual quantities
+ok 3 - duplicated custody deduction is detected with expected and actual quantities
+  ---
+  duration_ms: 108.6923
+  type: 'test'
+  ...
+# Subtest: warehouse deduction against a custody-sourced invoice is incorrect attribution
+ok 4 - warehouse deduction against a custody-sourced invoice is incorrect attribution
+  ---
+  duration_ms: 79.5743
+  type: 'test'
+  ...
+# Subtest: disabled current tracking is a confirmed current risk without assuming historical cause
+ok 5 - disabled current tracking is a confirmed current risk without assuming historical cause
+  ---
+  duration_ms: 78.2759
+  type: 'test'
+  ...
+# Subtest: missing posting-time tracking evidence blocks conclusions and stops financial reads
+ok 6 - missing posting-time tracking evidence blocks conclusions and stops financial reads
+  ---
+  duration_ms: 54.562
+  type: 'test'
+  ...
+# Subtest: inconsistent custody cache and stale visibility are independently identified
+ok 7 - inconsistent custody cache and stale visibility are independently identified
+  ---
+  duration_ms: 74.5838
+  type: 'test'
+  ...
+# Subtest: ambiguous actual representative profiles stop before inventory reads
+ok 8 - ambiguous actual representative profiles stop before inventory reads
+  ---
+  duration_ms: 18.6962
+  type: 'test'
+  ...
+# Subtest: more than 200 relevant invoices blocks before fetching invoice documents
+ok 9 - more than 200 relevant invoices blocks before fetching invoice documents
+  ---
+  duration_ms: 39.0127
+  type: 'test'
+  ...
+# Subtest: exactly 200 relevant invoices paginate completely without reading a 201st invoice
+ok 10 - exactly 200 relevant invoices paginate completely without reading a 201st invoice
+  ---
+  duration_ms: 276.4718
+  type: 'test'
+  ...
+# Subtest: missing custody opening chronology blocks a trusted closing result
+ok 11 - missing custody opening chronology blocks a trusted closing result
+  ---
+  duration_ms: 48.4941
+  type: 'test'
+  ...
+# Subtest: customer history requiring another rep's invoice stops at a count-only boundary
+ok 12 - customer history requiring another rep's invoice stops at a count-only boundary
+  ---
+  duration_ms: 67.8207
+  type: 'test'
+  ...
+# Subtest: partial payment cache cannot count later collections as initial cash
+ok 13 - partial payment cache cannot count later collections as initial cash
+  ---
+  duration_ms: 66.4365
+  type: 'test'
+  ...
+# Subtest: duplicate collection cash and journal pairs are detected
+ok 14 - duplicate collection cash and journal pairs are detected
+  ---
+  duration_ms: 71.1094
+  type: 'test'
+  ...
+# Subtest: invoice journal ownership is checked against the original invoice attribution
+ok 15 - invoice journal ownership is checked against the original invoice attribution
+  ---
+  duration_ms: 67.5011
+  type: 'test'
+  ...
+# Subtest: initial cash uses the posting snapshot when draft creator and collector differ
+ok 16 - initial cash uses the posting snapshot when draft creator and collector differ
+  ---
+  duration_ms: 73.3171
+  type: 'test'
+  ...
+# Subtest: missing initial cash account snapshot does not infer the collector from the draft creator
+ok 17 - missing initial cash account snapshot does not infer the collector from the draft creator
+  ---
+  duration_ms: 70.6172
+  type: 'test'
+  ...
+# Subtest: missing historical receipt ownership stops without inventing customer closing differences
+ok 18 - missing historical receipt ownership stops without inventing customer closing differences
+  ---
+  duration_ms: 74.4875
+  type: 'test'
+  ...
+# Subtest: a posting link to another already-loaded source cannot silently pass
+ok 19 - a posting link to another already-loaded source cannot silently pass
+  ---
+  duration_ms: 75.0944
+  type: 'test'
+  ...
+# Subtest: cached return quantities are checked against actual confirmed returns
+ok 20 - cached return quantities are checked against actual confirmed returns
+  ---
+  duration_ms: 74.5236
+  type: 'test'
+  ...
+# Subtest: unsupported monetary precision blocks instead of silently rounding
+ok 21 - unsupported monetary precision blocks instead of silently rounding
+  ---
+  duration_ms: 38.4847
+  type: 'test'
+  ...
+# Subtest: one fixed server read timestamp protects against changing live projections
+ok 22 - one fixed server read timestamp protects against changing live projections
+  ---
+  duration_ms: 93.9677
+  type: 'test'
+  ...
+# Subtest: permission errors are sanitized and cannot trigger credential/policy workarounds
+ok 23 - permission errors are sanitized and cannot trigger credential/policy workarounds
+  ---
+  duration_ms: 2.5702
+  type: 'test'
+  ...
+# Subtest: RPC and environment boundaries reject writes and production emulator authentication
+ok 24 - RPC and environment boundaries reject writes and production emulator authentication
+  ---
+  duration_ms: 1.3506
+  type: 'test'
+  ...
+# Subtest: mismatched read timestamps fail closed
+ok 25 - mismatched read timestamps fail closed
+  ---
+  duration_ms: 1.2306
+  type: 'test'
+  ...
+# Subtest: request and time budgets stop before another remote call
+ok 26 - request and time budgets stop before another remote call
+  ---
+  duration_ms: 1.0802
+  type: 'test'
+  ...
+# Subtest: reports are derived-only outside Git, never overwritten or written through a repository junction
+ok 27 - reports are derived-only outside Git, never overwritten or written through a repository junction
+  ---
+  duration_ms: 73.491
+  type: 'test'
+  ...
+# Subtest: CLI help and rejection of mutation flags do not authenticate
+ok 28 - CLI help and rejection of mutation flags do not authenticate
+  ---
+  duration_ms: 82.2441
+  type: 'test'
+  ...
+# Subtest: exact invoice arithmetic detects the known half-thousandth historical discrepancy
+ok 29 - exact invoice arithmetic detects the known half-thousandth historical discrepancy
+  ---
+  duration_ms: 1.8512
+  type: 'test'
+  ...
+# Subtest: bank collection preserves its documented account and creates no physical cash
+ok 30 - bank collection preserves its documented account and creates no physical cash
+  ---
+  duration_ms: 66.1696
+  type: 'test'
+  ...
+# Subtest: check collection preserves its documented account and creates no physical cash
+ok 31 - check collection preserves its documented account and creates no physical cash
+  ---
+  duration_ms: 65.5749
+  type: 'test'
+  ...
+# Subtest: cliq collection preserves its documented account and creates no physical cash
+ok 32 - cliq collection preserves its documented account and creates no physical cash
+  ---
+  duration_ms: 63.8258
+  type: 'test'
+  ...
+# Subtest: unknown historical Visa method blocks instead of being reclassified or inventing AR differences
+ok 33 - unknown historical Visa method blocks instead of being reclassified or inventing AR differences
+  ---
+  duration_ms: 71.7946
+  type: 'test'
+  ...
+# Subtest: linked receipt cancellation retains original and inverse without counting collection twice
+ok 34 - linked receipt cancellation retains original and inverse without counting collection twice
+  ---
+  duration_ms: 68.2866
+  type: 'test'
+  ...
+# Subtest: a missing cancellation journal cannot hide behind zero net customer effect
+ok 35 - a missing cancellation journal cannot hide behind zero net customer effect
+  ---
+  duration_ms: 89.3363
+  type: 'test'
+  ...
+# Subtest: cash refund reconciles to actual original collections, customer delta and journal
+ok 36 - cash refund reconciles to actual original collections, customer delta and journal
+  ---
+  duration_ms: 73.1267
+  type: 'test'
+  ...
+# Subtest: cash refund from an unverified collection account stops without fabricating cash provenance
+ok 37 - cash refund from an unverified collection account stops without fabricating cash provenance
+  ---
+  duration_ms: 83.8859
+  type: 'test'
+  ...
+# Subtest: legacy initial payment without original cash/customer evidence remains unresolved
+ok 38 - legacy initial payment without original cash/customer evidence remains unresolved
+  ---
+  duration_ms: 63.1369
+  type: 'test'
+  ...
+# Subtest: independent stock, cash, AR, source journals and report totals reconcile
+ok 39 - independent stock, cash, AR, source journals and report totals reconcile
+  ---
+  duration_ms: 3.4968
+  type: 'test'
+  ...
+# Subtest: reconciliation detects missing custody deduction
+ok 40 - reconciliation detects missing custody deduction
+  ---
+  duration_ms: 0.4501
+  type: 'test'
+  ...
+# Subtest: reconciliation detects incorrect custody balance
+ok 41 - reconciliation detects incorrect custody balance
+  ---
+  duration_ms: 0.5295
+  type: 'test'
+  ...
+# Subtest: reconciliation detects duplicate movement identity
+ok 42 - reconciliation detects duplicate movement identity
+  ---
+  duration_ms: 0.286
+  type: 'test'
+  ...
+# Subtest: reconciliation detects missing settlement destination
+ok 43 - reconciliation detects missing settlement destination
+  ---
+  duration_ms: 0.3026
+  type: 'test'
+  ...
+# Subtest: reconciliation detects balanced journal on wrong account
+ok 44 - reconciliation detects balanced journal on wrong account
+  ---
+  duration_ms: 0.4338
+  type: 'test'
+  ...
+# Subtest: reconciliation detects phantom customer cash collection
+ok 45 - reconciliation detects phantom customer cash collection
+  ---
+  duration_ms: 0.7506
+  type: 'test'
+  ...
+# Subtest: reconciliation detects report discrepancy
+ok 46 - reconciliation detects report discrepancy
+  ---
+  duration_ms: 0.1911
+  type: 'test'
+  ...
+# Subtest: reconciliation detects invalid monetary precision
+ok 47 - reconciliation detects invalid monetary precision
+  ---
+  duration_ms: 0.4174
+  type: 'test'
+  ...
+# Subtest: partial history and missing tracking provenance are explicitly BLOCKED
+ok 48 - partial history and missing tracking provenance are explicitly BLOCKED
+  ---
+  duration_ms: 0.5357
+  type: 'test'
+  ...
+# Subtest: reconciliation never mutates the supplied evidence
+ok 49 - reconciliation never mutates the supplied evidence
+  ---
+  duration_ms: 0.29
+  type: 'test'
+  ...
+1..49
+# tests 49
+# suites 0
+# pass 49
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3098.0252

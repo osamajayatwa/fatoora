@@ -1,0 +1,65 @@
+{
+  "generatedAt": "2026-11-02T12:17:59.775Z",
+  "environment": "SYNTHETIC_EMULATOR",
+  "project": "demo-jihad-readonly",
+  "productionVerification": false,
+  "productionRecordsInspectedByAgent": 0,
+  "productionWritesPerformed": false,
+  "command": "npm.cmd --prefix functions run test:jihad-readonly",
+  "emulator": {
+    "host": "127.0.0.1:8080",
+    "version": "1.19.8",
+    "sdkFixtureWrites": "demo project only",
+    "auditRemoteMethods": [
+      "runQuery",
+      "runAggregationQuery",
+      "batchGet"
+    ]
+  },
+  "tests": {
+    "total": 49,
+    "newAuditFocused": 38,
+    "existingReconciliation": 11,
+    "passed": 49,
+    "failed": 0,
+    "skipped": 0
+  },
+  "staticChecks": {
+    "scriptSyntax": "PASS (all three audit scripts)",
+    "cliHelp": "PASS",
+    "mutationFlagRejection": "PASS (focused test)",
+    "gitDiffCheck": "PASS"
+  },
+  "coverage": [
+    "bounded stored-profile identity and ambiguity",
+    "200 invoices paginated; over-limit aggregation stops before fetch",
+    "fixed server read time despite changed fixture state",
+    "missing custody OUT with self-consistent cache; duplicated OUT; wrong stock source",
+    "current disabled tracking and unknown historical tracking",
+    "opening/source gaps, permission sanitization and scope count gates",
+    "BigInt monetary/quantity comparisons and known midpoint defect",
+    "partial payment, cash, bank, check and CliQ, unknown method fail-closed",
+    "receipt and invoice journal ownership; cancellation inverses; refund provenance",
+    "posting link attribution, private output, redaction and read-only RPC allowlist",
+    "posting-time cash account distinguished from draft creator; missing snapshot blocks"
+  ],
+  "evidence": {
+    "log": "jihad-focused.log",
+    "shareableFormat": "jihad_summary_example.synthetic.json",
+    "fixture": "synthetic-lifecycle-snapshot.json"
+  },
+  "limitations": [
+    "No production execution or affected invoice claim",
+    "No Firestore client security-rule certification: production uses existing authorized user OAuth/IAM",
+    "No global warehouse, cash closing, COGS or full financial statement certification",
+    "No deployment version or physical delivery verified"
+  ],
+  "sha256": {
+    "functions/scripts/audit_jihad_readonly.js": "7c0052624b76c253c2d3eab944c818d96f5c2b084a999a984fa67d4b948ad933",
+    "functions/scripts/jihad_readonly_reader.js": "877a75889963534c4c2ec7b33eac09ad385783caa730fe1c99e6e56c9a172570",
+    "functions/scripts/jihad_audit_analysis.js": "d902d57381cebeed7a5b33a17d28d180d92ee0a9e84293cd097a291f2a7b89fa",
+    "functions/scripts/integrity_reconciliation.js": "b8ad3c715de420dd0d3d6ce3af03f0b24b28915c59ec0698e1e46b82f4255853",
+    "functions/test/audit_jihad_readonly.test.js": "023225e06f09a6a534855aeb3f8797d9777bc14a4b4972c582bb75a52902b04c",
+    "functions/test/integrity_reconciliation.test.js": "bcdd88bd060a7ff6d3c12f6cf412efe03d7cf261605209f490a1e39bee393867"
+  }
+}

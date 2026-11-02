@@ -137,6 +137,8 @@ export async function createItemTransaction(
       id: itemId,
       companyId,
       idempotencyKey,
+      // Preserve the creation request independently of mutable catalog/stock.
+      creationRequest: item,
       name: item.name,
       code: item.code,
       description: item.description,
@@ -414,6 +416,13 @@ function sameItemRequest(
   idempotencyKey: string,
   item: ValidatedItem,
 ): boolean {
+  if (data.creationRequest && typeof data.creationRequest === "object") {
+    return data.createdBy === uid && data.companyId === companyId &&
+      data.idempotencyKey === idempotencyKey &&
+      JSON.stringify(data.creationRequest, Object.keys(item).sort()) ===
+        JSON.stringify(item, Object.keys(item).sort());
+  }
+  // Legacy items have no immutable request snapshot: keep conservative checks.
   return data.createdBy === uid &&
     data.companyId === companyId &&
     data.idempotencyKey === idempotencyKey &&

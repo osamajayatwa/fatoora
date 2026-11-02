@@ -89,6 +89,7 @@ class EditItemScreen extends StatelessWidget {
                             onSubmit: controller.submit,
                             submitLabel: 'items_update'.tr,
                             loading: controller.isLoading,
+                            inventoryLocked: true,
                           ),
                   ],
                 ),

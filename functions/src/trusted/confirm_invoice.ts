@@ -1,4 +1,5 @@
 import {customerAssignedTo} from "./customer_assignment";
+import {requireNewCustodyBalance} from "./custody";
 import {
   DocumentData,
   DocumentReference,
@@ -141,6 +142,7 @@ export async function confirmInvoiceTransaction(
       const item = itemSnapshot.data() ?? {};
       if (
         item.id !== line.itemId ||
+        (optionalString(item.companyId) && item.companyId !== companyId) ||
         item.deleted === true ||
         item.active !== true ||
         !optionalString(item.name)
@@ -321,12 +323,17 @@ export async function confirmInvoiceTransaction(
       }
     }
     transaction.update(invoiceRef, {
-      items: normalizedTotals.items.map(persistedInvoiceLine),
+      items: normalizedTotals.items.map((line, index) => ({
+        ...persistedInvoiceLine(line),
+        stockTrackedAtPosting: catalogLines[index].item?.trackStock === true,
+      })),
       subtotal: normalizedTotals.subtotal,
       totalDiscount: normalizedTotals.totalDiscount,
       totalTax: normalizedTotals.totalTax,
       grandTotal: normalizedTotals.grandTotal,
       paidAmount: payment.paidAmount,
+      initialPaidAmount: payment.paidAmount,
+      initialCashAccount: cashAccount,
       remainingAmount: payment.remainingAmount,
       paymentType: payment.paymentType,
       paymentMethod: payment.paymentType,
@@ -391,7 +398,17 @@ async function buildInvoiceInventory(
   const balanceCreatedAt = new Map<string, unknown>();
 
   for (const entry of catalogLines) {
-    if (!entry.item || !entry.itemRef || entry.item.trackStock !== true) continue;
+    if (!entry.item || !entry.itemRef) continue;
+    if (entry.item.trackStock !== true) {
+      const custody = sourceType === "salesRep" ? await transaction.get(firestore.doc(
+        businessPath(companyId, "rep_inventory_balances", `${sourceRepId}_${entry.line.itemId}`),
+      )) : undefined;
+      if (numberFrom(entry.item, "currentStock") > 0 ||
+        (custody?.exists && numberFrom(custody.data() ?? {}, "quantity") > 0)) {
+        throw new HttpsError("failed-precondition", "Untracked item has inventory; reconcile its tracking policy before sale.");
+      }
+      continue;
+    }
     const itemId = entry.line.itemId;
     if (!itemId) {
       throw new HttpsError("data-loss", "Tracked catalog line is missing itemId.");
@@ -407,9 +424,14 @@ async function buildInvoiceInventory(
       let balanceData: DocumentData | undefined;
       if (before === undefined) {
         const balanceSnapshot = await transaction.get(balanceRef);
+        if (!balanceSnapshot.exists) await requireNewCustodyBalance(transaction, firestore, companyId, sourceRepId, itemId);
         balanceData = balanceSnapshot.data();
+        if (balanceData && (balanceData.companyId !== companyId ||
+          balanceData.salesRepId !== sourceRepId || balanceData.itemId !== itemId)) {
+          throw new HttpsError("data-loss", "Representative inventory balance identity is invalid.");
+        }
         balanceCreatedAt.set(balanceId, balanceData?.createdAt);
-        before = roundQuantity(numberFrom(balanceData ?? {}, "quantity"));
+        before = balanceData ? inventoryQuantity(balanceData.quantity) : 0;
       }
       const after = roundQuantity(before - quantity);
       if (after < 0) {
@@ -467,7 +489,7 @@ async function buildInvoiceInventory(
     }
 
     let before = running.get(itemId);
-    if (before === undefined) before = roundQuantity(numberFrom(entry.item, "currentStock"));
+    if (before === undefined) before = inventoryQuantity(entry.item.currentStock);
     const after = roundQuantity(before - quantity);
     if (after < 0) {
       throw new HttpsError("failed-precondition", `Insufficient warehouse stock for ${itemId}.`);
@@ -513,6 +535,13 @@ async function buildInvoiceInventory(
   }
   writes.push(...finalItemWrites.values(), ...finalBalanceWrites.values());
   return {writes, movementIds};
+}
+
+function inventoryQuantity(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new HttpsError("data-loss", "Inventory balance is invalid; reconcile before posting.");
+  }
+  return roundQuantity(value);
 }
 
 function customerTransactionData(input: {

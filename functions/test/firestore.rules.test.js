@@ -1392,6 +1392,10 @@ test("admin catalog edits remain allowed but inventory effects are server-owned"
     currentStock: 999,
     updatedAt: serverTimestamp(),
   }));
+  // Tracking/source changes would make future sales skip custody or relabel
+  // existing stock without a movement. Metadata edits cannot perform them.
+  await assertFails(updateDoc(adminRef, {trackStock: false, updatedAt: serverTimestamp()}));
+  await assertFails(updateDoc(adminRef, {warehouseId: "another-warehouse", updatedAt: serverTimestamp()}));
   await assertFails(updateDoc(
     doc(authenticatedDb(repAUid), "items", "catalog-item"),
     {active: false, updatedAt: serverTimestamp()},

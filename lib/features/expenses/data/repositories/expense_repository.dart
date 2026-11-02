@@ -1,3 +1,4 @@
+import 'package:fatoora/core/firebase/pending_posting_keys.dart';
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -288,17 +289,24 @@ class ExpenseRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
-      final idempotencyKey = _expenses(resolvedCompanyId).doc().id;
+      final payload = <String, dynamic>{
+        'companyId': resolvedCompanyId,
+        'amount': amount,
+        'expenseDate': expenseDate.millisecondsSinceEpoch,
+        'category': category.value,
+        'customCategoryName': customCategoryName,
+        'description': description,
+        'fundingSource': fundingSource.value,
+      };
+      final idempotencyKey = await PendingPostingKeys.acquire(
+        'createExpense',
+        user.uid,
+        payload,
+      );
       final result = await _trustedCallableClient
           .callAuthenticated<Map<String, dynamic>>('createExpense', {
-            'companyId': resolvedCompanyId,
+            ...payload,
             'idempotencyKey': idempotencyKey,
-            'amount': amount,
-            'expenseDate': expenseDate.millisecondsSinceEpoch,
-            'category': category.value,
-            'customCategoryName': customCategoryName,
-            'description': description,
-            'fundingSource': fundingSource.value,
           })
           .timeout(const Duration(seconds: 30));
       final expenseId = result.data['expenseId'] as String?;
@@ -313,7 +321,14 @@ class ExpenseRepository {
       if (!snapshot.exists) {
         throw const ExpenseRepositoryException(ExpenseRepositoryError.notFound);
       }
-      return ExpenseModel.fromFirestore(snapshot);
+      final posted = ExpenseModel.fromFirestore(snapshot);
+      await PendingPostingKeys.complete(
+        'createExpense',
+        user.uid,
+        payload,
+        idempotencyKey,
+      );
+      return posted;
     });
   }
 

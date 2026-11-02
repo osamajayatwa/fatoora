@@ -1,4 +1,6 @@
 import {customerAssignedTo} from "./customer_assignment";
+import {prorateDecimal} from "./exact_decimal";
+import {requireNewCustodyBalance} from "./custody";
 import {
   DocumentData,
   DocumentReference,
@@ -159,6 +161,16 @@ export async function confirmSalesReturnTransaction(
       if (line.returnedQuantity > roundQuantity(Math.max(sold - prior, 0))) {
         throw new HttpsError("failed-precondition", `Return exceeds sold quantity for line ${line.originalIndex + 1}.`);
       }
+      // Allocate each immutable source component cumulatively. Rounding a
+      // discounted per-unit price first can over/under-credit a complete return.
+      const allocate = (amount: number): number => roundMoney(
+        prorateDecimal(amount, roundQuantity(prior + line.returnedQuantity), sold) -
+        prorateDecimal(amount, prior, sold),
+      );
+      line.subtotal = allocate(roundMoney(numberFrom(original, "subtotal") - numberFrom(original, "discount")));
+      line.taxAmount = allocate(numberFrom(original, "taxAmount"));
+      line.discountAmount = allocate(numberFrom(original, "discount"));
+      line.total = roundMoney(line.subtotal + line.taxAmount);
       nextAllocation[line.originalInvoiceItemId] = roundQuantity(prior + line.returnedQuantity);
     }
     const totals = returnTotals(lines);
@@ -546,31 +558,69 @@ async function readReturnedQuantities(
   invoice: DocumentData,
 ): Promise<Record<string, number>> {
   const stored = record(invoice.returnedQuantitiesByItem);
-  const result: Record<string, number> = {};
+  const cached: Record<string, number> = {};
   for (const [key, value] of Object.entries(stored)) {
-    if (typeof value === "number" && Number.isFinite(value)) result[key] = roundQuantity(value);
+    if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+      throw new HttpsError("data-loss", "Returned quantity projection is invalid.");
+    }
+    cached[key] = roundQuantity(value);
   }
-  if (Object.keys(result).length > 0) {
-    return normalizeReturnedQuantityKeys(invoiceId, invoice, result);
-  }
-  const legacy = await transaction.get(
+  const result: Record<string, number> = {};
+  const amounts: Record<string, number> = {};
+  // Reconstruct even when a cache exists. A missing cache row must never allow
+  // another return, and a legacy rounding discrepancy needs explicit review.
+  const history = await transaction.get(
     firestore.collection(`companies/${companyId}/sales_returns`)
       .where("originalInvoiceId", "==", invoiceId)
       .where("status", "==", "confirmed"),
   );
-  for (const document of legacy.docs) {
-    const items = document.data().items;
-    if (!Array.isArray(items)) continue;
-    for (const raw of items) {
+  let historicalTotal = 0;
+  for (const document of history.docs) {
+    const returned = document.data();
+    if (returned.companyId !== companyId || returned.financialPosted !== true || !Array.isArray(returned.items)) {
+      throw new HttpsError("data-loss", "Confirmed return history is incomplete.");
+    }
+    historicalTotal = roundMoney(historicalTotal + numberFrom(returned, "grandTotal"));
+    for (const raw of returned.items) {
       const item = record(raw);
-      const lineId = optionalString(item.originalInvoiceItemId);
-      if (!lineId) continue;
-      result[lineId] = roundQuantity(
-        (result[lineId] ?? 0) + numberFrom(item, "returnedQuantity"),
-      );
+      const lineId = requiredString(item.originalInvoiceItemId, "originalInvoiceItemId");
+      if (typeof item.returnedQuantity !== "number" || !Number.isFinite(item.returnedQuantity) || item.returnedQuantity <= 0 ||
+        typeof item.total !== "number" || !Number.isFinite(item.total) || item.total < 0) {
+        throw new HttpsError("data-loss", "Confirmed return line history is invalid.");
+      }
+      result[lineId] = roundQuantity((result[lineId] ?? 0) + item.returnedQuantity);
+      amounts[lineId] = roundMoney((amounts[lineId] ?? 0) + item.total);
     }
   }
-  return normalizeReturnedQuantityKeys(invoiceId, invoice, result);
+  normalizeReturnedQuantityKeys(invoiceId, invoice, result);
+  normalizeReturnedQuantityKeys(invoiceId, invoice, amounts);
+  normalizeReturnedQuantityKeys(invoiceId, invoice, cached);
+  if (Object.keys(cached).length > 0 && [...new Set([...Object.keys(cached), ...Object.keys(result)])]
+    .some((key) => (cached[key] ?? 0) !== (result[key] ?? 0))) {
+    throw new HttpsError("data-loss", "Returned quantity projection does not reconcile to confirmed returns.");
+  }
+  if (invoice.returnedTotal !== undefined && roundMoney(numberFrom(invoice, "returnedTotal")) !== historicalTotal) {
+    throw new HttpsError("data-loss", "Returned total does not reconcile to confirmed returns.");
+  }
+  const recognized = new Set<string>();
+  (invoice.items as unknown[]).forEach((raw, index) => {
+    const original = record(raw);
+    const key = invoiceLineReference(invoiceId, original, index);
+    recognized.add(key);
+    const returned = result[key] ?? 0;
+    if (returned === 0) return;
+    const sold = roundQuantity(numberFrom(original, "quantity"));
+    if (sold <= 0 || returned > sold) throw new HttpsError("data-loss", "Historical returned quantity exceeds its source.");
+    const net = roundMoney(numberFrom(original, "subtotal") - numberFrom(original, "discount"));
+    const expected = roundMoney(prorateDecimal(net, returned, sold) + prorateDecimal(numberFrom(original, "taxAmount"), returned, sold));
+    if (expected !== (amounts[key] ?? 0)) {
+      throw new HttpsError("data-loss", "Historical return amounts require rounding reconciliation before further returns.");
+    }
+  });
+  if (Object.keys(result).some((key) => !recognized.has(key))) {
+    throw new HttpsError("data-loss", "Historical return line has no original invoice line.");
+  }
+  return result;
 }
 
 function normalizeReturnedQuantityKeys(
@@ -618,7 +668,15 @@ async function buildReturnInventory(
     const snapshot = await transaction.get(
       firestore.doc(businessPath(companyId, movementCollection, id)),
     );
-    if (snapshot.exists) originalMovements.push(snapshot.data() ?? {});
+    if (!snapshot.exists) {
+      throw new HttpsError("data-loss", "Referenced invoice inventory movement is missing.");
+    }
+    const movement = snapshot.data() ?? {};
+    if (movement.companyId !== companyId || movement.referenceId !== invoice.id ||
+      movement.direction !== "out" || (sourceType === "salesRep" && movement.salesRepId !== sourceRepId)) {
+      throw new HttpsError("data-loss", "Referenced invoice inventory movement is inconsistent.");
+    }
+    originalMovements.push(movement);
   }
   const writes: PendingWrite[] = [];
   const movementIds: string[] = [];
@@ -635,6 +693,10 @@ async function buildReturnInventory(
       movement.itemId === line.itemId &&
       (!movement.sourceLineId || movement.sourceLineId === originalSourceLineId),
     );
+    const original = record((invoice.items as unknown[])[line.originalIndex]);
+    if (!wasTracked && original.stockTrackedAtPosting === true) {
+      throw new HttpsError("data-loss", "Tracked invoice line is missing its inventory movement.");
+    }
     if (!wasTracked) continue;
     const itemRef = firestore.doc(`items/${line.itemId}`);
     const itemSnapshot = await transaction.get(itemRef);
@@ -642,7 +704,8 @@ async function buildReturnInventory(
       throw new HttpsError("failed-precondition", `Return item ${line.itemId} is missing.`);
     }
     const item = itemSnapshot.data() ?? {};
-    if (item.deleted === true || item.active !== true || item.id !== line.itemId) {
+    if (item.deleted === true || item.active !== true || item.id !== line.itemId ||
+      (optionalString(item.companyId) && item.companyId !== companyId)) {
       throw new HttpsError("failed-precondition", `Return item ${line.itemId} is not eligible.`);
     }
     const sourceLineId = line.originalInvoiceItemId;
@@ -655,7 +718,12 @@ async function buildReturnInventory(
       let createdAt: unknown;
       if (before === undefined) {
         const balance = await transaction.get(balanceRef);
-        before = roundQuantity(numberFrom(balance.data() ?? {}, "quantity"));
+        if (!balance.exists) await requireNewCustodyBalance(transaction, firestore, companyId, sourceRepId, line.itemId);
+        const data = balance.data();
+        if (data && (data.companyId !== companyId || data.salesRepId !== sourceRepId || data.itemId !== line.itemId)) {
+          throw new HttpsError("data-loss", "Return custody balance identity is invalid.");
+        }
+        before = data ? inventoryQuantity(data.quantity) : 0;
         createdAt = balance.data()?.createdAt;
         balanceCreatedAt.set(balanceId, createdAt);
       }
@@ -711,7 +779,7 @@ async function buildReturnInventory(
       continue;
     }
     let before = running.get(line.itemId);
-    if (before === undefined) before = roundQuantity(numberFrom(item, "currentStock"));
+    if (before === undefined) before = inventoryQuantity(item.currentStock);
     const after = roundQuantity(before + line.returnedQuantity);
     running.set(line.itemId, after);
     const movementId = `${returnId}_line_${line.originalIndex}_${line.itemId}_sales_return`;
@@ -752,6 +820,13 @@ async function buildReturnInventory(
   }
   writes.push(...finalWrites.values());
   return {writes, movementIds};
+}
+
+function inventoryQuantity(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new HttpsError("data-loss", "Return inventory balance is invalid.");
+  }
+  return roundQuantity(value);
 }
 
 async function resolveRefundSource(
