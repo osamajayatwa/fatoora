@@ -3,7 +3,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class FirestorePageCursor {
   const FirestorePageCursor._(this.document);
 
+  factory FirestorePageCursor.server(Map<String, dynamic> data) =
+      ServerPageCursor;
+
   final QueryDocumentSnapshot<Map<String, dynamic>> document;
+}
+
+/// A trusted endpoint's ordering boundary, kept separate from document cursors.
+class ServerPageCursor implements FirestorePageCursor {
+  const ServerPageCursor(this.serverData);
+
+  final Map<String, dynamic> serverData;
+
+  @override
+  QueryDocumentSnapshot<Map<String, dynamic>> get document =>
+      throw StateError('A server cursor has no Firestore document');
 }
 
 class FirestorePage<T> {
@@ -28,7 +42,12 @@ extension FirestoreQueryPager on Query<Map<String, dynamic>> {
   }) async {
     if (pageSize <= 0) throw ArgumentError.value(pageSize, 'pageSize');
     var query = this;
-    if (after != null) query = query.startAfterDocument(after.document);
+    if (after != null) {
+      if (after is ServerPageCursor) {
+        throw ArgumentError('Expected a Firestore cursor');
+      }
+      query = query.startAfterDocument(after.document);
+    }
     final snapshot = await query.limit(pageSize + 1).get().timeout(timeout);
     final hasMore = snapshot.docs.length > pageSize;
     final documents = snapshot.docs.take(pageSize).toList(growable: false);

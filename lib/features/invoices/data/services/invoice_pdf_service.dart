@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:fatoora/core/pdf/app_pdf_assets.dart';
+import 'package:fatoora/core/pdf/app_pdf_direction.dart';
 import 'package:fatoora/core/pdf/app_pdf_localization.dart';
 import 'package:fatoora/core/pdf/business_pdf_configuration.dart';
 import 'package:fatoora/core/pdf/business_pdf_settings_resolver.dart';
@@ -228,10 +229,6 @@ class InvoicePdfService {
         ),
         _LabelValue('due_date', loc.date(invoice.dueDate), forceLtr: true),
         _LabelValue(
-          'invoice_status',
-          loc.enumValue(invoice.invoiceStatus.value),
-        ),
-        _LabelValue(
           'payment_status',
           loc.enumValue(invoice.paymentStatus.value),
         ),
@@ -299,18 +296,36 @@ class InvoicePdfService {
         fontSize: 6.7,
       ),
     );
-    final value = pw.Expanded(
-      child: _mixedText(
-        row.value.trim().isEmpty ? '-' : row.value,
-        loc: loc,
-        forceDirection: row.forceLtr ? pw.TextDirection.ltr : null,
-        style: pw.TextStyle(
-          color: _ink,
-          fontSize: 7.5,
-          fontWeight: row.strong ? pw.FontWeight.bold : pw.FontWeight.normal,
-        ),
-      ),
+    final valueStyle = pw.TextStyle(
+      color: _ink,
+      fontSize: 7.5,
+      fontWeight: row.strong ? pw.FontWeight.bold : pw.FontWeight.normal,
     );
+    final valueText = row.labelKey == 'customer'
+        ? AppPdfDirection.text(
+            row.value,
+            style: valueStyle,
+            fallbackDirection: loc.textDirection,
+            textAlign: _directionForText(row.value, loc) == pw.TextDirection.rtl
+                ? pw.TextAlign.right
+                : pw.TextAlign.left,
+          )
+        : _mixedText(
+            row.value.trim().isEmpty ? '-' : row.value,
+            loc: loc,
+            forceDirection: row.forceLtr ? pw.TextDirection.ltr : null,
+            style: valueStyle,
+          );
+    if (row.labelKey == 'customer') {
+      return pw.Padding(
+        padding: const pw.EdgeInsets.only(bottom: 2.5),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+          children: [label, pw.SizedBox(height: 2), valueText],
+        ),
+      );
+    }
+    final value = pw.Expanded(child: valueText);
     return pw.Padding(
       padding: const pw.EdgeInsets.only(bottom: 2.5),
       child: pw.Row(
@@ -437,11 +452,6 @@ class InvoicePdfService {
             fontWeight: pw.FontWeight.bold,
           ),
           pw.SizedBox(height: 5),
-          _compactValue(
-            labelKey: 'payment_type',
-            value: loc.enumValue(invoice.paymentType.value),
-            loc: loc,
-          ),
           _compactValue(
             labelKey: 'payment_status',
             value: loc.enumValue(invoice.paymentStatus.value),

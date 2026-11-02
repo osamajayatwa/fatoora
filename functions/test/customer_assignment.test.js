@@ -10,6 +10,7 @@ const {createReceiptTransaction} = require("../lib/trusted/create_receipt");
 const {cancelReceiptTransaction} = require("../lib/trusted/cancel_receipt");
 const {confirmSalesReturnTransaction} = require("../lib/trusted/confirm_sales_return");
 const {legacyAssignmentUpdate, legacyAssignmentRollback} = require("../scripts/backfill_customer_assignment");
+const {listAccessibleCustomers, listAccessibleCustomersPage} = require("../lib/trusted/customer_queries");
 const app = initializeApp({projectId: "fatoora-phase4-assignment-test"});
 const db = getFirestore(app);
 let sequence = 0;
@@ -48,6 +49,121 @@ async function fixture({creator = "rep", legacy = false} = {}) {
   const rows = async (name) => (await db.collection(`companies/${companyId}/${name}`).get()).docs.map((doc) => doc.data());
   return {companyId, admin, repA, repB, path, customerId, customer, request, transfer, draft, rows};
 }
+
+test("mixed legacy and assigned customer pages fill past transferred records without leaks or duplicates", async () => {
+  const f = await fixture({legacy: true});
+  await f.path("customers", f.customerId).update({active: false});
+  const seed = async (id, overrides) => f.path("customers", id).set({
+    id, companyId: f.companyId, createdByUid: f.repA, active: true,
+    name: id, nameLower: id, searchKeywords: ["customer", "عميل قديم"], currentBalance: 10, ...overrides,
+  });
+  // More excluded creator candidates than a whole query batch, both before and
+  // between authorized records. A client filter after limit would lose pages.
+  for (let index = 0; index < 9; index++) await seed(`a-old-${index}`, {assignmentVersion: 1, assignedToUid: f.repB});
+  await seed("b-legacy", {});
+  await seed("c-ambiguous", {assignedToUid: f.repB}); // unversioned is still creator-owned
+  for (let index = 0; index < 9; index++) await seed(`d-old-${index}`, {assignmentVersion: 1, assignedToUid: f.repB});
+  await seed("e-current", {assignmentVersion: 1, assignedToUid: f.repA});
+  await seed("f-incoming", {createdByUid: f.repB, assignmentVersion: 1, assignedToUid: f.repA});
+  await seed("g-other-legacy", {createdByUid: f.repB});
+  await seed("h-invalid-explicit", {assignmentVersion: 1, assignedToUid: ""});
+  await seed("i-inactive", {active: false});
+  const before = await f.rows("customers");
+  const request = {companyId: f.companyId, pageSize: 2};
+  const first = await listAccessibleCustomersPage(db, f.repA, request);
+  assert.deepEqual(first.customers.map((c) => c.id), ["b-legacy", "c-ambiguous"]);
+  assert.equal(first.hasMore, true);
+  const second = await listAccessibleCustomersPage(db, f.repA, {...request, after: first.cursor});
+  assert.deepEqual(second.customers.map((c) => c.id), ["e-current", "f-incoming"]);
+  assert.equal(second.hasMore, false);
+  for (const term of [" customer ", "عميل قديم"]) {
+    const found = await listAccessibleCustomersPage(db, f.repA, {...request, searchText: term});
+    assert.deepEqual(found.customers.map((c) => c.id), ["b-legacy", "c-ambiguous"]);
+    assert.equal(found.hasMore, true);
+  }
+  const allA = await listAccessibleCustomersPage(db, f.repA, {...request, activeOnly: false, pageSize: 100});
+  assert.equal(allA.customers.length, 6);
+  const allB = await listAccessibleCustomersPage(db, f.repB, {...request, pageSize: 100});
+  assert.equal(allB.customers.length, 19);
+  assert.ok(!allB.customers.some((c) => ["b-legacy", "c-ambiguous", "e-current", "f-incoming"].includes(c.id)));
+  const admin = await listAccessibleCustomersPage(db, f.admin, {...request, activeOnly: false, pageSize: 100});
+  assert.equal(admin.customers.length, before.length);
+  assert.deepEqual(await f.rows("customers"), before, "Listing never migrates or writes customers");
+});
+
+test("legacy receivable pages, totals and dashboard include old debt without transferred balances", async () => {
+  const f = await fixture({legacy: true});
+  await f.path("customers", f.customerId).update({currentBalance: 80});
+  for (const [id, balance, assignment] of [["outgoing", 900, {assignmentVersion: 1, assignedToUid: f.repB}],
+    ["incoming", 40, {assignmentVersion: 1, assignedToUid: f.repA, createdByUid: f.repB}],
+    ["credit", -20, {}], ["inactive", 700, {active: false}]]) {
+    await f.path("customers", id).set({id, companyId: f.companyId, active: true, nameLower: id,
+      createdByUid: f.repA, currentBalance: balance, ...assignment});
+  }
+  const request = {companyId: f.companyId, order: "balance", pageSize: 1, includeTotals: true};
+  const first = await listAccessibleCustomersPage(db, f.repA, request);
+  assert.equal(first.customers[0].id, f.customerId);
+  assert.equal(first.totalReceivables, 120);
+  assert.equal(first.customerCount, 3);
+  assert.equal(first.hasMore, true);
+  const second = await listAccessibleCustomersPage(db, f.repA, {...request, after: first.cursor});
+  assert.equal(second.customers[0].id, "incoming");
+  assert.equal(second.hasMore, false);
+  const {getDashboardSnapshot} = require("../lib/trusted/dashboard_reporting");
+  const dashboard = await getDashboardSnapshot.run({auth: {uid: f.repA}, data: {companyId: f.companyId, from: 0, to: Date.now()}});
+  assert.equal(dashboard.totalReceivables, 120);
+  assert.equal(dashboard.customerCount, 3);
+  const admin = await listAccessibleCustomersPage(db, f.admin, request);
+  assert.equal(admin.totalReceivables, 1020);
+});
+
+test("customer callable enforces current role/company and rejects forged cursor/filter scope", async () => {
+  const f = await fixture({legacy: true});
+  const request = {companyId: f.companyId, pageSize: 1};
+  const before = await f.customer();
+  const page = await listAccessibleCustomersPage(db, f.repA, {...request, salesRepId: f.repB, uid: f.repB});
+  assert.equal(page.customers[0].id, f.customerId, "Requested UID cannot override authentication");
+  await assert.rejects(listAccessibleCustomers.run({data: request}), (error) => error.code === "unauthenticated");
+  const other = await fixture();
+  await assert.rejects(listAccessibleCustomersPage(db, other.admin, request), (error) => error.code === "permission-denied");
+  await db.doc(`users/${f.repB}`).update({active: false});
+  await assert.rejects(listAccessibleCustomersPage(db, f.repB, request), (error) => error.code === "permission-denied");
+  for (const extra of [{order: "balance", after: page.cursor}, {searchText: "different", after: page.cursor},
+    {after: {...page.cursor, id: "a/b"}}, {pageSize: 1000}, {companyId: "bad/id"}]) {
+    await assert.rejects(listAccessibleCustomersPage(db, f.repA, {...request, ...extra}), (error) => error.code === "invalid-argument");
+  }
+  await db.doc(`users/${f.repB}`).update({active: true});
+  await f.transfer(f.repB);
+  assert.deepEqual((await listAccessibleCustomersPage(db, f.repA, request)).customers, []);
+  assert.equal((await listAccessibleCustomersPage(db, f.repB, request)).customers[0].id, f.customerId);
+  assert.equal((await f.customer()).createdByUid, before.createdByUid);
+});
+
+test("unmigrated customer can update, invoice and collect with creator authorization, other rep is denied", async () => {
+  const f = await fixture({legacy: true});
+  await assert.rejects(updateCustomerTransaction(db, f.repB, f.companyId, f.customerId, {name: "Denied"}), (error) => error.code === "permission-denied");
+  await updateCustomerTransaction(db, f.repA, f.companyId, f.customerId, {name: "Legacy updated"});
+  await f.draft("legacy-sale", f.repA);
+  await confirmInvoiceTransaction(db, f.repA, f.companyId, "legacy-sale");
+  const input = {customerId: f.customerId, amount: 25, paymentMethod: "cash", receiptDate: Date.now()};
+  await assert.rejects(createReceiptTransaction(db, f.repB, f.companyId, "denied-legacy-payment", input), (error) => error.code === "permission-denied");
+  await createReceiptTransaction(db, f.repA, f.companyId, "legacy-payment", input);
+  assert.equal((await f.customer()).currentBalance, 75);
+  assert.equal((await f.customer()).assignmentVersion, undefined, "Ordinary operations do not silently migrate ownership");
+});
+
+test("Admin-created legacy customers stay Admin-only until an explicit transfer, and Rep-to-Admin revokes Rep access", async () => {
+  const f = await fixture({creator: "admin", legacy: true});
+  const input = {companyId: f.companyId};
+  assert.equal((await listAccessibleCustomersPage(db, f.admin, input)).customers[0].id, f.customerId);
+  for (const uid of [f.repA, f.repB]) assert.deepEqual((await listAccessibleCustomersPage(db, uid, input)).customers, []);
+  await f.transfer(f.repA, "legacy-admin-to-rep");
+  assert.equal((await listAccessibleCustomersPage(db, f.repA, input)).customers[0].id, f.customerId);
+  await f.transfer(f.admin, "legacy-rep-to-admin");
+  assert.deepEqual((await listAccessibleCustomersPage(db, f.repA, input)).customers, []);
+  assert.equal((await listAccessibleCustomersPage(db, f.admin, input)).customers[0].id, f.customerId);
+  assert.equal((await f.customer()).createdByUid, f.admin);
+});
 
 test("Admin to Rep, Rep to Rep, and Rep to Admin preserve creator and record each transfer", async () => {
   const f = await fixture({creator: "admin"});

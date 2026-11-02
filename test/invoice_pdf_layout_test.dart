@@ -49,6 +49,31 @@ void main() {
     expect(_pageCount(bytes), 1);
   });
 
+  for (final language in ['ar', 'en']) {
+    test('Arabic customer names fit on invoices in $language', () async {
+      final source = _invoice(itemCount: 1);
+      for (final name in [
+        'رامي الجعيدي',
+        'رَامِي الجُعَيْدِي',
+        'رؤى زاهي',
+        'رامي الجعيدي Rami Al-Juaidi',
+        'Rami Al-Juaidi رامي الجعيدي',
+        'شركة رامي الجعيدي لتجارة المضخات وأنظمة المياه والخدمات الصناعية',
+      ]) {
+        final invoice = source.copyWith(
+          customerSnapshot: source.customerSnapshot!.copyWith(name: name),
+        );
+        final bytes = await InvoicePdfService.build(
+          invoice,
+          configuration: _configuration(language),
+        );
+
+        _expectPdf(bytes);
+        expect(_pageCount(bytes), 1, reason: name);
+      }
+    });
+  }
+
   test('ten-item invoice remains a single compact page', () async {
     final bytes = await InvoicePdfService.build(
       _invoice(itemCount: 10),

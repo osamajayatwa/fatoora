@@ -34,8 +34,10 @@ calls cannot override the trusted assignment or original creator.
 - Customer lists, pickers, statements, current receivables, profile updates,
   opening balances, invoice/quotation creation/conversion, receipt posting and
   return confirmation consistently authorize the current assignment.
-- Rep customer list queries require both `assignedToUid == auth.uid` and
-  `assignmentVersion == 1`. The rules do not authorize a creator-only list query.
+- Rep lists, pickers and receivable queries use `listAccessibleCustomers`, which
+  combines legacy creator candidates with versioned assignment candidates and
+  authorizes each customer on the server before filling a page. Direct Firestore
+  list queries still require UID + version 1; raw creator queries remain denied.
 - The previous Rep loses the current customer profile and customer statement,
   including customer transactions they originally posted. The currently assigned
   Rep can read the **complete customer statement** needed to reconcile debt.
@@ -101,10 +103,14 @@ assignment-like fields never silently grant another Rep access. Ambiguous
 unversioned `assignedToUid` records are refused for automatic migration/transfer
 and reported for explicit review.
 
-Paginated assignment queries cannot coalesce missing legacy fields. Therefore,
-**the reviewed backfill is required before releasing the new Rep list queries**.
-Unmigrated records are intentionally omitted from those queries, rather than
-broadening access or loading the full collection in Flutter.
+**Backfill is optional for customer visibility.** The initial Phase 4 implementation
+incorrectly made it a prerequisite: assignment-only list/picker/receivable queries
+omitted legacy records even though point reads and trusted posting supported them.
+The legacy visibility correction adds trusted server pagination and totals using
+the same creator fallback. Customers transferred away are excluded before the
+authorized lookahead/page is formed. Unversioned assignment-like metadata grants
+no extra access. See `phase4-legacy-customer-visibility.md` for the correction's
+changed files, tests and index requirements.
 
 Dry run, with explicit project and company:
 
@@ -141,15 +147,17 @@ Use a controlled cutover:
 
 1. Publish the updated existing authorization/posting/reporting functions while
    leaving the **new `reassignCustomer` callable unpublished**. Legacy ownership
-   is still unchanged at this stage. Prepare/verify indexes and review migration.
-2. Backfill each company, resolve reported legacy issues and verify coverage.
-   Coordinate the client query change and strict list rules in a maintenance
-   window. Creator-only clients cannot continue using the strict new list rules.
+   is still unchanged at this stage. Prepare/verify indexes and publish the
+   `listAccessibleCustomers` callable before clients that depend on it.
+2. Verify legacy and current assignment access with the corrected client queries
+   and strict list rules. Backfill is optional; dry-run/review it separately if
+   desired. Creator-only old clients cannot use strict new list rules.
 3. Verify all existing authorization functions, Rules, queries and clients are
    current, then publish `reassignCustomer` last. Do not enable transfers while
    older creator-based backend authorization remains deployed.
 
-Six new `customers` collection indexes are included. `V` below is
+The original six assignment indexes below are retained; the visibility correction
+adds the specific legacy-branch/sort indexes listed in its report. `V` below is
 `assignmentVersion ASC`, `U` is `assignedToUid ASC`; other equality fields are ASC:
 
 | Fields | Query |

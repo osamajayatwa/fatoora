@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:fatoora/core/pdf/app_pdf_localization.dart';
 import 'package:fatoora/core/pdf/business_pdf_configuration.dart';
@@ -29,8 +31,79 @@ import 'package:fatoora/features/settings/data/models/user_preferences_model.dar
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'support/arabic_pdf_cases.dart';
+import 'support/arabic_pdf_audit.dart';
+import 'support/pdf_font_assertions.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test(
+    'Arabic names preserve embedded glyphs in all six PDF services',
+    () async {
+      await initializeDateFormatting('en');
+      await initializeDateFormatting('ar');
+      final fonts = await loadPdfSourceFonts();
+      const auditDirectory = String.fromEnvironment('PDF_AUDIT_DIR');
+      var documentCount = 0;
+      var glyphCount = 0;
+      for (final language in ['ar', 'en']) {
+        for (var index = 0; index < arabicCustomerNames.length; index++) {
+          expect(
+            RegExp(r'[\u0600-\u06ff]').hasMatch(arabicCustomerNames[index]),
+            isTrue,
+          );
+          final fixture = _PdfFixture(
+            customerName: arabicCustomerNames[index],
+            languageCode: language,
+          );
+          final outputs = await fixture.buildPdfs();
+          for (final output in outputs.entries) {
+            if (auditDirectory.isNotEmpty &&
+                [0, 9, 10, 11, 12, 13].contains(index)) {
+              await Directory(auditDirectory).create(recursive: true);
+              await File(
+                '$auditDirectory/${output.key}-$language-$index.pdf',
+              ).writeAsBytes(output.value);
+            }
+            glyphCount += expectPdfFontMetrics(
+              output.value,
+              fonts,
+              context: '${output.key} $language name $index',
+              forbiddenUnshaped: index >= 12 ? {0x062d, 0x0645} : const {},
+            );
+            documentCount++;
+          }
+          expect(
+            fixture.invoice.customerSnapshot!.name,
+            arabicCustomerNames[index],
+          );
+          expect(
+            fixture.receipt.customerSnapshot.name,
+            arabicCustomerNames[index],
+          );
+          expect(
+            fixture.quotation.customerSnapshot!.name,
+            arabicCustomerNames[index],
+          );
+          expect(
+            fixture.salesReturn.customerSnapshot!.name,
+            arabicCustomerNames[index],
+          );
+        }
+      }
+      if (auditDirectory.isNotEmpty) {
+        await writeArabicGlyphAtlas('$auditDirectory/arabic-glyph-atlas.pdf');
+        await File('$auditDirectory/manifest.json').writeAsString(
+          jsonEncode({
+            'names': arabicCustomerNames,
+            'documentsTested': documentCount,
+            'glyphEntriesChecked': glyphCount,
+          }),
+        );
+      }
+    },
+  );
 
   test('all six PDF services build with Settings configuration', () async {
     await initializeDateFormatting('en');
@@ -307,7 +380,13 @@ int _pageCount(List<int> bytes) {
 }
 
 class _PdfFixture {
-  _PdfFixture() {
+  _PdfFixture({
+    this.customerName = 'Example Customer',
+    this.languageCode = 'en',
+  }) {
+    final customerSnapshot = _PdfFixture.customerSnapshot.copyWith(
+      name: customerName,
+    );
     invoice = InvoiceModel(
       id: 'invoice-1',
       companyId: companyId,
@@ -447,6 +526,8 @@ class _PdfFixture {
   }
 
   static const companyId = 'default_company';
+  final String customerName;
+  final String languageCode;
   final DateTime now = DateTime(2026, 6, 27);
   static const customerSnapshot = InvoiceCustomerSnapshot(
     id: 'customer-1',
@@ -471,7 +552,7 @@ class _PdfFixture {
     taxAmount: 3.04,
     total: 22.04,
   );
-  final BusinessPdfConfiguration configuration = BusinessPdfConfiguration(
+  BusinessPdfConfiguration get configuration => BusinessPdfConfiguration(
     companySettings: CompanySettingsModel.defaults.copyWith(
       name: 'Configured Company',
     ),
@@ -486,12 +567,12 @@ class _PdfFixture {
       defaultInvoiceNote: 'Personal invoice note',
       defaultReceiptNote: 'Personal receipt note',
     ),
-    localization: AppPdfLocalization.forLanguage('en'),
+    localization: AppPdfLocalization.forLanguage(languageCode),
   );
-  final CustomerModel customer = CustomerModel(
+  CustomerModel get customer => CustomerModel(
     id: 'customer-1',
     companyId: companyId,
-    name: 'Example Customer',
+    name: customerName,
     phone: '0790000000',
     addressText: 'Amman, Jordan',
     city: 'Amman',
@@ -533,13 +614,13 @@ class _PdfFixture {
     salesRepName: 'Sales Rep',
     createdAt: DateTime(2026, 6, 27),
   );
-  final FinancialCashSnapshot cashSnapshot = FinancialCashSnapshot(
+  FinancialCashSnapshot get cashSnapshot => FinancialCashSnapshot(
     movements: [
       CashMovementModel(
         id: 'cash-1',
         companyId: companyId,
         salesRepId: 'rep-1',
-        salesRepName: 'Sales Rep',
+        salesRepName: customerName,
         type: 'invoice_cash',
         movementType: 'invoice_payment',
         direction: 'in',
@@ -569,4 +650,41 @@ class _PdfFixture {
   late final ReceiptModel receipt;
   late final QuotationModel quotation;
   late final SalesReturnModel salesReturn;
+
+  Future<Map<String, Uint8List>> buildPdfs() async => {
+    'invoice': await InvoicePdfService.build(
+      invoice,
+      configuration: configuration,
+    ),
+    'receipt': await ReceiptPdfService.build(
+      receipt,
+      configuration: configuration,
+    ),
+    'return': await SalesReturnPdfService.build(
+      salesReturn,
+      configuration: configuration,
+    ),
+    'quotation': await QuotationPdfService.build(
+      quotation,
+      configuration: configuration,
+    ),
+    'statement': await CustomerStatementPdfService.build(
+      customer: customer,
+      transactions: [transaction],
+      fromDate: now,
+      toDate: now,
+      openingBalance: 0,
+      totalDebit: 22.04,
+      totalCredit: 0,
+      finalBalance: 22.04,
+      configuration: configuration,
+    ),
+    'cash': await CashReportPdfService.build(
+      snapshot: cashSnapshot,
+      fromDate: now,
+      toDate: now,
+      salesRepFilterLabel: customerName,
+      configuration: configuration,
+    ),
+  };
 }

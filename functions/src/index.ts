@@ -1,4 +1,5 @@
 import {reassignCustomer} from "./trusted/customer_assignment";
+import {listAccessibleCustomers} from "./trusted/customer_queries";
 import { initializeApp } from "firebase-admin/app";
 import {
   auditCompanyDocumentWrite,
@@ -42,6 +43,7 @@ import {
 initializeApp();
 
 export {
+  listAccessibleCustomers,
   reassignCustomer,
   projectInvoiceSearch,
   projectRepInventoryBalanceSearch,

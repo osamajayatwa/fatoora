@@ -1,0 +1,24 @@
+{
+  "site": "https://fatoora-6b192.web.app/",
+  "hostingVersion": "df142c2290fbf731",
+  "files": [
+    {
+      "file": "index.html",
+      "status": 200,
+      "sha256": "11b51173e711be57170a3e9240f51e280db2948865b1698aa770a0939b2de63e",
+      "matchesBuild": true
+    },
+    {
+      "file": "flutter_bootstrap.js",
+      "status": 200,
+      "sha256": "2219eaae32716c052da0a550529ce1dedbd0780d2ab54eca6843104e3c281ab5",
+      "matchesBuild": true
+    },
+    {
+      "file": "main.dart.js",
+      "status": 200,
+      "sha256": "83d8ee5307dc5871e1d07b987aea8f03f6ed61d319a6c6a6bebffac7fdd4400f",
+      "matchesBuild": true
+    }
+  ]
+}

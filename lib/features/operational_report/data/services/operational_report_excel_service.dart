@@ -6,6 +6,7 @@ import 'package:fatoora/features/expenses/data/models/expense_model.dart';
 import 'package:fatoora/features/operational_report/data/models/operational_report_data.dart';
 import 'package:fatoora/features/operational_report/data/models/operational_report_filters.dart';
 import 'package:fatoora/features/receipts/data/models/receipt_model.dart';
+import 'package:fatoora/features/sales_returns/data/models/sales_return_enums.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
@@ -29,6 +30,7 @@ class OperationalReportExcelService {
     : _fileSaver = fileSaver ?? _saveWithFileSaver;
 
   static const salesSheetName = 'Sales';
+  static const salesReturnsSheetName = 'Sales Returns';
   static const expensesSheetName = 'Expenses';
   static const receiptsSheetName = 'Receipts';
 
@@ -74,6 +76,46 @@ class OperationalReportExcelService {
     'Stock Source Type / مصدر المخزون',
     'Government Invoice ID / رقم الفاتورة الحكومي',
     'Government Status / الحالة الحكومية',
+    'Created At / تاريخ الإنشاء',
+  ];
+
+  static const salesReturnsHeaders = <String>[
+    'Return Number / رقم المرتجع',
+    'Return Date / تاريخ المرتجع',
+    'Original Invoice Number / رقم الفاتورة الأصلية',
+    'Original Invoice Date / تاريخ الفاتورة الأصلية',
+    'Customer Name / اسم العميل',
+    'Customer Phone / هاتف العميل',
+    'Customer Address / عنوان العميل',
+    'Customer City / مدينة العميل',
+    'Sales Rep Name / اسم المندوب',
+    'Created By Name / أنشئ بواسطة',
+    'Created By Role / دور المنشئ',
+    'Line Number / رقم السطر',
+    'Original Invoice Item ID / معرف سطر الفاتورة الأصلية',
+    'Item Code / رمز الصنف',
+    'Item Name / اسم الصنف',
+    'Description / الوصف',
+    'Unit / الوحدة',
+    'Returned Quantity / الكمية المرتجعة',
+    'Unit Price / سعر الوحدة',
+    'Line Subtotal / المجموع الفرعي للسطر',
+    'Line Discount / خصم السطر',
+    'Tax Percent / نسبة الضريبة',
+    'Tax Amount / مبلغ الضريبة',
+    'Line Total / إجمالي السطر',
+    'Return Subtotal / مجموع المرتجع الفرعي',
+    'Return Discount / خصم المرتجع',
+    'Return Tax / ضريبة المرتجع',
+    'Return Grand Total / إجمالي المرتجع',
+    'Refund Type / نوع الاسترداد',
+    'Receivable Reduction / تخفيض المبلغ المستحق',
+    'Customer Credit Amount / رصيد العميل',
+    'Cash Refund Amount / المبلغ المسترد نقداً',
+    'Return Reason / سبب الإرجاع',
+    'Return Status / حالة المرتجع',
+    'Financial Posted / مرحّل مالياً',
+    'Inventory Posted / مرحّل مخزونياً',
     'Created At / تاريخ الإنشاء',
   ];
 
@@ -150,6 +192,7 @@ class OperationalReportExcelService {
 
   List<int> buildWorkbook(OperationalReportData data) {
     final salesRows = buildOperationalSalesRows(data.invoices);
+    final salesReturnRows = buildOperationalSalesReturnRows(data.salesReturns);
     final receiptRows = buildOperationalReceiptRows(
       data.receipts,
       data.legacyInvoiceNumbers,
@@ -157,6 +200,7 @@ class OperationalReportExcelService {
     final excel = Excel.createExcel();
     excel.rename('Sheet1', salesSheetName);
     _buildSales(excel[salesSheetName], salesRows);
+    _buildSalesReturns(excel[salesReturnsSheetName], salesReturnRows);
     _buildExpenses(excel[expensesSheetName], data.expenses);
     _buildReceipts(excel[receiptsSheetName], receiptRows);
     final bytes = excel.save() ?? const <int>[];
@@ -165,10 +209,16 @@ class OperationalReportExcelService {
       bytes,
       [
         _SheetLayout(columns: salesHeaders.length),
+        _SheetLayout(columns: salesReturnsHeaders.length),
         _SheetLayout(columns: expensesHeaders.length),
         _SheetLayout(columns: receiptsHeaders.length),
       ],
-      [salesRows.length, data.expenses.length, receiptRows.length],
+      [
+        salesRows.length,
+        salesReturnRows.length,
+        data.expenses.length,
+        receiptRows.length,
+      ],
     );
   }
 
@@ -292,6 +342,107 @@ class OperationalReportExcelService {
       22,
       25,
       22,
+      21,
+    ]);
+  }
+
+  void _buildSalesReturns(Sheet sheet, List<OperationalSalesReturnRow> rows) {
+    _writeHeaders(sheet, salesReturnsHeaders);
+    for (var index = 0; index < rows.length; index += 1) {
+      final row = rows[index];
+      final salesReturn = row.salesReturn;
+      final customer = salesReturn.customerSnapshot;
+      final item = row.item;
+      final originalInvoiceDate = salesReturn.originalInvoiceDate;
+      final values = <CellValue>[
+        TextCellValue(salesReturn.returnNumber),
+        DateCellValue.fromDateTime(salesReturn.returnDate),
+        TextCellValue(salesReturn.originalInvoiceNumber),
+        originalInvoiceDate == null
+            ? TextCellValue('')
+            : DateCellValue.fromDateTime(originalInvoiceDate),
+        TextCellValue(customer?.name ?? ''),
+        TextCellValue(customer?.phone ?? ''),
+        TextCellValue(customer?.address ?? ''),
+        TextCellValue(customer?.city ?? ''),
+        TextCellValue(salesReturn.salesRepName),
+        TextCellValue(salesReturn.createdByName),
+        TextCellValue(_role(salesReturn.createdByRole)),
+        IntCellValue(row.lineNumber),
+        TextCellValue(item.originalInvoiceItemId),
+        TextCellValue(item.itemCode),
+        TextCellValue(item.itemName),
+        TextCellValue(item.description),
+        TextCellValue(item.unit),
+        DoubleCellValue(item.returnedQuantity),
+        DoubleCellValue(item.unitPrice),
+        DoubleCellValue(item.subtotal),
+        DoubleCellValue(item.discountAmount),
+        DoubleCellValue(item.taxPercent),
+        DoubleCellValue(item.taxAmount),
+        DoubleCellValue(item.total),
+        DoubleCellValue(salesReturn.subtotal),
+        DoubleCellValue(salesReturn.totalDiscount),
+        DoubleCellValue(salesReturn.totalTax),
+        DoubleCellValue(salesReturn.grandTotal),
+        TextCellValue(_refundType(salesReturn.refundType)),
+        DoubleCellValue(salesReturn.receivableReduction),
+        DoubleCellValue(salesReturn.customerCreditAmount),
+        DoubleCellValue(salesReturn.cashRefundAmount),
+        TextCellValue(salesReturn.reason),
+        TextCellValue('Confirmed / مؤكد'),
+        TextCellValue(salesReturn.financialPosted ? 'Yes / نعم' : 'No / لا'),
+        TextCellValue(salesReturn.inventoryPosted ? 'Yes / نعم' : 'No / لا'),
+        DateTimeCellValue.fromDateTime(salesReturn.createdAt),
+      ];
+      _writeRow(
+        sheet,
+        index + 1,
+        values,
+        moneyColumns: const {18, 19, 20, 22, 23, 24, 25, 26, 27, 29, 30, 31},
+        quantityColumns: const {17},
+        percentColumns: const {21},
+        dateColumns: const {1, 3},
+        dateTimeColumns: const {36},
+      );
+    }
+    _setWidths(sheet, const [
+      20,
+      16,
+      24,
+      20,
+      26,
+      19,
+      30,
+      18,
+      24,
+      24,
+      18,
+      12,
+      28,
+      18,
+      27,
+      30,
+      14,
+      18,
+      16,
+      18,
+      16,
+      14,
+      16,
+      17,
+      19,
+      18,
+      16,
+      19,
+      28,
+      23,
+      20,
+      20,
+      36,
+      18,
+      18,
+      18,
       21,
     ]);
   }
@@ -613,6 +764,11 @@ class OperationalReportExcelService {
     'partiallyReturned' => 'Partially returned / مرتجعة جزئياً',
     'returned' => 'Returned / مرتجعة',
     _ => 'None / لا يوجد',
+  };
+
+  static String _refundType(RefundType value) => switch (value) {
+    RefundType.creditCustomerBalance => 'Customer credit / رصيد العميل',
+    RefundType.cashRefund => 'Cash refund / استرداد نقدي',
   };
 
   static String _stockSource(String value) => switch (value) {

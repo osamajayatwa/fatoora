@@ -163,32 +163,40 @@ class BusinessPdfWidgets {
         ? pw.Image(assets.logo!, width: 62, height: 62, fit: pw.BoxFit.contain)
         : null;
 
-    final rowChildren = loc.isArabic
-        ? <pw.Widget>[
-            documentTitle,
-            if (company == null) pw.Spacer(),
-            if (company != null) ...[pw.SizedBox(width: 16), company],
-            if (logo != null) ...[pw.SizedBox(width: 12), logo],
-          ]
-        : <pw.Widget>[
-            if (logo != null) ...[logo, pw.SizedBox(width: 12)],
-            if (company != null) company,
-            if (company == null) pw.Spacer(),
-            if (company != null) pw.SizedBox(width: 16),
-            documentTitle,
-          ];
+    return pw.LayoutBuilder(
+      builder: (context, constraints) {
+        final boundedTitle = pw.ConstrainedBox(
+          constraints: pw.BoxConstraints(maxWidth: constraints!.maxWidth / 2),
+          child: documentTitle,
+        );
+        final rowChildren = loc.isArabic
+            ? <pw.Widget>[
+                boundedTitle,
+                if (company == null) pw.Spacer(),
+                if (company != null) ...[pw.SizedBox(width: 16), company],
+                if (logo != null) ...[pw.SizedBox(width: 12), logo],
+              ]
+            : <pw.Widget>[
+                if (logo != null) ...[logo, pw.SizedBox(width: 12)],
+                if (company != null) company,
+                if (company == null) pw.Spacer(),
+                if (company != null) pw.SizedBox(width: 16),
+                boundedTitle,
+              ];
 
-    return pw.Container(
-      padding: const pw.EdgeInsets.only(bottom: 14),
-      decoration: const pw.BoxDecoration(
-        border: pw.Border(
-          bottom: pw.BorderSide(color: PdfColors.grey400, width: 0.6),
-        ),
-      ),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: rowChildren,
-      ),
+        return pw.Container(
+          padding: const pw.EdgeInsets.only(bottom: 14),
+          decoration: const pw.BoxDecoration(
+            border: pw.Border(
+              bottom: pw.BorderSide(color: PdfColors.grey400, width: 0.6),
+            ),
+          ),
+          child: pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: rowChildren,
+          ),
+        );
+      },
     );
   }
 

@@ -4,6 +4,50 @@
       "collectionGroup": "customers",
       "queryScope": "COLLECTION",
       "fields": [
+        {"fieldPath": "searchKeywords", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "nameLower", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "customers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "createdByUid", "order": "ASCENDING"},
+        {"fieldPath": "nameLower", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "customers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "searchKeywords", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "createdByUid", "order": "ASCENDING"},
+        {"fieldPath": "nameLower", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "customers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "createdByUid", "order": "ASCENDING"},
+        {"fieldPath": "active", "order": "ASCENDING"},
+        {"fieldPath": "currentBalance", "order": "DESCENDING"},
+        {"fieldPath": "__name__", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "customers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "active", "order": "ASCENDING"},
+        {"fieldPath": "currentBalance", "order": "DESCENDING"},
+        {"fieldPath": "__name__", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "customers",
+      "queryScope": "COLLECTION",
+      "fields": [
         {"fieldPath": "assignmentVersion", "order": "ASCENDING"},
         {"fieldPath": "assignedToUid", "order": "ASCENDING"},
         {"fieldPath": "nameLower", "order": "ASCENDING"}

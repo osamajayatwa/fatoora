@@ -7,6 +7,7 @@ import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/firebase/trusted_callable_client.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
+import 'package:fatoora/features/customers/data/repositories/accessible_customer_query.dart';
 import 'package:fatoora/features/expenses/data/models/expense_model.dart';
 import 'package:fatoora/features/financial/data/models/cash_movement_model.dart';
 import 'package:fatoora/features/financial/data/models/company_cash_opening_balance_model.dart';
@@ -236,14 +237,34 @@ class FinancialRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      if (user.isSalesRep) {
+        final page = await AccessibleCustomerQuery(_trustedCallableClient)
+            .fetchPage(
+              companyId: resolvedCompanyId,
+              order: 'balance',
+              includeTotals: true,
+              after: after,
+              pageSize: pageSize,
+            );
+        return FinancialReceivablesPage(
+          snapshot: FinancialReceivablesSnapshot(
+            customers: page.items
+                .map(
+                  (customer) => FinancialCustomerBalance(
+                    customer: customer,
+                    balance: _round(customer.currentBalance),
+                  ),
+                )
+                .toList(growable: false),
+            totalReceivables: _round(page.totalReceivables),
+          ),
+          cursor: page.cursor,
+          hasMore: page.hasMore,
+        );
+      }
       Query<Map<String, dynamic>> query = _customers(resolvedCompanyId)
           .where('active', isEqualTo: true)
           .where('currentBalance', isGreaterThan: 0);
-      if (user.isSalesRep) {
-        query = query
-            .where('assignedToUid', isEqualTo: user.uid)
-            .where('assignmentVersion', isEqualTo: 1);
-      }
       final results = await Future.wait<Object>([
         query
             .orderBy('currentBalance', descending: true)
@@ -593,14 +614,22 @@ class FinancialRepository {
     String companyId,
     BusinessUserContext user,
   ) async {
+    if (user.isSalesRep) {
+      final page = await AccessibleCustomerQuery(
+        _trustedCallableClient,
+      ).fetchPage(companyId: companyId, order: 'balance', pageSize: 3);
+      return page.items
+          .map(
+            (customer) => FinancialCustomerBalance(
+              customer: customer,
+              balance: _round(customer.currentBalance),
+            ),
+          )
+          .toList(growable: false);
+    }
     Query<Map<String, dynamic>> query = _customers(companyId)
         .where('active', isEqualTo: true)
         .where('currentBalance', isGreaterThan: 0);
-    if (user.isSalesRep) {
-      query = query
-          .where('assignedToUid', isEqualTo: user.uid)
-          .where('assignmentVersion', isEqualTo: 1);
-    }
     final snapshot = await query
         .orderBy('currentBalance', descending: true)
         .orderBy(FieldPath.documentId)
@@ -673,12 +702,12 @@ class FinancialRepository {
     String companyId,
     BusinessUserContext user,
   ) async {
-    Query<Map<String, dynamic>> query = _customers(companyId);
     if (user.isSalesRep) {
-      query = query
-          .where('assignedToUid', isEqualTo: user.uid)
-          .where('assignmentVersion', isEqualTo: 1);
+      return AccessibleCustomerQuery(
+        _trustedCallableClient,
+      ).fetchAll(companyId: companyId, activeOnly: false, order: 'id');
     }
+    Query<Map<String, dynamic>> query = _customers(companyId);
     final documents = await query.orderBy(FieldPath.documentId).getAllPages();
     final customers = documents
         .map(CustomerModel.fromFirestore)

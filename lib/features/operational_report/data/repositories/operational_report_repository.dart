@@ -8,6 +8,8 @@ import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/operational_report/data/models/operational_report_data.dart';
 import 'package:fatoora/features/operational_report/data/models/operational_report_filters.dart';
 import 'package:fatoora/features/receipts/data/models/receipt_model.dart';
+import 'package:fatoora/features/sales_returns/data/models/sales_return_enums.dart';
+import 'package:fatoora/features/sales_returns/data/models/sales_return_model.dart';
 import 'package:fatoora/features/shared/business/business_user_context.dart';
 
 enum OperationalReportRepositoryError {
@@ -35,6 +37,7 @@ class OperationalReportRepository {
   static const invoiceDateField = 'invoiceDate';
   static const expenseDateField = 'expenseDate';
   static const receiptDateField = 'receiptDate';
+  static const returnDateField = 'returnDate';
   static const pageSize = 200;
   static const legacyInvoiceBatchSize = 30;
 
@@ -62,10 +65,12 @@ class OperationalReportRepository {
       _fetchInvoices(resolvedCompanyId, filters),
       _fetchExpenses(resolvedCompanyId, filters),
       _fetchReceipts(resolvedCompanyId, filters),
+      _fetchSalesReturns(resolvedCompanyId, filters),
     ]);
     final invoices = results[0] as List<InvoiceModel>;
     final expenses = results[1] as List<ExpenseModel>;
     final receipts = results[2] as List<ReceiptModel>;
+    final salesReturns = results[3] as List<SalesReturnModel>;
     final legacyIds = legacyReceiptInvoiceIds(receipts);
     final legacyNumbers = await _resolveLegacyInvoiceNumbers(
       resolvedCompanyId,
@@ -76,6 +81,9 @@ class OperationalReportRepository {
       for (final invoice in invoices)
         if (invoice.items.isEmpty)
           'Invoice ${invoice.invoiceNumber.isEmpty ? invoice.id : invoice.invoiceNumber} has no stored item rows and was skipped in Sales.',
+      for (final salesReturn in salesReturns)
+        if (salesReturn.items.isEmpty)
+          'Sales return ${salesReturn.returnNumber.isEmpty ? salesReturn.id : salesReturn.returnNumber} has no stored item rows and was skipped in Sales Returns.',
       for (final invoiceId in legacyIds)
         if ((legacyNumbers[invoiceId] ?? '').isEmpty)
           'Invoice number could not be resolved for legacy allocation $invoiceId.',
@@ -86,6 +94,7 @@ class OperationalReportRepository {
       invoices: invoices,
       expenses: expenses,
       receipts: receipts,
+      salesReturns: salesReturns,
       legacyInvoiceNumbers: legacyNumbers,
       warnings: warnings,
     );
@@ -125,6 +134,25 @@ class OperationalReportRepository {
         .orderBy(FieldPath.documentId, descending: true)
         .getAllPages(pageSize: pageSize);
     return documents.map(ExpenseModel.fromFirestore).toList(growable: false);
+  }
+
+  Future<List<SalesReturnModel>> _fetchSalesReturns(
+    String companyId,
+    OperationalReportFilters filters,
+  ) async {
+    Query<Map<String, dynamic>> query = _collection(
+      companyId,
+      'sales_returns',
+    ).where('status', isEqualTo: SalesReturnStatus.confirmed.value);
+    query = _applyDateRange(query, returnDateField, filters);
+    final documents = await query
+        .orderBy(returnDateField, descending: true)
+        .orderBy(FieldPath.documentId, descending: true)
+        .getAllPages(pageSize: pageSize);
+    return documents
+        .map(SalesReturnModel.fromFirestore)
+        .where((salesReturn) => salesReturn.isConfirmed)
+        .toList(growable: false);
   }
 
   Future<List<ReceiptModel>> _fetchReceipts(

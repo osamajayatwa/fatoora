@@ -16,6 +16,8 @@ import 'package:fatoora/features/operational_report/data/models/operational_repo
 import 'package:fatoora/features/operational_report/data/repositories/operational_report_repository.dart';
 import 'package:fatoora/features/operational_report/data/services/operational_report_excel_service.dart';
 import 'package:fatoora/features/receipts/data/models/receipt_model.dart';
+import 'package:fatoora/features/sales_returns/data/models/sales_return_enums.dart';
+import 'package:fatoora/features/sales_returns/data/models/sales_return_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -59,6 +61,27 @@ void main() {
       ]);
 
       expect(rows, isEmpty);
+    });
+  });
+
+  group('Sales return rows', () {
+    test('exports confirmed returns with one row per returned item', () {
+      final rows = buildOperationalSalesReturnRows([
+        _salesReturn(number: 'RET-1', itemNames: const ['Tea', 'Coffee']),
+        _salesReturn(number: 'RET-2'),
+        _salesReturn(number: 'DRAFT', status: SalesReturnStatus.draft),
+        _salesReturn(number: 'CANCEL', status: SalesReturnStatus.cancelled),
+        _salesReturn(number: 'LEGACY', itemNames: const []),
+      ]);
+
+      expect(rows.map((row) => row.salesReturn.returnNumber), [
+        'RET-1',
+        'RET-1',
+        'RET-2',
+      ]);
+      expect(rows.map((row) => row.item.itemName), ['Tea', 'Coffee', 'Item']);
+      expect(rows.map((row) => row.item.returnedQuantity), [0.5, 1.5, 0.5]);
+      expect(rows.map((row) => row.lineNumber), [1, 2, 1]);
     });
   });
 
@@ -163,6 +186,7 @@ void main() {
       expect(OperationalReportRepository.invoiceDateField, 'invoiceDate');
       expect(OperationalReportRepository.expenseDateField, 'expenseDate');
       expect(OperationalReportRepository.receiptDateField, 'receiptDate');
+      expect(OperationalReportRepository.returnDateField, 'returnDate');
       expect(OperationalReportRepository.pageSize, 200);
 
       final source = File(
@@ -173,7 +197,7 @@ void main() {
         RegExp(
           r'\.getAllPages\(pageSize: pageSize\)',
         ).allMatches(source).length,
-        3,
+        4,
       );
       expect(source, contains(".orderBy(FieldPath.documentId"));
       expect(source, contains('isLessThan: Timestamp.fromDate(to)'));
@@ -190,7 +214,7 @@ void main() {
   });
 
   group('Workbook', () {
-    test('contains exactly the three required formatted sheets', () {
+    test('contains exactly the four required formatted sheets', () {
       final data = OperationalReportData(
         companyId: 'company',
         invoices: [
@@ -204,14 +228,26 @@ void main() {
         receipts: [
           _receipt(amount: 25, allocations: const {'legacy': 20}),
         ],
+        salesReturns: [
+          _salesReturn(
+            number: 'RET-200',
+            itemNames: const ['Item A', 'Item B'],
+          ),
+        ],
         legacyInvoiceNumbers: const {'legacy': 'INV-200'},
       );
 
       final bytes = OperationalReportExcelService().buildWorkbook(data);
       final workbook = Excel.decodeBytes(bytes);
 
-      expect(workbook.tables.keys.toList(), ['Sales', 'Expenses', 'Receipts']);
+      expect(workbook.tables.keys.toList(), [
+        'Sales',
+        'Sales Returns',
+        'Expenses',
+        'Receipts',
+      ]);
       expect(workbook['Sales'].maxRows, 3);
+      expect(workbook['Sales Returns'].maxRows, 3);
       expect(workbook['Expenses'].maxRows, 2);
       expect(workbook['Receipts'].maxRows, 2);
       expect(
@@ -220,8 +256,8 @@ void main() {
       );
 
       final archive = ZipDecoder().decodeBytes(bytes);
-      final expectedFilters = ['A1:AP3', 'A1:S2', 'A1:V2'];
-      for (var index = 0; index < 3; index += 1) {
+      final expectedFilters = ['A1:AP3', 'A1:AK3', 'A1:S2', 'A1:V2'];
+      for (var index = 0; index < expectedFilters.length; index += 1) {
         final file = archive.findFile('xl/worksheets/sheet${index + 1}.xml');
         expect(file, isNotNull);
         final xml = utf8.decode(file!.content as List<int>);
@@ -257,6 +293,127 @@ void main() {
       );
     });
 
+    test('exports return references, item amounts, and refund breakdowns', () {
+      final data = OperationalReportData(
+        companyId: 'company',
+        invoices: const [],
+        expenses: const [],
+        receipts: const [],
+        salesReturns: [
+          _salesReturn(number: 'RET-CREDIT'),
+          _salesReturn(number: 'RET-CASH', refundType: RefundType.cashRefund),
+          _salesReturn(number: 'DRAFT', status: SalesReturnStatus.draft),
+          _salesReturn(number: 'CANCEL', status: SalesReturnStatus.cancelled),
+        ],
+      );
+      final sheet = Excel.decodeBytes(
+        OperationalReportExcelService().buildWorkbook(data),
+      )['Sales Returns'];
+
+      String textAt(String address) =>
+          sheet.cell(CellIndex.indexByString(address)).value.toString();
+      double numberAt(String address) {
+        final value = sheet.cell(CellIndex.indexByString(address)).value;
+        expect(value is DoubleCellValue || value is IntCellValue, isTrue);
+        return double.parse(value.toString());
+      }
+
+      expect(sheet.maxRows, 3);
+      expect(textAt('A2'), 'RET-CREDIT');
+      expect(textAt('C2'), 'INV-ORIGINAL');
+      expect(textAt('E2'), 'Return Customer');
+      expect(textAt('I2'), 'Representative');
+      expect(textAt('M2'), 'original-line-0');
+      expect(textAt('N2'), 'CODE-0');
+      expect(textAt('O2'), 'Item');
+      expect(textAt('P2'), 'Returned item description 0');
+      expect(numberAt('R2'), 0.5);
+      expect(numberAt('S2'), 10);
+      expect(numberAt('T2'), 5);
+      expect(numberAt('U2'), 0.5);
+      expect(numberAt('V2'), 16);
+      expect(numberAt('W2'), 0.72);
+      expect(numberAt('X2'), 5.22);
+      expect(numberAt('Y2'), 5);
+      expect(numberAt('Z2'), 0.5);
+      expect(numberAt('AA2'), 0.72);
+      expect(numberAt('AB2'), 5.22);
+      expect(textAt('AC2'), 'Customer credit / رصيد العميل');
+      expect(numberAt('AD2'), 2);
+      expect(numberAt('AE2'), closeTo(3.22, 0.000001));
+      expect(numberAt('AF2'), 0);
+      expect(textAt('AG2'), 'Damaged item');
+      expect(textAt('AH2'), 'Confirmed / مؤكد');
+      expect(textAt('AC3'), 'Cash refund / استرداد نقدي');
+      expect(numberAt('AD3'), 2);
+      expect(numberAt('AE3'), 0);
+      expect(numberAt('AF3'), closeTo(3.22, 0.000001));
+      expect(
+        sheet.cell(CellIndex.indexByString('B2')).value,
+        isA<DateCellValue>(),
+      );
+      expect(
+        sheet.cell(CellIndex.indexByString('D2')).value,
+        DateCellValue(year: 2025, month: 12, day: 20),
+      );
+      expect(
+        sheet.cell(CellIndex.indexByString('AK2')).value,
+        isA<DateTimeCellValue>(),
+      );
+    });
+
+    test('keeps an empty returns sheet with headers and filters', () {
+      final bytes = OperationalReportExcelService().buildWorkbook(
+        OperationalReportData(
+          companyId: 'company',
+          invoices: const [],
+          expenses: const [],
+          receipts: const [],
+        ),
+      );
+      final sheet = Excel.decodeBytes(bytes)['Sales Returns'];
+      expect(sheet.maxRows, 1);
+      expect(sheet.maxColumns, 37);
+      final file = ZipDecoder()
+          .decodeBytes(bytes)
+          .findFile('xl/worksheets/sheet2.xml');
+      expect(
+        utf8.decode(file!.content as List<int>),
+        contains('autoFilter ref="A1:AK1"'),
+      );
+    });
+
+    test(
+      'supports legacy returns without a customer snapshot or invoice date',
+      () {
+        final legacy = _salesReturn(number: 'LEGACY').toMap()
+          ..remove('customerSnapshot')
+          ..remove('originalInvoiceDate');
+        final sheet = Excel.decodeBytes(
+          OperationalReportExcelService().buildWorkbook(
+            OperationalReportData(
+              companyId: 'company',
+              invoices: const [],
+              expenses: const [],
+              receipts: const [],
+              salesReturns: [SalesReturnModel.fromMap(legacy)],
+            ),
+          ),
+        )['Sales Returns'];
+        expect(sheet.maxRows, 2);
+        expect(
+          sheet.cell(CellIndex.indexByString('A2')).value.toString(),
+          'LEGACY',
+        );
+        for (final address in ['D2', 'E2', 'F2', 'G2', 'H2']) {
+          expect(
+            sheet.cell(CellIndex.indexByString(address)).value.toString(),
+            '',
+          );
+        }
+      },
+    );
+
     test('headers contain both English and Arabic labels', () {
       expect(
         OperationalReportExcelService.salesHeaders.first,
@@ -267,6 +424,10 @@ void main() {
         contains('رقم الفاتورة'),
       );
       expect(
+        OperationalReportExcelService.salesReturnsHeaders.first,
+        contains('Return Number / رقم المرتجع'),
+      );
+      expect(
         OperationalReportExcelService.expensesHeaders.first,
         contains('تاريخ المصروف'),
       );
@@ -275,6 +436,81 @@ void main() {
         contains('رقم الإيصال'),
       );
     });
+  });
+}
+
+SalesReturnModel _salesReturn({
+  required String number,
+  SalesReturnStatus status = SalesReturnStatus.confirmed,
+  RefundType refundType = RefundType.creditCustomerBalance,
+  List<String> itemNames = const ['Item'],
+}) {
+  final quantityFactor = itemNames.length * itemNames.length;
+  final subtotal = quantityFactor * 5.0;
+  final discount = quantityFactor * 0.5;
+  final tax = quantityFactor * 0.72;
+  final grandTotal = quantityFactor * 5.22;
+  final receivableReduction = grandTotal == 0 ? 0.0 : 2.0;
+  final refund = grandTotal - receivableReduction;
+  return SalesReturnModel.fromMap({
+    'id': number,
+    'companyId': 'company',
+    'returnNumber': number,
+    'returnDate': DateTime(2026, 3, 12),
+    'originalInvoiceId': 'invoice-original',
+    'originalInvoiceNumber': 'INV-ORIGINAL',
+    'originalInvoiceDate': DateTime(2025, 12, 20),
+    'customerId': 'customer-1',
+    'customerSnapshot': const InvoiceCustomerSnapshot(
+      id: 'customer-1',
+      name: 'Return Customer',
+      phone: '0790000000',
+      address: 'Amman Street',
+      taxNumber: '',
+      nationalNumber: '',
+      city: 'Amman',
+    ).toMap(),
+    'salesRepId': 'rep-1',
+    'salesRepName': 'Representative',
+    'createdByUid': 'admin-1',
+    'createdByName': 'Admin',
+    'createdByRole': 'admin',
+    'items': [
+      for (var index = 0; index < itemNames.length; index += 1)
+        {
+          'lineId': 'return-line-$index',
+          'originalInvoiceItemId': 'original-line-$index',
+          'itemId': 'item-$index',
+          'itemName': itemNames[index],
+          'itemCode': 'CODE-$index',
+          'description': 'Returned item description $index',
+          'unit': 'piece',
+          'returnedQuantity': index + 0.5,
+          'unitPrice': 10.0,
+          'discountPerUnit': 1.0,
+          'discountAmount': index + 0.5,
+          'taxPercent': 16.0,
+          'subtotal': (index + 0.5) * 10.0,
+          'taxAmount': (index * 2 + 1) * 0.72,
+          'total': (index * 2 + 1) * 5.22,
+        },
+    ],
+    'subtotal': subtotal,
+    'totalDiscount': discount,
+    'totalTax': tax,
+    'grandTotal': grandTotal,
+    'receivableReduction': receivableReduction,
+    'customerCreditAmount': refundType == RefundType.creditCustomerBalance
+        ? refund
+        : 0.0,
+    'cashRefundAmount': refundType == RefundType.cashRefund ? refund : 0.0,
+    'refundType': refundType.value,
+    'reason': 'Damaged item',
+    'status': status.value,
+    'financialPosted': status == SalesReturnStatus.confirmed,
+    'inventoryPosted': status == SalesReturnStatus.confirmed,
+    'createdAt': DateTime(2026, 3, 12, 10),
+    'updatedAt': DateTime(2026, 3, 12, 10),
   });
 }
 

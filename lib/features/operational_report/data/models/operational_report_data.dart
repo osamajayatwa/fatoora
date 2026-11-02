@@ -3,6 +3,8 @@ import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_item_snapshot.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_model.dart';
 import 'package:fatoora/features/receipts/data/models/receipt_model.dart';
+import 'package:fatoora/features/sales_returns/data/models/sales_return_item_model.dart';
+import 'package:fatoora/features/sales_returns/data/models/sales_return_model.dart';
 
 class OperationalReportData {
   OperationalReportData({
@@ -10,11 +12,13 @@ class OperationalReportData {
     required List<InvoiceModel> invoices,
     required List<ExpenseModel> expenses,
     required List<ReceiptModel> receipts,
+    List<SalesReturnModel> salesReturns = const [],
     Map<String, String> legacyInvoiceNumbers = const {},
     List<String> warnings = const [],
   }) : invoices = List.unmodifiable(invoices),
        expenses = List.unmodifiable(expenses),
        receipts = List.unmodifiable(receipts),
+       salesReturns = List.unmodifiable(salesReturns),
        legacyInvoiceNumbers = Map.unmodifiable(legacyInvoiceNumbers),
        warnings = List.unmodifiable(warnings);
 
@@ -22,6 +26,7 @@ class OperationalReportData {
   final List<InvoiceModel> invoices;
   final List<ExpenseModel> expenses;
   final List<ReceiptModel> receipts;
+  final List<SalesReturnModel> salesReturns;
   final Map<String, String> legacyInvoiceNumbers;
   final List<String> warnings;
 }
@@ -52,6 +57,18 @@ class OperationalReceiptRow {
   final double unallocatedAmount;
 }
 
+class OperationalSalesReturnRow {
+  const OperationalSalesReturnRow({
+    required this.salesReturn,
+    required this.item,
+    required this.lineNumber,
+  });
+
+  final SalesReturnModel salesReturn;
+  final SalesReturnItemModel item;
+  final int lineNumber;
+}
+
 bool isOperationalSale(InvoiceModel invoice) =>
     invoice.invoiceStatus == InvoiceStatus.confirmed ||
     invoice.invoiceStatus == InvoiceStatus.accepted;
@@ -66,6 +83,24 @@ List<OperationalSalesRow> buildOperationalSalesRows(
         OperationalSalesRow(
           invoice: invoice,
           item: invoice.items[index],
+          lineNumber: index + 1,
+        ),
+      );
+    }
+  }
+  return List.unmodifiable(rows);
+}
+
+List<OperationalSalesReturnRow> buildOperationalSalesReturnRows(
+  Iterable<SalesReturnModel> salesReturns,
+) {
+  final rows = <OperationalSalesReturnRow>[];
+  for (final salesReturn in salesReturns.where((item) => item.isConfirmed)) {
+    for (var index = 0; index < salesReturn.items.length; index += 1) {
+      rows.add(
+        OperationalSalesReturnRow(
+          salesReturn: salesReturn,
+          item: salesReturn.items[index],
           lineNumber: index + 1,
         ),
       );

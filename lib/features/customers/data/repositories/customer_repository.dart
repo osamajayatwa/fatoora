@@ -7,6 +7,7 @@ import 'package:fatoora/core/firebase/trusted_callable_client.dart';
 import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
+import 'package:fatoora/features/customers/data/repositories/accessible_customer_query.dart';
 import 'package:fatoora/features/customers/data/models/customer_opening_balance.dart';
 import 'package:fatoora/features/customers/data/models/customer_statement_snapshot.dart';
 import 'package:fatoora/features/customers/data/models/customer_transaction_model.dart';
@@ -182,13 +183,16 @@ class CustomerRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      if (user.isSalesRep) {
+        return AccessibleCustomerQuery(_trustedCallableClient).fetchAll(
+          companyId: resolvedCompanyId,
+          searchText: searchText,
+          activeOnly: activeOnly,
+          pageSize: pageSize,
+        );
+      }
       Query<Map<String, dynamic>> query = _customers(resolvedCompanyId);
       if (activeOnly) query = query.where('active', isEqualTo: true);
-      if (user.isSalesRep) {
-        query = query
-            .where('assignedToUid', isEqualTo: user.uid)
-            .where('assignmentVersion', isEqualTo: 1);
-      }
       final normalizedSearch = CustomerModel.normalizeText(searchText);
       if (normalizedSearch.isNotEmpty) {
         query = query.where('searchKeywords', arrayContains: normalizedSearch);
@@ -211,13 +215,17 @@ class CustomerRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      if (user.isSalesRep) {
+        return AccessibleCustomerQuery(_trustedCallableClient).fetchPage(
+          companyId: resolvedCompanyId,
+          searchText: searchText,
+          activeOnly: activeOnly,
+          after: after,
+          pageSize: pageSize,
+        );
+      }
       Query<Map<String, dynamic>> query = _customers(resolvedCompanyId);
       if (activeOnly) query = query.where('active', isEqualTo: true);
-      if (user.isSalesRep) {
-        query = query
-            .where('assignedToUid', isEqualTo: user.uid)
-            .where('assignmentVersion', isEqualTo: 1);
-      }
       final normalizedSearch = CustomerModel.normalizeText(searchText);
       if (normalizedSearch.isNotEmpty) {
         query = query.where('searchKeywords', arrayContains: normalizedSearch);

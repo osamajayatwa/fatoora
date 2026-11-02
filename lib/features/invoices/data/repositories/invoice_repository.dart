@@ -10,6 +10,7 @@ import 'package:fatoora/core/settings/business_settings_defaults.dart';
 import 'package:fatoora/core/settings/business_permission_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
+import 'package:fatoora/features/customers/data/repositories/accessible_customer_query.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_enums.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_item_snapshot.dart';
 import 'package:fatoora/features/invoices/data/models/invoice_list_query.dart';
@@ -217,14 +218,31 @@ class InvoiceRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
+      if (user.isSalesRep) {
+        final page = await AccessibleCustomerQuery(_trustedCallableClient)
+            .fetchPage(
+              companyId: resolvedCompanyId,
+              searchText: searchText,
+              pageSize: limit.clamp(1, 50).toInt(),
+            );
+        return page.items
+            .where(
+              (customer) =>
+                  customer.name.isNotEmpty &&
+                  customer.name.toLowerCase() != 'undefined',
+            )
+            .map(
+              (customer) => InvoiceFilterOption(
+                id: customer.id,
+                label: customer.name,
+                subtitle: customer.phone,
+              ),
+            )
+            .toList(growable: false);
+      }
       Query<Map<String, dynamic>> query = _customers(
         resolvedCompanyId,
       ).where('active', isEqualTo: true);
-      if (user.isSalesRep) {
-        query = query
-            .where('assignedToUid', isEqualTo: user.uid)
-            .where('assignmentVersion', isEqualTo: 1);
-      }
       final normalizedSearch = _normalize(searchText);
       if (normalizedSearch.isNotEmpty) {
         query = query.where('searchKeywords', arrayContains: normalizedSearch);

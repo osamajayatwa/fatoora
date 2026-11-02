@@ -2516,3 +2516,36 @@ test("unused unversioned assignment metadata never silently transfers legacy cus
   await assertSucceeds(getDoc(businessDoc(authenticatedDb(repAUid), "customers", "legacy-ambiguous")));
   await assertFails(getDoc(businessDoc(authenticatedDb(repBUid), "customers", "legacy-ambiguous")));
 });
+
+test("legacy customer profile and statement use creator fallback; Admin can list unmigrated company customers", async () => {
+  await seedDraftCustomer("legacy-visible", repAUid);
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(businessDoc(db, "customer_transactions", "legacy-debt"), {
+      id: "legacy-debt", companyId, customerId: "legacy-visible", createdByUid: adminUid,
+      debitAmount: 10, creditAmount: 0,
+    });
+    // A customer with no assignment fields or creator remains company-visible
+    // to Admin, but is never guessed into a Rep's ownership.
+    await setDoc(businessDoc(db, "customers", "unknown-creator"), {companyId, nameLower: "unknown", active: false});
+  });
+  const owner = authenticatedDb(repAUid), other = authenticatedDb(repBUid), admin = authenticatedDb(adminUid);
+  await assertSucceeds(getDoc(businessDoc(owner, "customers", "legacy-visible")));
+  await assertFails(getDoc(businessDoc(other, "customers", "legacy-visible")));
+  await assertSucceeds(getDoc(businessDoc(owner, "customer_transactions", "legacy-debt")));
+  await assertFails(getDoc(businessDoc(other, "customer_transactions", "legacy-debt")));
+  await assertFails(getDoc(businessDoc(owner, "customers", "unknown-creator")));
+  const all = await assertSucceeds(getDocs(collection(admin, "companies", companyId, "customers")));
+  assert.ok(all.docs.some((doc) => doc.id === "legacy-visible"));
+  assert.ok(all.docs.some((doc) => doc.id === "unknown-creator"));
+  // Missing-field predicates cannot securely authorize a mixed client query.
+  // The callable returns authorized legacy pages; raw creator queries stay denied.
+  await assertFails(getDocs(query(collection(owner, "companies", companyId, "customers"), where("createdByUid", "==", repAUid))));
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    await updateDoc(businessDoc(context.firestore(), "customers", "legacy-visible"), {assignmentVersion: 1, assignedToUid: repBUid});
+  });
+  await assertFails(getDoc(businessDoc(owner, "customers", "legacy-visible")));
+  await assertFails(getDoc(businessDoc(owner, "customer_transactions", "legacy-debt")));
+  await assertSucceeds(getDoc(businessDoc(other, "customers", "legacy-visible")));
+  await assertSucceeds(getDoc(businessDoc(other, "customer_transactions", "legacy-debt")));
+});

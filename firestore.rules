@@ -918,8 +918,10 @@ service cloud.firestore {
           )
           || canReadCustomer(companyId, resource.data)
         );
-      // Query authorization must use an explicit assignment field. Legacy
-      // creator fallback is for point reads only, until the audited backfill.
+      // Direct list queries require explicit assignment. Mixed legacy/current
+      // lists use listAccessibleCustomers: the trusted server applies the same
+      // ownsAssignedCustomer policy before filling each page. Creator-only
+      // client queries could include transferred customers and remain denied.
       allow list: if isApprovedCompanyUser(companyId)
         && (isAdmin(companyId) || (resource.data.assignmentVersion == 1
           && resource.data.assignedToUid == request.auth.uid));
