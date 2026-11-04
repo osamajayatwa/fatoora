@@ -38,6 +38,105 @@ import 'support/pdf_font_assertions.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  final settlementFixture =
+      Platform.environment['SETTLEMENT_METADATA_FIXTURE_PATH'] ??
+      'test/fixtures/cash_settlement_metadata.json';
+  test(
+    'Phase 2B-3 trusted settlement pair exports through the existing PDF',
+    () async {
+      await initializeDateFormatting('ar');
+      final rows =
+          (jsonDecode(File(settlementFixture).readAsStringSync()) as List)
+              .map(
+                (raw) => CashMovementModel.fromMap(
+                  Map<String, dynamic>.from(raw as Map),
+                ),
+              )
+              .toList();
+      expect(rows, hasLength(2));
+      for (final language in ['en', 'ar']) {
+        final fixture = _PdfFixture(languageCode: language);
+        final bytes = await CashReportPdfService.build(
+          snapshot: FinancialCashSnapshot(
+            movements: rows,
+            cashInHand: 50.345,
+            totalIn: 30.123,
+            totalOut: 30.123,
+            cashBySalesRep: const [],
+            reportedValues: {
+              'openingBalance': BigInt.from(20222),
+              'closingBalance': BigInt.from(50345),
+            },
+          ),
+          fromDate: DateTime(2026, 8, 5),
+          toDate: DateTime(2026, 8, 5),
+          salesRepFilterLabel: 'Authorized company scope',
+          configuration: fixture.configuration,
+        );
+        expect(bytes.length, greaterThan(5000));
+      }
+    },
+  );
+
+  test(
+    'cash read details export both languages without invented fields',
+    () async {
+      await initializeDateFormatting('ar');
+      final row = CashMovementModel.fromMap({
+        'id': 'cash-contract',
+        'companyId': _PdfFixture.companyId,
+        'type': 'receipt_cancellation',
+        'movementType': 'receipt_cancellation',
+        'sourceCollection': 'receipts',
+        'sourceId': 'receipt-original',
+        'sourceNumber': 'REC-ORIGINAL',
+        'cashAccount': 'rep_cash',
+        'salesRepId': 'holder-original',
+        'createdByUid': 'cancelling-admin',
+        'createdByName': 'Cancellation actor',
+        'createdByRole': 'admin',
+        'direction': 'out',
+        'amount': '9007199254740.991',
+        'paymentMethod': 'cash',
+        'date': '2026-11-01T09:00:00Z',
+        'createdAt': '2026-11-04T10:01:00Z',
+        'balanceBefore': '9007199254750.991',
+        'balanceAfter': '10.000',
+        'reversesMovementId': 'original-movement',
+        'reversesReceiptId': 'receipt-original',
+        'originalCollectionSourceIds': ['funding-1', 'funding-2'],
+        'auditEventId': 'audit-read-only',
+        'notes': 'Traceable source, unchanged posted data.',
+      });
+      for (final language in ['en', 'ar']) {
+        final fixture = _PdfFixture(languageCode: language);
+        final bytes = await CashReportPdfService.build(
+          snapshot: FinancialCashSnapshot(
+            movements: [row],
+            cashInHand: 10,
+            totalIn: 0,
+            totalOut: 0,
+            cashBySalesRep: const [],
+            reportedValues: {
+              'openingBalance': null,
+              'closingBalance': BigInt.from(10000),
+            },
+          ),
+          fromDate: DateTime(2026, 11, 1),
+          toDate: DateTime(2026, 11, 4),
+          salesRepFilterLabel: 'Authorized scope',
+          configuration: fixture.configuration,
+        );
+        expect(bytes.length, greaterThan(5000));
+        final directory = Directory('build/phase2b2')
+          ..createSync(recursive: true);
+        File(
+          '${directory.path}/cash-details-$language.pdf',
+        ).writeAsBytesSync(bytes);
+      }
+    },
+  );
+
   test(
     'Arabic names preserve embedded glyphs in all six PDF services',
     () async {

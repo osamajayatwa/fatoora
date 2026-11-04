@@ -1,4 +1,10 @@
 import {DocumentData, Timestamp} from "firebase-admin/firestore";
+// Offline intent preparation only; existing posting mappings do not invoke it.
+export {buildSettlementJournalIntent, validateSettlementJournalIntent} from "./settlement_journal_intent";
+export type {
+  SettlementCashMapping, SettlementJournalIntent, SettlementJournalIntentInput,
+  SettlementMonetaryPolicy,
+} from "./settlement_journal_intent";
 import {roundMoney} from "./common";
 import {
   buildFinancialLedgerEntry,

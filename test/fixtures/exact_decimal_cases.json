@@ -1,0 +1,1093 @@
+{
+  "schemaVersion": 1,
+  "rounding": "half_away_from_zero",
+  "maxScale": 6,
+  "maxUnitDigits": 30,
+  "legacyScale": 3,
+  "propertySeed": 20261104,
+  "cases": [
+    {
+      "id": "zero",
+      "op": "parse",
+      "args": [
+        "0",
+        0
+      ],
+      "expected": "0"
+    },
+    {
+      "id": "negative-zero",
+      "op": "parse",
+      "args": [
+        "-0.000",
+        3
+      ],
+      "expected": "0"
+    },
+    {
+      "id": "leading-zeros",
+      "op": "parse",
+      "args": [
+        "000012.340",
+        3
+      ],
+      "expected": "12340"
+    },
+    {
+      "id": "quantity-six",
+      "op": "parse",
+      "args": [
+        "0.000400",
+        6
+      ],
+      "expected": "400"
+    },
+    {
+      "id": "unit-price-six",
+      "op": "parse",
+      "args": [
+        "4.350000",
+        6
+      ],
+      "expected": "4350000"
+    },
+    {
+      "id": "money-max",
+      "op": "parse",
+      "args": [
+        "999999999999999999999999999.999",
+        3
+      ],
+      "expected": "999999999999999999999999999999"
+    },
+    {
+      "id": "negative-max",
+      "op": "parse",
+      "args": [
+        "-999999999999999999999999.999999",
+        6
+      ],
+      "expected": "-999999999999999999999999999999"
+    },
+    {
+      "id": "empty",
+      "op": "parse",
+      "args": [
+        "",
+        3
+      ],
+      "error": true
+    },
+    {
+      "id": "whitespace",
+      "op": "parse",
+      "args": [
+        " 1",
+        3
+      ],
+      "error": true
+    },
+    {
+      "id": "trailing-newline",
+      "op": "parse",
+      "args": [
+        "1\n",
+        0
+      ],
+      "error": true
+    },
+    {
+      "id": "trailing-crlf",
+      "op": "parse",
+      "args": [
+        "1\r\n",
+        3
+      ],
+      "error": true
+    },
+    {
+      "id": "plus-sign",
+      "op": "parse",
+      "args": [
+        "+1",
+        3
+      ],
+      "error": true
+    },
+    {
+      "id": "missing-whole",
+      "op": "parse",
+      "args": [
+        ".5",
+        3
+      ],
+      "error": true
+    },
+    {
+      "id": "missing-fraction",
+      "op": "parse",
+      "args": [
+        "1.",
+        3
+      ],
+      "error": true
+    },
+    {
+      "id": "exponent",
+      "op": "parse",
+      "args": [
+        "1e3",
+        3
+      ],
+      "error": true
+    },
+    {
+      "id": "nonfinite",
+      "op": "parse",
+      "args": [
+        "NaN",
+        3
+      ],
+      "error": true
+    },
+    {
+      "id": "infinity",
+      "op": "parse",
+      "args": [
+        "Infinity",
+        3
+      ],
+      "error": true
+    },
+    {
+      "id": "separator",
+      "op": "parse",
+      "args": [
+        "1,200.00",
+        3
+      ],
+      "error": true
+    },
+    {
+      "id": "arabic-digits",
+      "op": "parse",
+      "args": [
+        "١.٢",
+        3
+      ],
+      "error": true
+    },
+    {
+      "id": "excess-scale",
+      "op": "parse",
+      "args": [
+        "0.001",
+        2
+      ],
+      "error": true
+    },
+    {
+      "id": "excess-zero-digits",
+      "op": "parse",
+      "args": [
+        "1.0000",
+        3
+      ],
+      "error": true
+    },
+    {
+      "id": "invalid-scale-low",
+      "op": "parse",
+      "args": [
+        "1",
+        -1
+      ],
+      "error": true
+    },
+    {
+      "id": "invalid-scale-high",
+      "op": "parse",
+      "args": [
+        "1",
+        7
+      ],
+      "error": true
+    },
+    {
+      "id": "input-too-long",
+      "op": "parse",
+      "args": [
+        "00000000000000000000000000000000000000000000000000000000000000000",
+        3
+      ],
+      "error": true
+    },
+    {
+      "id": "units-overflow",
+      "op": "parse",
+      "args": [
+        "1000000000000000000000000000.000",
+        3
+      ],
+      "error": true
+    },
+    {
+      "id": "format-zero",
+      "op": "format",
+      "args": [
+        "0",
+        6
+      ],
+      "expected": "0.000000"
+    },
+    {
+      "id": "format-negative",
+      "op": "format",
+      "args": [
+        "-1",
+        3
+      ],
+      "expected": "-0.001"
+    },
+    {
+      "id": "format-integer",
+      "op": "format",
+      "args": [
+        "123",
+        0
+      ],
+      "expected": "123"
+    },
+    {
+      "id": "format-max",
+      "op": "format",
+      "args": [
+        "999999999999999999999999999999",
+        3
+      ],
+      "expected": "999999999999999999999999999.999"
+    },
+    {
+      "id": "format-input-overflow",
+      "op": "format",
+      "args": [
+        "1000000000000000000000000000000",
+        6
+      ],
+      "error": true
+    },
+    {
+      "id": "format-invalid-scale",
+      "op": "format",
+      "args": [
+        "1",
+        7
+      ],
+      "error": true
+    },
+    {
+      "id": "rescale-up",
+      "op": "rescale",
+      "args": [
+        "1",
+        0,
+        6
+      ],
+      "expected": "1000000"
+    },
+    {
+      "id": "rescale-tie",
+      "op": "rescale",
+      "args": [
+        "12345",
+        4,
+        3
+      ],
+      "expected": "1235"
+    },
+    {
+      "id": "rescale-negative-tie",
+      "op": "rescale",
+      "args": [
+        "-12345",
+        4,
+        3
+      ],
+      "expected": "-1235"
+    },
+    {
+      "id": "rescale-below",
+      "op": "rescale",
+      "args": [
+        "12344",
+        4,
+        3
+      ],
+      "expected": "1234"
+    },
+    {
+      "id": "rescale-small-zero",
+      "op": "rescale",
+      "args": [
+        "5",
+        6,
+        3
+      ],
+      "expected": "0"
+    },
+    {
+      "id": "rescale-currency-tie",
+      "op": "rescale",
+      "args": [
+        "500",
+        6,
+        3
+      ],
+      "expected": "1"
+    },
+    {
+      "id": "rescale-max",
+      "op": "rescale",
+      "args": [
+        "999999999999999999999999999999",
+        6,
+        6
+      ],
+      "expected": "999999999999999999999999999999"
+    },
+    {
+      "id": "rescale-output-overflow",
+      "op": "rescale",
+      "args": [
+        "999999999999999999999999999999",
+        0,
+        1
+      ],
+      "error": true
+    },
+    {
+      "id": "rescale-source-invalid",
+      "op": "rescale",
+      "args": [
+        "1",
+        7,
+        3
+      ],
+      "error": true
+    },
+    {
+      "id": "product-midpoint",
+      "op": "multiply",
+      "args": [
+        "410000",
+        6,
+        "4350000",
+        6,
+        3
+      ],
+      "expected": "1784"
+    },
+    {
+      "id": "product-negative-midpoint",
+      "op": "multiply",
+      "args": [
+        "-410000",
+        6,
+        "4350000",
+        6,
+        3
+      ],
+      "expected": "-1784"
+    },
+    {
+      "id": "tiny-quantity-large-price",
+      "op": "multiply",
+      "args": [
+        "400",
+        6,
+        "2500000",
+        3,
+        3
+      ],
+      "expected": "1000"
+    },
+    {
+      "id": "six-digit-product",
+      "op": "multiply",
+      "args": [
+        "1234567",
+        6,
+        "7654321",
+        6,
+        6
+      ],
+      "expected": "9449772"
+    },
+    {
+      "id": "product-small-price",
+      "op": "multiply",
+      "args": [
+        "1000000",
+        0,
+        "1",
+        6,
+        3
+      ],
+      "expected": "1000"
+    },
+    {
+      "id": "free-price",
+      "op": "multiply",
+      "args": [
+        "7000000",
+        6,
+        "0",
+        6,
+        3
+      ],
+      "expected": "0"
+    },
+    {
+      "id": "product-half-unit",
+      "op": "multiply",
+      "args": [
+        "1",
+        0,
+        "5",
+        4,
+        3
+      ],
+      "expected": "1"
+    },
+    {
+      "id": "product-max",
+      "op": "multiply",
+      "args": [
+        "999999999999999999999999999999",
+        0,
+        "1",
+        0,
+        0
+      ],
+      "expected": "999999999999999999999999999999"
+    },
+    {
+      "id": "product-output-overflow",
+      "op": "multiply",
+      "args": [
+        "999999999999999999999999999999",
+        0,
+        "999999999999999999999999999999",
+        0,
+        0
+      ],
+      "error": true
+    },
+    {
+      "id": "product-operand-overflow",
+      "op": "multiply",
+      "args": [
+        "1000000000000000000000000000000",
+        6,
+        "0",
+        3,
+        3
+      ],
+      "error": true
+    },
+    {
+      "id": "product-invalid-scale",
+      "op": "multiply",
+      "args": [
+        "1",
+        3,
+        "1",
+        7,
+        3
+      ],
+      "error": true
+    },
+    {
+      "id": "third",
+      "op": "divide",
+      "args": [
+        "1",
+        0,
+        "3",
+        0,
+        3
+      ],
+      "expected": "333"
+    },
+    {
+      "id": "two-thirds",
+      "op": "divide",
+      "args": [
+        "2",
+        0,
+        "3",
+        0,
+        3
+      ],
+      "expected": "667"
+    },
+    {
+      "id": "negative-eighth",
+      "op": "divide",
+      "args": [
+        "-1",
+        0,
+        "8",
+        0,
+        2
+      ],
+      "expected": "-13"
+    },
+    {
+      "id": "ratio-rounds-once",
+      "op": "divide",
+      "args": [
+        "1",
+        3,
+        "2",
+        0,
+        3
+      ],
+      "expected": "1"
+    },
+    {
+      "id": "independent-ratio-scales",
+      "op": "divide",
+      "args": [
+        "2",
+        3,
+        "1",
+        6,
+        0
+      ],
+      "expected": "2000"
+    },
+    {
+      "id": "ratio-negative-exponent",
+      "op": "divide",
+      "args": [
+        "1",
+        6,
+        "2",
+        0,
+        0
+      ],
+      "expected": "0"
+    },
+    {
+      "id": "ratio-max",
+      "op": "divide",
+      "args": [
+        "999999999999999999999999999999",
+        0,
+        "1",
+        0,
+        0
+      ],
+      "expected": "999999999999999999999999999999"
+    },
+    {
+      "id": "divide-zero",
+      "op": "divide",
+      "args": [
+        "1",
+        3,
+        "0",
+        3,
+        3
+      ],
+      "error": true
+    },
+    {
+      "id": "divide-negative-denominator",
+      "op": "divide",
+      "args": [
+        "1",
+        3,
+        "-1",
+        3,
+        3
+      ],
+      "error": true
+    },
+    {
+      "id": "divide-overflow",
+      "op": "divide",
+      "args": [
+        "999999999999999999999999999999",
+        0,
+        "1",
+        0,
+        6
+      ],
+      "error": true
+    },
+    {
+      "id": "divide-invalid-scale",
+      "op": "divide",
+      "args": [
+        "1",
+        3,
+        "1",
+        3,
+        -1
+      ],
+      "error": true
+    },
+    {
+      "id": "tax-six-scale",
+      "op": "percentage",
+      "args": [
+        "1784",
+        "16000000",
+        6
+      ],
+      "expected": "285"
+    },
+    {
+      "id": "tax-integer-scale",
+      "op": "percentage",
+      "args": [
+        "1784",
+        "16",
+        0
+      ],
+      "expected": "285"
+    },
+    {
+      "id": "discount",
+      "op": "percentage",
+      "args": [
+        "1784",
+        "10",
+        0
+      ],
+      "expected": "178"
+    },
+    {
+      "id": "tax-after-discount",
+      "op": "percentage",
+      "args": [
+        "1606",
+        "16",
+        0
+      ],
+      "expected": "257"
+    },
+    {
+      "id": "fractional-rate",
+      "op": "percentage",
+      "args": [
+        "1000",
+        "12500000",
+        6
+      ],
+      "expected": "125"
+    },
+    {
+      "id": "negative-tax",
+      "op": "percentage",
+      "args": [
+        "-1784",
+        "16",
+        0
+      ],
+      "expected": "-285"
+    },
+    {
+      "id": "percentage-tie",
+      "op": "percentage",
+      "args": [
+        "1",
+        "50",
+        0
+      ],
+      "expected": "1"
+    },
+    {
+      "id": "negative-percentage-tie",
+      "op": "percentage",
+      "args": [
+        "-1",
+        "50",
+        0
+      ],
+      "expected": "-1"
+    },
+    {
+      "id": "hundred-percent-max",
+      "op": "percentage",
+      "args": [
+        "999999999999999999999999999999",
+        "100",
+        0
+      ],
+      "expected": "999999999999999999999999999999"
+    },
+    {
+      "id": "percentage-overflow",
+      "op": "percentage",
+      "args": [
+        "999999999999999999999999999999",
+        "101",
+        0
+      ],
+      "error": true
+    },
+    {
+      "id": "percentage-invalid-scale",
+      "op": "percentage",
+      "args": [
+        "1",
+        "1",
+        7
+      ],
+      "error": true
+    },
+    {
+      "id": "empty-sum",
+      "op": "sum",
+      "args": [],
+      "expected": "0"
+    },
+    {
+      "id": "cash-equation",
+      "op": "sum",
+      "args": [
+        "1000",
+        "333",
+        "-1"
+      ],
+      "expected": "1332"
+    },
+    {
+      "id": "invoice-after-discount-tax",
+      "op": "sum",
+      "args": [
+        "1784",
+        "-178",
+        "257"
+      ],
+      "expected": "1863"
+    },
+    {
+      "id": "cancelling-wide-intermediate",
+      "op": "sum",
+      "args": [
+        "999999999999999999999999999999",
+        "999999999999999999999999999999",
+        "-999999999999999999999999999999"
+      ],
+      "expected": "999999999999999999999999999999"
+    },
+    {
+      "id": "sum-output-overflow",
+      "op": "sum",
+      "args": [
+        "999999999999999999999999999999",
+        "1"
+      ],
+      "error": true
+    },
+    {
+      "id": "sum-input-overflow",
+      "op": "sum",
+      "args": [
+        "1000000000000000000000000000000",
+        "-1"
+      ],
+      "error": true
+    },
+    {
+      "id": "return-first",
+      "op": "allocate",
+      "args": [
+        "998",
+        "0",
+        "1",
+        "3"
+      ],
+      "expected": "333"
+    },
+    {
+      "id": "return-middle",
+      "op": "allocate",
+      "args": [
+        "998",
+        "1",
+        "2",
+        "3"
+      ],
+      "expected": "332"
+    },
+    {
+      "id": "return-final",
+      "op": "allocate",
+      "args": [
+        "998",
+        "2",
+        "3",
+        "3"
+      ],
+      "expected": "333"
+    },
+    {
+      "id": "split-payment-first",
+      "op": "allocate",
+      "args": [
+        "1000",
+        "0",
+        "1",
+        "3"
+      ],
+      "expected": "333"
+    },
+    {
+      "id": "split-payment-middle",
+      "op": "allocate",
+      "args": [
+        "1000",
+        "1",
+        "2",
+        "3"
+      ],
+      "expected": "334"
+    },
+    {
+      "id": "split-payment-final",
+      "op": "allocate",
+      "args": [
+        "1000",
+        "2",
+        "3",
+        "3"
+      ],
+      "expected": "333"
+    },
+    {
+      "id": "refund-negative-first",
+      "op": "allocate",
+      "args": [
+        "-998",
+        "0",
+        "1",
+        "3"
+      ],
+      "expected": "-333"
+    },
+    {
+      "id": "refund-negative-middle",
+      "op": "allocate",
+      "args": [
+        "-998",
+        "1",
+        "2",
+        "3"
+      ],
+      "expected": "-332"
+    },
+    {
+      "id": "refund-negative-final",
+      "op": "allocate",
+      "args": [
+        "-998",
+        "2",
+        "3",
+        "3"
+      ],
+      "expected": "-333"
+    },
+    {
+      "id": "free-return",
+      "op": "allocate",
+      "args": [
+        "0",
+        "0",
+        "3",
+        "3"
+      ],
+      "expected": "0"
+    },
+    {
+      "id": "no-new-allocation",
+      "op": "allocate",
+      "args": [
+        "998",
+        "1",
+        "1",
+        "3"
+      ],
+      "expected": "0"
+    },
+    {
+      "id": "subunit-first",
+      "op": "allocate",
+      "args": [
+        "1",
+        "0",
+        "1",
+        "3"
+      ],
+      "expected": "0"
+    },
+    {
+      "id": "subunit-middle",
+      "op": "allocate",
+      "args": [
+        "1",
+        "1",
+        "2",
+        "3"
+      ],
+      "expected": "1"
+    },
+    {
+      "id": "subunit-final",
+      "op": "allocate",
+      "args": [
+        "1",
+        "2",
+        "3",
+        "3"
+      ],
+      "expected": "0"
+    },
+    {
+      "id": "quantity-six-return",
+      "op": "allocate",
+      "args": [
+        "998",
+        "1000000",
+        "2000000",
+        "3000000"
+      ],
+      "expected": "332"
+    },
+    {
+      "id": "large-rational-intermediate",
+      "op": "allocate",
+      "args": [
+        "999999999999999999999999999999",
+        "0",
+        "999999999999999999999999999999",
+        "999999999999999999999999999999"
+      ],
+      "expected": "999999999999999999999999999999"
+    },
+    {
+      "id": "over-allocation",
+      "op": "allocate",
+      "args": [
+        "998",
+        "0",
+        "4",
+        "3"
+      ],
+      "error": true
+    },
+    {
+      "id": "backward-allocation",
+      "op": "allocate",
+      "args": [
+        "998",
+        "2",
+        "1",
+        "3"
+      ],
+      "error": true
+    },
+    {
+      "id": "negative-allocation",
+      "op": "allocate",
+      "args": [
+        "998",
+        "-1",
+        "1",
+        "3"
+      ],
+      "error": true
+    },
+    {
+      "id": "zero-original-quantity",
+      "op": "allocate",
+      "args": [
+        "998",
+        "0",
+        "0",
+        "0"
+      ],
+      "error": true
+    },
+    {
+      "id": "legacy-midpoint",
+      "op": "legacyRound",
+      "args": [
+        "1.0005"
+      ],
+      "expected": "1.001"
+    },
+    {
+      "id": "legacy-negative-midpoint",
+      "op": "legacyRound",
+      "args": [
+        "-1.0005"
+      ],
+      "expected": "-1.001"
+    },
+    {
+      "id": "legacy-scientific",
+      "op": "legacyRound",
+      "args": [
+        "0.0000001"
+      ],
+      "expected": "0"
+    },
+    {
+      "id": "legacy-last-safe-representable",
+      "op": "legacyNumber",
+      "args": [
+        "9007199254740990"
+      ],
+      "expected": "9007199254740.99"
+    },
+    {
+      "id": "legacy-loss-positive",
+      "op": "legacyNumber",
+      "args": [
+        "9007199254740991"
+      ],
+      "error": true
+    },
+    {
+      "id": "legacy-loss-negative",
+      "op": "legacyNumber",
+      "args": [
+        "-9007199254740991"
+      ],
+      "error": true
+    },
+    {
+      "id": "legacy-range-overflow",
+      "op": "legacyNumber",
+      "args": [
+        "9007199254740992"
+      ],
+      "error": true
+    },
+    {
+      "id": "negative-percentage-rate",
+      "op": "percentage",
+      "args": [
+        "1784",
+        "-16",
+        0
+      ],
+      "expected": "-285"
+    }
+  ]
+}

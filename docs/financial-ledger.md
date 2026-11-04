@@ -1,5 +1,18 @@
 # Financial Ledger architecture
 
+This document describes the **current v3 reporting ledger**, not complete
+double-entry financial statements. The proposed Firebase-only replacement is
+specified in the [Phase 2A architecture](phase2a-firestore-accounting-architecture.md),
+[financial modernization strategy](financial-modernization-strategy.md) and
+[Excel migration specification](excel-migration-specification.md). Legacy schema
+compatibility is not a permanent constraint; current behavior remains unchanged
+until a separately authorized implementation and cutover.
+
+The [2026-11-04 refinement](phase2a-inventory-cash-integration.md) specifies
+quantity-only inventory without purchase costs, separate reference-selling
+estimates, and detailed cash tracing through existing functions/models/screens.
+Inventory cost/COGS is not recorded or inferred from selling prices.
+
 `companies/{companyId}/financial_ledger_entries/{entryId}` is the authoritative
 accounting source for Financial Ledger reports. It is a trusted, read-only
 projection built atomically by posting transactions from confirmed invoices,

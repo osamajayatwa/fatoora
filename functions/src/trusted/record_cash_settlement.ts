@@ -122,7 +122,30 @@ export async function recordCashSettlementTransaction(
     }
     const companyAfter = roundMoney(companyBalance.amount + amount);
     const referenceNumber = `SET-${date.toDate().toISOString().slice(0, 10).replace(/-/g, "")}-${idempotencyKey.slice(0, 6).toUpperCase()}`;
+    // The admin initiates and posts this transfer; neither role establishes
+    // custody or an upstream seller/collector. Keep provenance on all three
+    // documents in the existing atomic commit, including its server timestamp.
+    const postingMetadata = {
+      settlementMetadataVersion: 1,
+      postingSource: "recordCashSettlement",
+      operationId: settlementId,
+      sourceCreatedByUid: user.uid,
+      sourceCreatedByName: user.name,
+      sourceCreatedByRole: user.role,
+      postedByUid: user.uid,
+      postedByName: user.name,
+      postedByRole: user.role,
+      postedAt: FieldValue.serverTimestamp(),
+      paymentMethod: "cash",
+      sellerId: "",
+      sellerName: "",
+      sellerIdentityStatus: "not_applicable",
+      collectorUid: "",
+      collectorName: "",
+      collectorIdentityStatus: "not_applicable",
+    };
     const common = {
+      ...postingMetadata,
       companyId,
       type: "settlement_to_admin",
       movementType: "settlement_to_admin",
@@ -149,6 +172,10 @@ export async function recordCashSettlementTransaction(
       salesRepId,
       salesRepName,
       cashAccount: "rep_cash",
+      treasuryAccountId: repBalance.ref.id,
+      holderType: "representative",
+      holderUid: repBalance.salesRepId,
+      counterpartMovementId: companyMovementRef.id,
       direction: "out",
       balanceBefore: repBalance.amount,
       balanceAfter: repAfter,
@@ -159,6 +186,10 @@ export async function recordCashSettlementTransaction(
       salesRepId: "",
       salesRepName,
       cashAccount: "company_cash",
+      treasuryAccountId: companyBalance.ref.id,
+      holderType: "company",
+      holderUid: companyId,
+      counterpartMovementId: repMovementRef.id,
       direction: "in",
       balanceBefore: companyBalance.amount,
       balanceAfter: companyAfter,
@@ -178,6 +209,7 @@ export async function recordCashSettlementTransaction(
       companyId,
     );
     transaction.set(settlementRef, {
+      ...postingMetadata,
       id: settlementId,
       companyId,
       settlementNumber: referenceNumber,
@@ -187,6 +219,10 @@ export async function recordCashSettlementTransaction(
       salesRepName,
       repMovementId: repMovementRef.id,
       companyMovementId: companyMovementRef.id,
+      sourceCashAccount: repBalance.account,
+      sourceCashAccountId: repBalance.ref.id,
+      destinationCashAccount: companyBalance.account,
+      destinationCashAccountId: companyBalance.ref.id,
       settlementDate: date,
       notes: optionalString(input.notes),
       idempotencyKey,

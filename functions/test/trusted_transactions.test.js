@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
-const {readFileSync} = require("node:fs");
+const {readFileSync, writeFileSync} = require("node:fs");
 const {join} = require("node:path");
+const {randomUUID} = require("node:crypto");
 const {after, before, test} = require("node:test");
 
 const {deleteApp, initializeApp} = require("firebase-admin/app");
@@ -2118,6 +2119,298 @@ test("settlement is atomic, concurrency-safe, replay-safe, and balance checked",
   ));
   assert.equal((await db.doc(`companies/${companyId}/cash_balances/rep_${repUid}`).get()).data().amount, 40);
 });
+
+test("settlement metadata preserves the exact pair, custody, provenance and reconciliation", async () => {
+  const f = await settlementMetadataFixture();
+  const before = await settlementMetadataSnapshot(f);
+  const result = await f.post("metadata-contract", {
+    // Untrusted additive fields must never override trusted posting facts.
+    salesRepName: "Forged holder name", holderUid: f.admin,
+    postedByUid: "forged", sourceCashAccountId: "company_cash",
+    counterpartMovementId: "forged", collectorUid: "forged", sellerId: "forged",
+  });
+  assert.deepEqual(result, {settlementId: "settlement_metadata-contract", alreadyPosted: false});
+  const {settlement, out, incoming} = await assertSettlementMetadataPair(f, result.settlementId);
+  assert.equal(settlement.idempotencyKey, "metadata-contract");
+  assert.equal(out.balanceBefore, 100.111);
+  assert.equal(out.balanceAfter, 69.988);
+  assert.equal(incoming.balanceBefore, 20.222);
+  assert.equal(incoming.balanceAfter, 50.345);
+  assert.equal(Math.round(out.balanceBefore * 1000) + Math.round(incoming.balanceBefore * 1000),
+    Math.round(out.balanceAfter * 1000) + Math.round(incoming.balanceAfter * 1000));
+  assert.equal(out.salesRepName, f.rep);
+  assert.equal(incoming.salesRepName, f.rep); // Existing source-dependent field retained.
+  const after = await settlementMetadataSnapshot(f);
+  for (const [path, data] of Object.entries(before)) {
+    if (!path.includes("/cash_balances/") || path.endsWith(`rep_${f.otherRep}`)) {
+      assert.deepEqual(after[path], data, `Historical/other-account document changed: ${path}`);
+    }
+  }
+  const plan = await buildCashReconciliationPlan({db, companyId: f.company, pageSize: 2});
+  assert.equal(plan.issueCount, 0);
+  assert.ok(plan.accounts.every((account) => account.storedBalance === account.calculatedBalance));
+  assert.deepEqual(Object.fromEntries(plan.accounts.map((a) => [a.documentId, a.calculatedBalance])), {
+    company_cash: 50.345, [`rep_${f.rep}`]: 69.988, [`rep_${f.otherRep}`]: 7.003,
+  });
+  // Optional ignored artifact lets Flutter verify the actual trusted-writer
+  // payload through the existing reader/UI/PDF projection, without Firestore.
+  if (process.env.SETTLEMENT_METADATA_FIXTURE_PATH) {
+    writeFileSync(process.env.SETTLEMENT_METADATA_FIXTURE_PATH, JSON.stringify(
+      [out, incoming].map((data) => Object.fromEntries(Object.entries(data)
+        .map(([key, value]) => [key, value instanceof Timestamp ? value.toDate().toISOString() : value]))),
+      null, 2,
+    ));
+  }
+});
+
+test("settlement metadata duplicate and conflicting requests leave all committed documents unchanged", async () => {
+  const f = await settlementMetadataFixture();
+  const first = await f.post("metadata-duplicate");
+  const before = await settlementMetadataSnapshot(f);
+  const secondAdmin = `${f.admin}-second`;
+  await seedUser(secondAdmin, "admin", f.company);
+  const replay = await recordCashSettlementTransaction(db, secondAdmin, f.company, "metadata-duplicate", {
+    ...f.input, settlementDate: Date.now(), notes: "Replay must not overwrite provenance",
+  });
+  assert.deepEqual(replay, {...first, alreadyPosted: true});
+  for (const overrides of [{amount: 30.124}, {salesRepId: f.otherRep}]) {
+    await assert.rejects(() => f.post("metadata-duplicate", overrides), {code: "already-exists"});
+  }
+  assert.deepEqual(await settlementMetadataSnapshot(f), before);
+});
+
+test("settlement metadata does not enrich or repost a legacy settlement on replay", async () => {
+  const f = await settlementMetadataFixture();
+  const settlementId = "settlement_metadata-legacy";
+  const legacy = {id: settlementId, companyId: f.company, status: "posted",
+    salesRepId: f.rep, amount: f.input.amount, createdByUid: "original-admin", createdAt: now};
+  await f.ref("settlements", settlementId).set(legacy);
+  const before = await settlementMetadataSnapshot(f);
+  assert.deepEqual(await f.post("metadata-legacy"), {settlementId, alreadyPosted: true});
+  assert.deepEqual(await settlementMetadataSnapshot(f), before);
+});
+
+test("settlement metadata rolls back both legs and balances when the existing ledger create fails", async () => {
+  const f = await settlementMetadataFixture();
+  const settlementId = "settlement_metadata-commit-failure";
+  const projection = f.ref("financial_ledger_entries", `settlement_${settlementId}_transfer`);
+  await projection.set({id: projection.id, syntheticCommitConflict: true});
+  const before = await settlementMetadataSnapshot(f);
+  await assert.rejects(() => f.post("metadata-commit-failure"), {code: 6});
+  assert.deepEqual(await settlementMetadataSnapshot(f), before);
+  // Remove only this synthetic conflict fixture, then retry the same request.
+  await projection.delete();
+  assert.equal((await f.post("metadata-commit-failure")).alreadyPosted, false);
+  await assertSettlementMetadataPair(f, settlementId);
+  assert.equal((await f.post("metadata-commit-failure")).alreadyPosted, true);
+});
+
+test("settlement metadata survives an automatic Firestore transaction retry without duplicate effects", async () => {
+  const f = await settlementMetadataFixture();
+  let attempts = 0;
+  const retryingFirestore = {
+    doc: db.doc.bind(db), collection: db.collection.bind(db),
+    runTransaction: (callback) => db.runTransaction(async (transaction) => {
+      const result = await callback(transaction);
+      attempts += 1;
+      if (attempts === 1) {
+        // Abort after every real write has been staged; SDK retries the callback.
+        throw Object.assign(new Error("Synthetic transaction conflict"), {code: 10});
+      }
+      return result;
+    }),
+  };
+  const result = await recordCashSettlementTransaction(
+    retryingFirestore, f.admin, f.company, "metadata-sdk-retry", f.input,
+  );
+  assert.equal(attempts, 2);
+  assert.equal(result.alreadyPosted, false);
+  await assertSettlementMetadataPair(f, result.settlementId);
+  assert.equal((await db.collection(`companies/${f.company}/settlements`).get()).size, 1);
+  assert.equal((await db.collection(`companies/${f.company}/financial_ledger_entries`).get()).size, 1);
+  assert.equal((await f.ref("cash_balances", `rep_${f.rep}`).get()).data().amount, 69.988);
+});
+
+test("settlement metadata concurrent duplicate requests commit exactly one matching pair", async () => {
+  const f = await settlementMetadataFixture();
+  const results = await Promise.all(Array.from({length: 3}, () =>
+    retryTransientTransaction(() => f.post("metadata-race-duplicate"))));
+  assert.equal(results.filter((r) => !r.alreadyPosted).length, 1);
+  await assertSettlementMetadataPair(f, results[0].settlementId);
+  assert.equal((await db.collection(`companies/${f.company}/settlements`).get()).size, 1);
+  assert.equal((await f.ref("cash_balances", `rep_${f.rep}`).get()).data().amount, 69.988);
+});
+
+test("settlement metadata concurrent distinct attempts cannot overspend the representative account", async () => {
+  const f = await settlementMetadataFixture();
+  const results = await Promise.allSettled(["metadata-race-a", "metadata-race-b"].map((key) =>
+    retryTransientTransaction(() => f.post(key, {amount: 60.001}))));
+  assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
+  assert.equal(results.find((r) => r.status === "rejected").reason.code, "failed-precondition");
+  await assertSettlementMetadataPair(f, results.find((r) => r.status === "fulfilled").value.settlementId, 60.001);
+  assert.equal((await f.ref("cash_balances", `rep_${f.rep}`).get()).data().amount, 40.11);
+  assert.equal((await f.ref("cash_balances", "company_cash").get()).data().amount, 80.223);
+  assert.equal((await db.collection(`companies/${f.company}/settlements`).get()).size, 1);
+});
+
+test("settlement metadata concurrent holders share the company account without lost updates", async () => {
+  const f = await settlementMetadataFixture();
+  const results = await Promise.all([
+    retryTransientTransaction(() => f.post("metadata-holder-a", {amount: 10.001})),
+    retryTransientTransaction(() => f.post("metadata-holder-b", {amount: 5.002, salesRepId: f.otherRep})),
+  ]);
+  await assertSettlementMetadataPair(f, results[0].settlementId, 10.001);
+  await assertSettlementMetadataPair(f, results[1].settlementId, 5.002, f.otherRep);
+  assert.equal((await f.ref("cash_balances", "company_cash").get()).data().amount, 35.225);
+  assert.equal((await f.ref("cash_balances", `rep_${f.rep}`).get()).data().amount, 90.11);
+  assert.equal((await f.ref("cash_balances", `rep_${f.otherRep}`).get()).data().amount, 2.001);
+  const incoming = await Promise.all(results.map((r) => f.ref("cash_movements", `${r.settlementId}_company_in`).get()));
+  const ordered = incoming.map((s) => s.data()).sort((a, b) => a.balanceBefore - b.balanceBefore);
+  assert.equal(ordered[0].balanceAfter, ordered[1].balanceBefore);
+  assert.equal(ordered[1].balanceAfter, 35.225);
+});
+
+test("settlement metadata rejects unauthorized users and foreign or inactive holders without writes", async () => {
+  const f = await settlementMetadataFixture();
+  const foreign = await settlementMetadataFixture();
+  const inactive = `${f.rep}-inactive`, pending = `${f.admin}-pending`;
+  await seedUser(inactive, "sales_rep", f.company, {active: false});
+  await seedUser(pending, "admin", f.company, {approvalStatus: "pending"});
+  const before = await settlementMetadataSnapshot(f);
+  const foreignBefore = await settlementMetadataSnapshot(foreign);
+  for (const [uid, overrides, code] of [
+    [undefined, {}, "unauthenticated"], ["missing-admin", {}, "permission-denied"],
+    [f.rep, {}, "permission-denied"], [foreign.admin, {}, "permission-denied"],
+    [pending, {}, "permission-denied"], [f.admin, {salesRepId: foreign.rep}, "failed-precondition"],
+    [f.admin, {salesRepId: f.admin}, "failed-precondition"],
+    [f.admin, {salesRepId: inactive}, "failed-precondition"],
+  ]) {
+    await assert.rejects(() => recordCashSettlementTransaction(
+      db, uid, f.company, "metadata-forbidden", {...f.input, ...overrides},
+    ), {code});
+  }
+  assert.deepEqual(await settlementMetadataSnapshot(f), before);
+  assert.deepEqual(await settlementMetadataSnapshot(foreign), foreignBefore);
+  // The same key in another company remains isolated and valid.
+  await foreign.post("metadata-isolated-key");
+  assert.deepEqual(await settlementMetadataSnapshot(f), before);
+  await f.post("metadata-isolated-key");
+  await assertSettlementMetadataPair(f, "settlement_metadata-isolated-key");
+  await assertSettlementMetadataPair(foreign, "settlement_metadata-isolated-key");
+});
+
+test("settlement metadata preconditions leave no partial posting and the same key can be retried", async () => {
+  for (const failure of ["lock", "identity", "missing-balance", "partial-out", "partial-in", "insufficient"]) {
+    const f = await settlementMetadataFixture();
+    const repBalance = f.ref("cash_balances", `rep_${f.rep}`);
+    const originalBalance = (await repBalance.get()).data();
+    const lock = f.ref("maintenance_locks", "cash_reconciliation");
+    const key = `metadata-precondition-${failure}`;
+    const movement = f.ref("cash_movements", `settlement_${key}_${failure === "partial-in" ? "company_in" : "rep_out"}`);
+    if (failure === "lock") await lock.set({active: true});
+    if (failure === "identity") await repBalance.update({salesRepId: f.otherRep});
+    if (failure === "missing-balance") await repBalance.delete();
+    if (failure.startsWith("partial-")) await movement.set({syntheticOrphan: true});
+    const before = await settlementMetadataSnapshot(f);
+    await assert.rejects(() => f.post(key, failure === "insufficient" ? {amount: 101} : {}), {
+      code: failure === "identity" || failure.startsWith("partial-") ? "data-loss" : "failed-precondition",
+    });
+    assert.deepEqual(await settlementMetadataSnapshot(f), before);
+    if (failure === "lock") await lock.delete();
+    if (failure === "identity" || failure === "missing-balance") await repBalance.set(originalBalance);
+    if (failure.startsWith("partial-")) await movement.delete();
+    await f.post(key);
+    await assertSettlementMetadataPair(f, `settlement_${key}`);
+  }
+});
+
+async function settlementMetadataFixture() {
+  const company = `metadata-${randomUUID()}`;
+  const admin = `${company}-admin`, rep = `${company}-rep`, otherRep = `${company}-other-rep`;
+  const ref = (collection, id) => db.doc(`companies/${company}/${collection}/${id}`);
+  await seedUser(admin, "admin", company);
+  await seedUser(rep, "sales_rep", company);
+  await seedUser(otherRep, "sales_rep", company);
+  for (const [account, uid, amount] of [["rep_cash", rep, 100.111], ["company_cash", "", 20.222], ["rep_cash", otherRep, 7.003]]) {
+    const id = account === "rep_cash" ? `rep_${uid}` : account;
+    await seedCashMovement(company, `funding-${id}`, {cashAccount: account, salesRepId: uid, amount});
+    await ref("cash_balances", id).set({id, companyId: company, cashAccount: account, salesRepId: uid, amount});
+  }
+  const input = {salesRepId: rep, amount: 30.123, settlementDate: now, notes: "Metadata contract"};
+  return {company, admin, rep, otherRep, ref, input,
+    post: (key, overrides = {}) => recordCashSettlementTransaction(db, admin, company, key, {...input, ...overrides})};
+}
+
+async function settlementMetadataSnapshot(f) {
+  const collections = ["cash_movements", "cash_balances", "settlements", "financial_ledger_entries", "maintenance_locks"];
+  const snapshots = await Promise.all(collections.map((c) => db.collection(`companies/${f.company}/${c}`).get()));
+  return Object.fromEntries(snapshots.flatMap((s) => s.docs.map((d) => [d.ref.path, d.data()])));
+}
+
+async function assertSettlementMetadataPair(f, settlementId, amount = f.input.amount, rep = f.rep) {
+  const settlement = (await f.ref("settlements", settlementId).get()).data();
+  const movements = await db.collection(`companies/${f.company}/cash_movements`).where("settlementId", "==", settlementId).get();
+  assert.equal(movements.size, 2);
+  const out = movements.docs.map((d) => d.data()).find((d) => d.direction === "out");
+  const incoming = movements.docs.map((d) => d.data()).find((d) => d.direction === "in");
+  assert.equal(out.id, `${settlementId}_rep_out`);
+  assert.equal(incoming.id, `${settlementId}_company_in`);
+  assert.equal(settlement.id, settlementId);
+  assert.equal(settlement.repMovementId, out.id);
+  assert.equal(settlement.companyMovementId, incoming.id);
+  assert.equal(settlement.sourceCashAccount, "rep_cash");
+  assert.equal(settlement.sourceCashAccountId, `rep_${rep}`);
+  assert.equal(settlement.destinationCashAccount, "company_cash");
+  assert.equal(settlement.destinationCashAccountId, "company_cash");
+  assert.equal(settlement.status, "posted");
+  assert.ok(settlement.settlementDate.isEqual(now));
+  assert.ok(settlement.updatedAt.isEqual(settlement.createdAt));
+  assert.equal(out.counterpartMovementId, incoming.id);
+  assert.equal(incoming.counterpartMovementId, out.id);
+  for (const data of [settlement, out, incoming]) {
+    assert.equal(data.companyId, f.company);
+    assert.equal(data.amount, amount);
+    assert.equal(data.settlementMetadataVersion, 1);
+    assert.equal(data.postingSource, "recordCashSettlement");
+    assert.equal(data.operationId, settlementId);
+    assert.equal(data.paymentMethod, "cash");
+    for (const prefix of ["createdBy", "sourceCreatedBy", "postedBy"]) {
+      assert.equal(data[`${prefix}Uid`], f.admin);
+      assert.equal(data[`${prefix}Name`], f.admin);
+      assert.equal(data[`${prefix}Role`], "admin");
+    }
+    for (const field of ["sellerId", "sellerName", "collectorUid", "collectorName"]) assert.equal(data[field], "");
+    assert.equal(data.sellerIdentityStatus, "not_applicable");
+    assert.equal(data.collectorIdentityStatus, "not_applicable");
+    assert.ok(data.postedAt instanceof Timestamp);
+    assert.ok(data.postedAt.isEqual(data.createdAt));
+    assert.ok(data.postedAt.isEqual(settlement.postedAt));
+    assert.ok(data.postedAt.toMillis() > now.toMillis());
+  }
+  for (const [data, account, uid, kind, holder] of [
+    [out, "rep_cash", rep, "representative", rep],
+    [incoming, "company_cash", "", "company", f.company],
+  ]) {
+    assert.equal(data.type, "settlement_to_admin");
+    assert.equal(data.movementType, "settlement_to_admin");
+    assert.equal(data.referenceId, settlementId);
+    assert.equal(data.sourceId, settlementId);
+    assert.equal(data.sourceCollection, "settlements");
+    assert.equal(data.settlementId, settlementId);
+    assert.equal(data.sourceNumber, settlement.settlementNumber);
+    assert.equal(data.referenceNumber, settlement.settlementNumber);
+    assert.equal(data.cashAccount, account);
+    assert.equal(data.salesRepId, uid);
+    assert.equal(data.treasuryAccountId, uid ? `rep_${uid}` : "company_cash");
+    assert.equal(data.holderType, kind);
+    assert.equal(data.holderUid, holder);
+    assert.ok(data.date.isEqual(now));
+    assert.ok(data.movementDate.isEqual(now));
+    // Compare exact existing three-decimal units, not binary float subtraction.
+    assert.equal(Math.round(data.balanceBefore * 1000) + (data.direction === "out" ? -1 : 1) * Math.round(amount * 1000), Math.round(data.balanceAfter * 1000));
+  }
+  return {settlement, out, incoming};
+}
 
 test("company cash opening balance is atomic, unique, replay-safe, and reconciled", async () => {
   const companyId = "trusted-company-cash-opening";

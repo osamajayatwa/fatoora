@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/localization/translation.dart';
 import 'package:fatoora/core/services/services.dart';
@@ -41,7 +43,7 @@ void main() {
   ) async {
     await _pumpCash(tester, const Size(320, 640), role: 'admin', textScale: 2);
     expect(find.text('Company cash'), findsWidgets);
-    expect(find.text('Representative cash'), findsWidgets);
+    expect(find.textContaining('Representative cash (rep-1)'), findsWidgets);
     expect(find.textContaining('-JOD 50.000'), findsOneWidget);
     expect(find.textContaining('+JOD 50.000'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -88,6 +90,59 @@ void main() {
     await controller.loadMore();
     await tester.pumpAndSettle();
     expect(controller.snapshot.movements, hasLength(3));
+  });
+
+  testWidgets('paging retries deduplicate IDs and retain full-scope balances', (
+    tester,
+  ) async {
+    final repo = _CashRepoFake(paged: true, duplicatePage: true);
+    final controller = await _pumpCash(
+      tester,
+      const Size(390, 800),
+      repo: repo,
+    );
+    final reported = {
+      'closingBalance': BigInt.from(123456),
+      'openingBalance': null,
+    };
+    repo.reported = reported;
+    await controller.loadCash();
+    await controller.loadMore();
+    await controller.loadMore();
+    expect(
+      controller.snapshot.movements.map((m) => m.id).toSet(),
+      hasLength(3),
+    );
+    expect(controller.snapshot.movements, hasLength(3));
+    expect(controller.snapshot.units('closingBalance'), BigInt.from(123456));
+    expect(controller.snapshot.units('openingBalance'), isNull);
+    expect(controller.snapshot.totalIn, 50);
+  });
+
+  testWidgets('date changes reset paging and discard an older in-flight page', (
+    tester,
+  ) async {
+    final repo = _CashRepoFake(paged: true);
+    final controller = await _pumpCash(
+      tester,
+      const Size(390, 800),
+      repo: repo,
+    );
+    repo.delayedPage = Completer<void>();
+    final oldPage = controller.loadMore();
+    controller.setDateRange(DateTime(2026, 11, 1), DateTime(2026, 11, 4));
+    await tester.pump();
+    expect(repo.lastFrom, DateTime(2026, 11, 1));
+    expect(repo.lastTo, DateTime(2026, 11, 4));
+    repo.delayedPage!.complete();
+    await oldPage;
+    expect(controller.snapshot.movements, hasLength(2));
+    controller.clearDateRange();
+    await tester.pumpAndSettle();
+    expect(repo.lastFrom, isNull);
+    expect(repo.lastTo, isNull);
+    expect(controller.hasMore, isTrue);
+    expect(tester.takeException(), isNull);
   });
 }
 
@@ -137,9 +192,17 @@ class _FakeCursor implements FirestorePageCursor {
 }
 
 class _CashRepoFake implements FinancialRepository {
-  _CashRepoFake({this.paged = false, this.oneSided = false});
+  _CashRepoFake({
+    this.paged = false,
+    this.oneSided = false,
+    this.duplicatePage = false,
+  });
   final bool paged;
   final bool oneSided;
+  final bool duplicatePage;
+  Map<String, BigInt?>? reported;
+  Completer<void>? delayedPage;
+  DateTime? lastFrom, lastTo;
   bool failPage = false;
 
   @override
@@ -149,34 +212,39 @@ class _CashRepoFake implements FinancialRepository {
     DateTime? toDate,
     FirestorePageCursor? after,
     int pageSize = 50,
-  }) async => FinancialCashPage(
-    snapshot: FinancialCashSnapshot(
-      movements: [
-        _movement(
-          'rep-out',
-          direction: 'out',
-          account: CashMovementModel.repCashAccount,
-        ),
-        if (!oneSided)
+  }) async {
+    lastFrom = fromDate;
+    lastTo = toDate;
+    return FinancialCashPage(
+      snapshot: FinancialCashSnapshot(
+        reportedValues: reported,
+        movements: [
           _movement(
-            'company-in',
-            direction: 'in',
-            account: CashMovementModel.companyCashAccount,
+            'rep-out',
+            direction: 'out',
+            account: CashMovementModel.repCashAccount,
           ),
-      ],
-      openingBalance: 100,
-      closingBalance: 50,
-      cashInHand: 50,
-      companyCash: 50,
-      repCashOutstanding: 50,
-      totalIn: 50,
-      totalOut: 50,
-      cashBySalesRep: const [],
-      repCashOutstandingBySalesRep: const [],
-    ),
-    cursor: paged ? _FakeCursor() : null,
-    hasMore: paged,
-  );
+          if (!oneSided)
+            _movement(
+              'company-in',
+              direction: 'in',
+              account: CashMovementModel.companyCashAccount,
+            ),
+        ],
+        openingBalance: 100,
+        closingBalance: 50,
+        cashInHand: 50,
+        companyCash: 50,
+        repCashOutstanding: 50,
+        totalIn: 50,
+        totalOut: 50,
+        cashBySalesRep: const [],
+        repCashOutstandingBySalesRep: const [],
+      ),
+      cursor: paged ? _FakeCursor() : null,
+      hasMore: paged,
+    );
+  }
 
   @override
   Future<FirestorePage<CashMovementModel>> fetchCashMovementDetailsPage({
@@ -186,9 +254,16 @@ class _CashRepoFake implements FinancialRepository {
     FirestorePageCursor? after,
     int pageSize = 50,
   }) async {
+    await delayedPage?.future;
     if (failPage) throw StateError('Page unavailable');
     return FirestorePage(
       items: [
+        if (duplicatePage)
+          _movement(
+            'rep-out',
+            direction: 'out',
+            account: CashMovementModel.repCashAccount,
+          ),
         _movement(
           'another',
           direction: 'in',
@@ -196,8 +271,8 @@ class _CashRepoFake implements FinancialRepository {
           settlementId: '',
         ),
       ],
-      cursor: null,
-      hasMore: false,
+      cursor: duplicatePage ? _FakeCursor() : null,
+      hasMore: duplicatePage,
     );
   }
 

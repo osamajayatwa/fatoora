@@ -97,7 +97,10 @@ class CashMovementsController extends GetxController {
       );
       if (generation != _loadGeneration) return;
       snapshot = FinancialCashSnapshot(
-        movements: [...snapshot.movements, ...page.items],
+        movements: {
+          for (final movement in [...snapshot.movements, ...page.items])
+            movement.id: movement,
+        }.values.toList(growable: false),
         openingBalance: snapshot.openingBalance,
         closingBalance: snapshot.closingBalance,
         cashInHand: snapshot.cashInHand,
@@ -107,6 +110,7 @@ class CashMovementsController extends GetxController {
         totalOut: snapshot.totalOut,
         cashBySalesRep: snapshot.cashBySalesRep,
         repCashOutstandingBySalesRep: snapshot.repCashOutstandingBySalesRep,
+        reportedValues: snapshot.reportedValues,
       );
       _cursor = page.cursor;
       hasMore = page.hasMore;

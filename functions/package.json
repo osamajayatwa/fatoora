@@ -8,6 +8,8 @@
   "scripts": {
     "build": "tsc",
     "lint": "tsc --noEmit",
+    "test:settlement-intent": "npm run build && node --test test/settlement_journal_intent.test.js",
+    "test:settlement-preflight": "npm run build && node --test test/settlement_preflight.test.js",
     "test:integrity": "npm run build && node scripts/run_integrity_tests.js",
     "audit:integrity": "node scripts/integrity_reconciliation.js",
     "audit:jihad:readonly": "node scripts/audit_jihad_readonly.js",

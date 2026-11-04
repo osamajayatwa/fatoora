@@ -1,0 +1,4 @@
+{
+  "FATOORA_ENV": "test",
+  "FIREBASE_EMULATOR_HOST": "127.0.0.1"
+}

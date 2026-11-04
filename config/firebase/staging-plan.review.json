@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "status": "awaiting_user_approval",
+  "inspectionDate": "2026-11-04",
+  "project": {
+    "id": "fatoora-platform-staging",
+    "number": "813911311333",
+    "reuseExisting": true,
+    "productionIdForbidden": "fatoora-6b192",
+    "productionNumberForbidden": "961957914773"
+  },
+  "companyId": "default_company",
+  "firestore": {
+    "databaseId": "(default)",
+    "createOnlyIfStillAbsent": true,
+    "type": "FIRESTORE_NATIVE",
+    "location": "nam5"
+  },
+  "functions": {
+    "source": "functions",
+    "codebase": "fatoora-v1-staging",
+    "region": "us-central1",
+    "requireNoConflictingExistingFunctions": true
+  },
+  "android": {
+    "appId": "1:813911311333:android:efe57ed66e6c79dc21250c",
+    "packageName": "com.fujika.fatoora.dev",
+    "flavor": "staging",
+    "label": "Fatoora Staging",
+    "nativeConfig": "android/app/src/staging/google-services.json",
+    "dartConfig": "config/firebase/staging.android.json",
+    "artifact": "build/app/outputs/flutter-apk/app-staging-debug.apk"
+  },
+  "web": {
+    "appId": "1:813911311333:web:69d8ccb0bb8a771821250c",
+    "dartConfig": "config/firebase/staging.web.json",
+    "proposedHostingSite": "fatoora-v1-staging",
+    "preserveHostingSite": "fatoora-platform-staging",
+    "output": "build/staging/web"
+  },
+  "catalog": {
+    "path": "build/local-test/catalog.json",
+    "fileSha256": "1763b2233f03dc76f06c4ff9a1c757006dc4fc41a891e139109aa51c10555f35",
+    "items": 91,
+    "activeNondeleted": 90,
+    "deleted": 1,
+    "reuseSanitizer": "functions/scripts/local_test_environment.js",
+    "preserveIdsAndSellingPrices": true,
+    "inventoryQuantities": 0,
+    "copyPurchaseCosts": false,
+    "copyFinancialOrCustomerHistory": false
+  },
+  "admin": {
+    "email": "admin@fatoora.com",
+    "role": "admin",
+    "approvalStatus": "approved",
+    "createIndependentAuthIdentity": true,
+    "reuseProductionUidOrPassword": false,
+    "generateUidAtCreation": true,
+    "initiallyDisabledUntilVerified": true
+  },
+  "automaticExecutionAllowed": false,
+  "accountingImplementationAllowed": false
+}

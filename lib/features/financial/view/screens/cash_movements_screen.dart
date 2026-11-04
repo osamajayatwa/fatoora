@@ -141,6 +141,9 @@ class _CashHeader extends StatelessWidget {
               snapshot: controller.snapshot,
               isAdmin: controller.isAdmin,
             ),
+            const SizedBox(height: 8),
+            Text('cash_scope_hint'.tr),
+            Text('cash_balance_hint'.tr),
           ],
         ],
       ),
@@ -158,33 +161,39 @@ class _CashSummaryGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final tiles = [
       _CashSummaryData(
-        titleKey: 'financial_opening_balance',
-        value: snapshot.openingBalance,
+        titleKey: isAdmin
+            ? 'cash_company_opening'
+            : 'financial_opening_balance',
+        value: snapshot.units('openingBalance'),
         color: AppColor.secondaryColor,
         icon: Icons.first_page_rounded,
       ),
       _CashSummaryData(
-        titleKey: 'financial_period_cash_in',
-        value: snapshot.totalIn,
+        titleKey: isAdmin ? 'cash_all_accounts_in' : 'financial_period_cash_in',
+        value: snapshot.units('totalIn'),
         color: AppColor.success,
         icon: Icons.south_west_rounded,
       ),
       _CashSummaryData(
-        titleKey: 'financial_period_cash_out',
-        value: snapshot.totalOut,
+        titleKey: isAdmin
+            ? 'cash_all_accounts_out'
+            : 'financial_period_cash_out',
+        value: snapshot.units('totalOut'),
         color: AppColor.error,
         icon: Icons.north_east_rounded,
       ),
       _CashSummaryData(
-        titleKey: 'financial_closing_balance',
-        value: snapshot.closingBalance,
+        titleKey: isAdmin
+            ? 'cash_company_closing'
+            : 'financial_closing_balance',
+        value: snapshot.units('closingBalance'),
         color: AppColor.primaryColor,
         icon: Icons.last_page_rounded,
       ),
       if (isAdmin)
         _CashSummaryData(
           titleKey: 'financial_rep_cash_outstanding',
-          value: snapshot.repCashOutstanding,
+          value: snapshot.units('repCashOutstanding'),
           color: AppColor.secondaryColor,
           icon: Icons.payments_outlined,
         ),
@@ -223,7 +232,7 @@ class _CashSummaryData {
   });
 
   final String titleKey;
-  final double value;
+  final BigInt? value;
   final Color color;
   final IconData icon;
 }
@@ -239,13 +248,12 @@ class _CashSummaryTile extends StatelessWidget {
 
   final double width;
   final String titleKey;
-  final double value;
+  final BigInt? value;
   final Color color;
   final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
     return Container(
       width: width,
       padding: const EdgeInsets.all(14),
@@ -269,7 +277,11 @@ class _CashSummaryTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  currency.format(value),
+                  cashMoneyText(
+                    value,
+                    t: (k) => k.tr,
+                    arabic: Get.locale?.languageCode == 'ar',
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -293,7 +305,6 @@ class _RepCashBalances extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
     return DashboardCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -324,7 +335,11 @@ class _RepCashBalances extends StatelessWidget {
                     ),
                   );
                   final amount = Text(
-                    currency.format(rep.amount),
+                    cashMoneyText(
+                      rep.cashUnits,
+                      t: (k) => k.tr,
+                      arabic: Get.locale?.languageCode == 'ar',
+                    ),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: rep.amount > 0 ? AppColor.success : AppColor.grey,
                       fontWeight: FontWeight.w900,
@@ -483,10 +498,12 @@ class _CashMovementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currency = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
     final date = DateFormat.yMd();
-    final color = movement.isOut ? AppColor.error : AppColor.success;
-    final accountKey = cashAccountLabelKey(movement);
+    final color = !movement.hasDirection
+        ? AppColor.grey
+        : movement.isOut
+        ? AppColor.error
+        : AppColor.success;
     return DashboardCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -494,7 +511,9 @@ class _CashMovementCard extends StatelessWidget {
           Row(
             children: [
               Icon(
-                movement.isOut
+                !movement.hasDirection
+                    ? Icons.help_outline
+                    : movement.isOut
                     ? Icons.north_east_rounded
                     : Icons.south_west_rounded,
                 color: color,
@@ -502,7 +521,7 @@ class _CashMovementCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'financial_movement_${movement.effectiveType}'.tr,
+                  cashTypeText(movement, (k) => k.tr),
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     color: AppColor.secondaryColor,
                     fontWeight: FontWeight.w800,
@@ -510,27 +529,28 @@ class _CashMovementCard extends StatelessWidget {
                 ),
               ),
               Text(
-                movement.isOut
-                    ? 'cash_direction_out'.tr
-                    : 'cash_direction_in'.tr,
+                cashDirectionText(movement, (k) => k.tr),
                 style: TextStyle(color: color, fontWeight: FontWeight.w900),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
-            '${movement.isOut ? '-' : '+'}${currency.format(movement.amount)}',
+            cashAmountText(
+              movement,
+              t: (k) => k.tr,
+              arabic: Get.locale?.languageCode == 'ar',
+            ),
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               color: color,
               fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 6),
-          if (accountKey != null)
-            Text(
-              accountKey.tr,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
+          Text(
+            cashAccountText(movement, (k) => k.tr),
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
           Text(
             [
               if (movement.effectiveReferenceNumber.isNotEmpty)
@@ -538,13 +558,16 @@ class _CashMovementCard extends StatelessWidget {
               if (movement.settlementId.isNotEmpty) movement.settlementId,
               if (movement.customerName.isNotEmpty) movement.customerName,
               if (showRepresentative && movement.salesRepName.isNotEmpty)
-                movement.salesRepName,
-              date.format(movement.date),
+                '${'cash_detail_stored_rep'.tr}: ${movement.salesRepName}',
+              movement.date == null
+                  ? 'cash_unavailable'.tr
+                  : date.format(movement.date!),
             ].join('  |  '),
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall,
           ),
+          CashMovementDetails(movement: movement),
         ],
       ),
     );
@@ -557,7 +580,6 @@ class _SettlementPairCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final money = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
     return DashboardCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -579,13 +601,14 @@ class _SettlementPairCard extends StatelessWidget {
             LayoutBuilder(
               builder: (context, constraints) {
                 final label = Text(
-                  cashAccountLabelKey(movement)?.tr ??
-                      (movement.isOut
-                          ? 'cash_direction_out'.tr
-                          : 'cash_direction_in'.tr),
+                  '${cashDirectionText(movement, (k) => k.tr)} - ${cashAccountText(movement, (k) => k.tr)}',
                 );
                 final amount = Text(
-                  '${movement.isOut ? '-' : '+'}${money.format(movement.amount)}',
+                  cashAmountText(
+                    movement,
+                    t: (k) => k.tr,
+                    arabic: Get.locale?.languageCode == 'ar',
+                  ),
                   style: TextStyle(
                     color: movement.isOut ? AppColor.error : AppColor.success,
                     fontWeight: FontWeight.w900,
@@ -607,10 +630,13 @@ class _SettlementPairCard extends StatelessWidget {
                 );
               },
             ),
+            CashMovementDetails(movement: movement),
             const SizedBox(height: 6),
           ],
           Text(
-            DateFormat.yMd().format(movements.first.date),
+            movements.first.date == null
+                ? 'cash_unavailable'.tr
+                : DateFormat.yMd().format(movements.first.date!),
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -625,7 +651,6 @@ class _CashMovementTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final money = NumberFormat.currency(symbol: 'JOD ', decimalDigits: 3);
     DataColumn column(String key, double width) => DataColumn(
       label: SizedBox(
         width: width,
@@ -644,7 +669,8 @@ class _CashMovementTable extends StatelessWidget {
           column('financial_reference', 140),
           column('cash_account', 145),
           column('financial_date', 100),
-          if (controller.isAdmin) column('sales_rep', 125),
+          column('cash_details', 80),
+          if (controller.isAdmin) column('cash_detail_stored_rep', 125),
         ],
         rows: [
           for (final movement in controller.snapshot.movements)
@@ -652,23 +678,24 @@ class _CashMovementTable extends StatelessWidget {
               cells: [
                 DataCell(
                   BoundedTableText(
-                    movement.isOut
-                        ? 'cash_direction_out'.tr
-                        : 'cash_direction_in'.tr,
+                    cashDirectionText(movement, (k) => k.tr),
                     width: 80,
                   ),
                 ),
                 DataCell(
                   BoundedTableText(
-                    '${movement.isOut ? '-' : '+'}'
-                    '${money.format(movement.amount)}',
+                    cashAmountText(
+                      movement,
+                      t: (k) => k.tr,
+                      arabic: Get.locale?.languageCode == 'ar',
+                    ),
                     width: 120,
                     forceLtr: true,
                   ),
                 ),
                 DataCell(
                   BoundedTableText(
-                    'financial_movement_${movement.effectiveType}'.tr,
+                    cashTypeText(movement, (k) => k.tr),
                     width: 145,
                   ),
                 ),
@@ -676,26 +703,61 @@ class _CashMovementTable extends StatelessWidget {
                   BoundedTableText(
                     movement.effectiveReferenceNumber.isNotEmpty
                         ? movement.effectiveReferenceNumber
-                        : movement.settlementId,
+                        : movement.settlementId.isNotEmpty
+                        ? movement.settlementId
+                        : 'cash_unavailable'.tr,
                     width: 140,
                     forceLtr: true,
                   ),
                 ),
                 DataCell(
                   BoundedTableText(
-                    cashAccountLabelKey(movement)?.tr ?? '-',
+                    cashAccountText(movement, (k) => k.tr),
                     width: 145,
                   ),
                 ),
                 DataCell(
                   BoundedTableText(
-                    DateFormat.yMd().format(movement.date),
+                    movement.date == null
+                        ? 'cash_unavailable'.tr
+                        : DateFormat.yMd().format(movement.date!),
                     width: 100,
                     forceLtr: true,
                   ),
                 ),
+                DataCell(
+                  IconButton(
+                    key: ValueKey('cash-open-${movement.id}'),
+                    tooltip: 'cash_details'.tr,
+                    icon: const Icon(Icons.info_outline),
+                    onPressed: () => showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      useSafeArea: true,
+                      builder: (_) => FractionallySizedBox(
+                        heightFactor: 0.85,
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(20),
+                          child: CashMovementDetails(
+                            movement: movement,
+                            initiallyExpanded: true,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
                 if (controller.isAdmin)
-                  DataCell(BoundedTableText(movement.salesRepName, width: 125)),
+                  DataCell(
+                    BoundedTableText(
+                      movement.salesRepName.isNotEmpty
+                          ? movement.salesRepName
+                          : movement.salesRepId.isNotEmpty
+                          ? movement.salesRepId
+                          : 'cash_unavailable'.tr,
+                      width: 125,
+                    ),
+                  ),
               ],
             ),
         ],

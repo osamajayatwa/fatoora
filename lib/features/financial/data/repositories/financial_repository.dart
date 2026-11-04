@@ -1,5 +1,6 @@
 import 'package:fatoora/core/firebase/pending_posting_keys.dart';
 import 'dart:async';
+import 'package:fatoora/core/finance/exact_decimal.dart';
 import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -29,6 +30,26 @@ enum FinancialRepositoryError {
   alreadyExists,
   invalidData,
   unknown,
+}
+
+/// Defense in depth after the existing company/rep-scoped Firestore query.
+void validateCashReadScope(
+  CashMovementModel movement,
+  String companyId,
+  BusinessUserContext user,
+) {
+  if (!user.canUseBusinessData ||
+      user.companyId != companyId ||
+      (movement.companyId.isNotEmpty && movement.companyId != companyId) ||
+      (user.isSalesRep &&
+          (!movement.isRepCashAccount ||
+              !movement.hasVerifiedHolder ||
+              movement.salesRepId != user.uid ||
+              movement.holderUid != user.uid))) {
+    throw const FinancialRepositoryException(
+      FinancialRepositoryError.permissionDenied,
+    );
+  }
 }
 
 class FinancialRepositoryException implements Exception {
@@ -305,75 +326,34 @@ class FinancialRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
-      final periodStart = fromDate == null ? null : _startOfDay(fromDate);
-      final periodEnd = toDate == null ? null : _endOfDay(toDate);
+      // Reuse full-scope reported openings/closings; never reconstruct them from
+      // a loaded page or guess account ownership from the creator's role.
       final results = await Future.wait<Object>([
+        fetchCashPage(
+          companyId: resolvedCompanyId,
+          fromDate: fromDate,
+          toDate: toDate,
+        ),
         _fetchCashMovements(
           resolvedCompanyId,
           user,
-          fromDate: periodStart,
-          toDate: periodEnd,
+          fromDate: fromDate == null ? null : _startOfDay(fromDate),
+          toDate: toDate == null ? null : _endOfDay(toDate),
         ),
-        _trustedCallableClient
-            .callAuthenticated<Map<String, dynamic>>('getCashOpeningBalance', {
-              'companyId': resolvedCompanyId,
-              'fromInclusive':
-                  (periodStart ?? DateTime(1970)).millisecondsSinceEpoch,
-            }),
       ]);
-      final movements = results[0] as List<CashMovementModel>;
-      final openingResult =
-          results[1] as HttpsCallableResult<Map<String, dynamic>>;
-      final openingData = openingResult.data;
-      final cashLedger = CashLedgerCalculator.calculate(movements);
-      final companyCash = user.isAdmin
-          ? _round(
-              _number(openingData['companyCashOpening']) +
-                  cashLedger.companyCash,
-            )
-          : 0.0;
-      final repCashOutstanding = _round(
-        _number(openingData['repCashOpening']) + cashLedger.repCashOutstanding,
-      );
-      final cashByRep = {
-        for (final amount in _repAmounts(
-          openingData['repCashOpeningBySalesRep'],
-        ))
-          amount.salesRepId: amount,
-      };
-      for (final amount in cashLedger.repCashOutstandingBySalesRep) {
-        final opening = cashByRep[amount.salesRepId];
-        cashByRep[amount.salesRepId] = FinancialRepAmount(
-          salesRepId: amount.salesRepId,
-          salesRepName: amount.salesRepName.isNotEmpty
-              ? amount.salesRepName
-              : opening?.salesRepName ?? '',
-          amount: _round((opening?.amount ?? 0) + amount.amount),
-        );
-      }
-      final cashBySalesRep = cashByRep.values.toList(growable: false)
-        ..sort((left, right) => right.amount.compareTo(left.amount));
-      final totalIn = _round(
-        movements
-            .where((movement) => movement.isIn)
-            .fold<double>(0, (total, movement) => total + movement.amount),
-      );
-      final totalOut = _round(
-        movements
-            .where((movement) => movement.isOut)
-            .fold<double>(0, (total, movement) => total + movement.amount),
-      );
+      final summary = (results[0] as FinancialCashPage).snapshot;
       return FinancialCashSnapshot(
-        movements: movements,
-        openingBalance: _number(openingData['openingBalance']),
-        closingBalance: _round(user.isAdmin ? companyCash : repCashOutstanding),
-        cashInHand: _round(user.isAdmin ? companyCash : repCashOutstanding),
-        companyCash: _round(companyCash),
-        repCashOutstanding: _round(repCashOutstanding),
-        totalIn: totalIn,
-        totalOut: totalOut,
-        cashBySalesRep: cashBySalesRep,
-        repCashOutstandingBySalesRep: cashBySalesRep,
+        movements: results[1] as List<CashMovementModel>,
+        openingBalance: summary.openingBalance,
+        closingBalance: summary.closingBalance,
+        cashInHand: summary.cashInHand,
+        companyCash: summary.companyCash,
+        repCashOutstanding: summary.repCashOutstanding,
+        totalIn: summary.totalIn,
+        totalOut: summary.totalOut,
+        cashBySalesRep: summary.cashBySalesRep,
+        repCashOutstandingBySalesRep: summary.repCashOutstandingBySalesRep,
+        reportedValues: summary.reportedValues,
       );
     });
   }
@@ -425,16 +405,33 @@ class FinancialRepository {
           (results[1] as HttpsCallableResult<Map<String, dynamic>>).data;
       final closing =
           (results[2] as HttpsCallableResult<Map<String, dynamic>>).data;
-      final totals = results[3] as ({double totalIn, double totalOut});
+      final totals = results[3] as ({BigInt? totalIn, BigInt? totalOut});
       final companyCash = user.isAdmin
           ? _number(closing['companyCashOpening'])
           : 0.0;
       final repCashOutstanding = _number(closing['repCashOpening']);
-      final cashBySalesRep = _repAmounts(closing['repCashOpeningBySalesRep'])
-        ..sort((left, right) => right.amount.compareTo(left.amount));
+      final cashBySalesRep = _cashRepAmounts(
+        closing['repCashOpeningBySalesRep'],
+      )..sort((left, right) => right.amount.compareTo(left.amount));
       return FinancialCashPage(
         snapshot: FinancialCashSnapshot(
           movements: page.items,
+          reportedValues: {
+            'openingBalance': CashMovementModel.readMoneyUnits(
+              opening['openingBalance'],
+            ),
+            'closingBalance': CashMovementModel.readMoneyUnits(
+              closing[user.isAdmin ? 'companyCashOpening' : 'repCashOpening'],
+            ),
+            'companyCash': CashMovementModel.readMoneyUnits(
+              closing['companyCashOpening'],
+            ),
+            'repCashOutstanding': CashMovementModel.readMoneyUnits(
+              closing['repCashOpening'],
+            ),
+            'totalIn': totals.totalIn,
+            'totalOut': totals.totalOut,
+          },
           openingBalance: _number(opening['openingBalance']),
           closingBalance: _round(
             user.isAdmin ? companyCash : repCashOutstanding,
@@ -442,8 +439,8 @@ class FinancialRepository {
           cashInHand: _round(user.isAdmin ? companyCash : repCashOutstanding),
           companyCash: _round(companyCash),
           repCashOutstanding: _round(repCashOutstanding),
-          totalIn: totals.totalIn,
-          totalOut: totals.totalOut,
+          totalIn: _legacyCashAmount(totals.totalIn),
+          totalOut: _legacyCashAmount(totals.totalOut),
           cashBySalesRep: cashBySalesRep,
           repCashOutstandingBySalesRep: cashBySalesRep,
         ),
@@ -956,19 +953,9 @@ class FinancialRepository {
         .orderBy('date', descending: true)
         .orderBy(FieldPath.documentId, descending: true)
         .getAllPages();
-    final movements = snapshot
-        .map(CashMovementModel.fromFirestore)
-        .where((movement) {
-          final afterFrom =
-              fromDate == null ||
-              !movement.date.isBefore(_startOfDay(fromDate));
-          final beforeTo =
-              toDate == null || !movement.date.isAfter(_endOfDay(toDate));
-          return afterFrom && beforeTo;
-        })
+    return snapshot
+        .map((doc) => _decodeCashMovement(doc, companyId, user))
         .toList(growable: false);
-    movements.sort((a, b) => b.date.compareTo(a.date));
-    return movements;
   }
 
   Future<FirestorePage<CashMovementModel>> _fetchCashMovementsPage(
@@ -1001,13 +988,13 @@ class FinancialRepository {
         .orderBy('date', descending: true)
         .orderBy(FieldPath.documentId, descending: true)
         .getPage(
-          decode: CashMovementModel.fromFirestore,
+          decode: (doc) => _decodeCashMovement(doc, companyId, user),
           after: after,
           pageSize: pageSize,
         );
   }
 
-  Future<({double totalIn, double totalOut})> _fetchCashMovementTotals(
+  Future<({BigInt? totalIn, BigInt? totalOut})> _fetchCashMovementTotals(
     String companyId,
     BusinessUserContext user, {
     DateTime? fromDate,
@@ -1036,9 +1023,60 @@ class FinancialRepository {
       base.where('direction', isEqualTo: 'out').aggregate(sum('amount')).get(),
     ]);
     return (
-      totalIn: _round(results[0].getSum('amount') ?? 0),
-      totalOut: _round(results[1].getSum('amount') ?? 0),
+      totalIn: _aggregateCashUnits(results[0].getSum('amount')),
+      totalOut: _aggregateCashUnits(results[1].getSum('amount')),
     );
+  }
+
+  static List<FinancialRepAmount> _cashRepAmounts(Object? value) {
+    if (value is! List) return const [];
+    return value
+        .whereType<Map>()
+        .map((row) {
+          final units = CashMovementModel.readMoneyUnits(row['amount']);
+          return FinancialRepAmount(
+            salesRepId: row['salesRepId'] is String
+                ? row['salesRepId'] as String
+                : '',
+            salesRepName: row['salesRepName'] is String
+                ? row['salesRepName'] as String
+                : '',
+            amount: _legacyCashAmount(units),
+            amountAvailable: units != null,
+            reportedUnits: units,
+          );
+        })
+        .toList(growable: false);
+  }
+
+  static BigInt? _aggregateCashUnits(double? value) {
+    if (value == null || !value.isFinite) return null;
+    try {
+      return CashMovementModel.readMoneyUnits(ExactDecimal.round(value));
+    } on FormatException {
+      return null;
+    }
+  }
+
+  static double _legacyCashAmount(BigInt? units) {
+    if (units == null) {
+      return 0; // Compatibility only; reportedValues controls display.
+    }
+    try {
+      return ExactDecimal.fromUnits(units);
+    } on FormatException {
+      return 0;
+    }
+  }
+
+  CashMovementModel _decodeCashMovement(
+    QueryDocumentSnapshot<Map<String, dynamic>> document,
+    String companyId,
+    BusinessUserContext user,
+  ) {
+    final movement = CashMovementModel.fromFirestore(document);
+    validateCashReadScope(movement, companyId, user);
+    return movement;
   }
 
   // ignore: unused_element

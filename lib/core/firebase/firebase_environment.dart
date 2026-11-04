@@ -71,6 +71,7 @@ class FirebaseEnvironmentConfiguration {
           appId: _stagingAppId,
           messagingSenderId: _stagingMessagingSenderId,
           storageBucket: _stagingStorageBucket,
+          authDomain: _stagingAuthDomain,
         );
         return FirebaseEnvironmentConfiguration(
           environment: environment,
@@ -129,6 +130,7 @@ class FirebaseEnvironmentConfiguration {
     required String appId,
     required String messagingSenderId,
     required String storageBucket,
+    String authDomain = '',
   }) {
     final missing = <String>[
       if (_isUnset(projectId)) 'FIREBASE_PROJECT_ID',
@@ -150,6 +152,46 @@ class FirebaseEnvironmentConfiguration {
       throw StateError(
         'FIREBASE_PROJECT_ID_CONFIRM must exactly match FIREBASE_PROJECT_ID.',
       );
+    }
+    if (storageBucket.trim() == '$productionProjectId.appspot.com' ||
+        storageBucket.trim() == '$productionProjectId.firebasestorage.app' ||
+        authDomain.trim() == '$productionProjectId.firebaseapp.com' ||
+        authDomain.trim() == '$productionProjectId.web.app') {
+      throw StateError('Staging must not use production Firebase resources.');
+    }
+    const productionOptions = [
+      DefaultFirebaseOptions.web,
+      DefaultFirebaseOptions.android,
+      DefaultFirebaseOptions.ios,
+      DefaultFirebaseOptions.macos,
+      DefaultFirebaseOptions.windows,
+    ];
+    if (productionOptions.any(
+      (options) =>
+          apiKey.trim() == options.apiKey ||
+          appId.trim() == options.appId ||
+          messagingSenderId.trim() == options.messagingSenderId,
+    )) {
+      throw StateError('Staging must use its own Firebase app registration.');
+    }
+  }
+
+  /// Validate even explicitly constructed configurations before SDK startup.
+  void validateRuntimeTarget() {
+    if (environment == FatooraEnvironment.test) {
+      if (!useEmulators ||
+          options.projectId != localTestProjectId ||
+          emulatorHost.trim().isEmpty ||
+          emulatorHost.contains('://') ||
+          emulatorHost.contains('/')) {
+        throw StateError('Local tests require the demo project and emulators.');
+      }
+    } else if (useEmulators ||
+        (environment == FatooraEnvironment.production &&
+            options.projectId != productionProjectId) ||
+        (environment == FatooraEnvironment.staging &&
+            options.projectId == productionProjectId)) {
+      throw StateError('Firebase environment and target do not agree.');
     }
   }
 
@@ -174,6 +216,7 @@ class FirebaseEnvironmentConfiguration {
 Future<void> initializeFirebaseForEnvironment(
   FirebaseEnvironmentConfiguration configuration,
 ) async {
+  configuration.validateRuntimeTarget();
   final app = Firebase.apps.isEmpty
       ? await Firebase.initializeApp(options: configuration.options)
       : Firebase.app();

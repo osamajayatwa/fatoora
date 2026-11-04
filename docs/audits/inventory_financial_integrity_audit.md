@@ -411,119 +411,45 @@ cutback; it never deletes posted events or rewrites original journals. The
 present app does not expose all required governed stock/correction commands;
 their absence is a deployment blocker, not permission to edit balance documents.
 
-## 8. Staged accounting design aligned with Fatoora V1
+## 8. Modernization strategy
 
-Read-only references reviewed:
+**Updated 2026-11-03, Asia/Amman:** the owner's approved direction is to rebuild
+financial architecture around proper double-entry accounting, then replace the
+Firestore business dataset through validated historical Excel import. Permanent
+legacy-schema compatibility is no longer an architectural constraint.
 
-- `fatoora_platform/docs/architecture/003-accounting-inventory-import.md`:
-  exact decimal policy, central posting, immutable events/reversals, periods,
-  ownership/custody separation, source-cost returns, reconstruction gates.
-- `fatoora_platform/backend/migrations/005_accounting_schema.sql` and
-  `007_accounting_posting.sql`: balanced headers/lines, approved accounts,
-  idempotency fingerprints, open period checks, immutable posted drafts,
-  linked reversals and transactional outbox.
-- Existing original-app `docs/financial-ledger.md`, mappings, reporting and
-  maintenance code: compatibility constraints and existing source ownership.
+The canonical [financial modernization strategy](../financial-modernization-strategy.md)
+and [Excel migration specification](../excel-migration-specification.md) replace
+the previous Phase A-F future plan in this section. They cover retained workflow
+behavior, a new accounting domain/book, exact arithmetic, physical inventory,
+opening/history boundaries, economic-event deduplication, independent financial
+and inventory reconciliation, isolated rehearsal and protected reset scope.
+The owner has since fixed Firestore, Firebase Authentication and Cloud Functions
+as the platform. The [Phase 2A design](../phase2a-firestore-accounting-architecture.md)
+defines the Firebase-only target and proposed bounded Phase 2B batch. Company
+accounting policies still require review; reference-platform approvals do not
+transfer here. Neither design phase implements an engine or authorizes production work.
 
-This design transfers principles, not PostgreSQL tables, locking SQL, or a
-destructive Firestore migration.
+The [2026-11-04 owner refinement](../phase2a-inventory-cash-integration.md)
+removes purchase-cost/COGS prerequisites for physical stock/sales, defines
+informational reference-selling estimates and a detailed reconciled cash ledger,
+and requires integration into existing functions/models/repositories/screens.
+Historical cost gaps in sections 1-7 are not gates on this quantity-only scope;
+they still cannot be filled from selling prices or used to assert profit.
 
-### Phase A — policy and evidence inventory
-
-Accountant/company approval defines currency and scales, signed customer credit,
-cash vs clearing, tax/discount policy, inventory costing, owner equity/drawings,
-legal opening boundary, fiscal periods/close/reopen, backdating and source
-chronology. Inventory locations/custody remain separate from company ownership.
-Collect consistent, approved exports with source IDs, hashes, dates, allocation
-and cost provenance. Quarantine missing data in a validation report, not an
-invented balancing entry. Gate: no unexplained baseline differences.
-
-### Phase B — versioned posting contract and shadow book
-
-Keep current source schemas and v3 ledger readable. Add an opt-in versioned
-accounting book with immutable journal header and bounded lines. Each event has
-company/book, stable economic source identity, component, source version/hash,
-business date, actual posting timestamp, posting date/period, actor, currency,
-precision, reason, reversal links, and inventory/cash/AR links. Store monetary
-and quantity units as approved integer/string values; compute with exact
-arithmetic.
-
-Within one Firestore transaction: authenticate and authorize, read the open
-period/control version, validate immutable source state and allocations, check
-source-event uniqueness, read balances/cost evidence, calculate effects, assert
-debits = credits, assert conservation/nonnegative stock and cash policy, and
-create journal, business posting links, balance effects, audit/outbox event and
-idempotency result together. Period closure writes the same control version so
-it conflicts with an in-flight post. Preserve original sales representative;
-resolve current customer access independently.
-
-Reject events exceeding a measured Firestore document/size/write budget before
-posting. Preparation can be durable and financially inert, but do not split one
-economic balance mutation into unrelated partial commits. Reporting/search/PDF/
-Excel projections consume outbox events idempotently after commit and expose
-freshness and reconciliation state.
-
-### Phase C — source-to-account mapping
-
-| Source | Candidate balanced mapping | Data/approval needed |
-|---|---|---|
-| Sale | Dr actual cash/clearing and/or AR; Cr net revenue and tax liability; discount according to approved policy | Original item totals, payment evidence, approved tax/discount treatment; never subtract later receipts twice |
-| Stock issue | Dr COGS; Cr inventory asset | Proven issue quantities and approved original issue costs; block cost posting if absent |
-| Collection | Dr actual cash/bank/clearing; Cr AR or customer advance liability | Allocations, actual collector and collection account; explicit overpayment policy |
-| Customer advance/application | Dr actual collection/Cr advance liability; later Dr liability/Cr AR | New supported lifecycle with immutable allocation links, not inferred from historic negative AR |
-| Sales return | Dr revenue/tax reversal; Cr AR/customer credit; separate cash/clearing refund where proven | Original source components, cumulative residual allocation, verified refundable account |
-| Stock return | Dr inventory asset; Cr COGS | Original issue cost and eligible destination; no current catalog-cost substitution |
-| Approved expense | Dr operating expense; Cr cash or rep payable | Evidence of business purpose and funding; liability settlement only when actually paid |
-| Owner drawing | Dr owner drawings/equity; Cr actual cash/bank | Approved owner identity/purpose; no automatic conversion of historic operating expenses |
-| Internal stock/cash transfer | Equal linked source/destination asset effects; no revenue/expense | Exact ownership/location/account identities and supporting transfer evidence |
-| Opening/correction | Approved control/equity opening, then linked immutable differences/reversals | Signed baseline, approved dates/periods and source provenance |
-
-Existing v3 balanced pairs can be mapped as evidence to a shadow book, but gross
-sales and missing cost/tax detail cannot be promoted as full accounts. Do not
-post a suspense/COGS value solely to force a desired balance. Retain unresolved
-records and block activation for their scope.
-
-### Phase D — staged backfill and reconciliation
-
-Dry-run only first. Build sidecar staging keyed by immutable source identity and
-hash, record import checkpoints/cutoff, and compare expected journals and
-inventory events with historical snapshots. Preserve original creation dates,
-sales attribution, allocations, payment methods, business dates and source IDs;
-import time is separate. Handle duplicate economic sources across retries and
-versions explicitly. Keep all originals untouched.
-
-Reconcile by company, item, warehouse, representative, customer, actual cash/
-clearing account, day and source type. Compare opening + chronological events =
-closing, GL inventory vs cost subledger, AR vs customer/open items, cash vs actual
-source events, refunds vs collections, settlement pairs, trial balance and every
-report aggregate. Gate: zero unexplained differences and independent reviewer
-sign-off; missing costs/history block the relevant promotion.
-
-### Phase E — controlled compatibility and deployment
-
-Use separate staging/emulator environments, a narrowly selected reconciled
-company/period, feature flags and version-aware report readers. Old clients must
-be denied obsolete posting routes after cutover. A single active book controls
-financial reports so v3 and v4 do not double-count the same event. Expose legacy
-scope/coverage warnings rather than silently merging incomplete periods.
-
-Deploy only after explicit approval of reviewed code, rules/indexes, limits,
-consistent backup, reconciliation report, correction workflow and rollback plan.
-No deployment occurred during this audit.
-
-### Phase F — rollback and ongoing controls
-
-Before activation, discard only unpublished staging. After activation, disable
-new v4 posting through a controlled gate, retain all immutable events, verify
-the old reader's compatible cutoff, and switch report routing only after
-reconciliation. Reverse posted mistakes with linked compensations in an open
-period. Never delete ledger rows, replace source costs, or reset opening balances
-as rollback. Continuous controls should independently reconcile outbox delivery,
-source events, inventory, AR, cash, journals and reporting watermarks.
+Sections 1-7 retain the historical findings, local fixes and recorded validation
+limits. Their synthetic results do not certify production history or prove Excel
+completeness. The Jihad investigation remains unresolved; Phase 1 does not repeat
+the rejected production lookup or authorize an in-place historical repair.
+Section 7's correction protocol applies only to a separately approved correction;
+the new strategy also permits replacing legacy structures after validated
+reconstruction and separately approved cutover.
 
 ## Required next action
 
-Manual historical reconciliation **is required**. Approval needed: bounded,
-read-only access to Jihad's profile, up to 200 of his invoices and linked custody
-balances/movements in `fatoora-6b192`, using the existing local Firebase login.
-This does not authorize a production write, repair, deployment or migration.
+Review Phase 2A policy decisions/Phase 2B scope and assemble source coverage, identity,
+opening-balance and independent-control evidence required by the specification.
+Do not implement later phases or treat missing historical data as zero. Before
+any eventual reset, back up Firestore and required application configuration and
+prove restoration in isolation. No production deletion, deployment, destructive
+operation or Firebase Authentication reset is authorized by this strategy update.

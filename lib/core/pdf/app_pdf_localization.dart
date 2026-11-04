@@ -1,4 +1,6 @@
 import 'package:get/get.dart';
+import 'package:fatoora/core/localization/financial_translations.dart';
+import 'package:fatoora/core/localization/financial_ledger_translations.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/widgets.dart' as pw;
 
@@ -30,7 +32,15 @@ class AppPdfLocalization {
   String t(String key) {
     if (key == 'page') return isArabic ? 'الصفحة' : 'Page';
     final map = isArabic ? _ar : _en;
-    return map[key] ?? _en[key] ?? key;
+    return map[key] ??
+        (isArabic
+            ? financialArabicTranslations[key]
+            : financialEnglishTranslations[key]) ??
+        (isArabic
+            ? financialLedgerArabicTranslations[key]
+            : financialLedgerEnglishTranslations[key]) ??
+        _en[key] ??
+        key;
   }
 
   String date(DateTime value) =>

@@ -101,11 +101,18 @@ class FinancialRepAmount {
     required this.salesRepId,
     required this.salesRepName,
     required this.amount,
+    this.amountAvailable = true,
+    this.reportedUnits,
   });
 
   final String salesRepId;
   final String salesRepName;
   final double amount;
+  final bool amountAvailable;
+  final BigInt? reportedUnits;
+  BigInt? get cashUnits => amountAvailable
+      ? reportedUnits ?? CashMovementModel.readMoneyUnits(amount)
+      : null;
 }
 
 class FinancialRepSalesSummary {
@@ -154,6 +161,7 @@ class FinancialCashSnapshot {
     required this.totalOut,
     required this.cashBySalesRep,
     this.repCashOutstandingBySalesRep = const [],
+    this.reportedValues,
   });
 
   final List<CashMovementModel> movements;
@@ -169,6 +177,23 @@ class FinancialCashSnapshot {
   final double repCashOutstanding;
   final double totalIn;
   final double totalOut;
+
+  /// Full-scope reported values, not sums of the loaded movement page.
+  /// Null entries represent unavailable response fields, including openings.
+  final Map<String, BigInt?>? reportedValues;
+
+  BigInt? units(String key) {
+    if (reportedValues != null) return reportedValues![key];
+    return CashMovementModel.readMoneyUnits(switch (key) {
+      'openingBalance' => openingBalance,
+      'closingBalance' => closingBalance,
+      'companyCash' => companyCash,
+      'repCashOutstanding' => repCashOutstanding,
+      'totalIn' => totalIn,
+      'totalOut' => totalOut,
+      _ => null,
+    });
+  }
 
   /// Backward-compatible alias for [repCashOutstandingBySalesRep].
   final List<FinancialRepAmount> cashBySalesRep;
