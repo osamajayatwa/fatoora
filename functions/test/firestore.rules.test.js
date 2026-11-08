@@ -2604,3 +2604,23 @@ test("legacy customer profile and statement use creator fallback; Admin can list
   await assertSucceeds(getDoc(businessDoc(other, "customers", "legacy-visible")));
   await assertSucceeds(getDoc(businessDoc(other, "customer_transactions", "legacy-debt")));
 });
+
+test("pending accounting configuration and financial targets remain inaccessible to all clients", async () => {
+  const root = `companies/${companyId}/books/synthetic-pending-book`;
+  const paths = [root, `${root}/policy_revisions/policy-v1`, `${root}/source_keys/candidate`,
+    `${root}/journal_entries/candidate`, `${root}/events/candidate`];
+  await testEnvironment.withSecurityRulesDisabled(async context => {
+    for (const path of paths) await setDoc(doc(context.firestore(), path), {syntheticFixture: true, companyId});
+  });
+  for (const client of [authenticatedDb(adminUid), authenticatedDb(repAUid), authenticatedDb(inactiveUid),
+    testEnvironment.unauthenticatedContext().firestore()]) {
+    for (const path of paths) {
+      const ref = doc(client, path);
+      await assertFails(getDoc(ref));
+      await assertFails(getDocs(collection(client, path.slice(0, path.lastIndexOf("/")))));
+      await assertFails(setDoc(ref, {companyId, approved: true}));
+      await assertFails(updateDoc(ref, {approved: true}));
+      await assertFails(deleteDoc(ref));
+    }
+  }
+});

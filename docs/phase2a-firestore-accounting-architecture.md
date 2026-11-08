@@ -463,6 +463,10 @@ The separately approved [Phase 2B-5 settlement transaction preflight](phase2b5-s
 validates approved configuration and committed source/current-position evidence
 inside a read-only transaction. Its timestamp contract preserves recorded server
 fields independently of SDK commit metadata; no unknown future commit is invented.
+The separately approved [Phase 2B-6 pending settlement contract](phase2b6-pending-settlement-evidence.md)
+binds immutable prospective economics/configuration/cash-head evidence while
+leaving future source/journal commit clocks unknown. It remains read-only and
+disconnected from live posting.
 The architecture below remains the design boundary, not an implemented engine.
 
 **Phase 2B-1: extend existing exact-decimal helpers with string/unit APIs.**
@@ -490,7 +494,7 @@ proof of the accounting engine or historical data.
 | Atomicity/security/report integrity | Concrete source identity, exact units, transaction/read conflicts, balances, immutable envelope, Rules/IAM boundary, watermark/generation and index contracts specified. Runtime proof remains future work. |
 | Policy and historical evidence | Quantity-only mode, reference-selling estimate and free invoice prices are settled owner requirements. Tax/fiscal/financial-opening decisions and source quantity/cash/ownership evidence remain pending. Cost/COGS is not recorded; no profit certification is claimed. |
 | Scalability | Bounds, query shapes and contention points identified; max-size/load/cost targets require later measurement. No cloud performance certification from this document. |
-| Helper completion / next batch | Section 8 links completed Phase 2B-1 through Phase 2B-5 evidence. The next proposal is a pending-settlement evidence/timestamp contract with emulator proof before atomic accounting persistence, subject to separate approval. Phase 2B-5 creates no journals and has no live call site. |
+| Helper completion / next batch | Section 8 links completed Phase 2B-1 through Phase 2B-6 evidence. The next proposal is an emulator-only settlement atomic persistence adapter with complete deduplication/audit effects, subject to separate approval. Phase 2B-6 creates no journals and has no live call site. |
 
 The 2026-11-03 design-only validation remains historical evidence. Current
 Phase 2B-1 arithmetic/runtime results are in the linked completion record;

@@ -401,3 +401,14 @@ No financial posting code, cash balances, original source, endpoint or Flutter
 workflow is modified by preflight. Missing real configuration remains blocked.
 The pending-settlement timestamp/evidence contract remains a prerequisite to
 separately approved atomic journal persistence; no future commit time is guessed.
+
+## 11. Phase 2B-6 pending settlement evidence and timestamps
+
+The owner separately approved Phase 2B-6 on 2026-11-08. The
+[contract and local verification evidence](phase2b6-pending-settlement-evidence.md)
+record the read-only pending adapter, shared existing accounting validation,
+immutable exact economics/configuration/current-head evidence, retry/staleness
+checks and explicitly unknown future source/journal commit clocks. No settlement
+writer, callable, cash behavior, Rules, index or Flutter workflow is activated or
+changed. A separately authorized emulator-only atomic settlement persistence
+adapter is the smallest next phase; Phase 2B-6 implements no persistence.

@@ -134,6 +134,45 @@ export interface SettlementJournalIntent {
   payloadDigest: string;
 }
 
+export type SettlementJournalEconomics = Pick<SettlementJournalIntent,
+  "schemaVersion" | "id" | "companyId" | "bookId" | "action" | "currency" | "moneyScale" | "amountUnits" | "policy" | "lines">;
+
+/** Shared pure economics for committed and pending evidence. No clocks or writes. */
+export function buildSettlementJournalEconomics(input: {
+  companyId: string; bookId: string; settlementId: string; salesRepId: string;
+  amountUnits: string; policy: SettlementMonetaryPolicy; mappings: readonly SettlementCashMapping[];
+}): SettlementJournalEconomics {
+  object(input, "input");
+  const companyId = identifier(input.companyId, "companyId"), bookId = identifier(input.bookId, "bookId");
+  const settlementId = identifier(input.settlementId, "settlementId"), rep = identifier(input.salesRepId, "salesRepId");
+  check(typeof input.amountUnits === "string" && /^[1-9][0-9]{0,29}$/.test(input.amountUnits), "Positive canonical settlement units required.");
+  const amount = sumUnits([BigInt(input.amountUnits)]), policy = monetaryPolicy(input.policy, companyId, bookId);
+  check(Array.isArray(input.mappings) && input.mappings.length === 2, "Exactly two explicit cash mappings required.");
+  const mappings = input.mappings.map((m) => cashMapping(m, companyId, bookId, policy));
+  const accountFor = (credit: boolean): SettlementCashMapping => {
+    const matches = mappings.filter(a => a.ledgerAccountKey === (credit ? repCashAccount(rep, "").key : companyCashAccount().key));
+    check(matches.length === 1, "Missing or ambiguous cash mapping.");
+    const a = matches[0];
+    equal(a.treasuryAccountId, credit ? `rep_${rep}` : "company_cash", "Mapping treasury dimension");
+    equal(a.holderType, credit ? "representative" : "company", "Mapping holder type");
+    equal(a.holderUid, credit ? rep : companyId, "Mapping holder dimension");
+    return a;
+  };
+  const sourceAccount = accountFor(true), destinationAccount = accountFor(false);
+  if (sourceAccount.accountId === destinationAccount.accountId) equal(sourceAccount.accountRevisionId, destinationAccount.accountRevisionId, "Shared cash-control revision");
+  const id = `settlement_intent_${hash([1, companyId, bookId, "settlements", settlementId, "rep_to_company_cash"])}`;
+  const lines = [false, true].map((credit): IntentLine => ({
+    id: `${id}_${credit ? "credit" : "debit"}`, companyId, bookId,
+    currency: policy.currency, moneyScale: 3, account: credit ? sourceAccount : destinationAccount,
+    debitUnits: credit ? "0" : amount.toString(), creditUnits: credit ? amount.toString() : "0",
+    cashMovementId: `${settlementId}_${credit ? "rep_out" : "company_in"}`,
+    counterpartMovementId: `${settlementId}_${credit ? "company_in" : "rep_out"}`,
+  }));
+  equal(sumUnits(lines.map(l => BigInt(l.debitUnits))), sumUnits(lines.map(l => BigInt(l.creditUnits))), "Journal balance");
+  return freeze({schemaVersion: 1, id, companyId, bookId, action: "rep_to_company_cash", currency: policy.currency,
+    moneyScale: 3, amountUnits: amount.toString(), policy, lines});
+}
+
 /** Offline only. Caller must supply trusted snapshots/configuration and, for
  * replay comparison, the prior intent. This function performs no dedup writes. */
 export function buildSettlementJournalIntent(
@@ -237,35 +276,10 @@ export function buildSettlementJournalIntent(
     };
   });
 
-  check(Array.isArray(data.mappings) && data.mappings.length === 2, "Exactly two explicit cash mappings required.");
-  const mappings = (data.mappings as unknown[]).map((m) => cashMapping(m, companyId, bookId, policy));
-  const accountFor = (m: IntentMovement): SettlementCashMapping => {
-    const expectedKey = m.cashAccount === "company_cash" ? companyCashAccount().key : repCashAccount(rep, "").key;
-    const matches = mappings.filter((a) => a.ledgerAccountKey === expectedKey);
-    check(matches.length === 1, "Missing or ambiguous cash mapping.");
-    const a = matches[0];
-    equal(a.treasuryAccountId, m.treasuryAccountId, "Mapping treasury dimension");
-    equal(a.holderType, m.holderType, "Mapping holder type");
-    equal(a.holderUid, m.holderUid, "Mapping holder dimension");
-    return a;
-  };
-  const sourceAccount = accountFor(movements[0]);
-  const destinationAccount = accountFor(movements[1]);
-  if (sourceAccount.accountId === destinationAccount.accountId) {
-    equal(sourceAccount.accountRevisionId, destinationAccount.accountRevisionId, "Shared cash-control revision");
-  }
-  const id = `settlement_intent_${hash([1, companyId, bookId, "settlements", settlementId, "rep_to_company_cash"])}`;
-  const lines = [false, true].map((credit): IntentLine => {
-    const movement = movements[credit ? 0 : 1];
-    return {
-      id: `${id}_${credit ? "credit" : "debit"}`, companyId, bookId,
-      currency: policy.currency, moneyScale: 3,
-      account: credit ? sourceAccount : destinationAccount,
-      debitUnits: credit ? "0" : amount.toString(), creditUnits: credit ? amount.toString() : "0",
-      cashMovementId: movement.id, counterpartMovementId: movement.counterpartMovementId,
-    };
-  });
-  equal(sumUnits(lines.map((l) => BigInt(l.debitUnits))), sumUnits(lines.map((l) => BigInt(l.creditUnits))), "Journal balance");
+  const economics = buildSettlementJournalEconomics({companyId, bookId, settlementId, salesRepId: rep,
+    amountUnits: amount.toString(), policy, mappings: data.mappings as SettlementCashMapping[]});
+  const {id, lines} = economics;
+  const sourceAccount = lines[1].account;
   const payload: Omit<SettlementJournalIntent, "payloadDigest"> = {
     schemaVersion: 1, id, companyId, bookId, action: "rep_to_company_cash",
     currency: policy.currency, moneyScale: 3, amountUnits: amount.toString(), policy,
