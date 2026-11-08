@@ -78,6 +78,15 @@ service cloud.firestore {
         && (isAdmin(companyId) || ownsSalesRepDocument(data));
     }
 
+    // Customer service access is independent of immutable sales ownership.
+    // Drafts and all mutations continue to use their existing owner checks.
+    function canReadInvoice(companyId, data) {
+      return canReadSalesRepDocument(companyId, data)
+        || (isApprovedCompanyUser(companyId)
+          && data.financialPosted == true
+          && currentCustomerAccess(companyId, data.customerId));
+    }
+
     function canReadCustomerTransaction(companyId, data) {
       let customerPath =
         /databases/$(database)/documents/companies/$(companyId)/customers/$(data.customerId);
@@ -943,9 +952,9 @@ service cloud.firestore {
           !exists(
             /databases/$(database)/documents/companies/$(companyId)/invoices/$(invoiceId)
           )
-          || canReadSalesRepDocument(companyId, resource.data)
+          || canReadInvoice(companyId, resource.data)
         );
-      allow list: if canReadSalesRepDocument(companyId, resource.data);
+      allow list: if canReadInvoice(companyId, resource.data);
       allow create: if validInvoiceDraftCreate(companyId, invoiceId);
       allow update: if validInvoiceDraftUpdate(companyId);
       allow delete: if canReadSalesRepDocument(companyId, resource.data)

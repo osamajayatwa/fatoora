@@ -279,6 +279,7 @@ export interface SalesReturnLedgerMappingInput {
   refundType: string;
   refundCashAccount: string;
   refundCashSalesRepId: string;
+  refundCashSalesRepName?: string;
   customerId: string;
   customerName: string;
   salesRepId: string;
@@ -320,6 +321,12 @@ export function buildSalesReturnFinancialLedgerEntries(
     },
   })] : [];
   if (input.cashRefundAmount > 0) {
+    // Sales reversal follows the invoice; cash activity follows its actual
+    // collection account, which can belong to a different rep after transfer.
+    const refundRepId = input.refundCashAccount === "rep_cash"
+      ? input.refundCashSalesRepId : input.salesRepId;
+    const refundRepName = refundRepId === input.salesRepId
+      ? input.salesRepName : input.refundCashSalesRepName || refundRepId;
     entries.push(buildFinancialLedgerEntry({
       id: `sales_return_${input.returnId}_cash_refund`,
       companyId: input.companyId,
@@ -332,7 +339,7 @@ export function buildSalesReturnFinancialLedgerEntries(
       credit: cashAccount(
         input.refundCashAccount,
         input.refundCashSalesRepId,
-        input.salesRepName,
+        refundRepName,
       ),
       referenceType: "sales_return",
       referenceId: input.returnId,
@@ -341,9 +348,10 @@ export function buildSalesReturnFinancialLedgerEntries(
       sourceId: input.returnId,
       customerId: input.customerId,
       customerName: input.customerName,
-      salesRepId: input.salesRepId,
-      salesRepName: input.salesRepName,
-      ownershipSource: "originalInvoice.salesRepId",
+      salesRepId: refundRepId,
+      salesRepName: refundRepName,
+      ownershipSource: refundRepId === input.salesRepId
+        ? "originalInvoice.salesRepId" : "refund.cashMovement.salesRepId",
       paymentMethod: "cash",
       notes: input.reason,
       metrics: {

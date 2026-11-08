@@ -1,303 +1,234 @@
-# Original Fatoora: persistent staging approval plan
+# Original Fatoora: dedicated staging approval plan
 
-Prepared **2026-11-04, Asia/Amman**. Status: **awaiting explicit approval**.
-This document and the [review manifest](../config/firebase/staging-plan.review.json)
-are a proposal, not an executed deployment. Only bounded metadata reads were
-performed. No project, app, database, account, API, deployment or data was changed.
+Reviewed **2026-11-04, Asia/Amman**; explicitly approved in session, including
+parent `organizations/81973318356` and billing `0104EE-737092-D9DBF0`.
+Execution results and remaining acceptance limits are recorded in
+[staging-provisioning-results.md](staging-provisioning-results.md).
+The sections below preserve the reviewed pre-creation plan and its original gates;
+their pending-state statements describe that review, not the current deployment.
+This plan and the [review manifest](../config/firebase/staging-plan.review.json)
+replace the proposal to reuse V1 infrastructure.
 
-## 1. Inspection and recommended target
+## 1. Verified candidate and protected projects
 
-The authorized Firebase project list contains:
-
-| Project | Project number | Observed state |
+| Purpose | Project ID | Project number / policy |
 | --- | --- | --- |
-| `fatoora-6b192` | `961957914773` | Production. Default Firestore is Native mode in `nam5`. Never a staging write target. |
-| `fatoora-platform-staging` | `813911311333` | Existing active staging project; reuse proposed instead of creating another project. |
+| Proposed new original-app staging | `fatoora-original-staging` | Unknown until approved creation; capture and pin. |
+| Original production: forbidden write target | `fatoora-6b192` | `961957914773` |
+| Fatoora V1: forbidden write target | `fatoora-platform-staging` | `813911311333` |
 
-Read-only staging inspection found:
+New display name: **Fatoora Original Staging**. Keep only `default_company` and
+the current screens, Auth/RBAC, Functions and Firestore architecture. No company
+switcher, parallel backend or accounting implementation. Do not reuse either
+existing project's registrations, identities, credentials, IAM or Hosting.
 
-- Android apps: `Fatoora Platform Staging Android` (`com.fujika.fatoora`) and
-  **`Fatoora V1 Dev Android` (`com.fujika.fatoora.dev`)**. Reuse the latter,
-  app ID `1:813911311333:android:efe57ed66e6c79dc21250c`.
-- Existing Web app ID `1:813911311333:web:69d8ccb0bb8a771821250c`; reuse its
-  project-specific SDK configuration. Its display name need not be changed.
-- Email/Password Auth is enabled. Lookup of exactly `admin@fatoora.com`
-  returned no staging user. No other Auth users were enumerated.
-- The `(default)` Firestore database returned `NOT_FOUND`; no business document
-  bodies were read. There is no database here to restore or reset.
-- Cloud Functions listing was blocked by **`SERVICE_DISABLED`**. Do not report
-  a verified zero function count: after approved API enablement, list again and
-  stop if any existing function would collide with this app's exports.
-- Billing is already enabled; no billing-account change is proposed.
-- Existing Hosting site `fatoora-platform-staging` has deployments, most recently
-  observed on October 30. Preserve it and all its releases.
-- Proposed new Hosting site **`fatoora-v1-staging`** returned 404 on inspection;
-  that is not a reservation or a guarantee of future name availability.
-- SDK configuration advertises `fatoora-platform-staging.firebasestorage.app`,
-  but bucket metadata returned 404. No Storage objects were read. The current
-  app has no Firebase Storage integration; no bucket creation is proposed. Keep
-  the SDK-provided nonproduction config value, without claiming Storage is ready.
+Read-only checks: candidate syntax is valid; the complete accessible Firebase
+list contains only the two protected projects. Candidate Google Cloud/Firebase
+lookups returned **403**, which does not prove absence or availability. Hosting
+lookup returned **404**; no name was reserved. **Global availability remains
+unconfirmed.** Check at approved creation; if unavailable, stop for approval of
+a different exact ID, with no automatic suffix or project reuse. Deleted project
+IDs cannot be reused. [Project-ID requirements](https://docs.cloud.google.com/resource-manager/docs/creating-managing-projects).
 
-**Recommended approval target:** reuse project `fatoora-platform-staging`, keep
-`default_company`, reuse the existing `.dev` Android and Web registrations,
-and create only the new Hosting site `fatoora-v1-staging` for this application.
-Expected URL after approval/deployment: `https://fatoora-v1-staging.web.app`.
+Evidence is ignored under `build/staging-plan/original-inspection.json`.
+Creation permission/quota, parent and billing eligibility remain unverified.
+No API was enabled to perform inspection.
 
-**Owner decision included in approval:** reserve this project's new default
-Firestore database and original callable-function namespace for original Fatoora.
-Apps within one Firebase project share backend/Auth resources; another Hosting
-site is not another backend isolation boundary. Existing registrations are
-preserved, but their future backend ownership must be agreed. If the Platform
-application requires an independent backend in this project, stop and approve a
-different project first; do not share the database or silently repurpose it.
-[Firebase environment guidance](https://firebase.google.com/docs/projects/dev-workflows/general-best-practices).
+## 2. Exact scope requiring approval
 
-Inspection evidence is ignored under `build/staging-plan/`. Read access failure
-is never permission to enable an API or assume a resource is empty.
+- **New project:** exact ID/display name above; explicit organization/folder or
+  confirmed no organization. Parent remains unresolved; do not inherit a CLI
+  default. Record the generated project number after approved creation and pin
+  it for every later operation. Never adopt an unowned pre-existing project.
+- **Billing/services:** select and approve a permitted billing account, link only
+  the new project and activate Blaze. Enable required Firebase/Auth/Firestore/
+  Hosting services plus the existing second-generation Functions APIs as needed
+  (Functions, Build, Artifact Registry, Run, Eventarc, Pub/Sub). Review staging
+  costs/budget alerts. No existing-project billing/IAM changes or copied secrets.
+  [Functions prerequisites](https://firebase.google.com/docs/functions/get-started).
+- **Database/backend:** `(default)` Firestore, Standard/Native, **`nam5`**;
+  existing Rules/indexes and Functions exports, region **`us-central1`**, Node 22,
+  codebase **`fatoora-original-staging`**. No new endpoints or business changes.
+- **Hosting:** one dedicated default site **`fatoora-original-staging`**, expected
+  URL `https://fatoora-original-staging.web.app`. Explicitly create/verify it
+  **before Auth enablement and Web registration**. Site creation is deferred in
+  current Firebase behavior; do not assume project creation reserved the name.
+  Stop on naming conflicts or an unexpected auto-generated site; no fallback.
+  [Default-site behavior](https://firebase.google.com/docs/hosting/default-site).
+- **New registrations:** Android `Fatoora Original Staging Android`, package
+  **`com.fujika.fatoora.original.staging`**; Web `Fatoora Original Staging Web`.
+  Both app IDs and all SDK settings must come from the new project. Enable only
+  Email/Password Auth and the new site's required domains. No Google sign-in,
+  Analytics, new FCM integration or Storage bucket is needed. Use returned SDK
+  Storage metadata only; if absent, allow an absent unused option through a
+  narrow tested local fix instead of inventing/provisioning a bucket.
+- **Admin:** independent new Auth UID for `admin@fatoora.com`, strong new password,
+  initially disabled, with the existing approved admin profile initially inactive.
+  Full **application-level** permissions, no Google Cloud IAM role. Copy no UID,
+  password, token or claims; send no automatic emails or unsupported email-
+  verification flag. Enable only after data validation.
 
-## 2. Exact proposed scope
+### Seed boundary: 95 explicit documents, no business history
 
-### Cloud resources and data
-
-1. Recheck the project ID **and number** against the manifest, caller identity,
-   existing app IDs, hosting releases, Auth settings and database absence.
-   Stop on a changed baseline. Never run using a default Firebase CLI project.
-2. Enable only the APIs required by the existing second-generation Functions
-   deployment (Functions, Cloud Run, Cloud Build, Artifact Registry, Eventarc
-   and Pub/Sub as required). Use project-local service agents/runtime identity;
-   no production roles, keys, secrets or CI credentials are copied. A dedicated
-   staging-only deploy principal is preferable for repeat deployments.
-   Existing authorized human access may perform the approved one-time setup.
-3. Create `(default)` Firestore in Native mode, **`nam5`**, matching production's
-   database location. Keep existing Functions/client region **`us-central1`**.
-   Confirm these location choices before creation. No test-mode/open Rules.
-4. Deploy the repository's existing Firestore Rules/indexes and existing
-   Functions exports. Use codebase **`fatoora-v1-staging`** and a separate
-   `firebase.staging.json`; reject name collisions and implicit deletion of any
-   pre-existing function. Wait for indexes and required services to be ready.
-5. Create a new staging-only Auth identity for `admin@fatoora.com`, with a newly
-   generated UID and a strong separately chosen password. Initially disable it.
-   Do not reuse production UID/password/tokens/claims, mark email verified
-   without evidence, reset an existing account, or send an email automatically.
-6. Seed only the paths below. Keep the profile inactive until validation finishes.
-   Enable the new Auth identity and approved admin profile only after the data
-   checks pass. An unexpectedly existing account or conflicting document stops
-   setup for review, rather than taking it over.
-7. Create Hosting site **`fatoora-v1-staging`** if still available. Add only
-   `fatoora-v1-staging.web.app` to staging Auth authorized domains if needed;
-   preserve the existing two domains. Publish only the staged Web build to this new site.
-   Never deploy to `fatoora-platform-staging`'s existing Hosting site.
-
-Functions require the Blaze plan; billing is already enabled, but enabling APIs,
-builds, artifact storage and function usage can incur staging charges. Approve
-usage/budget notifications with this scope; do not alter production billing.
-[Functions deployment prerequisites](https://firebase.google.com/docs/functions/get-started).
-
-### Seed data: 95 explicit documents, no business transactions
-
-| Path | Proposed content |
-| --- | --- |
-| `companies/default_company` | Test company display name `Fatoora Staging`, setup provenance; no accounting book or balance. |
-| `companies/default_company/settings/app` | Existing settings schema with staging name/email, blank sensitive company details, JoFotara disabled/not configured. No production settings or credentials copied. |
-| `users/<new staging UID>` | `uid`, name `Test Administrator`, email `admin@fatoora.com`, empty phone/photo, role `admin`, approvalStatus `approved`, companyId `default_company`, active only after verification, fresh server timestamps. |
-| `items/<original item ID>` × **91** | Existing root item schema; original IDs, codes/SKUs, definitions, categories, tax and selling prices, active/deleted/tracking flags. New staging admin creation provenance and server timestamps. |
-| `companies/default_company/financial_ledger_account_activity_metadata/current` | Existing read-model readiness only, derived from an explicitly verified empty ledger. No cash position, opening entry or journal. |
-
-The catalog is the already verified sanitized file
-`build/local-test/catalog.json`, SHA-256
+Use the already verified `build/local-test/catalog.json`, SHA-256
 `1763b2233f03dc76f06c4ff9a1c757006dc4fc41a891e139109aa51c10555f35`.
-It has **90 active/nondeleted definitions and one deleted definition**. Do not
-refresh or substitute the file silently after approval.
+It contains **91 definitions: 90 active/nondeleted and one deleted**. No silent
+refresh or new production export. Preserve original IDs, names, codes/SKUs,
+specifications/metadata, categories, units, tax, selling prices and flags where
+present. Reuse `validateBundle`, `sanitizeCatalog`, `targetItem` and search helpers;
+replace emulator author/marker fields with the real new staging UID/provenance.
 
-Reuse `sanitizeCatalog`, `validateBundle`, `targetItem` and existing search-field
-helpers. Adapt the target transformation to use the **actual staging admin UID**
-and staging setup provenance, rather than `local-test-admin`. The current
-`seedLocalEnvironment` remains emulator-only: do not remove its guard. Prepare
-a separately gated staging bootstrap using those shared transformations after
-approval, with pinned project/number, manifest/catalog hashes, create-only
-preconditions and exact-match replay checks. There is no remote bootstrap yet.
+Set `currentStock`, `openingStock`, `minStock`, `costPrice`, `inventoryValue` to
+**zero**; preserve tracking flags and derive stock status. Use fresh trusted
+server timestamps; copy no source authors/timestamps, stock references, costs or
+request identifiers. No inventory movements or opening-balance transactions.
 
-All `currentStock`, `openingStock`, `minStock`, `costPrice` and `inventoryValue`
-values start at zero; retain tracking flags and derive out/untracked status.
-Never carry source authors, timestamps, creation requests, stock references or
-source purchase costs. Seed creates no inventory movements. Existing triggers
-may create new setup audit events and derived catalog fields; these are staging
-provenance, not imported financial history. Do not disable audit to suppress them.
+| Path | Content |
+| --- | --- |
+| `companies/default_company` | `Fatoora Original Staging`, new setup provenance; no balances/book. |
+| `companies/default_company/settings/app` | Existing schema, staging name/email, blank sensitive company details, JoFotara disabled/unconfigured. |
+| `users/<new staging UID>` | Existing uid/name/email/empty phone/photo, role `admin`, approvalStatus `approved`, companyId `default_company`, new timestamps; inactive until verification. |
+| `items/<original ID>` (91) | Sanitized definitions/prices, zero quantities/costs, new provenance. |
+| `companies/default_company/financial_ledger_account_activity_metadata/current` | Existing readiness marker from a verified empty ledger, using the one-write-budget initializer. No journal/opening entry. |
 
-Verify **zero documents** in customers, invoices, quotations, receipts,
-sales_returns, expenses, cash_movements, cash_balances, settlements,
-customer_transactions, inventory_transfers, rep_inventory_balances,
-rep_inventory_movements, stock_movements and financial_ledger_entries. Source
-customer/financial/Auth exports are never inputs. Do not create the new GL's
-books, policies, source keys, journals or preflight bindings in this task.
+Allow existing-trigger setup audit records/derived fields; these are new staging
+provenance. Never disable audit. Verify root legacy and company history paths
+empty: customers, invoices, quotations, receipts, sales_returns, expenses,
+cash_movements, cash_balances, settlements, customer_transactions,
+inventory_transfers, rep_inventory_balances, rep_inventory_movements,
+stock_movements, financial_ledger_entries. No receivables, custody or GL books/
+policies/journals. Only the approved company may exist.
 
-### Local changes to prepare activation, after approval
+## 3. Local safeguards to implement after approval
 
-- Add a staging-only deploy config with Functions codebase
-  `fatoora-v1-staging`, existing Rules/index paths, and Hosting
-  **`site: fatoora-v1-staging`, public: build/staging/web**. A guard must pin the
-  project ID/number and inspect built Web config before deploying. No unqualified
-  `firebase deploy`, `firebase use` change, wildcard deletion or production alias.
-- Download SDK configs from the existing approved staging app registrations into
-  ignored `config/firebase/staging.android.json`, `staging.web.json` and
-  `android/app/src/staging/google-services.json`. Set `FATOORA_ENV=staging` and
-  exact `FIREBASE_PROJECT_ID_CONFIRM`. Add the native staging path to `.gitignore`
-  before downloading it. Validate app ID/sender/project pairing. Never put
-  service-account keys, passwords or Auth tokens in Dart defines or APK/Web assets.
-- Android currently uses the production root `google-services.json` and has no
-  staging variant. Add an **opt-in** `staging` flavor, package suffix `.dev`, and
-  staging-only label `Fatoora Staging`. Select it only when the staging launcher
-  passes `ORG_GRADLE_PROJECT_fatooraStaging=true`; normal production tasks retain
-  their current no-flavor behavior. Couple the flavor to `FATOORA_ENV=staging`.
-  The build must reject a missing/mismatched native staging file instead of
-  falling back to the root production file. A staging manifest overlay supplies
-  the label; production manifest, Firebase options and native config stay intact.
-  [Native per-variant Firebase configuration](https://firebase.google.com/docs/projects/multiprojects).
-- Use the existing Android registration `com.fujika.fatoora.dev`, not a new
-  duplicate `.staging` registration. Debug APK signing is sufficient for device
-  testing; do not use/copy the production release keystore. Register a staging
-  debug SHA only if a requested provider needs it. Email/Password is in scope;
-  adding Google sign-in, FCM or external integrations is not required.
-- Preserve `lib/firebase_options.dart`, `.firebaserc` defaults,
-  `firebase.json`, existing production Google services config and production
-  signing configuration. No UI or domain/RBAC redesign, company switcher or
-  accounting implementation. Android package and Web origin separation keep
-  staging app caches/preferences separate from the production installation.
+1. Separate `firebase.staging.json`: existing source/Rules/indexes/SPA rewrite,
+   codebase `fatoora-original-staging`, literal Hosting site
+   `fatoora-original-staging`, public directory `build/staging/web`.
+2. Guarded provisioning/build/deploy launcher: allow only the exact new project,
+   deny **both** protected IDs/numbers, then require captured new number and app/
+   SDK pairings. Reject emulator variables during remote operations, mismatched
+   credential targets, unknown ownership, `--force` and implicit deletions. No
+   unqualified deployment, alias remapping or default-project fallback.
+3. Use project-local runtime/service identities and a staging-only deploy
+   principal after bootstrap. Inspect inherited IAM/cross-project access; stop
+   on conflicts, without editing either existing project's IAM. No exported keys
+   or cross-project resource grants.
+4. Opt-in Android `staging` flavor, suffix `.original.staging`, label
+   **Fatoora Original Staging**, manifest overlay and matching ignored native
+   `android/app/src/staging/google-services.json` (add ignore entry first).
+   Launcher scopes/restores `ORG_GRADLE_PROJECT_fatooraStaging=true`; normal
+   production tasks stay no-flavor. Reject missing/mismatched native config or
+   non-staging Dart options; never fall back to production native config. Debug
+   signing only, no production keystore. [Per-variant config](https://firebase.google.com/docs/projects/multiprojects).
+5. Populate ignored `config/firebase/staging.android.json`/`staging.web.json`
+   from new SDK configs; set `FATOORA_ENV=staging` and project/confirmation to
+   `fatoora-original-staging`. Validate app/sender/API-key/project pairing before
+   build/startup. Extend the existing staging guard to reject V1 and pin the
+   approved original target; its current checks only explicitly block production.
+6. Separate gated create-only staging bootstrap, reusing pure emulator-fixture
+   transformations. Preserve `seedLocalEnvironment`'s emulator-only refusal.
+   Resume only manifest-owned exact matches; stop on changed stock/history,
+   conflicting identities/docs or unknown setup ownership.
 
-No Android flavor, staging SDK file, remote bootstrap or deploy wrapper has been
-implemented/activated by this planning task. These are the concrete local changes
-included in the proposed approval scope. The existing runtime staging guard and
-emulator-only bootstrap remain as verified; do not claim Android staging builds
-have been verified before these native changes exist.
+Preserve production `lib/firebase_options.dart`, native config/signing,
+`.firebaserc`, `firebase.json`, Rules, Functions behavior and UI. No activation
+code, SDK files or Android flavor was added during this planning task. Generated
+number/app IDs remain explicit `null`; no invented project metadata.
 
-## 3. Ordered deployment and acceptance procedure
+## 4. Smallest activation sequence: after approval only
 
-These commands describe the **post-approval** procedure. Do not run them now.
-Provisioning must use the resolved real ID, not an alias that could be remapped.
+1. Confirm parent/billing selection; capture approved source/catalog/manifest
+   hashes and backup local files to patch. Recheck ID/quota/permissions. Create
+   the new project once, add Firebase, pin its number and operation ownership.
+2. Link approved billing/enable scoped services. Create and verify the exact
+   default site **before** Auth/Web setup; register both apps and Email/Password.
+   Create closed-rule Native database and verify location. Capture SDK configs.
+3. Complete local safeguards; run existing environment/Auth/Rules/catalog fixtures
+   and relevant regressions in isolated emulators, Functions build/lint, Flutter
+   analysis and Android/Web builds. Destructive/retry tests stay on emulators.
+4. Deploy existing Rules/indexes, wait for readiness, then the named Functions
+   codebase. Stop on failures, unavailable listings, collisions or deletion prompts.
+   Capture exact resources/source hashes; never assume an inaccessible service
+   is empty. Keep admin disabled and Web unpublished while preparing data.
+5. Create disabled admin/profile and seed exactly the approved documents with
+   create-only preconditions. Wait for triggers, verify all 91 definitions/prices,
+   zero stock/history and permissions, then activate that admin/profile.
+6. Inspect effective native/Dart targets, install the APK and deploy only the new
+   Web site. Verify device access over the internet with emulators stopped.
+
+Installed CLI help/source verified these **post-approval command forms; none
+were executed**. The future launcher checks every exit status/target and requires
+the recorded parent/billing account/number; this is not an unattended script.
 
 ```powershell
-$stageProject = 'fatoora-platform-staging'
-# The guarded launcher rechecks project number 813911311333 and rejects prod.
-firebase.cmd apps:list --project=$stageProject
-# After approved API enablement: list functions and abort on a collision.
-firebase.cmd functions:list --project=$stageProject
+$stageProject = 'fatoora-original-staging'
+firebase.cmd projects:create $stageProject --display-name="Fatoora Original Staging"
+# Supply --organization=<approved ID> or --folder=<approved ID> if applicable.
+# Pin project number; link approved billing and enable services before proceeding.
+firebase.cmd hosting:sites:create fatoora-original-staging --project=$stageProject
+firebase.cmd apps:create ANDROID "Fatoora Original Staging Android" --package-name=com.fujika.fatoora.original.staging --project=$stageProject
+firebase.cmd apps:create WEB "Fatoora Original Staging Web" --project=$stageProject
+firebase.cmd firestore:databases:create '(default)' --location=nam5 --edition=standard --project=$stageProject
+# Configure Auth, guards and native/Dart configs; complete offline verification.
+firebase.cmd deploy --config=firebase.staging.json --project=$stageProject --only firestore:rules,firestore:indexes
+firebase.cmd deploy --config=firebase.staging.json --project=$stageProject --only functions:fatoora-original-staging
+# Seed/verify scoped documents and enable only the new admin.
+flutter.bat build web --output=build/staging/web --dart-define-from-file=config/firebase/staging.web.json
+firebase.cmd deploy --config=firebase.staging.json --project=$stageProject --only hosting
 ```
 
-1. Store a private, hash-pinned pre-change manifest: project metadata and IAM
-   principals, Auth provider/domains baseline, resource absences, existing app
-   IDs, existing Hosting release/version IDs, source/catalog hashes and reviewed
-   source artifact. Back up local files that the opt-in Android patch will touch.
-   No production data backup/export is needed because production is not written.
-2. Provision only the scoped resources in section 2. Recheck any apparent absence
-   immediately before creating. If resources or intended ownership changed,
-   stop and amend the plan; do not reset the project.
-3. Build/lint the existing Functions; deploy Rules and indexes to the approved
-   project, wait for index readiness, then deploy only this app's codebase:
+Use noninteractive guarded creation once parent selection is explicit. Never
+automatically retry creation after an uncertain outcome; inspect operation
+ownership first. If CLI setup tries to create an unexpected default site, stop.
+The installed database command creates Native mode; no unsupported `--type` flag.
 
-   ```powershell
-   npm.cmd --prefix functions run lint
-   npm.cmd --prefix functions run build
-   firebase.cmd deploy --config=firebase.staging.json --project=$stageProject --only firestore:rules,firestore:indexes
-   firebase.cmd deploy --config=firebase.staging.json --project=$stageProject --only functions:fatoora-v1-staging
-   ```
+Android (after implementation, scoped launcher opt-in):
 
-   Run through the guarded launcher, not freehand: API enablement and function
-   deployment can create managed build/artifact/runtime/trigger resources. Do
-   not use `--force` to resolve a deletion or collision prompt.
-4. Create the initially disabled independent admin identity and seed the 95
-   scoped documents with a resumable create-only manifest. Use the existing
-   empty-ledger activity initializer with a one-write budget for the readiness
-   marker. No clients receive access to a partially seeded catalog.
-5. Validate exact document contents, role/approval, zero stock/history, expected
-   project/resource IDs and manifest hashes. Enable the staged admin for smoke
-   tests. Do not issue a production token, use source UID, or send test messages.
-6. Build Android with the opt-in staging variant and own config:
+```powershell
+$priorStagingOptIn = $env:ORG_GRADLE_PROJECT_fatooraStaging
+try {
+  $env:ORG_GRADLE_PROJECT_fatooraStaging = 'true'
+  flutter.bat build apk --debug --flavor staging --dart-define-from-file=config/firebase/staging.android.json
+  if ($LASTEXITCODE -ne 0) { throw 'Staging APK build failed.' }
+  flutter.bat run --flavor staging --dart-define-from-file=config/firebase/staging.android.json
+} finally {
+  $env:ORG_GRADLE_PROJECT_fatooraStaging = $priorStagingOptIn
+}
+```
 
-   ```powershell
-   $priorStagingOptIn = $env:ORG_GRADLE_PROJECT_fatooraStaging
-   try {
-     $env:ORG_GRADLE_PROJECT_fatooraStaging = 'true'
-     flutter.bat build apk --debug --flavor staging --dart-define-from-file=config/firebase/staging.android.json
-     if ($LASTEXITCODE -ne 0) { throw 'Staging APK build failed.' }
-     flutter.bat run --flavor staging --dart-define-from-file=config/firebase/staging.android.json
-   } finally {
-     $env:ORG_GRADLE_PROJECT_fatooraStaging = $priorStagingOptIn
-   }
-   ```
+Acceptance: independent Auth UID/issuer/audience, full approved-admin access,
+catalog match/zero stock/history, dashboard/cash-opening reads on empty ledger,
+anonymous/unauthorized/cross-project-token denial. Exercise cross-project denial
+only against the **new** backend with synthetic fixtures, with no writes or sign-in
+attempts against either existing project. Verify APK coexists with production/V1
+and Web sessions/cache are separate. No test emails or business integrations.
+Remote/device acceptance remains pending actual approved activation.
 
-   Inspect APK application ID/native Firebase project before installation.
-   Expected package `com.fujika.fatoora.dev`, label `Fatoora Staging`; production
-   remains `com.fujika.fatoora`. APK debug output is in the review manifest.
-7. Build Web to its own directory, inspect its embedded Firebase target, then
-   deploy **only the new named site** through its guarded config:
+## 5. Rollback and open gates
 
-   ```powershell
-   flutter.bat build web --output=build/staging/web --dart-define-from-file=config/firebase/staging.web.json
-   firebase.cmd deploy --config=firebase.staging.json --project=$stageProject --only hosting
-   ```
+- Stop at first mismatch. Deactivate only the new profile, disable its Auth
+  identity/revoke refresh tokens, suspend the new Hosting release and, if needed,
+  deny client database access. Retain data/audits and the resource/hash manifest.
+- Later updates restore the recorded staging Hosting version/Functions artifact.
+  Cleanup/deletion of the new project, database, Functions, seeded data or Auth
+  requires separate reviewed approval and exact ownership checks. No automatic
+  deletion/reset, no rollback through prod/V1. Default Hosting site rollback is
+  suspension; it cannot be deleted independently.
+- Revert only owned local changes after matching file hashes, preserving unrelated
+  dirty workspace work. Device cleanup targets only
+  `com.fujika.fatoora.original.staging`. Existing projects/resources and their
+  credential/configuration files stay untouched throughout.
 
-   `firebase.staging.json` must name `site: fatoora-v1-staging` literally. Keep
-   `fatoora-platform-staging.web.app`'s current release unchanged. On a future
-   staging-only update, preview/test the built artifact before live-site release.
+Approval must cover the exact new project/display name; selected parent and
+billing account/Blaze costs; database location; APIs/managed Functions resources;
+new registrations/package/site; independent admin; 95-document seed boundary;
+and listed local safeguards. **Parent/billing selection, global project/site
+availability and creation quota/permissions remain gates.** No fallback target
+is approved. Capture generated number/app IDs after creation, never copy them.
 
-Acceptance, using existing emulator fixtures/tests first, then read-only remote
-checks: correct project/app IDs on both platforms; staging Auth issuer/audience
-and fresh UID; approved admin access; anonymous/cross-project/unauthorized denial;
-91 price/definition matches, 90 active catalog entries; zero inventory and all
-listed business/history collections empty; existing authenticated dashboard and
-cash-opening callables work against an empty ledger; app works without emulator
-processes; production installed app/config and existing Hosting release unchanged.
-Do destructive business-workflow/rollback tests only on isolated emulators.
-
-## 4. Rollback and stop conditions
-
-1. On any mismatch, stop the next step. Disable only the newly created staging
-   admin and its new profile; suspend the new original-app Hosting site if it
-   was released. Preserve all evidence and test data for review.
-2. Never roll back through production or the pre-existing Platform Hosting site.
-   For a later original-app staging update, restore that site's previously
-   captured Hosting version and the last approved Functions source artifact.
-3. This project's initial Functions API is disabled, not a verified empty
-   namespace. After activation, record exact newly created function resource
-   names, region and codebase. Any first-deploy cleanup must name only those
-   manifest-owned resources. Never use broad function/project deletion, disable
-   shared APIs/billing, or delete service agents needed by another app.
-4. For a newly created database with no prior baseline, rollback means denying
-   client access and retaining it for inspection, **not dropping/resetting it**.
-   Optional removal of seeded docs/Auth identity requires a separate reviewed
-   cleanup: matching setup ownership, hashes/update-time preconditions, no
-   subsequent test business activity and an explicit path/UID allowlist. Do not
-   delete audit evidence or another staging identity.
-5. Restore/remove only configuration additions made by this run (for example,
-   the new Auth authorized domain); preserve unrelated later additions. Revert
-   the local staging patch only after matching its recorded before/after file
-   hashes, preserving all unrelated workspace changes. Uninstall only
-   `com.fujika.fatoora.dev` if device cleanup is requested.
-6. Keep the original emulator bootstrap's cloud-write refusal. Do not add a
-   bypass flag or a general-purpose production-capable import path.
-
-## 5. Approval checklist and current limits
-
-Approval must explicitly cover the exact project/number and backend ownership,
-new database/location, required APIs/managed resources and staging costs, codebase
-deployment, new Hosting site/domain, 91-definition bootstrap and independent
-`admin@fatoora.com`, plus the listed local Android/configuration safeguards.
-
-There is no cloud change to approve retroactively. The current admin, database
-and new Hosting site are absent; the Functions API remains disabled. No new app
-registration/project/bucket is necessary under this proposal. Name availability,
-IAM propagation, index readiness and actual device/Web acceptance are gates for
-the eventual activation, not results already obtained. Prior emulator verification
-is reusable evidence, not proof of a remote deployment.
-
-Accounting stays at Phase 2B-5. No accounting implementation is part of this plan.
-
-## 6. Planning verification
-
-Read-only project/app/Auth/Hosting/database metadata checks completed. The review
-manifest parses and matches the inspected project number and app IDs. The pinned
-catalog hash, 91 unique item IDs, 90 active/nondeleted definitions, one deleted
-definition, unchanged selling prices and zero-stock transformations all checked.
-The 13 existing offline catalog/guard tests passed again; `git diff --check` passed.
-Only documentation and a non-executable approval manifest changed in this task.
-No new emulator, remote-device, Android build or deployed-app test is claimed.
+Planning verification: **13 existing offline catalog/guard tests passed**.
+Manifest/candidate consistency, both protected projects, catalog hash, 91 unique
+IDs, 90 active/one deleted definition, unchanged prices and zero-stock transforms
+passed local checks; `git diff --check` passed. No emulator, remote deployment or
+Android staging build was performed in this revision. Accounting stays at
+**Phase 2B-5 completed**.

@@ -1,0 +1,29 @@
+{
+  "releaseId": "reassignment-returns-20261108-rc1",
+  "projectId": "fatoora-original-staging",
+  "projectNumber": "5438538531",
+  "region": "us-central1",
+  "deployAllowed": false,
+  "productionAllowed": false,
+  "historicalWritesAllowed": false,
+  "accountingImplementationAllowed": false,
+  "resumeAccountingAfterStagingAcceptanceFrom": "Phase 2B-5",
+  "scope": {
+    "firestoreRules": true,
+    "firestoreIndexAdditions": 32,
+    "existingIndexesRemoved": 0,
+    "functions": ["confirmSalesReturn"],
+    "codebase": "fatoora-original-staging",
+    "runtime": "nodejs22",
+    "hostingSite": "fatoora-original-staging",
+    "androidPackage": "com.fujika.fatoora.original.staging",
+    "androidSigning": "debug-only",
+    "backfills": [],
+    "migrations": [],
+    "iamChanges": [],
+    "authOrDatabaseReconfiguration": false
+  },
+  "excludedExecutors": ["scripts/staging-deploy.cjs", "scripts/staging-prepare-functions.cjs"],
+  "deploymentOrder": ["fresh read-only baseline and artifact verification", "add indexes only", "wait READY and rerun native query matrix", "confirmSalesReturn only", "Firestore Rules", "Hosting", "Android debug acceptance", "staging synthetic workflow acceptance"],
+  "rollback": "Restore pinned code and Rules, retain additive indexes, never restore or rewrite financial data"
+}

@@ -10,6 +10,8 @@ const {
 } = require("@firebase/rules-unit-testing");
 const {
   collection,
+  and,
+  or,
   deleteDoc,
   doc,
   getDoc,
@@ -2466,6 +2468,55 @@ test("assignment scopes customer pages/statements while keeping historical docum
   await assertFails(updateDoc(customer(current), {assignedToUid: repBUid}));
   await assertFails(updateDoc(customer(admin), {assignedToUid: repAUid}));
   await assertFails(setDoc(businessDoc(admin, "customer_assignment_events", "forged"), {actorUid: adminUid}));
+});
+
+test("current assignee reads posted customer invoice history without acquiring drafts or mutation rights", async () => {
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await updateDoc(businessDoc(db, "customers", "customer-a"), {
+      assignedToUid: repBUid, assignmentVersion: 1,
+    });
+    for (const [id, seller, status] of [["history-a", repAUid, "confirmed"],
+      ["history-admin", adminUid, "confirmed"], ["draft-a", repAUid, "draft"],
+      ["draft-b", repBUid, "draft"], ["electronic-accepted", repAUid, "accepted"],
+      ["electronic-pending", repAUid, "pendingSubmit"], ["electronic-rejected", repAUid, "rejected"]]) {
+      await setDoc(businessDoc(db, "invoices", id), {
+        ...salesRepOwned(id, seller, seller), customerId: "customer-a",
+        invoiceStatus: status, financialPosted: status !== "draft", invoiceDate: 1,
+      });
+    }
+  });
+  const current = authenticatedDb(repBUid), old = authenticatedDb(repAUid);
+  const history = (db) => query(collection(db, "companies", companyId, "invoices"),
+    and(where("customerId", "==", "customer-a"),
+      or(where("salesRepId", "==", repBUid), where("financialPosted", "==", true))),
+    orderBy("invoiceDate"), orderBy("__name__"));
+  assert.equal((await assertSucceeds(getDocs(history(current)))).size, 6);
+  const drafts = query(collection(current, "companies", companyId, "invoices"), and(
+    where("customerId", "==", "customer-a"), where("invoiceStatus", "==", "draft"),
+    or(where("salesRepId", "==", repBUid), where("financialPosted", "==", true))));
+  assert.deepEqual((await assertSucceeds(getDocs(drafts))).docs.map((d) => d.id), ["draft-b"]);
+  await assertSucceeds(getDoc(businessDoc(current, "invoices", "history-a")));
+  await assertSucceeds(getDoc(businessDoc(current, "invoices", "history-admin")));
+  for (const id of ["electronic-accepted", "electronic-pending", "electronic-rejected"]) {
+    await assertSucceeds(getDoc(businessDoc(current, "invoices", id)));
+  }
+  await assertFails(getDoc(businessDoc(current, "invoices", "draft-a")));
+  await assertFails(updateDoc(businessDoc(current, "invoices", "history-a"), {salesRepId: repBUid}));
+  await assertFails(deleteDoc(businessDoc(current, "invoices", "history-a")));
+  await assertFails(getDocs(query(collection(current, "companies", companyId, "invoices"))));
+  await assertFails(getDocs(history(old)));
+  await assertSucceeds(getDoc(businessDoc(old, "invoices", "history-a")));
+  // Revocation must also apply to a previously valid query/cursor.
+  const page = await getDocs(query(history(current), limit(1)));
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    await updateDoc(businessDoc(context.firestore(), "customers", "customer-a"), {assignedToUid: adminUid});
+  });
+  await assertFails(getDoc(businessDoc(current, "invoices", "history-a")));
+  await assertFails(getDocs(query(history(current), startAfter(page.docs[0]))));
+  for (const uid of [pendingUid, inactiveUid]) {
+    await assertFails(getDoc(businessDoc(authenticatedDb(uid), "invoices", "history-a")));
+  }
 });
 
 test("current assignee can create invoice and quotation drafts; former creator cannot", async () => {

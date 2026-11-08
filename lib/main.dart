@@ -9,6 +9,7 @@ import 'package:intl/date_symbol_data_local.dart';
 export 'package:fatoora/app/app.dart' show MyApp;
 
 Future<void> main() async {
+  
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await Future.wait([

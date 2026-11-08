@@ -1,42 +1,96 @@
 {
-  "schemaVersion": 1,
-  "status": "awaiting_user_approval",
+  "schemaVersion": 2,
+  "status": "provisioned_backend_and_delivery_verified_manual_ui_pending",
+  "approval": {
+    "date": "2026-11-04",
+    "source": "explicit_user_approval_in_session",
+    "parent": "organizations/81973318356",
+    "billingAccountId": "0104EE-737092-D9DBF0",
+    "reviewedManifestSha256": "5bfed0cea95416482ef8b254ff366113b84bbefa8c6100b81bc177d53510d9fe"
+  },
   "inspectionDate": "2026-11-04",
   "project": {
-    "id": "fatoora-platform-staging",
-    "number": "813911311333",
-    "reuseExisting": true,
-    "productionIdForbidden": "fatoora-6b192",
-    "productionNumberForbidden": "961957914773"
+    "id": "fatoora-original-staging",
+    "displayName": "Fatoora Original Staging",
+    "number": "5438538531",
+    "createNew": true,
+    "reuseExisting": false,
+    "numberPolicy": "capture_after_approved_creation_then_pin",
+    "availability": {
+      "syntaxValid": true,
+      "inAccessibleFirebaseProjects": false,
+      "hostingSiteLookupHttpStatus": 404,
+      "globallyAvailable": true,
+      "reserved": true,
+      "onUnavailable": "stop_and_request_approval_of_a_different_id",
+      "preCreationGoogleProjectLookupHttpStatus": 403,
+      "preCreationFirebaseProjectLookupHttpStatus": 403,
+      "postCreationProjectIdentityVerified": true
+    },
+    "parent": "organizations/81973318356",
+    "parentSelectionRequiredBeforeCreation": true
+  },
+  "forbiddenProjects": [
+    {
+      "id": "fatoora-6b192",
+      "number": "961957914773",
+      "reason": "original_production"
+    },
+    {
+      "id": "fatoora-platform-staging",
+      "number": "813911311333",
+      "reason": "reserved_for_fatoora_v1"
+    }
+  ],
+  "billing": {
+    "plan": "Blaze",
+    "accountId": "0104EE-737092-D9DBF0",
+    "explicitAccountApprovalRequired": true,
+    "copyExistingProjectBillingOrIam": false
   },
   "companyId": "default_company",
   "firestore": {
     "databaseId": "(default)",
-    "createOnlyIfStillAbsent": true,
+    "createOnlyIfAbsentInNewOwnedProject": true,
     "type": "FIRESTORE_NATIVE",
+    "edition": "standard",
     "location": "nam5"
   },
   "functions": {
-    "source": "functions",
-    "codebase": "fatoora-v1-staging",
+    "source": "build/staging/functions",
+    "codebase": "fatoora-original-staging",
     "region": "us-central1",
-    "requireNoConflictingExistingFunctions": true
+    "runtime": "nodejs22",
+    "requireNoConflictingExistingFunctions": true,
+    "originalSource": "functions",
+    "stagingRuntimeAdapter": "config/firebase/staging-runtime.cjs"
   },
   "android": {
-    "appId": "1:813911311333:android:efe57ed66e6c79dc21250c",
-    "packageName": "com.fujika.fatoora.dev",
+    "appId": "1:5438538531:android:560f7feecdb97bf5240296",
+    "createNewRegistration": true,
+    "displayName": "Fatoora Original Staging Android",
+    "packageName": "com.fujika.fatoora.original.staging",
+    "applicationIdSuffix": ".original.staging",
     "flavor": "staging",
-    "label": "Fatoora Staging",
+    "label": "Fatoora Original Staging",
     "nativeConfig": "android/app/src/staging/google-services.json",
     "dartConfig": "config/firebase/staging.android.json",
     "artifact": "build/app/outputs/flutter-apk/app-staging-debug.apk"
   },
   "web": {
-    "appId": "1:813911311333:web:69d8ccb0bb8a771821250c",
+    "appId": "1:5438538531:web:1fb5d6aac646d3b1240296",
+    "createNewRegistration": true,
+    "displayName": "Fatoora Original Staging Web",
     "dartConfig": "config/firebase/staging.web.json",
-    "proposedHostingSite": "fatoora-v1-staging",
-    "preserveHostingSite": "fatoora-platform-staging",
+    "hostingSite": "fatoora-original-staging",
+    "createDefaultSiteBeforeAuthAndWebRegistration": true,
+    "expectedUrl": "https://fatoora-original-staging.web.app",
     "output": "build/staging/web"
+  },
+  "storage": {
+    "createBucket": false,
+    "bucketName": null,
+    "useOnlyReturnedSdkMetadata": true
   },
   "catalog": {
     "path": "build/local-test/catalog.json",
@@ -54,11 +108,41 @@
     "email": "admin@fatoora.com",
     "role": "admin",
     "approvalStatus": "approved",
+    "applicationPermissionsOnly": true,
     "createIndependentAuthIdentity": true,
-    "reuseProductionUidOrPassword": false,
+    "reuseExistingProjectUidOrPassword": false,
     "generateUidAtCreation": true,
     "initiallyDisabledUntilVerified": true
   },
   "automaticExecutionAllowed": false,
-  "accountingImplementationAllowed": false
+  "accountingImplementationAllowed": false,
+  "execution": {
+    "completedAt": "2026-11-04T21:42:41.380Z",
+    "runId": "aa14e5ee-110b-43fd-8d59-a678d15bb87c",
+    "projectNumber": "5438538531",
+    "adminUid": "59162e26-0ca2-4d31-a286-b479e5527baa",
+    "functions": 35,
+    "indexesReady": 268,
+    "catalogDefinitions": 91,
+    "inventoryAndFinancialHistoryZero": true,
+    "hostingUrl": "https://fatoora-original-staging.web.app",
+    "hostingVersion": "sites/fatoora-original-staging/versions/c715e28bcb6fdd76",
+    "backendAcceptancePassed": true,
+    "basicAndroidAndWebDeliveryVerified": true,
+    "interactiveBrowserAcceptancePending": true,
+    "protectedMetadataUnchanged": true,
+    "artifactVerification": {
+      "project": "fatoora-original-staging",
+      "projectNumber": "5438538531",
+      "apkPackage": "com.fujika.fatoora.original.staging",
+      "apkLabel": "Fatoora Original Staging",
+      "apkSha256": "79b86cfdc945ac8f89a188b30d00a660082fc03fe3bf91cfc45a8927f5c3ad87",
+      "debugSignatureVerified": true,
+      "nativeSdkPairingVerified": true,
+      "webSdkInputsPresent": true,
+      "webJavaScriptSha256": "e9ef53f0ed850c3c91949fe038d888c77c1c5ca423cd983de1084416db0059c1"
+    },
+    "canonicalState": ".staging/fatoora-original-staging/provisioning-state.json",
+    "results": "docs/staging-provisioning-results.md"
+  }
 }

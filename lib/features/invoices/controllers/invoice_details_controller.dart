@@ -39,6 +39,9 @@ class InvoiceDetailsController extends GetxController
   bool get canEdit => invoice?.canEdit ?? false;
   bool get canCreateSalesReturn =>
       permissions.createReturns &&
+      (_myServices.sharedPreferences.getString('role') == 'admin' ||
+          invoice?.salesRepId ==
+              _myServices.sharedPreferences.getString('uid')) &&
       invoice?.invoiceStatus == InvoiceStatus.confirmed &&
       invoice?.financialPosted == true &&
       invoice?.inventoryPosted == true;

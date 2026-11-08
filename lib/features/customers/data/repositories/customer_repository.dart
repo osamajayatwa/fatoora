@@ -248,9 +248,10 @@ class CustomerRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
-      final document = await _customers(
-        resolvedCompanyId,
-      ).doc(customerId).get().timeout(const Duration(seconds: 20));
+      final document = await _customers(resolvedCompanyId)
+          .doc(customerId)
+          .get(const GetOptions(source: Source.server))
+          .timeout(const Duration(seconds: 20));
       if (!document.exists) {
         throw const CustomerRepositoryException(
           CustomerRepositoryError.notFound,
@@ -528,6 +529,7 @@ class CustomerRepository {
             decode: CustomerTransactionModel.fromFirestore,
             after: after,
             pageSize: pageSize,
+            options: const GetOptions(source: Source.server),
           );
       final totalsFuture = query
           .aggregate(sum('debitAmount'), sum('creditAmount'))
@@ -594,7 +596,7 @@ class CustomerRepository {
       final periodFuture = query
           .orderBy('transactionDate')
           .orderBy(FieldPath.documentId)
-          .getAllPages();
+          .getAllPages(options: const GetOptions(source: Source.server));
       final openingBalanceFuture = fromDate == null
           ? Future<double>.value(0)
           : _fetchOpeningBalance(

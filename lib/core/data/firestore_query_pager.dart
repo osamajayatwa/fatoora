@@ -39,6 +39,7 @@ extension FirestoreQueryPager on Query<Map<String, dynamic>> {
     FirestorePageCursor? after,
     int pageSize = 50,
     Duration timeout = const Duration(seconds: 30),
+    GetOptions? options,
   }) async {
     if (pageSize <= 0) throw ArgumentError.value(pageSize, 'pageSize');
     var query = this;
@@ -48,7 +49,10 @@ extension FirestoreQueryPager on Query<Map<String, dynamic>> {
       }
       query = query.startAfterDocument(after.document);
     }
-    final snapshot = await query.limit(pageSize + 1).get().timeout(timeout);
+    final snapshot = await query
+        .limit(pageSize + 1)
+        .get(options)
+        .timeout(timeout);
     final hasMore = snapshot.docs.length > pageSize;
     final documents = snapshot.docs.take(pageSize).toList(growable: false);
     return FirestorePage<T>(
@@ -61,12 +65,13 @@ extension FirestoreQueryPager on Query<Map<String, dynamic>> {
   Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> getAllPages({
     int pageSize = 200,
     Duration timeout = const Duration(seconds: 30),
+    GetOptions? options,
   }) async {
     assert(pageSize > 0);
     final documents = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
     Query<Map<String, dynamic>> next = this;
     while (true) {
-      final snapshot = await next.limit(pageSize).get().timeout(timeout);
+      final snapshot = await next.limit(pageSize).get(options).timeout(timeout);
       documents.addAll(snapshot.docs);
       if (snapshot.docs.length < pageSize) return documents;
       next = startAfterDocument(snapshot.docs.last);

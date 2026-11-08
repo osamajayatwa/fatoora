@@ -137,26 +137,34 @@ a cloud project, so it cannot silently connect to production.
 
 ## Remote staging setup
 
-Read-only inspection on **2026-11-04** found the existing project
-`fatoora-platform-staging` (`813911311333`), an existing `.dev` Android app and a
-Web registration. Its existing Hosting site has releases; the default Firestore
-database and requested staging admin are absent, and the Functions API is
-disabled. No cloud resource was created or changed.
+The dedicated original-app project is `fatoora-original-staging`, number
+`5438538531`, under approved parent `organizations/81973318356` and billing
+`0104EE-737092-D9DBF0`. Web access:
+[Fatoora Original Staging](https://fatoora-original-staging.web.app).
+`fatoora-platform-staging` remains reserved for V1; both it and production
+`fatoora-6b192` are forbidden write targets in all staging tooling.
 
-Use the [exact provisioning, deployment and rollback plan](staging-provisioning-plan.md)
-and [pending approval manifest](../config/firebase/staging-plan.review.json).
-They supersede the earlier generic instructions to create a new project and
-deploy through an unverified `staging` alias. The proposed target reuses the
-existing project/apps and preserves the existing Hosting site by publishing the
-original app to a separately named site. Backend ownership requires explicit
-approval because apps in one Firebase project share backend resources.
+See [actual provisioning and verification results](staging-provisioning-results.md),
+the [reviewed plan](staging-provisioning-plan.md), and
+[approval manifest](../config/firebase/staging-plan.review.json).
+The single company is `default_company`; the independent administrator is
+`admin@fatoora.com`. Retrieve its new password locally with:
 
-Activation remains blocked pending approval. In particular, Android needs an
-opt-in `.dev` variant and matching native configuration before a staging APK can
-be verified. Dart defines alone do not replace its production native config.
-Existing production options, native config, CLI defaults and emulator-only
-bootstrap remain unchanged. No staging credentials, accounts, deployments or
-remote import capability were added by the planning task.
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/staging.ps1 -Action ShowAdminPassword
+```
+
+The password is Windows DPAPI encrypted for the provisioning Windows user in
+ignored `.staging/fatoora-original-staging/`. That directory also preserves
+provisioning ownership and evidence across `flutter clean`; protect and retain it.
+No password or user token is checked into source or included in reports.
+
+Use `scripts/staging.ps1 -Action BuildWeb`, `BuildAndroid`, `RunWeb` or `RunAndroid`.
+Android uses debug signing and the opt-in package
+`com.fujika.fatoora.original.staging`; its generated native configuration and
+Dart configuration are checked together. Deployment actions verify the exact
+project, number, identities and artifacts. Production remains the default;
+its options, native configuration, CLI defaults, screens and workflows are unchanged.
 
 ### Local verification and accounting boundary
 

@@ -507,6 +507,7 @@ async function buildSalesReturnEntries(
   const cashRefundAmount = money(data.cashRefundAmount);
   let refundCashAccount = "";
   let refundCashSalesRepId = "";
+  let refundCashSalesRepName = "";
   if (cashRefundAmount < 0 || cashRefundAmount > grandTotal) {
     return invalid(context, stats, document.ref.path, "Sales return cashRefundAmount is invalid.");
   }
@@ -522,6 +523,7 @@ async function buildSalesReturnEntries(
     const movement = movementSnapshot.data() ?? {};
     refundCashAccount = scalarString(movement.cashAccount);
     refundCashSalesRepId = scalarString(movement.salesRepId);
+    refundCashSalesRepName = scalarString(movement.salesRepName);
     if (
       !movementSnapshot.exists || !["company_cash", "rep_cash"].includes(refundCashAccount) ||
       movement.direction !== "out" || money(movement.amount) !== cashRefundAmount ||
@@ -548,6 +550,7 @@ async function buildSalesReturnEntries(
     refundType: scalarString(data.refundType),
     refundCashAccount,
     refundCashSalesRepId,
+    refundCashSalesRepName,
     customerId,
     customerName: nestedString(data.customerSnapshot, "name") ||
       nestedString(invoice.customerSnapshot, "name") || scalarString(data.customerName),

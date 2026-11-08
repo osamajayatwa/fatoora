@@ -6,6 +6,10 @@ the isolated local Firestore emulator test project.
 
 ## Ownership and financial invariants
 
+> The historical invoice read restriction in this earlier report is superseded by
+> [the workflow verification](reassignment-return-verification.md). Current
+> assignees can now read posted invoice history; mutation ownership stays intact.
+
 | Field/scope | Meaning |
 | --- | --- |
 | Customer `createdByUid/Name/Role`, `createdAt` | Original creator; preserved across transfers |

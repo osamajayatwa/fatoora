@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:fatoora/firebase_options.dart';
@@ -17,6 +20,18 @@ class FirebaseEnvironmentConfiguration {
 
   static const productionProjectId = 'fatoora-6b192';
   static const localTestProjectId = 'demo-fatoora-test';
+  static const stagingProjectId = 'fatoora-original-staging';
+  static const stagingProjectNumber = '5438538531';
+  static const stagingAndroidAppId =
+      '1:5438538531:android:560f7feecdb97bf5240296';
+  static const stagingWebAppId = '1:5438538531:web:1fb5d6aac646d3b1240296';
+  // Pin pairing without checking SDK API key values into the repository.
+  static const _stagingApiKeyHashes = {
+    stagingWebAppId:
+        '57ad25d6f6537201fd4e3f1f7f3b383fb87731e3b01fd19eb3a3f20bb8579c55',
+    stagingAndroidAppId:
+        '20d4663137cc721e0e767177f9a1257ac3c879b4094bc0b4ed1b00ec557d62a1',
+  };
 
   static const _environmentValue = String.fromEnvironment(
     'FATOORA_ENV',
@@ -81,7 +96,7 @@ class FirebaseEnvironmentConfiguration {
             messagingSenderId: _stagingMessagingSenderId,
             projectId: _stagingProjectId,
             authDomain: _optional(_stagingAuthDomain),
-            storageBucket: _stagingStorageBucket,
+            storageBucket: _optional(_stagingStorageBucket),
             measurementId: _optional(_stagingMeasurementId),
           ),
           useEmulators: false,
@@ -138,20 +153,37 @@ class FirebaseEnvironmentConfiguration {
       if (_isUnset(apiKey)) 'FIREBASE_API_KEY',
       if (_isUnset(appId)) 'FIREBASE_APP_ID',
       if (_isUnset(messagingSenderId)) 'FIREBASE_MESSAGING_SENDER_ID',
-      if (_isUnset(storageBucket)) 'FIREBASE_STORAGE_BUCKET',
     ];
     if (missing.isNotEmpty) {
       throw StateError(
         'Missing staging Firebase configuration: ${missing.join(', ')}.',
       );
     }
-    if (projectId.trim() == productionProjectId) {
-      throw StateError('Staging must not use the production Firebase project.');
+    if (projectId.trim() != stagingProjectId) {
+      throw StateError(
+        'Staging requires the approved original staging project.',
+      );
     }
     if (projectConfirmation.trim() != projectId.trim()) {
       throw StateError(
         'FIREBASE_PROJECT_ID_CONFIRM must exactly match FIREBASE_PROJECT_ID.',
       );
+    }
+    if (messagingSenderId.trim() != stagingProjectNumber ||
+        ![stagingAndroidAppId, stagingWebAppId].contains(appId.trim())) {
+      throw StateError(
+        'Staging app registration and project number must match.',
+      );
+    }
+    if (storageBucket.trim().isNotEmpty &&
+        storageBucket.trim() != '$stagingProjectId.appspot.com' &&
+        storageBucket.trim() != '$stagingProjectId.firebasestorage.app') {
+      throw StateError('Staging storage metadata belongs to another project.');
+    }
+    if (authDomain.trim().isNotEmpty &&
+        authDomain.trim() != '$stagingProjectId.firebaseapp.com' &&
+        authDomain.trim() != '$stagingProjectId.web.app') {
+      throw StateError('Staging Auth domain belongs to another project.');
     }
     if (storageBucket.trim() == '$productionProjectId.appspot.com' ||
         storageBucket.trim() == '$productionProjectId.firebasestorage.app' ||
@@ -174,6 +206,10 @@ class FirebaseEnvironmentConfiguration {
     )) {
       throw StateError('Staging must use its own Firebase app registration.');
     }
+    if (sha256.convert(utf8.encode(apiKey)).toString() !=
+        _stagingApiKeyHashes[appId.trim()]) {
+      throw StateError('Staging API key and app registration do not match.');
+    }
   }
 
   /// Validate even explicitly constructed configurations before SDK startup.
@@ -190,8 +226,19 @@ class FirebaseEnvironmentConfiguration {
         (environment == FatooraEnvironment.production &&
             options.projectId != productionProjectId) ||
         (environment == FatooraEnvironment.staging &&
-            options.projectId == productionProjectId)) {
+            options.projectId != stagingProjectId)) {
       throw StateError('Firebase environment and target do not agree.');
+    }
+    if (environment == FatooraEnvironment.staging) {
+      validateStagingConfiguration(
+        projectId: options.projectId,
+        projectConfirmation: options.projectId,
+        apiKey: options.apiKey,
+        appId: options.appId,
+        messagingSenderId: options.messagingSenderId,
+        storageBucket: options.storageBucket ?? '',
+        authDomain: options.authDomain ?? '',
+      );
     }
   }
 

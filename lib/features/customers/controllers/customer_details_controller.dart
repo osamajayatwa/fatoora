@@ -119,6 +119,8 @@ class CustomerDetailsController extends GetxController {
       statusRequest = StatusRequest.success;
     } catch (error) {
       statusRequest = CustomerErrorMapper.status(error);
+      customer = null;
+      openingBalance = null;
       loadErrorMessageKey = CustomerErrorMapper.messageKey(
         error,
         fallback: 'customers_load_error',

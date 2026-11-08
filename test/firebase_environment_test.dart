@@ -4,6 +4,30 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:fatoora/firebase_options.dart';
 
 void main() {
+  if (const String.fromEnvironment('FATOORA_ENV') == 'staging') {
+    test('the actual staging launch file selects its pinned registration', () {
+      final configuration = FirebaseEnvironmentConfiguration.current();
+      configuration.validateRuntimeTarget();
+      expect(configuration.environment, FatooraEnvironment.staging);
+      expect(
+        configuration.options.projectId,
+        FirebaseEnvironmentConfiguration.stagingProjectId,
+      );
+      expect(
+        configuration.options.messagingSenderId,
+        FirebaseEnvironmentConfiguration.stagingProjectNumber,
+      );
+      expect(configuration.useEmulators, isFalse);
+      FirebaseEnvironmentConfiguration.validateStagingConfiguration(
+        projectId: configuration.options.projectId,
+        projectConfirmation: configuration.options.projectId,
+        apiKey: configuration.options.apiKey,
+        appId: configuration.options.appId,
+        messagingSenderId: configuration.options.messagingSenderId,
+        storageBucket: '',
+      );
+    });
+  }
   if (const String.fromEnvironment('FATOORA_ENV') == 'test') {
     test('the local launch file selects demo project and emulator routing', () {
       final configuration = FirebaseEnvironmentConfiguration.current();
@@ -59,12 +83,14 @@ void main() {
       () {
         expect(
           () => FirebaseEnvironmentConfiguration.validateStagingConfiguration(
-            projectId: 'fatoora-staging-example',
-            projectConfirmation: 'fatoora-staging-example',
+            projectId: FirebaseEnvironmentConfiguration.stagingProjectId,
+            projectConfirmation:
+                FirebaseEnvironmentConfiguration.stagingProjectId,
             apiKey: DefaultFirebaseOptions.web.apiKey,
-            appId: 'staging-app',
-            messagingSenderId: 'staging-sender',
-            storageBucket: 'staging-bucket',
+            appId: FirebaseEnvironmentConfiguration.stagingWebAppId,
+            messagingSenderId:
+                FirebaseEnvironmentConfiguration.stagingProjectNumber,
+            storageBucket: '',
           ),
           throwsStateError,
         );
@@ -77,11 +103,13 @@ void main() {
       test('rejects production storage $bucket in staging', () {
         expect(
           () => FirebaseEnvironmentConfiguration.validateStagingConfiguration(
-            projectId: 'fatoora-staging-example',
-            projectConfirmation: 'fatoora-staging-example',
+            projectId: FirebaseEnvironmentConfiguration.stagingProjectId,
+            projectConfirmation:
+                FirebaseEnvironmentConfiguration.stagingProjectId,
             apiKey: 'api-key',
-            appId: 'app-id',
-            messagingSenderId: 'sender-id',
+            appId: FirebaseEnvironmentConfiguration.stagingWebAppId,
+            messagingSenderId:
+                FirebaseEnvironmentConfiguration.stagingProjectNumber,
             storageBucket: bucket,
           ),
           throwsStateError,
@@ -91,11 +119,13 @@ void main() {
     test('rejects production auth domain in staging', () {
       expect(
         () => FirebaseEnvironmentConfiguration.validateStagingConfiguration(
-          projectId: 'fatoora-staging-example',
-          projectConfirmation: 'fatoora-staging-example',
+          projectId: FirebaseEnvironmentConfiguration.stagingProjectId,
+          projectConfirmation:
+              FirebaseEnvironmentConfiguration.stagingProjectId,
           apiKey: 'api-key',
-          appId: 'app-id',
-          messagingSenderId: 'sender-id',
+          appId: FirebaseEnvironmentConfiguration.stagingWebAppId,
+          messagingSenderId:
+              FirebaseEnvironmentConfiguration.stagingProjectNumber,
           storageBucket: 'staging-bucket',
           authDomain: 'fatoora-6b192.firebaseapp.com',
         ),
@@ -109,9 +139,10 @@ void main() {
           projectConfirmation:
               FirebaseEnvironmentConfiguration.productionProjectId,
           apiKey: 'api-key',
-          appId: 'app-id',
-          messagingSenderId: 'sender-id',
-          storageBucket: 'bucket',
+          appId: FirebaseEnvironmentConfiguration.stagingWebAppId,
+          messagingSenderId:
+              FirebaseEnvironmentConfiguration.stagingProjectNumber,
+          storageBucket: '',
         ),
         throwsStateError,
       );
@@ -120,12 +151,13 @@ void main() {
     test('requires explicit project confirmation', () {
       expect(
         () => FirebaseEnvironmentConfiguration.validateStagingConfiguration(
-          projectId: 'fatoora-staging-example',
+          projectId: FirebaseEnvironmentConfiguration.stagingProjectId,
           projectConfirmation: 'another-project',
           apiKey: 'api-key',
-          appId: 'app-id',
-          messagingSenderId: 'sender-id',
-          storageBucket: 'bucket',
+          appId: FirebaseEnvironmentConfiguration.stagingWebAppId,
+          messagingSenderId:
+              FirebaseEnvironmentConfiguration.stagingProjectNumber,
+          storageBucket: '',
         ),
         throwsStateError,
       );
@@ -134,8 +166,9 @@ void main() {
     test('requires every Firebase core value', () {
       expect(
         () => FirebaseEnvironmentConfiguration.validateStagingConfiguration(
-          projectId: 'fatoora-staging-example',
-          projectConfirmation: 'fatoora-staging-example',
+          projectId: FirebaseEnvironmentConfiguration.stagingProjectId,
+          projectConfirmation:
+              FirebaseEnvironmentConfiguration.stagingProjectId,
           apiKey: '',
           appId: '',
           messagingSenderId: '',
@@ -149,7 +182,6 @@ void main() {
               contains('FIREBASE_API_KEY'),
               contains('FIREBASE_APP_ID'),
               contains('FIREBASE_MESSAGING_SENDER_ID'),
-              contains('FIREBASE_STORAGE_BUCKET'),
             ),
           ),
         ),
@@ -170,19 +202,58 @@ void main() {
       );
     });
 
-    test('accepts a complete confirmed non-production project', () {
-      expect(
-        () => FirebaseEnvironmentConfiguration.validateStagingConfiguration(
-          projectId: 'fatoora-staging-example',
-          projectConfirmation: 'fatoora-staging-example',
-          apiKey: 'api-key',
-          appId: 'app-id',
-          messagingSenderId: 'sender-id',
-          storageBucket: 'bucket',
-        ),
-        returnsNormally,
-      );
-    });
+    test(
+      'rejects an unregistered key with the pinned staging registration',
+      () {
+        expect(
+          () => FirebaseEnvironmentConfiguration.validateStagingConfiguration(
+            projectId: FirebaseEnvironmentConfiguration.stagingProjectId,
+            projectConfirmation:
+                FirebaseEnvironmentConfiguration.stagingProjectId,
+            apiKey: 'api-key',
+            appId: FirebaseEnvironmentConfiguration.stagingWebAppId,
+            messagingSenderId:
+                FirebaseEnvironmentConfiguration.stagingProjectNumber,
+            storageBucket: '',
+          ),
+          throwsStateError,
+        );
+      },
+    );
+    for (final target in ['fatoora-platform-staging', 'unapproved-project']) {
+      test('rejects another remote project $target', () {
+        expect(
+          () => FirebaseEnvironmentConfiguration.validateStagingConfiguration(
+            projectId: target,
+            projectConfirmation: target,
+            apiKey: 'staging-key',
+            appId: FirebaseEnvironmentConfiguration.stagingWebAppId,
+            messagingSenderId:
+                FirebaseEnvironmentConfiguration.stagingProjectNumber,
+            storageBucket: '',
+          ),
+          throwsStateError,
+        );
+      });
+    }
+    test(
+      'rejects a mismatched registration even with the approved project',
+      () {
+        expect(
+          () => FirebaseEnvironmentConfiguration.validateStagingConfiguration(
+            projectId: FirebaseEnvironmentConfiguration.stagingProjectId,
+            projectConfirmation:
+                FirebaseEnvironmentConfiguration.stagingProjectId,
+            apiKey: 'staging-key',
+            appId: '1:813911311333:web:foreign',
+            messagingSenderId:
+                FirebaseEnvironmentConfiguration.stagingProjectNumber,
+            storageBucket: '',
+          ),
+          throwsStateError,
+        );
+      },
+    );
   });
 
   test(

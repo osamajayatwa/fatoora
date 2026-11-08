@@ -141,6 +141,7 @@ class InvoicesListController extends GetxController {
     } catch (error) {
       if (generation != _loadGeneration) return;
       statusRequest = InvoiceErrorMapper.status(error);
+      invoices = const [];
       loadErrorMessageKey = InvoiceErrorMapper.messageKey(
         error,
         fallback: 'invoice_load_error',
@@ -185,6 +186,13 @@ class InvoicesListController extends GetxController {
       invoices = [...invoices, ...page.items];
     } catch (error) {
       if (generation != _loadGeneration) return;
+      if (InvoiceErrorMapper.status(error) == StatusRequest.unauthorized) {
+        invoices = const [];
+        _pageCursor = null;
+        hasMore = false;
+        statusRequest = StatusRequest.unauthorized;
+        loadErrorMessageKey = InvoiceErrorMapper.messageKey(error);
+      }
       _showError(InvoiceErrorMapper.messageKey(error));
     } finally {
       if (!isClosed && generation == _loadGeneration) {

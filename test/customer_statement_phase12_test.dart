@@ -1,4 +1,5 @@
 import 'package:fatoora/app/routes/app_routes.dart';
+import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/localization/translation.dart';
 import 'package:fatoora/core/pdf/business_pdf_configuration.dart';
@@ -91,6 +92,27 @@ void main() {
     expect(bytes.length, greaterThan(1000));
     expect(String.fromCharCodes(bytes.take(4)), '%PDF');
   });
+
+  testWidgets(
+    'revoked assignment clears the retained statement and paging state',
+    (tester) async {
+      final repo = _StatementRepoFake(paged: true);
+      final controller = await _pumpStatement(
+        tester,
+        const Size(390, 800),
+        repo: repo,
+      );
+      expect(controller.transactions, isNotEmpty);
+      repo.revokeAccess = true;
+      await controller.loadMore();
+      await tester.pumpAndSettle();
+      expect(controller.statusRequest, StatusRequest.unauthorized);
+      expect(controller.customer, isNull);
+      expect(controller.transactions, isEmpty);
+      expect(controller.finalBalance, 0);
+      expect(controller.hasMore, isFalse);
+    },
+  );
 }
 
 Future<CustomerStatementController> _pumpStatement(
@@ -148,6 +170,7 @@ class _StatementRepoFake implements CustomerRepository {
   final bool paged;
   DateTime? lastFromDate;
   bool failNextPage = false;
+  bool revokeAccess = false;
 
   @override
   Future<CustomerModel> getCustomer({
@@ -165,6 +188,11 @@ class _StatementRepoFake implements CustomerRepository {
     int pageSize = 50,
   }) async {
     lastFromDate = fromDate;
+    if (revokeAccess) {
+      throw const CustomerRepositoryException(
+        CustomerRepositoryError.permissionDenied,
+      );
+    }
     if (after != null && failNextPage) throw StateError('Page unavailable');
     return CustomerStatementPage(
       transactions: [_transaction(id: after == null ? 'tx-1' : 'tx-2')],

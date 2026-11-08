@@ -353,7 +353,7 @@ export async function confirmSalesReturnTransaction(
         movementDate: returnDate,
         notes: optionalString(source.reason ?? input.reason),
         salesRepId: refundSource.salesRepId,
-        salesRepName,
+        salesRepName: refundSource.salesRepName,
         createdByUid: user.uid,
         createdByName: user.name,
         createdByRole: user.role,
@@ -450,6 +450,7 @@ export async function confirmSalesReturnTransaction(
       refundType,
       refundCashAccount: refundSource?.account ?? "",
       refundCashSalesRepId: refundSource?.salesRepId ?? "",
+      refundCashSalesRepName: refundSource?.salesRepName ?? "",
       customerId,
       customerName: optionalString(customer.name),
       salesRepId,
@@ -835,10 +836,11 @@ async function resolveRefundSource(
   companyId: string,
   invoice: DocumentData,
   requestedRefund: number,
-): Promise<{account: CashAccount; salesRepId: string; sourceMovementIds: string[]}> {
+): Promise<{account: CashAccount; salesRepId: string; salesRepName: string; sourceMovementIds: string[]}> {
   const sources = new Map<string, {
     account: CashAccount;
     salesRepId: string;
+    salesRepName: string;
     ids: string[];
     collectedAmount: number;
   }>();
@@ -908,13 +910,15 @@ async function resolveRefundSource(
       "Cash refund exceeds verified cash collected for this invoice.",
     );
   }
-  return {account: source.account, salesRepId: source.salesRepId, sourceMovementIds: source.ids};
+  return {account: source.account, salesRepId: source.salesRepId,
+    salesRepName: source.salesRepName, sourceMovementIds: source.ids};
 }
 
 function addRefundSource(
   sources: Map<string, {
     account: CashAccount;
     salesRepId: string;
+    salesRepName: string;
     ids: string[];
     collectedAmount: number;
   }>,
@@ -931,6 +935,7 @@ function addRefundSource(
   const existing = sources.get(key) ?? {
     account,
     salesRepId,
+    salesRepName: optionalString(movement.salesRepName),
     ids: [],
     collectedAmount: 0,
   };

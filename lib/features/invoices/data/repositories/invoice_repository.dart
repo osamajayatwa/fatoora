@@ -163,7 +163,9 @@ class InvoiceRepository {
         sortField: sortField,
         sortDirection: sortDirection,
       );
-      final documents = await query.getAllPages();
+      final documents = await query.getAllPages(
+        options: const GetOptions(source: Source.server),
+      );
       return documents.map(InvoiceModel.fromFirestore).toList();
     });
   }
@@ -206,6 +208,7 @@ class InvoiceRepository {
         decode: InvoiceModel.fromFirestore,
         after: after,
         pageSize: pageSize,
+        options: const GetOptions(source: Source.server),
       );
     });
   }
@@ -365,48 +368,52 @@ class InvoiceRepository {
       );
     }
 
-    Query<Map<String, dynamic>> query = _invoices(companyId);
-    final requestedSalesRepId = salesRepId?.trim() ?? '';
-    if (user.isSalesRep) {
-      query = query.where('salesRepId', isEqualTo: user.uid);
-    } else if (requestedSalesRepId.isNotEmpty) {
-      query = query.where('salesRepId', isEqualTo: requestedSalesRepId);
+    var filters = invoiceReadScopeFilter(
+      representativeUid: user.isSalesRep ? user.uid : '',
+      salesRepId: salesRepId ?? '',
+      customerId: customerId ?? '',
+    );
+    void addFilter(Filter filter) {
+      filters = filters == null ? filter : Filter.and(filters!, filter);
     }
-    final requestedCustomerId = customerId?.trim() ?? '';
-    if (requestedCustomerId.isNotEmpty) {
-      query = query.where('customerId', isEqualTo: requestedCustomerId);
-    }
+
     if (type != null) {
-      query = query.where('invoiceType', isEqualTo: type.value);
+      addFilter(Filter('invoiceType', isEqualTo: type.value));
     }
     if (status != null) {
-      query = query.where('invoiceStatus', isEqualTo: status.value);
+      addFilter(Filter('invoiceStatus', isEqualTo: status.value));
     }
     if (paymentStatus != null) {
-      query = query.where('paymentStatus', isEqualTo: paymentStatus.value);
+      addFilter(Filter('paymentStatus', isEqualTo: paymentStatus.value));
     }
     if (returnStatus != null) {
-      query = query.where('returnStatus', isEqualTo: returnStatus.value);
+      addFilter(Filter('returnStatus', isEqualTo: returnStatus.value));
     }
     if (fromDate != null) {
-      query = query.where(
-        'invoiceDate',
-        isGreaterThanOrEqualTo: Timestamp.fromDate(_dateOnly(fromDate)),
+      addFilter(
+        Filter(
+          'invoiceDate',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(_dateOnly(fromDate)),
+        ),
       );
     }
     if (toDate != null) {
-      query = query.where(
-        'invoiceDate',
-        isLessThan: Timestamp.fromDate(
-          _dateOnly(toDate).add(const Duration(days: 1)),
+      addFilter(
+        Filter(
+          'invoiceDate',
+          isLessThan: Timestamp.fromDate(
+            _dateOnly(toDate).add(const Duration(days: 1)),
+          ),
         ),
       );
     }
     final normalizedSearch = normalizeSearchText(searchText ?? '');
     if (normalizedSearch.isNotEmpty) {
-      query = query.where('searchKeywords', arrayContains: normalizedSearch);
+      addFilter(Filter('searchKeywords', arrayContains: normalizedSearch));
     }
 
+    Query<Map<String, dynamic>> query = _invoices(companyId);
+    if (filters != null) query = query.where(filters!);
     final descending = sortDirection.descending;
     return query
         .orderBy(sortField.firestoreField, descending: descending)
@@ -444,12 +451,28 @@ class InvoiceRepository {
     return _run(() async {
       final user = await _contextReader.requireApprovedUser();
       final resolvedCompanyId = _resolveCompanyId(companyId, user);
-      final document = await _invoices(
-        resolvedCompanyId,
-      ).doc(invoiceId).get().timeout(const Duration(seconds: 20));
+      final document = await _invoices(resolvedCompanyId)
+          .doc(invoiceId)
+          .get(const GetOptions(source: Source.server))
+          .timeout(const Duration(seconds: 20));
       if (!document.exists) return null;
       final invoice = InvoiceModel.fromFirestore(document);
-      _requireCanAccessInvoice(user, invoice);
+      if (!user.isAdmin && invoice.salesRepId != user.uid) {
+        if (!user.isSalesRep || !invoice.financialPosted) {
+          throw const InvoiceRepositoryException(
+            InvoiceRepositoryError.permissionDenied,
+          );
+        }
+        final customer = await _customers(
+          resolvedCompanyId,
+        ).doc(invoice.customerId).get(const GetOptions(source: Source.server));
+        if (!customer.exists) {
+          throw const InvoiceRepositoryException(
+            InvoiceRepositoryError.permissionDenied,
+          );
+        }
+        _requireCanAccessCustomer(user, CustomerModel.fromFirestore(customer));
+      }
       return invoice;
     });
   }

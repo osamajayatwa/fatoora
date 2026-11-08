@@ -2314,6 +2314,310 @@
         { "fieldPath": "salesRepId", "order": "ASCENDING" },
         { "fieldPath": "occurredAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "invoiceNumberLower", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "searchKeywords", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "invoiceNumberLower", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "invoiceNumberLower", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "searchKeywords", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "invoiceNumberLower", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "invoiceDate", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "searchKeywords", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "invoiceDate", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "invoiceDate", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "searchKeywords", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "invoiceDate", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "customerNameLower", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "searchKeywords", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "customerNameLower", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "customerNameLower", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "searchKeywords", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "customerNameLower", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "salesRepName", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "searchKeywords", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "salesRepName", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "salesRepName", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "searchKeywords", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "salesRepName", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "grandTotal", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "searchKeywords", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "grandTotal", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "grandTotal", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "searchKeywords", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "grandTotal", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "remainingAmount", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "searchKeywords", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "remainingAmount", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "remainingAmount", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "searchKeywords", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "remainingAmount", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "invoiceStatus", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "searchKeywords", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "invoiceStatus", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "invoiceStatus", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "searchKeywords", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "invoiceStatus", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "searchKeywords", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "searchKeywords", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "customerId", "order": "ASCENDING"},
+        {"fieldPath": "financialPosted", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
     }
   ],
   "fieldOverrides": [

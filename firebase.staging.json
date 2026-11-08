@@ -1,0 +1,15 @@
+{
+  "functions": [{
+    "source": "build/staging/functions",
+    "codebase": "fatoora-original-staging",
+    "ignore": ["node_modules", ".git", ".staging-artifact-owner.json", "firebase-debug.log", "firebase-debug.*.log", "*.local", "scripts", "test", ".env*", "README*"],
+    "predeploy": ["npm --prefix functions run lint", "npm --prefix functions run build", "node scripts/staging-prepare-functions.cjs"]
+  }],
+  "firestore": {"rules": "firestore.rules", "indexes": "firestore.indexes.json"},
+  "hosting": {
+    "site": "fatoora-original-staging",
+    "public": "build/staging/web",
+    "ignore": ["firebase.staging.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [{"source": "**", "destination": "/index.html"}]
+  }
+}

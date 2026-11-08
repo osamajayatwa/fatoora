@@ -76,7 +76,7 @@ class CustomerStatementController extends GetxController {
     hasMore = false;
     update();
     try {
-      customer = await _repository.getCustomer(
+      final loadedCustomer = await _repository.getCustomer(
         companyId: companyId,
         customerId: customerId,
       );
@@ -87,6 +87,7 @@ class CustomerStatementController extends GetxController {
         toDate: toDate,
       );
       if (generation != _loadGeneration) return;
+      customer = loadedCustomer;
       transactions = _withRunningBalances(
         statement.transactions,
         statement.openingBalance,
@@ -104,6 +105,7 @@ class CustomerStatementController extends GetxController {
       statusRequest = StatusRequest.success;
     } catch (error) {
       if (generation != _loadGeneration) return;
+      _clearStatement();
       statusRequest = CustomerErrorMapper.status(error);
       loadErrorMessageKey = CustomerErrorMapper.messageKey(
         error,
@@ -152,11 +154,24 @@ class CustomerStatementController extends GetxController {
       hasMore = page.hasMore;
     } catch (error) {
       if (generation != _loadGeneration) return;
+      if (CustomerErrorMapper.status(error) == StatusRequest.unauthorized) {
+        _clearStatement();
+        statusRequest = StatusRequest.unauthorized;
+        loadErrorMessageKey = CustomerErrorMapper.messageKey(error);
+      }
       loadMoreErrorMessageKey = CustomerErrorMapper.messageKey(error);
     } finally {
       isLoadingMore = false;
       if (!isClosed) update();
     }
+  }
+
+  void _clearStatement() {
+    customer = null;
+    transactions = const [];
+    _cursor = null;
+    hasMore = false;
+    openingBalance = totalDebit = totalCredit = finalBalance = 0;
   }
 
   Future<void> printStatement() async {

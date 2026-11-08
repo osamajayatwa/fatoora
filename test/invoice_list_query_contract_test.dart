@@ -42,6 +42,91 @@ void main() {
     );
   });
 
+  testWidgets('revoked customer history clears loaded invoices and cursor', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'companyId': 'default_company',
+      'role': 'sales_rep',
+      'uid': 'rep-1',
+    });
+    final services = await MyServices().init();
+    final repository = _CapturingInvoiceRepository(
+      InvoiceModel.fromMap(const {}, id: 'history'),
+    )..paged = true;
+    final controller = InvoicesListController(
+      repository: repository,
+      myServices: services,
+    );
+    addTearDown(controller.onClose);
+    await tester.pumpWidget(GetMaterialApp(home: const SizedBox.shrink()));
+    await controller.loadInvoices();
+    expect(controller.invoices, isNotEmpty);
+    repository.revokeAccess = true;
+    await controller.loadMoreInvoices();
+    await tester.pumpAndSettle();
+    expect(controller.invoices, isEmpty);
+    expect(controller.hasMore, isFalse);
+    expect(controller.statusRequest, StatusRequest.unauthorized);
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+  });
+
+  test('scoped history indexes cover both access branches, sorts and search', () {
+    final manifest =
+        jsonDecode(File('firestore.indexes.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final indexes = (manifest['indexes'] as List)
+        .cast<Map<String, dynamic>>()
+        .where((i) => i['collectionGroup'] == 'invoices')
+        .toList();
+    for (final sort in InvoiceSortField.values) {
+      for (final direction in ['ASCENDING', 'DESCENDING']) {
+        for (final scope in [
+          ['customerId', 'salesRepId'],
+          ['customerId', 'financialPosted'],
+        ]) {
+          for (final search in [false, true]) {
+            if (scope.contains('salesRepId')) {
+              // Native staging Query Explain verified both owner branches
+              // (including search, date ranges and combined filters) can merge.
+              for (final field in scope) {
+                expect(
+                  _hasIndex(indexes, [
+                    _IndexField(field, order: 'ASCENDING'),
+                    _IndexField(sort.firestoreField, order: direction),
+                  ]),
+                  isTrue,
+                );
+              }
+              if (search) {
+                expect(
+                  _hasIndex(indexes, [
+                    const _IndexField('searchKeywords', array: true),
+                    _IndexField(sort.firestoreField, order: direction),
+                  ]),
+                  isTrue,
+                );
+              }
+              continue;
+            }
+            expect(
+              _hasIndex(indexes, [
+                if (search) const _IndexField('searchKeywords', array: true),
+                for (final field in scope)
+                  if (field != sort.firestoreField)
+                    _IndexField(field, order: 'ASCENDING'),
+                _IndexField(sort.firestoreField, order: direction),
+              ]),
+              isTrue,
+              reason: '$scope/$sort/$direction/search=$search',
+            );
+          }
+        }
+      }
+    }
+  });
+
   test('required invoice search fields contribute searchable prefixes', () {
     final keywords = InvoiceModel.buildSearchKeywords(
       invoiceNumber: 'inv-2026-0042',
@@ -378,6 +463,8 @@ class _CapturingInvoiceRepository implements InvoiceRepository {
   _CapturingInvoiceRepository(this.resultInvoice);
 
   final InvoiceModel resultInvoice;
+  bool paged = false;
+  bool revokeAccess = false;
   _InvoicePageCall? lastCall;
   final List<_InvoicePageCall> calls = [];
 
@@ -398,6 +485,11 @@ class _CapturingInvoiceRepository implements InvoiceRepository {
     FirestorePageCursor? after,
     int pageSize = 50,
   }) async {
+    if (revokeAccess) {
+      throw const InvoiceRepositoryException(
+        InvoiceRepositoryError.permissionDenied,
+      );
+    }
     final call = _InvoicePageCall(
       companyId: companyId,
       type: type,
@@ -414,7 +506,11 @@ class _CapturingInvoiceRepository implements InvoiceRepository {
     );
     lastCall = call;
     calls.add(call);
-    return FirestorePage(items: [resultInvoice], cursor: null, hasMore: false);
+    return FirestorePage(
+      items: [resultInvoice],
+      cursor: paged ? FirestorePageCursor.server({}) : null,
+      hasMore: paged,
+    );
   }
 
   @override
