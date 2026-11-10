@@ -11,7 +11,7 @@ const sample = (id = "test-item") => ({id, data: {id, companyId: "default_compan
   createdBy: "production-user", customerId: "private-customer", creationRequest: {openingStock: 70}, lastStockMovementId: "history"}});
 const syntheticBundle = tools.sanitizeCatalog([sample()]);
 const actualPath = join(__dirname, "../../build/local-test/catalog.json");
-const catalog = existsSync(actualPath) ? JSON.parse(readFileSync(actualPath, "utf8")) : syntheticBundle;
+const catalog = process.env.FATOORA_SYNTHETIC_TESTS_ONLY !== "1" && existsSync(actualPath) ? JSON.parse(readFileSync(actualPath, "utf8")) : syntheticBundle;
 
 test("catalog copy preserves IDs, definitions and selling prices while removing inventory, costs and history", () => {
   const original = sample(), before = JSON.stringify(original), bundle = tools.sanitizeCatalog([original]);

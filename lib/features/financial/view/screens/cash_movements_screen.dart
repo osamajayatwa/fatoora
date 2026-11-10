@@ -8,6 +8,8 @@ import 'package:fatoora/features/financial/controllers/cash_movements_controller
 import 'package:fatoora/features/financial/data/models/cash_movement_model.dart';
 import 'package:fatoora/features/financial/data/models/financial_dashboard_snapshot.dart';
 import 'package:fatoora/features/financial/view/widgets/cash_movement_presentation.dart';
+import 'package:fatoora/features/financial/view/widgets/settlement_details_panel.dart';
+import 'package:fatoora/features/financial/data/models/settlement_details.dart';
 import 'package:fatoora/features/shared/business/business_page_widgets.dart';
 import 'package:fatoora/features/shared/business/business_shell.dart';
 import 'package:flutter/material.dart';
@@ -474,7 +476,16 @@ class _CashMovementList extends StatelessWidget {
                     ? (constraints.maxWidth - 12) / 2
                     : constraints.maxWidth,
                 child: group.length == 2
-                    ? _SettlementPairCard(movements: group)
+                    ? _SettlementPairCard(
+                        movements: group,
+                        fixtures: controller.settlementSourceFor(
+                          group.first.settlementId,
+                          group
+                              .firstWhere((m) => m.isRepCashAccount)
+                              .salesRepId,
+                        ),
+                        onExport: controller.printSettlementDetails,
+                      )
                     : _CashMovementCard(
                         movement: group.single,
                         showRepresentative: controller.isAdmin,
@@ -575,8 +586,14 @@ class _CashMovementCard extends StatelessWidget {
 }
 
 class _SettlementPairCard extends StatelessWidget {
-  const _SettlementPairCard({required this.movements});
+  const _SettlementPairCard({
+    required this.movements,
+    this.fixtures,
+    this.onExport,
+  });
   final List<CashMovementModel> movements;
+  final SettlementDetailsSource? fixtures;
+  final Future<void> Function(SettlementDetailsReport)? onExport;
 
   @override
   Widget build(BuildContext context) {
@@ -639,6 +656,8 @@ class _SettlementPairCard extends StatelessWidget {
                 : DateFormat.yMd().format(movements.first.date!),
             style: Theme.of(context).textTheme.bodySmall,
           ),
+          if (fixtures != null)
+            SettlementDetailsPanel(fixtures: fixtures!, onExport: onExport),
         ],
       ),
     );
@@ -738,9 +757,28 @@ class _CashMovementTable extends StatelessWidget {
                         heightFactor: 0.85,
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.all(20),
-                          child: CashMovementDetails(
-                            movement: movement,
-                            initiallyExpanded: true,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              CashMovementDetails(
+                                movement: movement,
+                                initiallyExpanded: true,
+                              ),
+                              if (movement.isRepCashAccount &&
+                                  movement.isOut &&
+                                  controller.settlementSourceFor(
+                                        movement.settlementId,
+                                        movement.salesRepId,
+                                      ) !=
+                                      null)
+                                SettlementDetailsPanel(
+                                  fixtures: controller.settlementSourceFor(
+                                    movement.settlementId,
+                                    movement.salesRepId,
+                                  )!,
+                                  onExport: controller.printSettlementDetails,
+                                ),
+                            ],
                           ),
                         ),
                       ),

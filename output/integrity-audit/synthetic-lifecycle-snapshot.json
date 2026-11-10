@@ -54,20 +54,20 @@
         ],
         "warehouseId": "default_warehouse",
         "createdAt": {
-          "_seconds": 1793614055,
-          "_nanoseconds": 687000000
+          "_seconds": 1794233709,
+          "_nanoseconds": 333000000
         },
         "currentStock": 7,
         "lastInventoryReferenceId": "stock_adjustment_integrity-adjust-item",
         "lastStockMovementId": "stock_adjustment_integrity-adjust-item",
         "lastInventoryReferenceType": "manualAdjustment",
         "inventoryUpdatedAt": {
-          "_seconds": 1793614055,
-          "_nanoseconds": 751000000
+          "_seconds": 1794233709,
+          "_nanoseconds": 396000000
         },
         "updatedAt": {
-          "_seconds": 1793614055,
-          "_nanoseconds": 751000000
+          "_seconds": 1794233709,
+          "_nanoseconds": 396000000
         }
       },
       {
@@ -131,20 +131,20 @@
         ],
         "warehouseId": "default_warehouse",
         "createdAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 129000000
+          "_seconds": 1794233710,
+          "_nanoseconds": 910000000
         },
         "lastInventoryReferenceType": "inventoryTransfer",
         "currentStock": 14,
         "lastInventoryReferenceId": "life-stock-return",
         "lastStockMovementId": "life-stock-return_item_lifecycle-item_warehouse",
         "inventoryUpdatedAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 781000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 575000000
         },
         "updatedAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 781000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 575000000
         }
       }
     ],
@@ -219,12 +219,12 @@
           }
         ],
         "inventoryPostedAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 380000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 196000000
         },
         "financialPostedAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 380000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 196000000
         },
         "remainingAmount": 0,
         "lastReceiptId": "receipt_life-receipt",
@@ -249,12 +249,12 @@
           "life-sale:line:life-line": 1
         },
         "latestReturnAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 705000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 510000000
         },
         "updatedAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 705000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 510000000
         }
       }
     ],
@@ -287,12 +287,12 @@
         ],
         "status": "confirmed",
         "confirmedAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 222000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 6000000
         },
         "updatedAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 222000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 6000000
         }
       },
       {
@@ -323,12 +323,12 @@
         ],
         "status": "confirmed",
         "confirmedAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 781000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 575000000
         },
         "updatedAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 781000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 575000000
         }
       }
     ],
@@ -437,20 +437,20 @@
         ],
         "cashMovementIds": [],
         "createdAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 705000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 510000000
         },
         "inventoryPostedAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 705000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 510000000
         },
         "financialPostedAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 705000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 510000000
         },
         "updatedAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 705000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 510000000
         }
       }
     ],
@@ -475,12 +475,12 @@
         "createdByName": "integrity-item-admin",
         "createdByRole": "admin",
         "createdAt": {
-          "_seconds": 1793614055,
-          "_nanoseconds": 687000000
+          "_seconds": 1794233709,
+          "_nanoseconds": 333000000
         },
         "movementDate": {
-          "_seconds": 1793614055,
-          "_nanoseconds": 687000000
+          "_seconds": 1794233709,
+          "_nanoseconds": 333000000
         }
       },
       {
@@ -503,12 +503,12 @@
         "createdByName": "lifecycle-admin",
         "createdByRole": "admin",
         "createdAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 129000000
+          "_seconds": 1794233710,
+          "_nanoseconds": 910000000
         },
         "movementDate": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 129000000
+          "_seconds": 1794233710,
+          "_nanoseconds": 910000000
         }
       },
       {
@@ -531,12 +531,12 @@
         "createdByName": "lifecycle-admin",
         "createdByRole": "admin",
         "createdAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 222000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 6000000
         },
         "movementDate": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 222000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 6000000
         }
       },
       {
@@ -559,12 +559,12 @@
         "createdByName": "lifecycle-admin",
         "createdByRole": "admin",
         "createdAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 781000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 575000000
         },
         "movementDate": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 781000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 575000000
         }
       },
       {
@@ -588,12 +588,12 @@
         "createdByName": "integrity-item-admin",
         "createdByRole": "admin",
         "createdAt": {
-          "_seconds": 1793614055,
-          "_nanoseconds": 751000000
+          "_seconds": 1794233709,
+          "_nanoseconds": 396000000
         },
         "movementDate": {
-          "_seconds": 1793614055,
-          "_nanoseconds": 751000000
+          "_seconds": 1794233709,
+          "_nanoseconds": 396000000
         }
       }
     ],
@@ -619,8 +619,8 @@
         "createdByUid": "lifecycle-admin",
         "createdByName": "lifecycle-admin",
         "createdAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 222000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 6000000
         }
       },
       {
@@ -646,8 +646,8 @@
         "createdByUid": "lifecycle-rep",
         "createdByName": "lifecycle-rep",
         "createdAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 705000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 510000000
         }
       },
       {
@@ -673,8 +673,8 @@
         "createdByUid": "lifecycle-rep",
         "createdByName": "lifecycle-rep",
         "createdAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 380000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 196000000
         }
       },
       {
@@ -698,8 +698,8 @@
         "createdByUid": "lifecycle-admin",
         "createdByName": "lifecycle-admin",
         "createdAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 781000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 575000000
         }
       }
     ],
@@ -714,15 +714,15 @@
         "itemNameSnapshot": "Synthetic pump",
         "unitSnapshot": "pcs",
         "createdAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 222000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 6000000
         },
         "lastMovementId": "life-stock-return_lifecycle-rep_item_lifecycle-item",
         "lastReferenceType": "inventoryTransfer",
         "lastReferenceId": "life-stock-return",
         "updatedAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 781000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 575000000
         }
       }
     ],
@@ -738,8 +738,8 @@
         "totalSales": 20,
         "lastSalesReturnId": "life-return",
         "updatedAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 705000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 510000000
         }
       },
       {
@@ -754,8 +754,8 @@
         "totalPaid": 0,
         "currentBalance": 10,
         "updatedAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 537000000
+          "_seconds": 1794233712,
+          "_nanoseconds": 365000000
         }
       }
     ],
@@ -797,8 +797,8 @@
         "salesRepName": "",
         "referenceId": "life-opening-customer_opening_balance",
         "createdAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 294000000
+          "_seconds": 1794233712,
+          "_nanoseconds": 109000000
         }
       },
       {
@@ -833,8 +833,8 @@
         "salesRepId": "lifecycle-rep",
         "salesRepName": "lifecycle-rep",
         "createdAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 705000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 510000000
         }
       },
       {
@@ -867,8 +867,8 @@
         "salesRepId": "lifecycle-rep",
         "salesRepName": "lifecycle-rep",
         "createdAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 380000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 196000000
         }
       },
       {
@@ -901,8 +901,8 @@
         "salesRepId": "lifecycle-rep",
         "salesRepName": "lifecycle-rep",
         "createdAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 380000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 196000000
         }
       },
       {
@@ -927,8 +927,8 @@
         "type": "receipt_cancellation",
         "reversesTransactionId": "receipt_life-bank-receipt_credit",
         "transactionDate": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 490000000
+          "_seconds": 1794233712,
+          "_nanoseconds": 315000000
         },
         "amount": 10,
         "signedAmount": 10,
@@ -937,8 +937,8 @@
         "balanceBefore": 0,
         "balanceAfter": 10,
         "createdAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 537000000
+          "_seconds": 1794233712,
+          "_nanoseconds": 365000000
         }
       },
       {
@@ -972,8 +972,8 @@
         "salesRepId": "",
         "salesRepName": "",
         "createdAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 398000000
+          "_seconds": 1794233712,
+          "_nanoseconds": 222000000
         }
       },
       {
@@ -1009,8 +1009,8 @@
         "salesRepId": "lifecycle-rep",
         "salesRepName": "lifecycle-rep",
         "createdAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 516000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 354000000
         }
       }
     ],
@@ -1111,8 +1111,8 @@
         "idempotencyKey": "life-bank-receipt",
         "resultingCustomerBalance": 0,
         "createdAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 398000000
+          "_seconds": 1794233712,
+          "_nanoseconds": 222000000
         },
         "cancellationFinancialLedgerEntryIds": [
           "receipt_reversal_receipt_life-bank-receipt:receipt_receipt_life-bank-receipt_collection_unassigned"
@@ -1128,12 +1128,12 @@
             "companyId": "default_company",
             "schemaVersion": 3,
             "occurredAt": {
-              "_seconds": 1793614058,
-              "_nanoseconds": 490000000
+              "_seconds": 1794233712,
+              "_nanoseconds": 315000000
             },
             "postedAt": {
-              "_seconds": 1793614058,
-              "_nanoseconds": 490000000
+              "_seconds": 1794233712,
+              "_nanoseconds": 315000000
             },
             "type": "receipt",
             "component": "customer_collection_reversal",
@@ -1212,8 +1212,8 @@
           }
         ],
         "cancelledAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 490000000
+          "_seconds": 1794233712,
+          "_nanoseconds": 315000000
         },
         "cancellationCustomerTransactionIds": [
           "receipt_cancel_receipt_life-bank-receipt"
@@ -1221,8 +1221,8 @@
         "cancelledByName": "lifecycle-admin",
         "status": "cancelled",
         "updatedAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 537000000
+          "_seconds": 1794233712,
+          "_nanoseconds": 365000000
         }
       },
       {
@@ -1321,12 +1321,12 @@
         "idempotencyKey": "life-receipt",
         "resultingCustomerBalance": 0,
         "createdAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 516000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 354000000
         },
         "updatedAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 516000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 354000000
         }
       }
     ],
@@ -1387,20 +1387,20 @@
         "createdByName": "lifecycle-rep",
         "createdByRole": "sales_rep",
         "createdAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 917000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 717000000
         },
         "approvedByUid": "lifecycle-admin",
         "approvedByName": "lifecycle-admin",
         "cashMovementId": "expense_life-fuel_cash_out",
         "status": "approved",
         "approvedAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 9000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 813000000
         },
         "updatedAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 9000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 813000000
         }
       },
       {
@@ -1467,16 +1467,16 @@
         "createdByName": "lifecycle-admin",
         "createdByRole": "admin",
         "createdAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 243000000
+          "_seconds": 1794233712,
+          "_nanoseconds": 62000000
         },
         "approvedAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 243000000
+          "_seconds": 1794233712,
+          "_nanoseconds": 62000000
         },
         "updatedAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 243000000
+          "_seconds": 1794233712,
+          "_nanoseconds": 62000000
         }
       },
       {
@@ -1543,25 +1543,41 @@
         "createdByName": "lifecycle-rep",
         "createdByRole": "sales_rep",
         "createdAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 827000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 622000000
         },
         "reimbursementStatus": "payable",
         "approvedByUid": "lifecycle-admin",
         "approvedByName": "lifecycle-admin",
         "status": "approved",
         "approvedAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 872000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 670000000
         },
         "updatedAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 872000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 670000000
         }
       }
     ],
     "settlements": [
       {
+        "settlementMetadataVersion": 1,
+        "postingSource": "recordCashSettlement",
+        "operationId": "settlement_life-settlement",
+        "sourceCreatedByUid": "lifecycle-admin",
+        "sourceCreatedByName": "lifecycle-admin",
+        "sourceCreatedByRole": "admin",
+        "postedByUid": "lifecycle-admin",
+        "postedByName": "lifecycle-admin",
+        "postedByRole": "admin",
+        "paymentMethod": "cash",
+        "sellerId": "",
+        "sellerName": "",
+        "sellerIdentityStatus": "not_applicable",
+        "collectorUid": "",
+        "collectorName": "",
+        "collectorIdentityStatus": "not_applicable",
         "id": "settlement_life-settlement",
         "companyId": "default_company",
         "settlementNumber": "SET-20261102-LIFE-S",
@@ -1571,6 +1587,10 @@
         "salesRepName": "lifecycle-rep",
         "repMovementId": "settlement_life-settlement_rep_out",
         "companyMovementId": "settlement_life-settlement_company_in",
+        "sourceCashAccount": "rep_cash",
+        "sourceCashAccountId": "rep_lifecycle-rep",
+        "destinationCashAccount": "company_cash",
+        "destinationCashAccountId": "company_cash",
         "settlementDate": {
           "_seconds": 1793606400,
           "_nanoseconds": 0
@@ -1581,12 +1601,16 @@
         "createdByName": "lifecycle-admin",
         "createdByRole": "admin",
         "createdAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 151000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 969000000
+        },
+        "postedAt": {
+          "_seconds": 1794233711,
+          "_nanoseconds": 969000000
         },
         "updatedAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 151000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 969000000
         }
       }
     ],
@@ -1623,8 +1647,8 @@
         "createdByName": "lifecycle-admin",
         "createdByRole": "admin",
         "createdAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 9000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 813000000
         }
       },
       {
@@ -1659,8 +1683,8 @@
         "createdByName": "lifecycle-admin",
         "createdByRole": "admin",
         "createdAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 243000000
+          "_seconds": 1794233712,
+          "_nanoseconds": 62000000
         }
       },
       {
@@ -1696,8 +1720,8 @@
         "createdByName": "lifecycle-rep",
         "createdByRole": "sales_rep",
         "createdAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 380000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 196000000
         }
       },
       {
@@ -1733,11 +1757,27 @@
         "createdByName": "lifecycle-rep",
         "createdByRole": "sales_rep",
         "createdAt": {
-          "_seconds": 1793614057,
-          "_nanoseconds": 516000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 354000000
         }
       },
       {
+        "settlementMetadataVersion": 1,
+        "postingSource": "recordCashSettlement",
+        "operationId": "settlement_life-settlement",
+        "sourceCreatedByUid": "lifecycle-admin",
+        "sourceCreatedByName": "lifecycle-admin",
+        "sourceCreatedByRole": "admin",
+        "postedByUid": "lifecycle-admin",
+        "postedByName": "lifecycle-admin",
+        "postedByRole": "admin",
+        "paymentMethod": "cash",
+        "sellerId": "",
+        "sellerName": "",
+        "sellerIdentityStatus": "not_applicable",
+        "collectorUid": "",
+        "collectorName": "",
+        "collectorIdentityStatus": "not_applicable",
         "companyId": "default_company",
         "type": "settlement_to_admin",
         "movementType": "settlement_to_admin",
@@ -1766,15 +1806,39 @@
         "salesRepId": "",
         "salesRepName": "lifecycle-rep",
         "cashAccount": "company_cash",
+        "treasuryAccountId": "company_cash",
+        "holderType": "company",
+        "holderUid": "default_company",
+        "counterpartMovementId": "settlement_life-settlement_rep_out",
         "direction": "in",
         "balanceBefore": 0,
         "balanceAfter": 20,
         "createdAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 151000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 969000000
+        },
+        "postedAt": {
+          "_seconds": 1794233711,
+          "_nanoseconds": 969000000
         }
       },
       {
+        "settlementMetadataVersion": 1,
+        "postingSource": "recordCashSettlement",
+        "operationId": "settlement_life-settlement",
+        "sourceCreatedByUid": "lifecycle-admin",
+        "sourceCreatedByName": "lifecycle-admin",
+        "sourceCreatedByRole": "admin",
+        "postedByUid": "lifecycle-admin",
+        "postedByName": "lifecycle-admin",
+        "postedByRole": "admin",
+        "paymentMethod": "cash",
+        "sellerId": "",
+        "sellerName": "",
+        "sellerIdentityStatus": "not_applicable",
+        "collectorUid": "",
+        "collectorName": "",
+        "collectorIdentityStatus": "not_applicable",
         "companyId": "default_company",
         "type": "settlement_to_admin",
         "movementType": "settlement_to_admin",
@@ -1803,12 +1867,20 @@
         "salesRepId": "lifecycle-rep",
         "salesRepName": "lifecycle-rep",
         "cashAccount": "rep_cash",
+        "treasuryAccountId": "rep_lifecycle-rep",
+        "holderType": "representative",
+        "holderUid": "lifecycle-rep",
+        "counterpartMovementId": "settlement_life-settlement_company_in",
         "direction": "out",
         "balanceBefore": 28,
         "balanceAfter": 8,
         "createdAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 151000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 969000000
+        },
+        "postedAt": {
+          "_seconds": 1794233711,
+          "_nanoseconds": 969000000
         }
       }
     ],
@@ -1821,8 +1893,8 @@
         "amount": 17,
         "lastMovementId": "expense_life-office_cash_out",
         "updatedAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 243000000
+          "_seconds": 1794233712,
+          "_nanoseconds": 62000000
         }
       },
       {
@@ -1833,8 +1905,8 @@
         "amount": 8,
         "lastMovementId": "settlement_life-settlement_rep_out",
         "updatedAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 151000000
+          "_seconds": 1794233711,
+          "_nanoseconds": 969000000
         }
       }
     ],
@@ -2452,12 +2524,12 @@
         "companyId": "default_company",
         "schemaVersion": 3,
         "occurredAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 490000000
+          "_seconds": 1794233712,
+          "_nanoseconds": 315000000
         },
         "postedAt": {
-          "_seconds": 1793614058,
-          "_nanoseconds": 490000000
+          "_seconds": 1794233712,
+          "_nanoseconds": 315000000
         },
         "type": "receipt",
         "component": "customer_collection_reversal",

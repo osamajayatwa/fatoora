@@ -7,6 +7,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/firebase/trusted_callable_client.dart';
+import 'package:fatoora/features/financial/data/services/settlement_details_transport.dart';
+import 'package:fatoora/features/financial/data/models/settlement_details.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/customers/data/models/customer_model.dart';
 import 'package:fatoora/features/customers/data/repositories/accessible_customer_query.dart';
@@ -107,6 +109,48 @@ class FinancialRepository {
   final FirebaseFirestore _firestore;
   final TrustedCallableClient _trustedCallableClient;
   final BusinessUserContextReader _contextReader;
+
+  bool get settlementTransportEnabled =>
+      (_trustedCallableClient.isSettlementEmulator ||
+          _trustedCallableClient.isSettlementStaging) &&
+      _firestore.app.name == _trustedCallableClient.appName &&
+      _firestore.app.options.projectId == _trustedCallableClient.projectId;
+
+  AuthenticatedSettlementDetailsSource settlementDetailsSource({
+    required String companyId,
+    required String representativeId,
+    required String settlementId,
+  }) {
+    if (!settlementTransportEnabled) {
+      throw StateError('Settlement transport is disabled');
+    }
+    if (_trustedCallableClient.isSettlementStaging &&
+        companyId != 'default_company') {
+      throw StateError('Settlement staging company is not approved');
+    }
+    return AuthenticatedSettlementDetailsSource(
+      origin: _trustedCallableClient.isSettlementStaging
+          ? SettlementDetailsOrigin.authenticatedStaging
+          : SettlementDetailsOrigin.authenticatedEmulator,
+      companyId: companyId,
+      representativeId: representativeId,
+      settlementId: settlementId,
+      invoke: (payload) async {
+        if (!settlementTransportEnabled) {
+          throw const SettlementReadException(SettlementReadFailure.denied);
+        }
+        // The callable rechecks current roles, company and revocation. The
+        // ordinary business-context cache is never an authority for this read.
+        return Map<String, dynamic>.from(
+          (await _trustedCallableClient.callAuthenticated<dynamic>(
+                'getSettlementBreakdown',
+                payload,
+              )).data
+              as Map,
+        );
+      },
+    );
+  }
 
   CollectionReference<Map<String, dynamic>> _customers(String companyId) {
     return _firestore

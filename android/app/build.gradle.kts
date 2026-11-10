@@ -5,12 +5,24 @@ import java.util.Base64
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
-    id("com.google.gms.google-services")
+    id("com.google.gms.google-services") apply false
     // END: FlutterFire Configuration
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+val settlementTestDefines = (providers.gradleProperty("dart-defines").orNull ?: "")
+    .split(",").filter { it.isNotEmpty() }.associate {
+        val parts = String(Base64.getDecoder().decode(it), Charsets.UTF_8).split("=", limit = 2)
+        parts[0] to parts.getOrElse(1) { "" }
+    }
+val settlementTransportTest = settlementTestDefines["FATOORA_SETTLEMENT_TRANSPORT_TEST"] == "true"
+if (settlementTransportTest && (settlementTestDefines["FATOORA_ENV"] != "test" ||
+        gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) || it.contains("profile", ignoreCase = true) || it.contains("staging", ignoreCase = true) })) {
+    throw GradleException("Settlement transport accepts isolated debug emulator builds only.")
+}
+if (!settlementTransportTest) apply(plugin = "com.google.gms.google-services")
 
 val stagingTaskRequested = gradle.startParameter.taskNames.any {
     it.contains("staging", ignoreCase = true)
@@ -56,7 +68,7 @@ if (stagingOptIn) {
 
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties().apply {
-    if (!stagingOptIn && keystorePropertiesFile.exists()) {
+    if (!stagingOptIn && !settlementTransportTest && keystorePropertiesFile.exists()) {
         keystorePropertiesFile.inputStream().use(::load)
     }
 }
@@ -99,13 +111,17 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.fujika.fatoora"
+        applicationId = if (settlementTransportTest) "com.fujika.fatoora.settlementtest" else "com.fujika.fatoora"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    }
+
+    if (settlementTransportTest) {
+        sourceSets.getByName("debug").manifest.srcFile("src/settlementEmulator/AndroidManifest.xml")
     }
 
     if (stagingOptIn) {
@@ -142,7 +158,7 @@ android {
 
 androidComponents {
     beforeVariants(selector().all()) {
-        if (stagingOptIn && it.buildType != "debug") it.enable = false
+        if ((stagingOptIn || settlementTransportTest) && it.buildType != "debug") it.enable = false
     }
 }
 

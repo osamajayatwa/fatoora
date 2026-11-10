@@ -1,6 +1,7 @@
-import {manageAccountingConfiguration} from "./trusted/accounting_configuration";
 import {reassignCustomer} from "./trusted/customer_assignment";
+import {manageAccountingConfiguration} from "./trusted/accounting_configuration";
 import {listAccessibleCustomers} from "./trusted/customer_queries";
+import {getSettlementBreakdown} from "./trusted/settlement_transport";
 import { initializeApp } from "firebase-admin/app";
 import {
   auditCompanyDocumentWrite,
@@ -45,6 +46,7 @@ initializeApp();
 
 export {
   manageAccountingConfiguration,
+  getSettlementBreakdown,
   listAccessibleCustomers,
   reassignCustomer,
   projectInvoiceSearch,

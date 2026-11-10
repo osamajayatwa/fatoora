@@ -2,12 +2,16 @@ import 'package:fatoora/core/class/statusrequest.dart';
 import 'package:fatoora/core/constants/color.dart';
 import 'package:fatoora/core/data/firestore_query_pager.dart';
 import 'package:fatoora/core/services/services.dart';
+import 'package:fatoora/core/pdf/business_pdf_settings_resolver.dart';
 import 'package:fatoora/features/auth/data/repositories/auth_repository.dart';
 import 'package:fatoora/features/auth/utils/auth_session.dart';
 import 'package:fatoora/features/financial/controllers/financial_error_mapper.dart';
 import 'package:fatoora/features/financial/data/models/financial_dashboard_snapshot.dart';
 import 'package:fatoora/features/financial/data/repositories/financial_repository.dart';
 import 'package:fatoora/features/financial/data/services/cash_report_pdf_service.dart';
+import 'package:fatoora/features/financial/data/services/settlement_details_fixtures.dart';
+import 'package:fatoora/features/financial/data/models/settlement_details.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:printing/printing.dart';
 
@@ -15,11 +19,153 @@ class CashMovementsController extends GetxController {
   CashMovementsController({
     required FinancialRepository repository,
     required MyServices myServices,
+    SettlementDetailsFixtures? settlementDetailsFixtures,
+    SettlementDetailsSource Function(
+      String representativeId,
+      String settlementId,
+    )?
+    settlementSourceFactory,
   }) : _repository = repository,
-       _myServices = myServices;
+       _myServices = myServices,
+       _settlementDetailsFixtures = settlementDetailsFixtures,
+       _settlementSourceFactory = settlementSourceFactory;
 
   final FinancialRepository _repository;
   final MyServices _myServices;
+  final SettlementDetailsFixtures? _settlementDetailsFixtures;
+  final SettlementDetailsSource Function(String, String)?
+  _settlementSourceFactory;
+  final Map<String, SettlementDetailsSource> _settlementSources = {};
+
+  SettlementDetailsSource? settlementSourceFor(
+    String settlementId,
+    String representativeId,
+  ) {
+    const stagingPilot =
+        bool.fromEnvironment('FATOORA_SETTLEMENT_STAGING_PILOT') &&
+        String.fromEnvironment('FATOORA_ENV') == 'staging';
+    if (kReleaseMode && (!stagingPilot || _settlementSourceFactory != null) ||
+        !isAdmin ||
+        settlementId.isEmpty ||
+        representativeId.isEmpty) {
+      return null;
+    }
+    final fixture = settlementDetailsFor(settlementId);
+    if (fixture != null && fixture.representativeId == representativeId) {
+      return fixture;
+    }
+    if (_settlementSourceFactory == null &&
+        (!(const bool.fromEnvironment('FATOORA_SETTLEMENT_TRANSPORT_TEST') ||
+                stagingPilot) ||
+            !_repository.settlementTransportEnabled)) {
+      return null;
+    }
+    final key = '$companyId/$representativeId/$settlementId';
+    if (_settlementSources.containsKey(key)) return _settlementSources[key];
+    if (_settlementSources.length >= 4) {
+      _settlementSources.remove(_settlementSources.keys.first);
+    }
+    final source =
+        _settlementSourceFactory?.call(representativeId, settlementId) ??
+        _repository.settlementDetailsSource(
+          companyId: companyId,
+          representativeId: representativeId,
+          settlementId: settlementId,
+        );
+    if (source.companyId != companyId ||
+        source.representativeId != representativeId ||
+        source.settlementId != settlementId) {
+      return null;
+    }
+    return _settlementSources[key] = source;
+  }
+
+  Future<void> printSettlementDetails(SettlementDetailsReport report) async {
+    if (report.origin == SettlementDetailsOrigin.syntheticFixture) {
+      return printSettlementFixture(report);
+    }
+    final source = settlementSourceFor(
+      report.header.settlementId ?? '',
+      report.header.representativeId,
+    );
+    if (source == null ||
+        source.origin != report.origin ||
+        source.companyId != companyId ||
+        isPrinting) {
+      return;
+    }
+    isPrinting = true;
+    update();
+    try {
+      await Printing.layoutPdf(
+        name: 'settlement-evidence.pdf',
+        onLayout: (_) async {
+          final configuration = await BusinessPdfSettingsResolver.resolve(
+            companyId: companyId,
+          );
+          final bytes = await CashReportPdfService.buildSettlementDetails(
+            details: report,
+            configuration: configuration,
+            representativeLabel: source.representativeLabel,
+            settlementLabel: source.settlementLabel,
+          );
+          // Validate current authority/evidence after potentially slow rendering,
+          // immediately before handing bytes to the native print/PDF platform.
+          await source.authorizePdf(report);
+          source.requirePdfPermission(report);
+          return bytes;
+        },
+      );
+    } catch (_) {
+      Get.snackbar('financial_cash'.tr, 'cash_report_pdf_error'.tr);
+    } finally {
+      isPrinting = false;
+      if (!isClosed) update();
+    }
+  }
+
+  /// No production binding supplies fixtures; release builds reject even an
+  /// explicitly injected fixture. Existing live cash paths remain untouched.
+  SettlementDetailsFixtures? settlementDetailsFor(String settlementId) {
+    final fixture = _settlementDetailsFixtures;
+    return !kReleaseMode &&
+            isAdmin &&
+            fixture != null &&
+            companyId == fixture.companyId &&
+            settlementId == fixture.settlementId
+        ? fixture
+        : null;
+  }
+
+  Future<void> printSettlementFixture(SettlementDetailsReport report) async {
+    final fixture = settlementDetailsFor(report.header.settlementId ?? '');
+    if (fixture == null ||
+        report.header.companyId != companyId ||
+        report.header.representativeId != fixture.representativeId) {
+      return;
+    }
+    if (isPrinting) return;
+    isPrinting = true;
+    update();
+    try {
+      await Printing.layoutPdf(
+        name: 'synthetic-settlement-preview.pdf',
+        onLayout: (_) => CashReportPdfService.buildSettlementDetails(
+          details: report,
+          representativeLabel: fixture.representativeLabel,
+          settlementLabel: fixture.settlementLabel,
+          configuration: CashReportPdfService.settlementFixtureConfiguration(
+            Get.locale?.languageCode ?? 'en',
+          ),
+        ),
+      );
+    } catch (_) {
+      Get.snackbar('financial_cash'.tr, 'cash_report_pdf_error'.tr);
+    } finally {
+      isPrinting = false;
+      if (!isClosed) update();
+    }
+  }
 
   StatusRequest statusRequest = StatusRequest.loading;
   String loadErrorMessageKey = 'financial_load_error';

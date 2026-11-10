@@ -1,0 +1,162 @@
+{
+  "provenance": "synthetic_emulator_capture",
+  "companyId": "breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d",
+  "salesRepId": "breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d-rep",
+  "settlementId": "settlement_settlement-key-unknown-opening",
+  "pages": [
+    {
+      "schemaVersion": 1,
+      "companyId": "breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d",
+      "salesRepId": "breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d-rep",
+      "settlementId": "settlement_settlement-key-unknown-opening",
+      "evidenceDigest": "449bdf0a7b8ca146c0b22c5642563aef8d1346a630f4ae111f4f840d9898a665",
+      "snapshotDigest": "69b286f29dca46f81e5e91fb344db3587d343571181d38069a0a402eb678df77",
+      "cutoff": {
+        "basis": "sdk_commit_order",
+        "inclusiveThrough": {
+          "seconds": 1794232923,
+          "nanoseconds": 933278000
+        }
+      },
+      "status": "blocked",
+      "currency": "JOD",
+      "moneyScale": 3,
+      "opening": {
+        "state": "unknown",
+        "amountUnits": null,
+        "movementId": null
+      },
+      "carry": {
+        "state": "unverifiable",
+        "amountUnits": null,
+        "previousSettlementId": null
+      },
+      "totals": null,
+      "issues": [
+        {
+          "code": "unknown_opening",
+          "path": "companies/breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d/cash_balances/rep_breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d-rep",
+          "message": "No verified recorded opening; an observed zero/balance is not an opening attestation."
+        }
+      ],
+      "issueCount": 1,
+      "detailScope": "through_cutoff",
+      "order": "sdk_commit",
+      "rowCount": 1,
+      "pageSize": 64,
+      "pageCount": 1,
+      "pageIndex": 0,
+      "offset": 0,
+      "nextPageIndex": null,
+      "rows": [
+        {
+          "id": "settlement_settlement-key-unknown-opening_rep_out",
+          "path": "companies/breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d/cash_movements/settlement_settlement-key-unknown-opening_rep_out",
+          "category": "settlement",
+          "verification": "verified",
+          "cashAccount": "rep_cash",
+          "holderType": "representative",
+          "holderUid": "breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d-rep",
+          "amountUnits": "1000",
+          "signedUnits": "-1000",
+          "beforeUnits": "100111",
+          "afterUnits": "99111",
+          "committedAt": {
+            "seconds": 1794232923,
+            "nanoseconds": 933278000
+          },
+          "recordedAt": {
+            "seconds": 1794232923,
+            "nanoseconds": 932000000
+          },
+          "businessDate": {
+            "seconds": 1785931200,
+            "nanoseconds": 0
+          },
+          "source": {
+            "collection": "settlements",
+            "id": "settlement_settlement-key-unknown-opening",
+            "path": "companies/breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d/settlements/settlement_settlement-key-unknown-opening",
+            "createTime": {
+              "seconds": 1794232923,
+              "nanoseconds": 933278000
+            },
+            "updateTime": {
+              "seconds": 1794232923,
+              "nanoseconds": 933278000
+            },
+            "versionAfterCutoff": false,
+            "recordedCreatedAt": {
+              "seconds": 1794232923,
+              "nanoseconds": 932000000
+            },
+            "recordedPostedAt": {
+              "seconds": 1794232923,
+              "nanoseconds": 932000000
+            },
+            "businessDate": {
+              "seconds": 1785931200,
+              "nanoseconds": 0
+            }
+          },
+          "sourceNumber": "SET-20260805-SETTLE",
+          "movementCreator": {
+            "uid": "breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d-admin",
+            "name": "breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d-admin",
+            "role": "admin",
+            "basis": "movement.createdBy"
+          },
+          "sourceCreator": {
+            "uid": "breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d-admin",
+            "name": "breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d-admin",
+            "role": "admin",
+            "basis": "source.createdBy"
+          },
+          "collector": {
+            "uid": null,
+            "name": null,
+            "role": null,
+            "basis": "not_applicable"
+          },
+          "postingActor": {
+            "uid": "breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d-admin",
+            "name": "breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d-admin",
+            "role": "admin",
+            "basis": "settlement.postedBy"
+          },
+          "recordedProvenance": {
+            "sellerId": null,
+            "sellerName": null,
+            "collector": {
+              "uid": null,
+              "name": null,
+              "role": null,
+              "basis": "movement.collector"
+            },
+            "postedBy": {
+              "uid": "breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d-admin",
+              "name": "breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d-admin",
+              "role": "admin",
+              "basis": "movement.postedBy"
+            },
+            "sourceCreatedBy": {
+              "uid": "breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d-admin",
+              "name": "breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d-admin",
+              "role": "admin",
+              "basis": "movement.sourceCreatedBy"
+            }
+          },
+          "recordedSalesRepId": "breakdown-f9ee02a3-c719-4a6c-965c-c3dc4074b18d-rep",
+          "originalSellers": [],
+          "receivableAllocations": [],
+          "collectionMovementIds": [],
+          "reversesMovementId": null,
+          "counterpartMovementId": "settlement_settlement-key-unknown-opening_company_in",
+          "unallocatedReceiptUnits": null,
+          "referencedDocuments": []
+        }
+      ],
+      "pageDigest": "56f7f3caf1293db2d831b6777ec3ee8cf049b70c3ee7be906d7a79bb34d5aa6b"
+    }
+  ]
+}

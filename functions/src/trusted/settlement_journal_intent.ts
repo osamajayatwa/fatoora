@@ -137,6 +137,11 @@ export interface SettlementJournalIntent {
 export type SettlementJournalEconomics = Pick<SettlementJournalIntent,
   "schemaVersion" | "id" | "companyId" | "bookId" | "action" | "currency" | "moneyScale" | "amountUnits" | "policy" | "lines">;
 
+export function settlementJournalIdentity(companyId: string, bookId: string, settlementId: string): string {
+  return `settlement_intent_${hash([1, identifier(companyId, "companyId"), identifier(bookId, "bookId"),
+    "settlements", identifier(settlementId, "settlementId"), "rep_to_company_cash"])}`;
+}
+
 /** Shared pure economics for committed and pending evidence. No clocks or writes. */
 export function buildSettlementJournalEconomics(input: {
   companyId: string; bookId: string; settlementId: string; salesRepId: string;
@@ -160,7 +165,7 @@ export function buildSettlementJournalEconomics(input: {
   };
   const sourceAccount = accountFor(true), destinationAccount = accountFor(false);
   if (sourceAccount.accountId === destinationAccount.accountId) equal(sourceAccount.accountRevisionId, destinationAccount.accountRevisionId, "Shared cash-control revision");
-  const id = `settlement_intent_${hash([1, companyId, bookId, "settlements", settlementId, "rep_to_company_cash"])}`;
+  const id = settlementJournalIdentity(companyId, bookId, settlementId);
   const lines = [false, true].map((credit): IntentLine => ({
     id: `${id}_${credit ? "credit" : "debit"}`, companyId, bookId,
     currency: policy.currency, moneyScale: 3, account: credit ? sourceAccount : destinationAccount,

@@ -4,8 +4,10 @@ import 'package:crypto/crypto.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:fatoora/firebase_options.dart';
+import 'package:fatoora/core/firebase/trusted_callable_client.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
 
 enum FatooraEnvironment { production, staging, test }
@@ -20,6 +22,11 @@ class FirebaseEnvironmentConfiguration {
 
   static const productionProjectId = 'fatoora-6b192';
   static const localTestProjectId = 'demo-fatoora-test';
+  static const settlementTransportTesting = bool.fromEnvironment(
+    'FATOORA_SETTLEMENT_TRANSPORT_TEST',
+  );
+  static String get configuredTestProjectId =>
+      settlementTransportTesting ? 'demo-fatoora-phase2b7' : localTestProjectId;
   static const stagingProjectId = 'fatoora-original-staging';
   static const stagingProjectNumber = '5438538531';
   static const stagingAndroidAppId =
@@ -70,6 +77,11 @@ class FirebaseEnvironmentConfiguration {
 
   static FirebaseEnvironmentConfiguration current() {
     final environment = parseEnvironment(_environmentValue);
+    if (settlementTransportTesting && environment != FatooraEnvironment.test) {
+      throw StateError(
+        'Settlement transport testing requires FATOORA_ENV=test',
+      );
+    }
     switch (environment) {
       case FatooraEnvironment.production:
         return FirebaseEnvironmentConfiguration(
@@ -105,13 +117,13 @@ class FirebaseEnvironmentConfiguration {
       case FatooraEnvironment.test:
         return FirebaseEnvironmentConfiguration(
           environment: environment,
-          options: const FirebaseOptions(
+          options: FirebaseOptions(
             apiKey: 'fatoora-local-test-api-key',
             appId: '1:1234567890:web:fatoora-local-test',
             messagingSenderId: '1234567890',
-            projectId: localTestProjectId,
-            authDomain: '$localTestProjectId.firebaseapp.com',
-            storageBucket: '$localTestProjectId.firebasestorage.app',
+            projectId: configuredTestProjectId,
+            authDomain: '$configuredTestProjectId.firebaseapp.com',
+            storageBucket: '$configuredTestProjectId.firebasestorage.app',
           ),
           useEmulators: true,
           emulatorHost: _emulatorHostOverride.trim().isNotEmpty
@@ -214,9 +226,35 @@ class FirebaseEnvironmentConfiguration {
 
   /// Validate even explicitly constructed configurations before SDK startup.
   void validateRuntimeTarget() {
+    if (TrustedCallableClient.settlementStagingPilot &&
+        (environment != FatooraEnvironment.staging ||
+            useEmulators ||
+            settlementTransportTesting ||
+            options.appId != (kIsWeb ? stagingWebAppId : stagingAndroidAppId) ||
+            (!kIsWeb && defaultTargetPlatform != TargetPlatform.android))) {
+      throw StateError(
+        'Settlement staging pilot requires the pinned staging app',
+      );
+    }
+    if (TrustedCallableClient.settlementStagingPilot &&
+        kIsWeb &&
+        !RegExp(r'^[A-Za-z0-9_-]{30,128}$').hasMatch(
+          const String.fromEnvironment('FATOORA_STAGING_APPCHECK_SITE_KEY'),
+        )) {
+      throw StateError('Explicit staging App Check site key required');
+    }
+    if (settlementTransportTesting && !kDebugMode) {
+      throw StateError('Settlement transport is disabled in release builds');
+    }
+    if (settlementTransportTesting &&
+        !['127.0.0.1', 'localhost', '10.0.2.2'].contains(emulatorHost)) {
+      throw StateError(
+        'Settlement testing requires an explicit local emulator host',
+      );
+    }
     if (environment == FatooraEnvironment.test) {
       if (!useEmulators ||
-          options.projectId != localTestProjectId ||
+          options.projectId != configuredTestProjectId ||
           emulatorHost.trim().isEmpty ||
           emulatorHost.contains('://') ||
           emulatorHost.contains('/')) {
@@ -273,7 +311,35 @@ Future<void> initializeFirebaseForEnvironment(
       'refusing to switch to ${configuration.options.projectId}.',
     );
   }
-  if (!configuration.useEmulators) return;
+  if (!configuration.useEmulators) {
+    if (TrustedCallableClient.settlementStagingPilot) {
+      await FirebaseAppCheck.instanceFor(app: app).activate(
+        webProvider: ReCaptchaEnterpriseProvider(
+          const String.fromEnvironment('FATOORA_STAGING_APPCHECK_SITE_KEY'),
+        ),
+        androidProvider: AndroidProvider.playIntegrity,
+      );
+      TrustedCallableClient.markSettlementStagingConfigured(app);
+    }
+    return;
+  }
+  if (FirebaseEnvironmentConfiguration.settlementTransportTesting) {
+    FirebaseFirestore.instanceFor(
+      app: app,
+    ).useFirestoreEmulator(configuration.emulatorHost, 8192);
+    await FirebaseAuth.instanceFor(
+      app: app,
+    ).useAuthEmulator(configuration.emulatorHost, 9098);
+    FirebaseFunctions.instanceFor(
+      app: app,
+      region: 'us-central1',
+    ).useFunctionsEmulator(configuration.emulatorHost, 5005);
+    await TrustedCallableClient.markSettlementEmulatorConfigured(
+      app,
+      configuration.emulatorHost,
+    );
+    return;
+  }
 
   FirebaseFirestore.instanceFor(
     app: app,

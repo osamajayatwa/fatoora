@@ -467,6 +467,10 @@ The separately approved [Phase 2B-6 pending settlement contract](phase2b6-pendin
 binds immutable prospective economics/configuration/cash-head evidence while
 leaving future source/journal commit clocks unknown. It remains read-only and
 disconnected from live posting.
+The separately approved [Phase 2B-7 atomic settlement journal](phase2b7-atomic-settlement-journal.md)
+persists settlement cash/source and complete journal/event/dedup/audit/outbox
+effects together, strictly behind default-off synthetic-emulator guards.
+No callable or live writer activates it.
 The architecture below remains the design boundary, not an implemented engine.
 
 **Phase 2B-1: extend existing exact-decimal helpers with string/unit APIs.**
@@ -494,7 +498,7 @@ proof of the accounting engine or historical data.
 | Atomicity/security/report integrity | Concrete source identity, exact units, transaction/read conflicts, balances, immutable envelope, Rules/IAM boundary, watermark/generation and index contracts specified. Runtime proof remains future work. |
 | Policy and historical evidence | Quantity-only mode, reference-selling estimate and free invoice prices are settled owner requirements. Tax/fiscal/financial-opening decisions and source quantity/cash/ownership evidence remain pending. Cost/COGS is not recorded; no profit certification is claimed. |
 | Scalability | Bounds, query shapes and contention points identified; max-size/load/cost targets require later measurement. No cloud performance certification from this document. |
-| Helper completion / next batch | Section 8 links completed Phase 2B-1 through Phase 2B-6 evidence. The next proposal is an emulator-only settlement atomic persistence adapter with complete deduplication/audit effects, subject to separate approval. Phase 2B-6 creates no journals and has no live call site. |
+| Helper completion / next batch | Section 8 links Phase 2B-1 through Phase 2B-7 evidence. [Phase 2B-8](phase2b8-settlement-recovery-reconciliation.md) verifies persisted settlement evidence; [Phase 2B-9](phase2b9-settlement-source-evidence-breakdown.md) adds exact cash breakdown; [Phase 2B-10](phase2b10-scalable-settlement-coverage.md) adds scalable single-snapshot coverage and screen/PDF detail contracts. Persistence stays emulator-only and disconnected from live posting. [Phase 2B-11](phase2b11-settlement-details-ui-pdf.md) adds strict Dart page validation and fixture-backed details/PDF presentation in the existing interface, unavailable in production. [Phase 2B-12](phase2b12-secure-settlement-transport.md) adds one current-authority read callable and existing panel/PDF binding with expiring frozen snapshots and source-version revalidation, hard-disabled outside explicit emulator testing. [Phase 2B-13](phase2b13-settlement-performance-read-cost.md) reduces repeated verification RPCs/read costs with bounded batch delivery and compact immutable caching while preserving fresh authority and evidence checks. [Phase 2B-14](phase2b14-settlement-staging-readiness.md) completes read-only readiness inspection with HOLD: missing staging evidence, an isolated staging read boundary, IAM and live acceptance remain blockers. Next: separately approved read-boundary/evidence-policy work and acceptance; no deployment or activation is authorized. Allocation policy/cutover, persistence and activation remain separate approvals. |
 
 The 2026-11-03 design-only validation remains historical evidence. Current
 Phase 2B-1 arithmetic/runtime results are in the linked completion record;

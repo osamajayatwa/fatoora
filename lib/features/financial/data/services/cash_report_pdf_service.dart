@@ -10,9 +10,45 @@ import 'package:fatoora/features/financial/data/models/cash_movement_model.dart'
 import 'package:pdf/widgets.dart' as pw;
 import 'package:fatoora/features/financial/view/widgets/cash_movement_presentation.dart';
 import 'package:fatoora/core/pdf/app_pdf_direction.dart';
+import 'package:fatoora/features/financial/data/models/settlement_details.dart';
+import 'package:fatoora/features/financial/data/services/settlement_details_pdf_section.dart';
 
 class CashReportPdfService {
   const CashReportPdfService._();
+
+  static BusinessPdfConfiguration settlementFixtureConfiguration(
+    String languageCode,
+  ) {
+    final base = BusinessPdfConfiguration.defaults(languageCode: languageCode);
+    return BusinessPdfConfiguration(
+      companySettings: base.companySettings.copyWith(
+        name: languageCode == 'ar'
+            ? 'فاتورة - شركة اصطناعية'
+            : 'Fatoora - Synthetic Company',
+        country: '',
+        email: '',
+        website: '',
+        phone: '',
+        address: '',
+        logoEnabled: false,
+      ),
+      pdfSettings: base.pdfSettings.copyWith(showLogo: false),
+      userPreferences: base.userPreferences,
+      localization: base.localization,
+    );
+  }
+
+  static Future<Uint8List> buildSettlementDetails({
+    required SettlementDetailsReport details,
+    required BusinessPdfConfiguration configuration,
+    required String representativeLabel,
+    required String settlementLabel,
+  }) => buildSettlementDetailsPdf(
+    details: details,
+    configuration: configuration,
+    representativeLabel: representativeLabel,
+    settlementLabel: settlementLabel,
+  );
 
   static Future<Uint8List> build({
     required FinancialCashSnapshot snapshot,

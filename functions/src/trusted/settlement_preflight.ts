@@ -121,3 +121,5 @@ function validateLegacy(row: DocumentData, intent: SettlementJournalIntent): voi
   // The legacy row aliases postedAt to business time, NOT actual commit time.
   eq(compare(time(row.postedAt), source.settlementDate), 0, "Legacy postedAt alias");
 }
+
+export {validateLegacy as validateSettlementLegacyProjection};

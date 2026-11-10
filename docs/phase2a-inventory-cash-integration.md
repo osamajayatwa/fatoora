@@ -412,3 +412,113 @@ checks and explicitly unknown future source/journal commit clocks. No settlement
 writer, callable, cash behavior, Rules, index or Flutter workflow is activated or
 changed. A separately authorized emulator-only atomic settlement persistence
 adapter is the smallest next phase; Phase 2B-6 implements no persistence.
+
+## 12. Phase 2B-7 emulator-only atomic settlement journal
+
+The owner separately approved Phase 2B-7 on 2026-11-08. The
+[atomic contract and verification record](phase2b7-atomic-settlement-journal.md)
+describe the shared existing-writer plan, exact balanced journal, complete
+transactional identity/event/audit/outbox/result references, commit witnesses and
+durable recovery. The adapter is internal, default-off and restricted to the
+dedicated synthetic emulator. Existing callable behavior and Flutter workflows
+remain unchanged; no staging/production access or deployment is included.
+The separately approved [Phase 2B-8 recovery and reconciliation](phase2b8-settlement-recovery-reconciliation.md)
+adds independent, bounded read-only checks and documents source-breakdown gaps.
+Historical opening/coverage decisions and live activation remain outside it.
+
+## 13. Phase 2B-9 read-only settlement source evidence and breakdown
+
+The owner approved Phase 2B-9 on 2026-11-09. The
+[source contract, coverage and verification record](phase2b9-settlement-source-evidence-breakdown.md)
+describe bounded company inventory, exact representative cash reconstruction,
+commit-based settlement cutoff, source/provenance references and fail-closed
+opening/carry/currency coverage. Source allocations remain unimplemented. The
+next proposal is approved allocation policy/cutover rules followed by a read-only
+explicit-selection allocation intent; presentation and activation remain separate.
+
+## 14. Phase 2B-10 scalable read-only settlement coverage
+
+The owner approved Phase 2B-10 on 2026-11-09. The
+[coverage proof, performance and review options](phase2b10-scalable-settlement-coverage.md)
+extend the same source validator with single-snapshot paging, independent bounded
+counts, explicit coverage ceilings and current authority checks. Shared detail
+page/assembly contracts prepare the existing screen and PDF without modifying
+them. Allocation/cutover options are proposals only. The smallest display batch
+is a shared Dart DTO/formatter and fixture-backed existing pair-card/PDF details,
+with authorized transport reviewed before live wiring.
+
+## 15. Phase 2B-11 settlement details presentation
+
+The owner approved Phase 2B-11 on 2026-11-09. The
+[presentation contract and verification evidence](phase2b11-settlement-details-ui-pdf.md)
+record the strict exact-unit Dart DTO, complete-page validation and shared
+Arabic/English formatter, embedded in existing settlement cards/details and cash
+PDF service. Preview data is immutable, synthetic and injected only; application
+bindings provide none and release builds reject fixture injection. No transport,
+allocation, posting, cash calculation or financial activation is added. The next
+batch is a separately authorized read-only transport preserving current authority,
+company isolation and pinned complete snapshots before any production wiring.
+
+## 16. Phase 2B-12 secure settlement read transport
+
+The owner approved Phase 2B-12 on 2026-11-09. The
+[transport completion and acceptance gates](phase2b12-secure-settlement-transport.md)
+record one authenticated administrator-only read callable, bounded expiring
+snapshot sessions, complete source-version revalidation and the existing Flutter
+panel/PDF binding. Both server and native client remain hard-gated to explicit
+debug emulator testing. Financial records, posting and allocations are unchanged.
+Emulator authorization/revocation, large histories, response integrity, existing
+regressions and responsive Arabic/English PDF checks passed. Conservative
+company-wide revalidation is costly and cold sessions require restart; security,
+cost/routing and native device acceptance plus separate staging authorization are
+required before deployment. No production/staging access or deployment occurred.
+
+## 17. Phase 2B-13 settlement performance and read costs
+
+The owner approved Phase 2B-13 on 2026-11-10. The
+[performance report and staging prerequisites](phase2b13-settlement-performance-read-cost.md)
+record bounded six-page delivery through the same read callable, parallel complete
+version verification and an immutable serialized session cache. On identical
+synthetic 3,000-movement evidence, median complete delivery fell from 134.4 to
+12.9 seconds, with 79.6% fewer document read results and 96.8% fewer query RPCs.
+Histories with 4,000 and 6,000 invoice movements plus mixed cash evidence also
+completed; the new transport remains hard-disabled outside approved emulator
+testing. Current authorization, revocation, original snapshot roots, exact cash
+reconciliation, company isolation and PDF permission checks remain enforced.
+No financial posting, allocation, correction, activation or deployment is added.
+Next: separately approved staging security/cost/routing/native-device acceptance,
+including the retained company-wide coverage ceiling and invalidation behavior.
+
+## 18. Phase 2B-14 settlement staging readiness
+
+The owner approved read-only readiness preparation on 2026-11-10. The
+[readiness decision and acceptance gates](phase2b14-settlement-staging-readiness.md)
+record **HOLD**: the configured staging company lacks approved book/currency,
+opening and settlement evidence; a separately pinned read-only staging transport,
+least-privilege principal and live acceptance remain necessary. The 355 tests
+omitted from Phase 2B-13's targeted run now passed on fresh local emulators,
+closing the count difference with 1,141 distinct backend cases verified in total.
+Dependencies and existing staging revisions/rollback artifacts were checked.
+No staging transaction, configuration/IAM change, activation or deployment, and
+no production access, correction, reset, backfill or allocation was performed.
+
+## 19. Phase 2B-15 staging security and activation readiness
+
+The [security and activation report](phase2b15-settlement-security-activation-readiness.md)
+records the authorized single-callable staging deployment under a dedicated
+read-only identity, runtime read canary, App Check enforcement and a closed
+financial gate. Existing functions and financial records are unchanged. Security
+acceptance passed; positive activation stays HOLD pending genuine attestation
+registration and an approved prospective opening/currency cutover.
+
+## 20. Current Original application released to Staging and Android
+
+The [2026-11-10 application release report](staging-original-app-android-20261110.md)
+records **Deployment PASS** independently of the settlement feature's HOLD.
+Current Flutter Web is live on the existing staging site; only the completed
+settlement writer refactor needed a backend update. All 36 Functions remain
+ACTIVE, Rules are unchanged and all 300 indexes are READY. The separate staging
+Android APK was installed and tested on the owner's phone; the pinned VS Code
+F5 profile is available. Existing workflows remain accessible, while experimental
+journal posting and detailed settlement breakdown stay disabled. No financial
+writes, data resets, production access or production deployment occurred.

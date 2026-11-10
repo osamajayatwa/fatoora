@@ -11,6 +11,27 @@ export interface PendingSettlementRequest {
   companyId: string; idempotencyKey: string; salesRepId: string;
   amount: string | number; settlementDate: Time; notes?: string; expectedBookId?: string;
 }
+/** Pure request identity is also used for committed recovery before current
+ * period/mapping/head checks. It never supplies authorization. */
+export function normalizePendingSettlementRequest(input: PendingSettlementRequest, uid: string) {
+  const companyId = requestId(input?.companyId, "companyId"), rep = requestId(input?.salesRepId, "salesRepId");
+  requestId(uid, "uid");
+  const allowed = ["companyId", "idempotencyKey", "salesRepId", "amount", "settlementDate", "notes", "expectedBookId"];
+  invalid(Object.keys(input).every(k => allowed.includes(k)), "Unexpected pending settlement request fields.");
+  const key = requiredIdempotencyKey(input.idempotencyKey);
+  invalid(uid !== rep, "Posting admin cannot be the representative holder.");
+  let amount: bigint, date: Time;
+  try {amount = money(input.amount);date = time(input.settlementDate);} catch {throw new HttpsError("invalid-argument", "Exact scale-3 amount and resolved business timestamp required.");}
+  invalid(amount > 0n, "Settlement amount must be positive.");decimalNumber(amount);
+  invalid(input.notes === undefined || typeof input.notes === "string" && input.notes.length <= 2048, "Bounded settlement notes required.");
+  const notes = input.notes?.trim() ?? "";
+  if (input.expectedBookId !== undefined) requestId(input.expectedBookId, "expectedBookId");
+  const settlementId = `settlement_${key}`;
+  return freeze({companyId, key, rep, amountUnits: amount.toString(), date, notes,
+    ...(input.expectedBookId === undefined ? {} : {expectedBookId: input.expectedBookId}),
+    requestDigest: digest({schemaVersion: 1, companyId, settlementId, salesRepId: rep,
+      amountUnits: amount.toString(), accountingDate: date, notes, initiatedByUid: uid})});
+}
 interface Version {path: string; updateTime: Time | null}
 export interface PendingSettlementEvidence {
   schemaVersion: 1;
@@ -79,16 +100,9 @@ export async function preparePendingSettlementEvidence(
   if (uid) requestId(uid, "uid");
   const user = await requireTrustedUser(transaction, firestore, uid, companyId);
   if (user.role !== "admin") throw new HttpsError("permission-denied", "Only administrators can prepare settlement evidence.");
-  const allowed = ["companyId", "idempotencyKey", "salesRepId", "amount", "settlementDate", "notes", "expectedBookId"];
-  invalid(Object.keys(input).every(k => allowed.includes(k)), "Unexpected pending settlement request fields.");
-  const key = requiredIdempotencyKey(input.idempotencyKey), rep = requestId(input.salesRepId, "salesRepId");
-  invalid(user.uid !== rep, "Posting admin cannot be the representative holder.");
-  let amount: bigint, date: Time;
-  try {amount = money(input.amount);date = time(input.settlementDate);} catch {throw new HttpsError("invalid-argument", "Exact scale-3 amount and resolved business timestamp required.");}
-  invalid(amount > 0n, "Settlement amount must be positive.");const numericAmount = decimalNumber(amount);
-  invalid(input.notes === undefined || typeof input.notes === "string" && input.notes.length <= 2048, "Bounded settlement notes required.");
-  const notes = input.notes?.trim() ?? "";
-  if (input.expectedBookId !== undefined) requestId(input.expectedBookId, "expectedBookId");
+  const normalized = normalizePendingSettlementRequest(input, user.uid);
+  const {key, rep, date, notes, requestDigest} = normalized, amount = BigInt(normalized.amountUnits);
+  const numericAmount = decimalNumber(amount);
   const {read, snapshots} = settlementReader(transaction, firestore);
   const book = await readSettlementBook(read, companyId, input.expectedBookId), {c, b, bookId, context} = book;
   periodContains(context, date);
@@ -136,8 +150,6 @@ export async function preparePendingSettlementEvidence(
     amountUnits: amount.toString(), balanceBeforeUnits: p.amountUnits, balanceAfterUnits: after[i].toString(),
   }));
   eq(sumUnits(before), sumUnits(after), "Total company cash conservation");
-  const requestDigest = digest({schemaVersion: 1, companyId, settlementId, salesRepId: rep,
-    amountUnits: amount.toString(), accountingDate: date, notes, initiatedByUid: user.uid});
   const economicDigest = digest({schemaVersion: 1, source, economics, accountingDate: date});
   const configurationDigest = digest({schemaVersion: 1, context, policy: economics.policy,
     accounts: economics.lines.map(l => l.account), versions: configVersions});
@@ -167,16 +179,25 @@ function versions(snapshots: Map<string, import("firebase-admin/firestore").Docu
 function invalid(condition: boolean, message: string): asserts condition {if (!condition) throw new HttpsError("invalid-argument", message);}
 function requestId(value: unknown, label: string): string {try {return id(value, label);} catch {throw new HttpsError("invalid-argument", `${label} must be a bounded single identifier.`);}}
 function textName(value: unknown): string {return typeof value === "string" ? value.trim() : "";}
-function canonical(value: unknown): string {
+function canonical(value: unknown): string {return boundedCanonical(value, {nodes: 4096, array: 64, bytes: 65536});}
+// Separate internal inventory profile. Stored pending/journal evidence ALWAYS
+// uses canonical() above, preserving its exact bytes and original strict limits.
+export function canonicalSettlementInventoryEvidence(value: unknown): string {
+  return boundedCanonical(value, {nodes: 300000, array: 16000, bytes: 16777216});
+}
+export function settlementInventoryEvidenceDigest(value: unknown): string {
+  return createHash("sha256").update(canonicalSettlementInventoryEvidence(value)).digest("hex");
+}
+function boundedCanonical(value: unknown, limits: {nodes: number; array: number; bytes: number}): string {
   let nodes = 0;
   const normalize = (v: unknown, depth: number): unknown => {
-    invalid(++nodes <= 4096 && depth <= 16, "Pending evidence exceeds structural limits.");
+    invalid(++nodes <= limits.nodes && depth <= 16, "Pending evidence exceeds structural limits.");
     if (v === null || typeof v === "boolean") return v;
     if (typeof v === "string") {invalid(v.length <= 2048, "Pending evidence string too long.");return v;}
     if (typeof v === "number") {invalid(Number.isSafeInteger(v), "Pending evidence number must be a safe integer.");return v;}
     invalid(typeof v === "object", "Pending evidence must contain JSON data only.");
     if (Array.isArray(v)) {
-      invalid(v.length <= 64 && Reflect.ownKeys(v).length === v.length + 1, "Pending evidence arrays must be bounded and dense.");
+      invalid(v.length <= limits.array && Reflect.ownKeys(v).length === v.length + 1, "Pending evidence arrays must be bounded and dense.");
       const descriptors = Object.getOwnPropertyDescriptors(v);
       return Array.from({length: v.length}, (_, i) => {
         const d = descriptors[i];
@@ -190,6 +211,10 @@ function canonical(value: unknown): string {
     keys.sort();const descriptors = Object.getOwnPropertyDescriptors(v);
     return Object.fromEntries(keys.map(k => {invalid(k.length <= 128 && "value" in descriptors[k], "Invalid pending evidence property.");return [k, normalize(descriptors[k].value, depth + 1)];}));
   };
-  const encoded = JSON.stringify(normalize(value, 0));invalid(Buffer.byteLength(encoded, "utf8") <= 65536, "Pending evidence exceeds 64 KiB.");return encoded;
+  const encoded = JSON.stringify(normalize(value, 0));invalid(Buffer.byteLength(encoded, "utf8") <= limits.bytes,
+    limits.bytes === 65536 ? "Pending evidence exceeds 64 KiB." : "Inventory evidence exceeds configured payload bound.");return encoded;
 }
 function digest(value: unknown): string {return createHash("sha256").update(canonical(value)).digest("hex");}
+
+// Internal shared codec: no callable or root export.
+export {canonical as canonicalSettlementEvidence, digest as settlementEvidenceDigest};
