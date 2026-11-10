@@ -70,6 +70,7 @@ import 'package:fatoora/features/settings/view/screens/settings_screen.dart';
 import 'package:fatoora/features/settings/view/screens/admin_settings_screens.dart';
 import 'package:fatoora/features/settings/view/screens/user_settings_screens.dart';
 import 'package:fatoora/features/settings/view/screens/financial_settings_screens.dart';
+import 'package:fatoora/features/settings/view/screens/accounting_configuration_screen.dart';
 import 'package:fatoora/features/statements/bindings/statements_binding.dart';
 import 'package:fatoora/features/statements/view/screens/statements_screen.dart';
 import 'package:fatoora/features/splash/view/screens/language.dart';
@@ -293,6 +294,12 @@ List<GetPage<dynamic>> routes = _guardRoutes([
   GetPage(
     name: AppRoute.financialSettings,
     page: () => const FinancialSettingsScreen(),
+    binding: SettingsBinding(),
+    middlewares: [ApprovedUserMiddleware(), AdminSettingsMiddleware()],
+  ),
+  GetPage(
+    name: AppRoute.accountingConfiguration,
+    page: () => const AccountingConfigurationScreen(),
     binding: SettingsBinding(),
     middlewares: [ApprovedUserMiddleware(), AdminSettingsMiddleware()],
   ),

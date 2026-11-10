@@ -1,4 +1,4 @@
-import {FieldValue, Firestore, getFirestore} from "firebase-admin/firestore";
+import {DocumentData, DocumentReference, FieldValue, Firestore, Transaction, getFirestore} from "firebase-admin/firestore";
 import {HttpsError, onCall} from "firebase-functions/v2/https";
 import {
   TRUSTED_CALLABLE_OPTIONS,
@@ -32,6 +32,12 @@ export const recordCashSettlement = onCall(
   TRUSTED_CALLABLE_OPTIONS,
   async (request) => {
     const uid = requireCallableUid(request, "recordCashSettlement");
+    // The existing endpoint selects one implementation. Even this explicit
+    // switch cannot enable the foundation writer outside its synthetic emulator.
+    if (process.env.FATOORA_ACCOUNTING_ENGINE_EMULATOR === "true") {
+      const {postFoundationCashSettlement} = await import("./accounting_settlement");
+      return postFoundationCashSettlement(getFirestore(), uid, request.data, {enableEmulatorPosting: true});
+    }
     const input = record(request.data) as SettlementRequest;
     const companyId = requiredString(input.companyId, "companyId");
     const key = requiredIdempotencyKey(input.idempotencyKey);
@@ -52,7 +58,25 @@ export async function recordCashSettlementTransaction(
   idempotencyKey: string,
   input: SettlementRequest,
 ): Promise<{settlementId: string; alreadyPosted: boolean}> {
-  return firestore.runTransaction(async (transaction) => {
+  return firestore.runTransaction(async transaction => {
+    const plan = await prepareCashSettlementWrite(transaction, firestore, uid, companyId, idempotencyKey, input);
+    return plan.write();
+  });
+}
+
+export interface CashSettlementWritePlan {
+  settlementId: string;
+  alreadyPosted: boolean;
+  write(options?: {immutableCreate?: boolean; accountingBinding?: DocumentData}): {settlementId: string; alreadyPosted: boolean};
+}
+
+/** Shared existing writer: finish every read before returning the write closure.
+ * The callable uses the original defaults; the isolated accounting adapter may
+ * strengthen immutable creates and attach references in this same transaction. */
+export async function prepareCashSettlementWrite(
+  transaction: Transaction, firestore: Firestore, uid: string | undefined,
+  companyId: string, idempotencyKey: string, input: SettlementRequest,
+): Promise<CashSettlementWritePlan> {
     const user = await requireTrustedUser(transaction, firestore, uid, companyId);
     if (user.role !== "admin") {
       throw new HttpsError("permission-denied", "Only administrators can settle cash.");
@@ -87,7 +111,7 @@ export async function recordCashSettlementTransaction(
       ) {
         throw new HttpsError("already-exists", "Idempotency key is already in use.");
       }
-      return {settlementId, alreadyPosted: true};
+      return {settlementId, alreadyPosted: true, write: () => ({settlementId, alreadyPosted: true})};
     }
 
     const repMovementRef = firestore.doc(
@@ -122,10 +146,17 @@ export async function recordCashSettlementTransaction(
     }
     const companyAfter = roundMoney(companyBalance.amount + amount);
     const referenceNumber = `SET-${date.toDate().toISOString().slice(0, 10).replace(/-/g, "")}-${idempotencyKey.slice(0, 6).toUpperCase()}`;
+    return {settlementId, alreadyPosted: false, write: (options = {}) => {
+    const binding = options.accountingBinding ? {accounting: options.accountingBinding} : {};
+    const writeSource = (ref: DocumentReference, data: DocumentData): void => {
+      if (options.immutableCreate) transaction.create(ref, data);
+      else transaction.set(ref, data);
+    };
     // The admin initiates and posts this transfer; neither role establishes
     // custody or an upstream seller/collector. Keep provenance on all three
     // documents in the existing atomic commit, including its server timestamp.
     const postingMetadata = {
+      ...binding,
       settlementMetadataVersion: 1,
       postingSource: "recordCashSettlement",
       operationId: settlementId,
@@ -166,7 +197,7 @@ export async function recordCashSettlementTransaction(
       createdByRole: user.role,
       createdAt: FieldValue.serverTimestamp(),
     };
-    transaction.set(repMovementRef, {
+    writeSource(repMovementRef, {
       ...common,
       id: repMovementRef.id,
       salesRepId,
@@ -180,7 +211,7 @@ export async function recordCashSettlementTransaction(
       balanceBefore: repBalance.amount,
       balanceAfter: repAfter,
     });
-    transaction.set(companyMovementRef, {
+    writeSource(companyMovementRef, {
       ...common,
       id: companyMovementRef.id,
       salesRepId: "",
@@ -208,7 +239,7 @@ export async function recordCashSettlementTransaction(
       companyMovementRef.id,
       companyId,
     );
-    transaction.set(settlementRef, {
+    writeSource(settlementRef, {
       ...postingMetadata,
       id: settlementId,
       companyId,
@@ -233,7 +264,7 @@ export async function recordCashSettlementTransaction(
       updatedAt: FieldValue.serverTimestamp(),
     });
     writeFinancialLedgerEntries(transaction, firestore, [
-      buildSettlementFinancialLedgerEntry({
+      {...buildSettlementFinancialLedgerEntry({
         companyId,
         settlementId,
         settlementNumber: referenceNumber,
@@ -242,8 +273,8 @@ export async function recordCashSettlementTransaction(
         salesRepId,
         salesRepName,
         notes: optionalString(input.notes),
-      }),
+      }), ...binding},
     ]);
     return {settlementId, alreadyPosted: false};
-  });
+    }};
 }

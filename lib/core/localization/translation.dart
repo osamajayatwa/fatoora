@@ -21,11 +21,13 @@ import 'package:fatoora/core/localization/sales_return_translations.dart';
 import 'package:fatoora/core/localization/settings_translations.dart';
 import 'package:fatoora/core/localization/user_auth_translations.dart';
 import 'package:get/get.dart';
+import 'package:fatoora/core/localization/accounting_configuration_translations.dart';
 
 class MyTranslation extends Translations {
   @override
   Map<String, Map<String, String>> get keys => {
     'ar': {
+      ...accountingConfigurationArabicTranslations,
       ...adminLoginArabicTranslations,
       ...userAuthArabicTranslations,
       ...adminDashboardArabicTranslations,
@@ -50,6 +52,7 @@ class MyTranslation extends Translations {
       ...auditLogArabicTranslations,
     },
     'en': {
+      ...accountingConfigurationEnglishTranslations,
       ...adminLoginEnglishTranslations,
       ...userAuthEnglishTranslations,
       ...adminDashboardEnglishTranslations,

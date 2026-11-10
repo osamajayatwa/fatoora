@@ -1,3 +1,4 @@
+import {manageAccountingConfiguration} from "./trusted/accounting_configuration";
 import {reassignCustomer} from "./trusted/customer_assignment";
 import {listAccessibleCustomers} from "./trusted/customer_queries";
 import { initializeApp } from "firebase-admin/app";
@@ -43,6 +44,7 @@ import {
 initializeApp();
 
 export {
+  manageAccountingConfiguration,
   listAccessibleCustomers,
   reassignCustomer,
   projectInvoiceSearch,

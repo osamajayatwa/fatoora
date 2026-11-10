@@ -2621,6 +2621,13 @@
     }
   ],
   "fieldOverrides": [
+    {"collectionGroup": "journal_entries", "fieldPath": "journal", "indexes": []},
+    {"collectionGroup": "events", "fieldPath": "effects", "indexes": []},
+    {"collectionGroup": "events", "fieldPath": "semantic", "indexes": []},
+    {"collectionGroup": "configuration_revisions", "fieldPath": "configuration", "indexes": []},
+    {"collectionGroup": "configuration_requests", "fieldPath": "result", "indexes": []},
+    {"collectionGroup": "policy_revisions", "fieldPath": "taxCodes", "indexes": []},
+    {"collectionGroup": "policy_revisions", "fieldPath": "openingBoundary", "indexes": []},
     {
       "collectionGroup": "financial_ledger_entries",
       "fieldPath": "queryKeys",

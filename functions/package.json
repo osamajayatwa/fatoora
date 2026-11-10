@@ -6,6 +6,8 @@
     "node": "22"
   },
   "scripts": {
+    "test:accounting-configuration": "npm run build && node --test test/accounting_configuration_contract.test.js test/accounting_configuration.test.js",
+    "test:accounting-posting": "npm run build && node --test --test-concurrency=1 test/accounting_journal.test.js test/accounting_transaction.test.js test/accounting_posting.test.js",
     "build": "tsc",
     "lint": "tsc --noEmit",
     "test:settlement-intent": "npm run build && node --test test/settlement_journal_intent.test.js",

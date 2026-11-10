@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'package:fatoora/core/firebase/pending_posting_keys.dart';
+import 'package:fatoora/core/firebase/trusted_callable_client.dart';
+import 'package:fatoora/features/settings/data/models/accounting_configuration_model.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fatoora/features/auth/data/models/app_user_model.dart';
@@ -25,6 +28,70 @@ class SettingsRepositoryException implements Exception {
 }
 
 class SettingsRepository {
+  static const accountingConfigurationEnabled = bool.fromEnvironment(
+    'FATOORA_ACCOUNTING_CONFIGURATION',
+  );
+
+  Future<AccountingConfigurationSnapshot> accountingConfiguration(
+    String bookId, {
+    required String companyId,
+    Map<String, dynamic>? configuration,
+    int? expectedRevision,
+  }) async {
+    if (!accountingConfigurationEnabled) {
+      throw const SettingsRepositoryException(
+        SettingsRepositoryError.unavailable,
+      );
+    }
+    final user = await _contextReader.requireApprovedUser();
+    if (!user.isAdmin ||
+        !user.canUseBusinessData ||
+        companyId.isEmpty ||
+        companyId != user.companyId ||
+        _firestore.app.name != _firebaseAuth.app.name) {
+      throw const SettingsRepositoryException(
+        SettingsRepositoryError.permissionDenied,
+      );
+    }
+    final payload = <String, dynamic>{
+      'action': configuration == null ? 'read' : 'save',
+      'companyId': companyId,
+      'bookId': bookId,
+      if (configuration != null) ...{
+        'configuration': configuration,
+        'expectedRevision': expectedRevision,
+      },
+    };
+    final key = configuration == null
+        ? null
+        : await PendingPostingKeys.acquire(
+            'accounting_configuration',
+            user.uid,
+            payload,
+          );
+    final response =
+        await TrustedCallableClient.forDefaultApp(
+          firebaseAuth: _firebaseAuth,
+        ).callAuthenticated<Map<String, dynamic>>(
+          'manageAccountingConfiguration',
+          {...payload, if (key != null) 'requestId': key},
+        );
+    final result = AccountingConfigurationSnapshot.fromMap(
+      Map<String, dynamic>.from(response.data),
+      companyId: companyId,
+      bookId: bookId,
+    );
+    if (key != null) {
+      await PendingPostingKeys.complete(
+        'accounting_configuration',
+        user.uid,
+        payload,
+        key,
+      );
+    }
+    return result;
+  }
+
   SettingsRepository({
     FirebaseFirestore? firestore,
     FirebaseAuth? firebaseAuth,

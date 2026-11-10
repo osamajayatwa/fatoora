@@ -2608,7 +2608,12 @@ test("legacy customer profile and statement use creator fallback; Admin can list
 test("pending accounting configuration and financial targets remain inaccessible to all clients", async () => {
   const root = `companies/${companyId}/books/synthetic-pending-book`;
   const paths = [root, `${root}/policy_revisions/policy-v1`, `${root}/source_keys/candidate`,
-    `${root}/journal_entries/candidate`, `${root}/events/candidate`];
+    `${root}/configuration_revisions/revision_1`, `${root}/configuration_requests/candidate`,
+    `${root}/chart_accounts/candidate`, `${root}/account_codes/candidate`, `${root}/account_mappings/revision_1`, `${root}/periods/candidate`,
+    `${root}/synthetic_openings/candidate`, `${root}/journal_definitions/candidate`,
+    `${root}/journal_entries/candidate`, `${root}/events/candidate`, `${root}/request_keys/candidate`,
+    `${root}/audit_events/candidate`, `${root}/outbox/candidate`, `${root}/posting_contracts/settlement-v1`,
+    `${root}/posting_lanes/lane_00`];
   await testEnvironment.withSecurityRulesDisabled(async context => {
     for (const path of paths) await setDoc(doc(context.firestore(), path), {syntheticFixture: true, companyId});
   });

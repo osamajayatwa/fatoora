@@ -75,6 +75,8 @@ class AppRoute {
   static const String documentSettings = "/settings/documents";
   static const String inventorySettings = "/settings/inventory";
   static const String financialSettings = "/settings/financial";
+  static const String accountingConfiguration =
+      "/settings/financial/accounting-configuration";
   static const String openingBalances = "/settings/financial/opening-balances";
   static const String pdfSettings = "/settings/pdf";
   static const String permissionSettings = "/settings/permissions";

@@ -7,6 +7,7 @@ import 'package:fatoora/features/financial/controllers/company_cash_opening_bala
 import 'package:fatoora/features/financial/data/models/company_cash_opening_balance_model.dart';
 import 'package:fatoora/features/settings/view/widgets/settings_section_card.dart';
 import 'package:fatoora/features/settings/view/widgets/settings_section_scaffold.dart';
+import 'package:fatoora/features/settings/data/repositories/settings_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -22,17 +23,29 @@ class FinancialSettingsScreen extends StatelessWidget {
       subtitleKey: 'settings_financial_subtitle',
       icon: Icons.account_balance_wallet_outlined,
       adminOnly: true,
-      child: SettingsSectionCard(
-        title: 'settings_opening_balances'.tr,
-        subtitle: 'settings_opening_balances_subtitle'.tr,
-        icon: Icons.price_check_outlined,
-        onTap: () => Get.toNamed<void>(AppRoute.openingBalances),
-        trailing: Icon(
-          Directionality.of(context) == TextDirection.rtl
-              ? Icons.chevron_left_rounded
-              : Icons.chevron_right_rounded,
-          color: context.appMutedText,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (SettingsRepository.accountingConfigurationEnabled)
+            SettingsSectionCard(
+              title: 'accounting_setup'.tr,
+              subtitle: 'accounting_setup_subtitle'.tr,
+              icon: Icons.account_tree_outlined,
+              onTap: () => Get.toNamed<void>(AppRoute.accountingConfiguration),
+            ),
+          SettingsSectionCard(
+            title: 'settings_opening_balances'.tr,
+            subtitle: 'settings_opening_balances_subtitle'.tr,
+            icon: Icons.price_check_outlined,
+            onTap: () => Get.toNamed<void>(AppRoute.openingBalances),
+            trailing: Icon(
+              Directionality.of(context) == TextDirection.rtl
+                  ? Icons.chevron_left_rounded
+                  : Icons.chevron_right_rounded,
+              color: context.appMutedText,
+            ),
+          ),
+        ],
       ),
     );
   }

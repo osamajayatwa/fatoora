@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "name": "Synthetic test book",
+  "currency": "JOD",
+  "moneyScale": 3,
+  "quantityScale": 6,
+  "priceScale": 6,
+  "timezone": "Asia/Amman",
+  "fiscalYearStartMonth": 1,
+  "fiscalYearStartDay": 1,
+  "inventoryMode": "quantity_only",
+  "costCoverage": "not_recorded",
+  "accounts": [
+    {"id":"assets","code":"1000","name":"Assets","parentId":null,"accountType":"asset","normalSide":"debit","control":"none","postingAllowed":false,"active":true},
+    {"id":"company-cash","code":"1100","name":"Company cash","parentId":"assets","accountType":"asset","normalSide":"debit","control":"cash","postingAllowed":true,"active":true},
+    {"id":"rep-cash","code":"1110","name":"Representative cash","parentId":"assets","accountType":"asset","normalSide":"debit","control":"cash","postingAllowed":true,"active":true},
+    {"id":"ar","code":"1200","name":"Receivables","parentId":"assets","accountType":"asset","normalSide":"debit","control":"receivable","postingAllowed":true,"active":true},
+    {"id":"sales","code":"4000","name":"Sales","parentId":null,"accountType":"income","normalSide":"credit","control":"none","postingAllowed":true,"active":true},
+    {"id":"returns","code":"4100","name":"Sales returns","parentId":null,"accountType":"income","normalSide":"debit","control":"none","postingAllowed":true,"active":true},
+    {"id":"expense","code":"5000","name":"Operating expenses","parentId":null,"accountType":"expense","normalSide":"debit","control":"none","postingAllowed":true,"active":true},
+    {"id":"rep-payable","code":"2100","name":"Representative payable","parentId":null,"accountType":"liability","normalSide":"credit","control":"payable","postingAllowed":true,"active":true},
+    {"id":"credits","code":"2200","name":"Customer credits","parentId":null,"accountType":"liability","normalSide":"credit","control":"customer_credit","postingAllowed":true,"active":true},
+    {"id":"tax","code":"2300","name":"Output tax","parentId":null,"accountType":"liability","normalSide":"credit","control":"tax","postingAllowed":true,"active":true},
+    {"id":"equity","code":"3000","name":"Evidenced equity","parentId":null,"accountType":"equity","normalSide":"credit","control":"none","postingAllowed":true,"active":true}
+  ],
+  "periods": [{"id":"nov-2026","name":"November 2026","startsOn":"2026-11-01","endsBefore":"2026-12-01"}],
+  "mappings": {"companyCash":"company-cash","representativeCash":"rep-cash","receivables":"ar","sales":"sales","salesReturns":"returns","operatingExpense":"expense","representativePayable":"rep-payable","customerCredits":"credits","outputTax":"tax"},
+  "taxCodes": [{"code":"SYNTHETIC","ratePercent":"16.000000","startsOn":"2026-11-01","endsBefore":"2027-01-01","outputAccountId":"tax"}],
+  "taxPolicy": {"status":"documented","priceBasis":"exclusive","evidenceRef":"test-only:tax-policy"},
+  "openingBoundary": {"cutoverDate":"2026-11-10","financialCoverage":"documented","quantityCoverage":"documented","evidenceRefs":["test-only:opening-evidence"],"retainedEarningsTreatment":"Synthetic test evidence only"}
+}
