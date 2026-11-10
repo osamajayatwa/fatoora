@@ -3,10 +3,31 @@ const assert=require("node:assert/strict");
 if(!/^127\.0\.0\.1:\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST||""))throw new Error("Accounting guard tests require the loopback emulator.");
 const {initializeApp,deleteApp}=require("firebase-admin/app");
 const {getFirestore}=require("firebase-admin/firestore");
-const {accountingTransaction}=require("../lib/trusted/accounting_transaction");
+const {accountingTransaction,assertAccountingControlContext,inheritAccountingTransactionScope,selectOpenChargePositions}=require("../lib/trusted/accounting_transaction");
 const app=initializeApp({projectId:"demo-fatoora-phase2d"},"accounting-guard-tests"),db=getFirestore(app);
 after(()=>deleteApp(app));
 const b="companies/guard-company/books/guard-book";
+
+test("control capabilities reject raw transactions and mismatched book scope",async()=>{
+ await db.runTransaction(async raw=>{
+  assert.throws(()=>assertAccountingControlContext(raw,"guard-company","guard-book"));
+  assert.throws(()=>inheritAccountingTransactionScope({},raw));
+  assert.throws(()=>selectOpenChargePositions(raw,"guard-company","guard-book","customer"));
+  const{tx}=accountingTransaction(raw,db,"guard-company","guard-book",[]);
+  assertAccountingControlContext(tx,"guard-company","guard-book");
+  assert.throws(()=>assertAccountingControlContext(tx,"guard-company","other-book"));
+  assert.throws(()=>selectOpenChargePositions(tx,"guard-company","guard-book","customer",101));
+ });
+});
+
+test("the bounded open-item selector cannot read after any staged write",async()=>{
+ await assert.rejects(db.runTransaction(async raw=>{
+  const{tx}=accountingTransaction(raw,db,"guard-company","guard-book",[]);
+  tx.create(db.doc(`${b}/events/query-after-write`),{test:true});
+  await selectOpenChargePositions(tx,"guard-company","guard-book","customer");
+ }));
+ assert.equal((await db.doc(`${b}/events/query-after-write`).get()).exists,false);
+});
 test("cached reads still reject reads after the first write",async()=>{
  await assert.rejects(db.runTransaction(async t=>{const{tx}=accountingTransaction(t,db,"guard-company","guard-book",[]);
   await tx.get(db.doc(b));tx.create(db.doc(`${b}/events/never-committed`),{test:true});await tx.get(db.doc(b));}));
@@ -25,7 +46,7 @@ test("undeclared business writes, cross-company manifests and deletion are denie
 });
 test("write and per-document byte budgets abort the whole attempt",async()=>{
  await assert.rejects(db.runTransaction(async t=>{const{tx}=accountingTransaction(t,db,"guard-company","guard-book",[]);
-  for(let i=0;i<401;i++)tx.create(db.doc(`${b}/events/write-${i}`),{index:i});}));
+  for(let i=0;i<481;i++)tx.create(db.doc(`${b}/events/write-${i}`),{index:i});}));
  assert.equal((await db.doc(`${b}/events/write-0`).get()).exists,false);
  await assert.rejects(db.runTransaction(async t=>{const{tx}=accountingTransaction(t,db,"guard-company","guard-book",[]);
   tx.create(db.doc(`${b}/events/oversized`),{data:"x".repeat(512*1024)});}));

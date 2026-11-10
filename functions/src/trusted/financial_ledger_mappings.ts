@@ -6,6 +6,7 @@ export type {
   SettlementMonetaryPolicy,
 } from "./settlement_journal_intent";
 import {roundMoney} from "./common";
+import {compatibleExactNumber} from "./cash_ledger_exact";
 import {
   buildFinancialLedgerEntry,
   cashAccount,
@@ -422,6 +423,18 @@ export interface CustomerOpeningLedgerMappingInput {
   salesRepId: string;
   salesRepName: string;
   notes: string;
+}
+
+/** Exact-only sentinels force a reader upgrade; they never substitute zero. */
+export function buildExactSettlementLedgerProjection(input: Omit<SettlementLedgerMappingInput, "amount"> & {amountUnits: string; currency: string; moneyScale: number}): DocumentData {
+  const numeric = compatibleExactNumber(BigInt(input.amountUnits), input.moneyScale);
+  if (numeric !== null && input.moneyScale === 3) return {...buildSettlementFinancialLedgerEntry({...input, amount: numeric}), amountUnits: input.amountUnits, currency: input.currency, moneyScale: input.moneyScale};
+  return {id: `settlement_${input.settlementId}_transfer`, schemaVersion: 4, companyId: input.companyId, type: "settlement", component: "rep_to_company_cash",
+    amount: null, amountUnits: input.amountUnits, currency: input.currency, moneyScale: input.moneyScale, reportStatus: "exact_reader_required",
+    occurredAt: input.settlementDate, sourceCollection: "settlements", sourceId: input.settlementId,
+    sourcePath: `companies/${input.companyId}/settlements/${input.settlementId}`, referenceId: input.settlementId, referenceNumber: input.settlementNumber,
+    debitAccountKey: companyCashAccount().key, creditAccountKey: repCashAccount(input.salesRepId, input.salesRepName).key,
+    salesRepId: input.salesRepId, salesRepName: input.salesRepName, notes: input.notes};
 }
 
 export function buildCustomerOpeningFinancialLedgerEntry(

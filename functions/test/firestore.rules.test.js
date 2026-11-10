@@ -2611,6 +2611,7 @@ test("pending accounting configuration and financial targets remain inaccessible
     `${root}/configuration_revisions/revision_1`, `${root}/configuration_requests/candidate`,
     `${root}/chart_accounts/candidate`, `${root}/account_codes/candidate`, `${root}/account_mappings/revision_1`, `${root}/periods/candidate`,
     `${root}/synthetic_openings/candidate`, `${root}/journal_definitions/candidate`,
+    `${root}/open_items/candidate`, `${root}/open_item_positions/candidate`, `${root}/party_positions/candidate`, `${root}/allocations/candidate`, `${root}/event_effect_chunks/candidate`,
     `${root}/journal_entries/candidate`, `${root}/events/candidate`, `${root}/request_keys/candidate`,
     `${root}/audit_events/candidate`, `${root}/outbox/candidate`, `${root}/posting_contracts/settlement-v1`,
     `${root}/posting_lanes/lane_00`];
@@ -2627,5 +2628,18 @@ test("pending accounting configuration and financial targets remain inaccessible
       await assertFails(updateDoc(ref, {approved: true}));
       await assertFails(deleteDoc(ref));
     }
+  }
+});
+
+test("native quantity fields stay server-owned while cost-free reference-price edits remain allowed", async () => {
+  await testEnvironment.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), "items", "native-quantity-item"), {id: "native-quantity-item", companyId, name: "Native quantity", code: "NATIVE", unit: "piece",
+      price: 5, taxRate: 0, active: true, deleted: false, minStock: 0, trackStock: true, currentStock: 3, currentStockUnits: "3000000",
+      stockBookId: "native-book", stockQuantityScale: 6, stockSequence: 1, stockHeadEventId: "event-pinned"});
+  });
+  const ref = doc(authenticatedDb(adminUid), "items", "native-quantity-item");
+  await assertSucceeds(updateDoc(ref, {price: 7.5, updatedAt: serverTimestamp()}));
+  for (const patch of [{currentStockUnits: "9000000"}, {stockHeadEventId: "forged"}, {stockQuantityScale: 3}, {stockSequence: 2}, {unit: "box"}]) {
+    await assertFails(updateDoc(ref, {...patch, updatedAt: serverTimestamp()}));
   }
 });

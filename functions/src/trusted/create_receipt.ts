@@ -1,4 +1,5 @@
 import {customerAssignedTo, customerAssigneeUid} from "./customer_assignment";
+export {prepareCustomerReceipt, prepareCustomerCreditApplication} from "./customer_open_items";
 import {
   FieldPath,
   FieldValue,

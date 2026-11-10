@@ -176,8 +176,11 @@ npm --prefix functions run test:accounting-posting
 npm --prefix functions run test:accounting-configuration
 ```
 
-Phase 2E is next: shared customer open-item/allocation, treasury and quantity-only
-inventory controls. Phase 2F supplies domain-aware corrections and period
+[Phase 2E is implemented locally](phase2e-subledger-treasury-quantity-controls.md):
+shared customer open-item/allocation, native exact treasury and quantity-only
+inventory controls. It replaces the settlement numeric bridge and raises the
+write budget to 480 for verified 100-line transfers; the limits above describe
+the original 2D implementation. Phase 2F supplies domain-aware corrections and period
 close/reopen commands. Phase 2G supplies report/reconciliation acceptance. There
 is no general manual control-account journal, generic reversal, importer,
 valuation/COGS or production activation in this implementation.

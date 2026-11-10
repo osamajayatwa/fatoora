@@ -1,4 +1,5 @@
 import {FieldValue, Firestore, getFirestore} from "firebase-admin/firestore";
+export {prepareExactInventoryChanges, exactStockMovementId} from "./inventory_controls";
 import {HttpsError, onCall} from "firebase-functions/v2/https";
 import {
   DEFAULT_COMPANY_ID,

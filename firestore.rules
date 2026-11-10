@@ -404,8 +404,11 @@ service cloud.firestore {
         && data.minStock is number
         && data.minStock >= 0
         && data.trackStock is bool
-        && data.costPrice is number
-        && data.costPrice >= 0
+        && (data.get('costPrice', null) == null
+          || (data.costPrice is number && data.costPrice >= 0))
+        && (resource.data.get('stockBookId', '') == ''
+          || (!changed.hasAny(['unit'])
+            && resource.data.get('companyId', '') == profileCompany(user())))
         && data.deleted is bool
         && data.updatedAt == request.time;
     }

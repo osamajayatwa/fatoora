@@ -7,6 +7,7 @@ import {
 } from "firebase-admin/firestore";
 import {HttpsError} from "firebase-functions/v2/https";
 import {roundMoney} from "./common";
+export {readExactCashPosition, prepareExactCashChange, compatibleExactNumber} from "./cash_ledger_exact";
 
 export type CashAccount = "company_cash" | "rep_cash";
 

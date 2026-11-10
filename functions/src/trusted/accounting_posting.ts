@@ -5,7 +5,10 @@ import {AccountingConfiguration, accountingConfigurationReadiness, configuration
 import {AccountingJournal, AccountingTime, JournalAccount, accountingCanonical, accountingDigest, accountingEventId, accountingHash,
   accountingLocalDate, accountingNeed, accountingSame, accountingTime, validateAccountingJournal} from "./accounting_journal";
 import {AccountingEmulatorOptions, accountingRecord, accountingTransaction, assertAccountingEmulator, immutableAccountingRecord} from "./accounting_transaction";
-import {parseUnits} from "./exact_decimal";
+import {accountingDomainWitness, prepareEffectManifest, readAccountingEffects} from "./accounting_effects";
+import {AccountingControlEffect, AccountingStockEffect, verifyAccountingControls} from "./accounting_controls";
+import {ACCOUNTING_CONTROL_COLLECTIONS} from "./accounting_transaction";
+export {accountingDomainWitness} from "./accounting_effects";
 
 export interface AccountingCommand {
   companyId: string; bookId: string; requestId: string; expectedConfigurationDigest: string;
@@ -15,30 +18,36 @@ export interface AccountingPostingContext {
   companyId: string; bookId: string; actor: TrustedUser; configuration: AccountingConfiguration;
   configurationDigest: string; revisionId: string; accountingDate: string; periodId: string;
   definitionId: string; definitionRevisionId: string; allowedControls: string[];
+  source: AccountingJournal["source"]; businessTime: AccountingTime; eventId: string;
 }
 export interface AccountingDomainWrite {method: "create" | "set" | "update"; path: string; data: DocumentData; merge?: boolean}
 export interface AccountingPostingAdapter {
   definitionId: string; domainPaths: readonly string[];
+  controlCollections?: readonly string[]; itemPaths?: readonly string[];
   prepare(tx: Transaction, db: Firestore, context: AccountingPostingContext): Promise<{
-    journal: AccountingJournal; writes(binding: DocumentData): AccountingDomainWrite[];
+    journal: AccountingJournal | null; controlEffects?: AccountingControlEffect[]; stockEffects?: AccountingStockEffect[];
+    writes(binding: DocumentData): AccountingDomainWrite[];
   }>;
 }
 export interface AccountingPostingResult {
-  schemaVersion: 1; companyId: string; bookId: string; eventId: string; journalId: string;
+  schemaVersion: 1; companyId: string; bookId: string; eventId: string; journalId: string | null;
   sourceId: string; sourceType: string; laneId: string; laneSequence: number;
-  economicDigest: string; journalDigest: string; configurationDigest: string;
+  economicDigest: string; journalDigest: string | null; configurationDigest: string;
 }
 type Decision = {result: AccountingPostingResult; alreadyPosted: boolean};
 const GENESIS = "0".repeat(64);
 const ENVIRONMENT = "synthetic_emulator_only";
-const immutableCollections = ["journal_entries", "events", "source_keys", "request_keys", "audit_events", "outbox", "posting_contracts"];
+const immutableCollections = ["journal_entries", "events", "source_keys", "request_keys", "audit_events", "outbox", "posting_contracts", "event_effect_chunks"];
+function freezeEvidence<T>(value: T): T {
+  if (value && typeof value === "object") {for (const child of Object.values(value)) freezeEvidence(child);Object.freeze(value);}return value;
+}
 
 function normalize(command: AccountingCommand): AccountingCommand {
   for (const key of ["companyId", "bookId", "requestId"] as const) configurationId(command[key], key);
   accountingHash(command.expectedConfigurationDigest);accountingTime(command.businessTime);
   accountingNeed(command.source.system === "fatoora", "Unsupported source system.", "invalid-argument");
   for (const key of ["type", "id", "revision", "action"] as const) configurationId(command.source[key], `source.${key}`);
-  return JSON.parse(accountingCanonical(command)) as AccountingCommand;
+  return freezeEvidence(JSON.parse(accountingCanonical(command))) as AccountingCommand;
 }
 function semanticDigest(c: AccountingCommand): string {
   const {requestId: _request, ...economic} = c;return accountingDigest(economic);
@@ -57,22 +66,6 @@ function untouched(snapshot: DocumentSnapshot): void {
 }
 function atOrBefore(a: Timestamp, b: Timestamp): boolean {
   return a.seconds < b.seconds || a.seconds === b.seconds && a.nanoseconds <= b.nanoseconds;
-}
-
-/** Same canonical witness for queued legacy writes and committed immutable effects. */
-export function accountingDomainWitness(data: DocumentData): DocumentData {
-  function convert(v: unknown, key: string): unknown {
-    if (["createdAt", "updatedAt", "postedAt"].includes(key)) return undefined;
-    if (v instanceof Timestamp) return {seconds: v.seconds, nanoseconds: v.nanoseconds};
-    if (["amount", "balanceBefore", "balanceAfter"].includes(key) || key.startsWith("metric")) {
-      accountingNeed(typeof v === "number" && Number.isFinite(v), "Legacy money evidence is invalid.");
-      return parseUnits(String(v), 3).toString();
-    }
-    if (Array.isArray(v)) return v.map(x => convert(x, ""));
-    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, convert(x, k)]).filter(([, x]) => x !== undefined));
-    return v;
-  }
-  return JSON.parse(accountingCanonical(convert(data, ""))) as DocumentData;
 }
 
 export async function postAccountingTransaction(db: Firestore, uid: string | undefined, command: AccountingCommand,
@@ -99,7 +92,8 @@ export async function recoverAccountingTransaction(db: Firestore, uid: string | 
 
 async function prepare(transaction: Transaction, db: Firestore, uid: string | undefined, c: AccountingCommand,
   adapter: AccountingPostingAdapter, recoveryOnly: boolean): Promise<Decision> {
-  const {tx} = accountingTransaction(transaction, db, c.companyId, c.bookId, adapter.domainPaths);
+  accountingNeed((adapter.controlCollections ?? []).every(v => ACCOUNTING_CONTROL_COLLECTIONS.includes(v)), "Unsupported subledger collection declaration.");
+  const {tx} = accountingTransaction(transaction, db, c.companyId, c.bookId, adapter.domainPaths, [], adapter.itemPaths ?? []);
   const actor = await requireTrustedUser(tx, db, uid, c.companyId);
   if (actor.role !== "admin") throw new HttpsError("permission-denied", "Only administrators can post accounting settlements.");
   const p = pathsFor(c, actor.uid), digest = semanticDigest(c), requestDigest = accountingDigest(c);
@@ -135,7 +129,7 @@ async function prepare(transaction: Transaction, db: Firestore, uid: string | un
   accountingNeed(!lock.exists || lock.data()?.active === false, "Accounting posting is under maintenance.");
   for (const s of [revisionSnapshot, policySnapshot, mappingsSnapshot, definitionSnapshot]) {untouched(s);scope(s.data(), c.companyId, c.bookId);}
   for (const s of [revisionSnapshot, policySnapshot, mappingsSnapshot]) accountingSame(s.data()!.revisionId, revisionId, "Configuration revision identity");
-  const configuration = validateAccountingConfiguration(revisionSnapshot.data()!.configuration);
+  const configuration = freezeEvidence(validateAccountingConfiguration(revisionSnapshot.data()!.configuration));
   accountingSame(configurationDigest(configuration), c.expectedConfigurationDigest, "Pinned configuration digest");
   accountingSame(revisionSnapshot.data()!.configurationDigest, c.expectedConfigurationDigest, "Configuration revision digest");
   accountingNeed(accountingConfigurationReadiness(configuration).configurationComplete, "The configuration/evidence draft is incomplete.");
@@ -157,16 +151,20 @@ async function prepare(transaction: Transaction, db: Firestore, uid: string | un
   configurationId(definition.revisionId, "journalDefinitionRevisionId");
   const context: AccountingPostingContext = {companyId: c.companyId, bookId: c.bookId, actor, configuration,
     configurationDigest: c.expectedConfigurationDigest, revisionId, accountingDate, periodId: period.id,
-    definitionId: adapter.definitionId, definitionRevisionId: definition.revisionId, allowedControls: definition.allowedControls};
-  const plan = await adapter.prepare(tx, db, context), journal = validateAccountingJournal(plan.journal);
+    definitionId: adapter.definitionId, definitionRevisionId: definition.revisionId, allowedControls: definition.allowedControls,
+    source: c.source, businessTime: c.businessTime, eventId: p.id};
+  const plan = await adapter.prepare(tx, db, context), journal = plan.journal === null ? null : validateAccountingJournal(plan.journal);
+  accountingNeed(journal ? (definition.postingKind ?? "financial") === "financial" : definition.postingKind === "quantity", "The journal definition does not authorize this event kind.");
+  if (journal) {
   accountingSame(journal.source, c.source, "Journal source");
   for (const key of ["companyId", "bookId", "currency", "moneyScale", "accountingDate", "periodId", "configurationDigest"] as const) {
     accountingSame(journal[key], key === "currency" || key === "moneyScale" ? configuration[key] : context[key], `Journal ${key}`);
   }
   accountingSame(journal.journalDefinitionId, adapter.definitionId, "Journal definition");
   accountingSame(journal.journalDefinitionRevisionId, definition.revisionId, "Journal definition revision");
-  const accounts = [...new Map(journal.lines.map(l => [l.account.id, l.account])).values()];
-  const accountSnapshots = await tx.getAll(...accounts.map(a => db.doc(`${p.b}/chart_accounts/${a.id}`)));
+  }
+  const accounts = [...new Map((journal?.lines ?? []).map(l => [l.account.id, l.account])).values()];
+  const accountSnapshots = accounts.length ? await tx.getAll(...accounts.map(a => db.doc(`${p.b}/chart_accounts/${a.id}`))) : [];
   for (let i = 0; i < accounts.length; i++) {
     const a = accounts[i], projected = accountSnapshots[i].data(), configured = configuration.accounts.find(v => v.id === a.id);
     accountingNeed(configured && projected && context.allowedControls.includes(a.control), "A journal uses an unconfigured or disallowed control account.");
@@ -196,27 +194,34 @@ async function prepare(transaction: Transaction, db: Firestore, uid: string | un
     const {eventHash, ...base} = previousData;accountingSame(accountingDigest(base), eventHash, "Previous event hash");accountingSame(eventHash, previousEventHash, "Lane head hash");
     accountingSame(previousData.contractDigest, contractDigest, "Lane contract");laneSequence = lane.sequence + 1;
   }
-  const journalDigest = accountingDigest(journal);
+  const journalDigest = journal ? accountingDigest(journal) : null;
   const result: AccountingPostingResult = {schemaVersion: 1, companyId: c.companyId, bookId: c.bookId, eventId: p.id,
-    journalId: p.id, sourceId: c.source.id, sourceType: c.source.type, laneId, laneSequence,
+    journalId: journal ? p.id : null, sourceId: c.source.id, sourceType: c.source.type, laneId, laneSequence,
     economicDigest: digest, journalDigest, configurationDigest: c.expectedConfigurationDigest};
   const binding = {...result, engine: "foundation-v1", environment: ENVIRONMENT};
   const writes = plan.writes(binding);
-  accountingNeed(writes.length > 0 && writes.length <= 100 && new Set(writes.map(w => w.path)).size === writes.length, "A bounded, unique domain effect plan is required.");
-  accountingNeed(writes.every(w => adapter.domainPaths.includes(w.path) && ["create", "set", "update"].includes(w.method)) && writes.some(w => w.path === `companies/${c.companyId}/${c.source.type}/${c.source.id}` && w.method === "create"), "Domain effects must include the immutable original source.");
+  accountingNeed(writes.length > 0 && writes.length <= 450 && new Set(writes.map(w => w.path)).size === writes.length, "A bounded, unique domain effect plan is required.");
+  const allowed = (path: string) => adapter.domainPaths.includes(path) || (adapter.itemPaths ?? []).includes(path) ||
+    path.startsWith(`${p.b}/`) && path.slice(p.b.length + 1).split("/").length === 2 && (adapter.controlCollections ?? []).includes(path.slice(p.b.length + 1).split("/")[0]);
+  accountingNeed(writes.every(w => allowed(w.path) && ["create", "set", "update"].includes(w.method)) && writes.some(w => w.path === `companies/${c.companyId}/${c.source.type}/${c.source.id}` && w.method === "create"), "Domain effects must include the immutable original source.");
+  for (const w of writes.filter(v => v.path.startsWith("items/"))) accountingNeed(w.data.companyId === c.companyId && w.method === "update", "Catalog quantity updates require explicit company scope.");
   for (const w of writes) if (w.method === "create") accountingSame(w.data.accounting, binding, "Immutable domain accounting binding");
-  const effects = writes.map(w => ({path: w.path, immutable: w.method === "create", document: accountingDomainWitness(w.data)}));
+  await verifyAccountingControls(tx, db, context, journal, writes, plan.controlEffects ?? [], plan.stockEffects ?? []);
+  const effects = writes.map(w => ({path: w.path, immutable: w.method === "create" && !["open_item_positions", "party_positions"].some(k => w.path.startsWith(`${p.b}/${k}/`)), document: accountingDomainWitness(w.data)}));
+  const manifest = prepareEffectManifest(c.companyId, c.bookId, p.id, effects);
+  if (manifest.records.length) accountingNeed((await tx.getAll(...manifest.records.map(r => db.doc(r.path)))).every(s => !s.exists), "Atomic effect chunk collision.", "data-loss");
   const baseEvent = {...binding, actor: {uid: actor.uid, name: actor.name, role: actor.role}, source: c.source,
     businessTime: c.businessTime, accountingDate, periodId: period.id, configurationRevisionId: revisionId, journalDefinition: definition,
-    semantic: c.semantic, originalRequestPath: p.request, requestDigest, contractDigest, effects,
+    semantic: c.semantic, originalRequestPath: p.request, requestDigest, contractDigest, effects: manifest.effects, effectChunks: manifest.effectChunks,
+    controlEffects: plan.controlEffects ?? [], stockEffects: plan.stockEffects ?? [], itemPaths: adapter.itemPaths ?? [],
     lane: {id: laneId, sequence: laneSequence, previousEventId, previousEventHash}};
   const event = {...baseEvent, eventHash: accountingDigest(baseEvent)};
   const scopeFields = {schemaVersion: 1, environment: ENVIRONMENT, companyId: c.companyId, bookId: c.bookId, eventId: p.id};
-  const artifacts: [string, DocumentData][] = [[p.journal, {...scopeFields, journal, journalDigest}], [p.event, event],
+  const artifacts: [string, DocumentData][] = [...(journal ? [[p.journal, {...scopeFields, journal, journalDigest}] as [string, DocumentData]] : []), [p.event, event],
     [p.source, {...scopeFields, economicDigest: digest, originalRequestPath: p.request, result}],
     [p.request, {...scopeFields, actorUid: actor.uid, requestId: c.requestId, requestDigest, aliasOf: null, result}],
     [p.audit, {...scopeFields, action: "accounting_posted", actorUid: actor.uid, journalDigest, economicDigest: digest, eventHash: event.eventHash}],
-    [p.outbox, {...scopeFields, projectionIntent: "project_canonical_journal", journalDigest, eventHash: event.eventHash}]];
+    [p.outbox, {...scopeFields, projectionIntent: journal ? "project_canonical_journal" : "project_quantity_event", journalDigest, eventHash: event.eventHash}]];
   for (const [, data] of artifacts) accountingRecord(data);
   // All reads are complete. Domain and accounting effects share this SDK commit.
   for (const w of writes) {
@@ -226,6 +231,7 @@ async function prepare(transaction: Transaction, db: Firestore, uid: string | un
     else tx.set(ref, w.data, {merge: w.merge === true});
   }
   for (const [path, data] of artifacts) tx.create(db.doc(path), accountingRecord(data));
+  for (const record of manifest.records) tx.create(db.doc(record.path), accountingRecord(record.data));
   if (!seal.exists) {tx.create(db.doc(p.contract), accountingRecord({schemaVersion: 1, environment: ENVIRONMENT, companyId: c.companyId, bookId: c.bookId, contract}));tx.update(db.doc(p.b), {foundationPostingContractDigest: contractDigest});}
   for (const s of accountSnapshots) if (s.data()!.used !== true) tx.update(s.ref, {used: true});
   if (periodData.used !== true) tx.update(periodSnapshot.ref, {used: true});
@@ -241,10 +247,13 @@ async function recover(tx: Transaction, db: Firestore, c: AccountingCommand, p: 
   const paths = [p.journal, p.event, p.audit, p.outbox, source.originalRequestPath];
   accountingNeed(typeof source.originalRequestPath === "string" && source.originalRequestPath.startsWith(`${p.b}/request_keys/`), "Original request reference is invalid.", "data-loss");
   const snapshots = await tx.getAll(...paths.map(path => db.doc(path))), [journalSnapshot, eventSnapshot, auditSnapshot, outboxSnapshot, originalRequest] = snapshots;
-  const [j, event, audit, outbox, request] = snapshots.map(immutableAccountingRecord), commit = eventSnapshot.createTime!;
-  for (const s of [sourceKey, journalSnapshot, auditSnapshot, outboxSnapshot, originalRequest]) accountingNeed(s.createTime!.isEqual(commit), "Financial artifacts were not created atomically.", "data-loss");
-  for (const d of [j, event, audit, outbox, request]) {scope(d, c.companyId, c.bookId);accountingNeed(d.eventId === p.id && d.environment === ENVIRONMENT, "Accounting artifact identity is invalid.", "data-loss");}
-  const journal = validateAccountingJournal(j.journal), journalDigest = accountingDigest(journal);
+  const [event, audit, outbox, request] = [eventSnapshot, auditSnapshot, outboxSnapshot, originalRequest].map(immutableAccountingRecord), commit = eventSnapshot.createTime!;
+  const hasJournal = source.result.journalId !== null;
+  accountingNeed(hasJournal ? journalSnapshot.exists : !journalSnapshot.exists && event.journalDefinition.postingKind === "quantity", "Committed journal presence is inconsistent.", "data-loss");
+  const j = hasJournal ? immutableAccountingRecord(journalSnapshot) : null;
+  for (const s of [sourceKey, ...(hasJournal ? [journalSnapshot] : []), auditSnapshot, outboxSnapshot, originalRequest]) accountingNeed(s.createTime!.isEqual(commit), "Financial artifacts were not created atomically.", "data-loss");
+  for (const d of [...(j ? [j] : []), event, audit, outbox, request]) {scope(d, c.companyId, c.bookId);accountingNeed(d.eventId === p.id && d.environment === ENVIRONMENT, "Accounting artifact identity is invalid.", "data-loss");}
+  const journal = j ? validateAccountingJournal(j.journal) : null, journalDigest = journal ? accountingDigest(journal) : null;
   const configurationRevisionId = configurationId(event.configurationRevisionId, "committed configuration revision");
   const configurationSnapshot = await tx.get(db.doc(`${p.b}/configuration_revisions/${configurationRevisionId}`));untouched(configurationSnapshot);
   accountingNeed(atOrBefore(configurationSnapshot.createTime!, commit), "Original configuration was recreated after the event.", "data-loss");
@@ -252,19 +261,21 @@ async function recover(tx: Transaction, db: Firestore, c: AccountingCommand, p: 
   const originalConfiguration = validateAccountingConfiguration(configurationSnapshot.data()!.configuration);
   accountingSame(configurationDigest(originalConfiguration), c.expectedConfigurationDigest, "Original configuration evidence");
   accountingSame(configurationSnapshot.data()!.configurationDigest, c.expectedConfigurationDigest, "Original configuration witness");
+  if (journal) {
   accountingSame(journal.journalDefinitionRevisionId, event.journalDefinition.revisionId, "Original journal definition revision");
   accountingSame(journal.source, c.source, "Recovered source");accountingSame(journal.configurationDigest, c.expectedConfigurationDigest, "Recovered configuration");
+  }
   accountingSame(event.semantic, c.semantic, "Recovered economic input");accountingSame(event.businessTime, c.businessTime, "Recovered business time");
   accountingSame(event.accountingDate, accountingLocalDate(c.businessTime), "Recovered accounting date");
   const {eventHash, ...base} = event;accountingSame(accountingDigest(base), eventHash, "Committed event hash");
-  accountingSame(j.journalDigest, journalDigest, "Committed journal digest");accountingSame(event.journalDigest, journalDigest, "Event journal digest");
+  if (j) accountingSame(j.journalDigest, journalDigest, "Committed journal digest");accountingSame(event.journalDigest, journalDigest, "Event journal digest");
   for (const d of [audit, outbox]) {accountingSame(d.journalDigest, journalDigest, "Artifact journal digest");accountingSame(d.eventHash, eventHash, "Artifact event hash");}
   const seal = await tx.get(db.doc(p.contract)), sealed = immutableAccountingRecord(seal);
   accountingNeed(atOrBefore(seal.createTime!, commit), "Posting contract was recreated after the event.", "data-loss");
   accountingSame(accountingDigest(sealed.contract), event.contractDigest, "Committed contract digest");
-  const effects = event.effects as {path: string; immutable: boolean; document: DocumentData}[];
-  accountingNeed(Array.isArray(effects) && effects.length > 0 && effects.length <= 100 && effects.some(e => e.path === `companies/${c.companyId}/${c.source.type}/${c.source.id}` && e.immutable), "Committed effect manifest is invalid.", "data-loss");
-  for (const e of effects) accountingNeed(typeof e.path === "string" && e.path.startsWith(`companies/${c.companyId}/`) && !immutableCollections.some(k => e.path.startsWith(`${p.b}/${k}/`)), "Committed domain path is invalid.", "data-loss");
+  const effects = await readAccountingEffects(tx, db, eventSnapshot, event);
+  accountingNeed(effects.length > 0 && effects.length <= 450 && effects.some(e => e.path === `companies/${c.companyId}/${c.source.type}/${c.source.id}` && e.immutable), "Committed effect manifest is invalid.", "data-loss");
+  for (const e of effects) accountingNeed(typeof e.path === "string" && (e.path.startsWith(`companies/${c.companyId}/`) || !e.immutable && (event.itemPaths ?? []).includes(e.path)) && !immutableCollections.some(k => e.path.startsWith(`${p.b}/${k}/`)), "Committed domain path is invalid.", "data-loss");
   const immutableEffects = effects.filter(e => e.immutable), documents = await tx.getAll(...immutableEffects.map(e => db.doc(e.path)));
   for (let i = 0; i < documents.length; i++) {
     const s = documents[i];untouched(s);accountingNeed(s.createTime!.isEqual(commit), "Domain effect did not commit with the journal.", "data-loss");
@@ -272,7 +283,7 @@ async function recover(tx: Transaction, db: Firestore, c: AccountingCommand, p: 
   }
   const result = source.result as AccountingPostingResult;
   accountingSame(request.result, result, "Original committed result");
-  accountingSame(result, {schemaVersion: 1, companyId: c.companyId, bookId: c.bookId, eventId: p.id, journalId: p.id,
+  accountingSame(result, {schemaVersion: 1, companyId: c.companyId, bookId: c.bookId, eventId: p.id, journalId: hasJournal ? p.id : null,
     sourceId: c.source.id, sourceType: c.source.type, laneId: event.lane.id, laneSequence: event.lane.sequence,
     economicDigest: digest, journalDigest, configurationDigest: c.expectedConfigurationDigest}, "Reconstructed committed result");
   return result;

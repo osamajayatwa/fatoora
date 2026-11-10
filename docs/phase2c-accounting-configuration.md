@@ -10,7 +10,7 @@ posting, opening balances, import or active-book switch is part of this change.
 |---|---|---|
 | 2C | Book/currency/scales, chart, mappings, fiscal periods, tax evidence and opening-boundary draft | Implemented locally; policy confirmation and deployment remain pending |
 | 2D | Reusable exact atomic posting engine; settlement as the first integrated example | [Implemented locally](phase2d-atomic-posting-engine.md); synthetic emulator acceptance only |
-| 2E | Customer open items/allocations, treasury and quantity-only inventory controls | Pending |
+| 2E | Customer open items/allocations, treasury and quantity-only inventory controls | [Implemented locally](phase2e-subledger-treasury-quantity-controls.md); synthetic emulator acceptance only |
 | 2F | Linked corrections/reversals and period close/reopen | Pending |
 | 2G | Minimal GL/TB reads, reconciliations and integrated foundation acceptance | Pending |
 

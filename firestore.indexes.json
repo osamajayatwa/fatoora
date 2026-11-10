@@ -1,5 +1,9 @@
 {
   "indexes": [
+    {"collectionGroup": "open_item_positions", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "customerId", "order": "ASCENDING"}, {"fieldPath": "kind", "order": "ASCENDING"}, {"fieldPath": "state", "order": "ASCENDING"},
+      {"fieldPath": "dueDate", "order": "ASCENDING"}, {"fieldPath": "originalDate", "order": "ASCENDING"}
+    ]},
     {
       "collectionGroup": "customers",
       "queryScope": "COLLECTION",
@@ -2621,6 +2625,9 @@
     }
   ],
   "fieldOverrides": [
+    {"collectionGroup": "event_effect_chunks", "fieldPath": "effects", "indexes": []},
+    {"collectionGroup": "events", "fieldPath": "controlEffects", "indexes": []},
+    {"collectionGroup": "events", "fieldPath": "stockEffects", "indexes": []},
     {"collectionGroup": "journal_entries", "fieldPath": "journal", "indexes": []},
     {"collectionGroup": "events", "fieldPath": "effects", "indexes": []},
     {"collectionGroup": "events", "fieldPath": "semantic", "indexes": []},
