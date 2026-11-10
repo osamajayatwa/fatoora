@@ -22,8 +22,8 @@ migration, opening-balance change, or historical ledger rewrite was performed.
 No applicable `AGENTS.md` was found in this repository or its ancestor paths.
 The initial working tree was clean. Existing architecture, trusted transactions,
 security rules, tests, report builders, and maintenance safeguards were reviewed
-before changes. `.audit_mutations.txt` contains older code references and was
-not treated as evidence of current behavior.
+before changes. A local `.audit_mutations.txt` artifact contained older code
+references and was not treated as evidence of current behavior.
 
 ## 1. Invoice lifecycle and the Jihad report
 

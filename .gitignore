@@ -21,11 +21,7 @@ functions/lib/
 *.ipr
 *.iws
 
-.vscode/*
-!.vscode/settings.json
-!.vscode/launch.json
-!.vscode/extensions.json
-!.vscode/tasks.json
+.vscode/
 
 # =========================
 # Dart / Flutter
@@ -146,3 +142,29 @@ app.*.map.json
 secrets/
 keys/
 credentials/
+
+# =========================
+# Local verification and review artifacts
+# =========================
+# Keep the intentionally versioned audit evidence linked by docs and tests.
+# All other output (including rendered builds and test runs) stays local.
+/output/*
+!/output/integrity-audit/
+!/output/pdf/
+/output/pdf/*
+!/output/pdf/arabic-audit-manifest.json
+!/output/pdf/arabic-glyph-audit.pdf
+!/output/pdf/arabic-render-verification.json
+!/output/pdf/arabic-review-cash.png
+!/output/pdf/arabic-review-invoice.png
+!/output/pdf/arabic-review-quotation.png
+!/output/pdf/arabic-review-receipt.png
+!/output/pdf/arabic-review-return.png
+!/output/pdf/arabic-review-statement.png
+!/output/pdf/hosting-deployment-verification.json
+/tmp/
+/.local/
+/.audit_mutations.txt
+*.bak
+*.orig
+*.rej
